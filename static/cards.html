@@ -143,8 +143,11 @@
   /* full-art fronts: the per-card art (static/cardart/index.json) covers the whole face;
      the standard art window becomes a clear spacer and name/stats ride on scrims */
   .mcd-front.has-fullart {
+    /* the art is always dark-ish: force a light palette on the front so the card's own
+       wording stays readable in EVERY theme (a light theme's dark text vanishes on art) */
+    --text: #f4f7fb; --muted: #b8c2d0; --accent: #ffb454; --accent-dim: #8a5a1a;
     background-image:
-      linear-gradient(180deg, rgba(6,7,10,.50) 0%, rgba(6,7,10,.16) 20%, rgba(6,7,10,.04) 42%, rgba(6,7,10,.28) 68%, rgba(6,7,10,.66) 100%),
+      linear-gradient(180deg, rgba(6,7,10,.54) 0%, rgba(6,7,10,.20) 20%, rgba(6,7,10,.06) 42%, rgba(6,7,10,.34) 68%, rgba(6,7,10,.72) 100%),
       var(--cf);
     background-size: 100% 100%, cover;
     background-position: center, center;
@@ -156,7 +159,7 @@
   .mcd-front.has-fullart .mcd-art > .mcd-type { color: color-mix(in srgb, white 82%, transparent); text-shadow: 0 1px 4px black, 0 0 10px rgba(0, 0, 0, .7); }
   .mcd-front.has-fullart .mcd-art > .mcd-pol { color: #fff; text-shadow: 0 2px 6px rgba(0, 0, 0, .9), 0 0 16px rgba(0, 0, 0, .85); }
   .mcd-front.has-fullart .mcd-art > .mcd-pol-name { color: color-mix(in srgb, white 76%, transparent); text-shadow: 0 1px 4px black; }
-  .mcd-front.has-fullart .mcd-body { background: linear-gradient(180deg, rgba(9,10,13,0) 0%, rgba(9,10,13,.30) 26%, rgba(9,10,13,.64) 100%); }
+  .mcd-front.has-fullart .mcd-body { background: linear-gradient(180deg, rgba(9,10,13,0) 0%, rgba(9,10,13,.42) 26%, rgba(9,10,13,.78) 100%); }
   .mcd-front.has-fullart .mcd-name { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
 
   /* rarity border band + tint */
@@ -227,7 +230,7 @@
     font: 9.5px/1.4 var(--sans); color: color-mix(in srgb, var(--text) 90%, transparent);
     text-align: center; white-space: pre-line; word-break: break-word;
     display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
-    background: rgba(8, 9, 12, .42); border: 1px solid rgba(255, 255, 255, .07);
+    background: rgba(8, 9, 12, .55); border: 1px solid rgba(255, 255, 255, .10);
     border-radius: 7px; padding: 4px 6px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
   }
@@ -331,25 +334,29 @@
     background: radial-gradient(circle at var(--sx, 50%) var(--sy, 50%), rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 58%);
     mix-blend-mode: screen;
   }
+  /* the lightroom is ALWAYS near-black, so the panel uses fixed light-on-dark colours —
+     theme vars would make a light theme's text invisible on the dark studio */
   .ins-info {
     position: relative; width: 330px; max-height: 84vh; overflow: auto;
-    background: rgba(13, 14, 17, .74);
-    border: 1px solid rgba(255, 255, 255, .07); border-radius: 14px; padding: 14px 16px 12px;
-    box-shadow: 0 20px 46px rgba(0, 0, 0, .6); color: var(--text);
+    background: rgba(16, 18, 23, .92);
+    border: 1px solid rgba(255, 255, 255, .13); border-radius: 14px; padding: 14px 16px 12px;
+    box-shadow: 0 20px 46px rgba(0, 0, 0, .6); color: #eef2f8;
     -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   }
   .ins-head { margin-bottom: 8px; }
-  .ins-name { font-size: 16px; font-weight: 700; color: var(--accent); line-height: 1.25; }
+  .ins-name { font-size: 16px; font-weight: 700; color: #ffd9a0; line-height: 1.25; }
   .ins-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-  .ins-chip { font: 10px var(--mono); color: var(--muted); border: 1px solid rgba(255, 255, 255, .09); border-radius: 7px; padding: 2px 7px; background: rgba(255, 255, 255, .04); }
-  .ins-stats { font-size: 12px; line-height: 1.5; color: var(--text); background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; padding: 7px 9px; margin: 8px 0; white-space: pre-line; }
-  .ins-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.9; border-bottom: 1px dashed rgba(255, 255, 255, .08); }
+  .ins-chip { font: 10px var(--mono); color: #c6cfdb; border: 1px solid rgba(255, 255, 255, .18); border-radius: 7px; padding: 2px 7px; background: rgba(255, 255, 255, .07); }
+  .ins-stats { font-size: 12.5px; line-height: 1.6; color: #f2f6fb; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); border-radius: 9px; padding: 8px 10px; margin: 8px 0; white-space: pre-line; }
+  .ins-info .mcd-grade { color: #d8e0ea; background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .14); }
+  .ins-info .mcd-grade b { color: #f2f6fb; }
+  .ins-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; line-height: 1.95; border-bottom: 1px dashed rgba(255, 255, 255, .18); }
   .ins-row:last-of-type { border-bottom: 0; }
-  .ins-lbl { color: var(--muted); }
-  .ins-val { color: var(--text); text-align: right; }
+  .ins-lbl { color: #bac4d2; }
+  .ins-val { color: #f4f8fd; font-weight: 600; text-align: right; }
   .ins-bar { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  .ins-bar .mcd-btn { padding: 8px 14px; background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .14); color: var(--text); }
-  .ins-bar .mcd-btn:hover { background: rgba(255, 255, 255, .12); }
+  .ins-bar .mcd-btn { padding: 8px 14px; background: rgba(255, 255, 255, .13); border-color: rgba(255, 255, 255, .32); color: #f2f6fb; }
+  .ins-bar .mcd-btn:hover { background: rgba(255, 255, 255, .18); }
   .ins-market { text-decoration: none; display: inline-flex; align-items: center; }
   @media (max-width: 880px) {
     .ins-body { flex-direction: column; gap: 16px; max-height: 92vh; overflow: auto; }
