@@ -475,6 +475,17 @@ def test_grid_never_flips_on_hover():
     assert "e.type === 'pointerup'" in js and 'elementFromPoint' in js
 
 
+def test_local_hi_res_set_backs_card_and_lookup_art():
+    """Art priority: the local 4x upscaled set (static/hi/index.json) beats the WFM CDN."""
+    cards = open(SCRIPT, encoding='utf-8').read()
+    look = open(os.path.join(REPO, 'static', 'lookup.js'), encoding='utf-8').read()
+    lookhtml = open(os.path.join(REPO, 'static', 'lookup.html'), encoding='utf-8').read()
+    assert "fetch('hi/index.json'" in cards and "fetch('/hi/index.json'" in look
+    assert "state.hi && state.hi[card.slug]" in cards and "'/hi/' + card.slug + '.webp'" in cards
+    assert "'/hi/' + it.slug + '.webp'" in look
+    assert 'max-width: min(92vw, 720px)' in lookhtml              # zoom shows the big render
+
+
 def test_interaction_never_reads_a_transformed_rect():
     """The jitter bug: hover math read its own transformed rect and oscillated."""
     js = open(SCRIPT, encoding='utf-8').read()

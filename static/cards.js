@@ -19,6 +19,7 @@
 
   var state = {
     all: [], map: Object.create(null), summary: null, notes: [], sources: null, url: '',
+    cardart: null, hi: null,                                       // art manifests (slug -> file)
     q: '', rarity: '', type: '', owned: true, missing: true, dupes: false,
     sort: 'owned', shown: 0, filtered: [], lastFocus: null
   };
@@ -121,6 +122,15 @@
         .then(function (r) { return r.ok ? r.json() : {}; })
         .then(function (map) { state.cardart = map || {}; render(); })
         .catch(function () { /* no full-art on disk — standard fronts */ });
+      // local hi-res set (static/hi/index.json: wiki art upscaled 4x on this PC) — when a
+      // slug is in it the card uses that file and never touches the WFM CDN for art
+      fetch('hi/index.json', { cache: 'no-cache' })
+        .then(function (r) { return r.ok ? r.json() : {}; })
+        .then(function (j) {
+          state.hi = (j && j.items) || {};
+          if (Object.keys(state.hi).length) { artState = 'probing'; render(); probeArt(); }
+        })
+        .catch(function () { /* no hi set — CDN icons as before */ });
       buildTypeOptions();
       buildRarityButtons();
       buildChips();
@@ -439,15 +449,24 @@
      instead of one per card. */
   var artState = 'probing';   // 'probing' | 'ok' | 'off'
 
+  /* art source for a card: the local hi-res set (static/hi/index.json) when the slug is in
+     it, else the warframe.market CDN icon */
+  function artSrc(card) {
+    if (!card) return null;
+    return (state.hi && state.hi[card.slug]) ? '/hi/' + card.slug + '.webp' : (card.icon || null);
+  }
+
   function addArt(art, card) {
-    if (!art || !card || !card.icon || art.querySelector('.mcd-art-img')) return;
+    if (!art || !card || art.querySelector('.mcd-art-img')) return;
+    var src = artSrc(card);
+    if (!src) return;
     var img = el('img', 'mcd-art-img');
     img.alt = '';
     img.loading = 'lazy';
     img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
     img.addEventListener('error', function () { img.remove(); art.classList.remove('has-art'); });
-    img.src = card.icon;
+    img.src = src;
     art.classList.add('has-art');
     art.appendChild(img);
   }
@@ -463,7 +482,7 @@
   function probeArt() {
     if (artState !== 'probing') return;
     var first = null;
-    for (var i = 0; i < state.all.length && !first; i++) { if (state.all[i].icon) first = state.all[i]; }
+    for (var i = 0; i < state.all.length && !first; i++) { if (artSrc(state.all[i])) first = state.all[i]; }
     if (!first) { artState = 'off'; return; }
     var probe = new Image();
     var done = false;
@@ -476,7 +495,7 @@
     probe.onload = function () { finish(!!probe.naturalWidth); };
     probe.onerror = function () { finish(false); };
     setTimeout(function () { finish(true); }, 4000);   // slow host: let the lazy <img>s try
-    probe.src = first.icon;
+    probe.src = artSrc(first);
   }
 
   // ---------- card ----------

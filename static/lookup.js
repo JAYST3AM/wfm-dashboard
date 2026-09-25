@@ -8,7 +8,8 @@
   var MAX = 30;                                         // max cards rendered
   var MARKET = 'https://warframe.market/items/';
 
-  var state = { items: [], map: Object.create(null), q: '', hasPrices: false, lastFocus: null };
+  var state = { items: [], map: Object.create(null), q: '', hasPrices: false, lastFocus: null,
+                hi: null };                                   // slug -> upscaled local art
   var imgState = 'probing';   // 'probing' | 'ok' | 'off' — can this network embed the image CDN?
 
   // ---------- helpers ----------
@@ -51,11 +52,15 @@
     return d;
   }
 
-  // image with thumb/icon downgrade -> letter avatar (never throws, never logs)
+  // image: local hi-res (this PC) > thumb/icon downgrade -> letter avatar (never throws)
+  function hiUrl(it) {
+    return (it && state.hi && state.hi[it.slug]) ? '/hi/' + it.slug + '.webp' : null;
+  }
   function image(it, big) {
-    var main = big ? (cdnUrl(it.icon) || cdnUrl(it.thumb)) : (cdnUrl(it.thumb) || cdnUrl(it.icon));
+    var local = hiUrl(it);
+    var main = local || (big ? (cdnUrl(it.icon) || cdnUrl(it.thumb)) : (cdnUrl(it.thumb) || cdnUrl(it.icon)));
     var alt = big ? cdnUrl(it.thumb) : cdnUrl(it.icon);
-    if (!main || imgState === 'off') return avatar(it, big);
+    if (!main || (imgState === 'off' && !local)) return avatar(it, big);
     var img = el('img', big ? 'lk-p-img' : 'lk-thumb');
     img.alt = it.name || it.slug || '';
     img.loading = big ? 'eager' : 'lazy';
@@ -117,9 +122,13 @@
       fetch('/api/items', { cache: 'no-cache' }).then(function (r) {
         if (!r.ok) throw new Error('api ' + r.status);
         return r.json();
-      }).catch(function () { return null; })   // page still works without prices
+      }).catch(function () { return null; }),   // page still works without prices
+      fetch('/hi/index.json', { cache: 'no-cache' }).then(function (r) {
+        return r.ok ? r.json() : null;
+      }).catch(function () { return null; })    // local 4x upscaled art — optional
     ]).then(function (res) {
       var cat = Array.isArray(res[0]) ? res[0] : [];
+      state.hi = (res[2] && res[2].items) || null;
       var prices = normalizeApi(res[1]);
       state.hasPrices = !!res[1];
       state.items = cat.map(function (c) {
