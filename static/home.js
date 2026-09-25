@@ -128,7 +128,7 @@
   /* Layer 2 - a short "why". Boilerplate price/liquidity/lane lines are skipped
      in favour of the first reason that says something about this item, and any
      bit that would repeat one already shown is dropped. */
-  const BOILER = /^(current market price|you sell |you historically sell|liquidity |no obvious baro)/i;
+  const BOILER = /^(current market price|you sell |you historically sell|liquidity |no obvious baro|\d+ stays in the)/i;
   const whyLine = (r) => {
     const bits = [];
     const rs = (r.reasons || []).filter((s) => typeof s === 'string' && s.trim());
@@ -348,11 +348,21 @@
     });
     const staleDays = (h && h.rules && h.rules.stale_refresh_days) || 7;
     if (count.hide) {
-      out.push({
-        kind: 'info',
-        t: plural(count.hide, 'listing is', 'listings are') + ' hidden while you are offline',
-        d: 'They go back up when you next play.'
-      });
+      /* right now every hide row is a PLANNED listing (nothing is posted yet), so
+         split the count rather than claiming live listings went offline */
+      const planned = actions.filter((a) => a && a.action === 'hide' &&
+        /not live yet|planned|not posted/i.test(String(a.reason || ''))).length;
+      const live = count.hide - planned;
+      const bits = [];
+      if (live) bits.push(plural(live, 'listing is', 'listings are') + ' hidden while you are offline');
+      if (planned) bits.push(plural(planned, 'planned listing is', 'planned listings are') + ' parked until posting goes live');
+      if (bits.length) {
+        out.push({
+          kind: 'info',
+          t: bits.join(' \u00b7 '),
+          d: live ? 'They go back up when you next play.' : 'Nothing is posted to the market yet - this is the dry-run plan.'
+        });
+      }
     }
     if (count.refresh) {
       out.push({
