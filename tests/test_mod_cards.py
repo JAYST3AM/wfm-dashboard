@@ -563,7 +563,7 @@ def test_baked_card_faces_and_the_art_probe_cannot_overwrite_them():
     assert '.mcd-front.has-fullart.art-baked::before { display: none; }' in html
     assert '.mcd-front.has-fullart.art-baked .mcd-name,' in html
     man = json.load(open(os.path.join(REPO, 'static', 'cardart', 'index.json'), encoding='utf-8'))
-    for slug in ('archon_continuity', 'archon_flow'):
+    for slug in ('archon_continuity', 'archon_flow', 'archon_intensify'):
         entry = man.get(slug)
         assert isinstance(entry, dict) and entry.get('baked') is True, slug
         assert str(entry.get('file', '')).endswith('.webp'), slug
