@@ -6,3 +6,6 @@ data/*
 scripts/trader/
 static/hi/
 tools/preview_frames/
+
+# regenerated from the local save (personal progress) - never commit
+static/collection_log.json

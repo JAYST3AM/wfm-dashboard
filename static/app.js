@@ -86,6 +86,29 @@ function applyHash() {
   }
 }
 
+/* first run: setup has not built any data yet - say exactly what to do instead of
+   showing empty cards (a fresh clone has no data/ at all; SUMMARY comes back empty) */
+function renderFirstRun() {
+  const el = document.getElementById('firstRun');
+  if (!el) return;
+  const s = SUMMARY || {};
+  const empty = !s.lastdata_mtime || !s.items;
+  el.classList.toggle('hidden', !empty);
+  if (!empty) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="card-head"><div class="card-title">First run - no data yet</div></div>
+    <div class="picks">
+      <div class="picks-note"><b>Windows:</b> double-click <code>setup.bat</code> in the project folder.
+        It installs the one dependency, reads your AlecaFrame inventory and fetches prices
+        (20-40 minutes, resumable — stop it any time and run it again).</div>
+      <div class="picks-note"><b>Any platform / manual:</b> <code>pip install cryptography</code> then
+        <code>python scripts/setup.py</code>.</div>
+      <div class="picks-note"><b>Needs:</b> Warframe + <a class="movedlink" href="https://alecaframe.com" target="_blank" rel="noopener">AlecaFrame</a>
+        installed and synced once (open the game after installing it).</div>
+      <div class="picks-note dim">Once setup finishes, press <b>Refresh</b> in the header — this banner disappears when data lands.</div>
+    </div>`;
+}
+
 /* ---------- home ---------- */
 function renderKpis() {
   const s = SUMMARY || {}, ph = PLAT || {};
@@ -635,6 +658,7 @@ async function load() {
     .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); }));
   renderChips(); renderTabs(); renderTable();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
+  renderFirstRun();
   if (window.wfmRenderHome) wfmRenderHome();
   renderMarket(); renderLimits(); renderSessions(); renderDiff(); renderKill(); renderTiming(); renderPlatLedger(); loadAutoRefresh();
   PlatChart.setData(ph.points || []);

@@ -1,0 +1,2 @@
+# Batch files must keep CRLF line endings on every platform and in CI.
+*.bat text eol=crlf

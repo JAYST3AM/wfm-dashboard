@@ -36,16 +36,37 @@ set: anything niche lives behind a disclosure or in Advanced trading, and one sh
 
 ## Install
 
+**Windows, quickest path:** double-click **`setup.bat`** once. It finds Python, installs the one
+dependency, checks AlecaFrame, builds the data (20-40 minutes the first time — resumable, stop it
+any time) and opens the dashboard. Later, **`refresh.bat`** re-prices everything in a few minutes.
+
+Manual / any platform:
+
 ```bash
 pip install cryptography   # only for the inventory side: it decrypts AlecaFrame's local cache
-python scripts/setup.py    # first run: read AlecaFrame, build the inventory, fetch prices (~20-30 min)
+python scripts/setup.py    # first run: read AlecaFrame, build ALL the data (~20-40 min)
 start.bat                  # or: python server.py
 ```
 
 Open **http://127.0.0.1:8787**
 
-The server, the UI and the market scripts are stdlib-only Python 3.11+. `cryptography` is the one
-package, and only AlecaFrame's save needs it. `stop.bat` kills the process on port 8787.
+**What you need first:** Warframe on this PC + [AlecaFrame](https://alecaframe.com) installed and
+synced once (open the game after installing it). `setup.py` tells you exactly what to do if the
+AlecaFrame cache is not found yet.
+
+The server, the UI and the market scripts are stdlib-only Python 3.11+ (3.14 works). `cryptography`
+is the one package, and only AlecaFrame's save needs it. `stop.bat` kills the process on port 8787.
+
+**Keeping it running / fresh:**
+
+- `refresh.bat` — re-fetch prices/stats/rank lanes and rebuild the derived data (couple of minutes,
+  resumable). The dashboard also has a **Refresh** button, which reloads the page's data only.
+- `supervise.bat` — keeps the server alive: starts it, restarts it if it exits, restarts it when the
+  health check fails. Put a shortcut to it in your Startup folder (Win+R → `shell:startup`) to have
+  the dashboard up on every login. If something is already serving the port it just watches.
+- Schedule `scripts/snapshot_plat.py` every 15 minutes if you want the platinum chart to keep building
+  history continuously, and `scripts/watch_save.py` if you want the inventory to re-sync itself when
+  AlecaFrame rewrites the game save.
 
 Optional: copy `secrets.example.json` → `secrets.json` and run `python scripts/wfm_check.py` to sign
 in once and confirm your warframe.market session (needed only by the order-touching scripts).
@@ -221,13 +242,18 @@ it on Python 3.11 (`.github/workflows/tests.yml`).
 
 - `server.py` — the whole HTTP server (stdlib): pages, `/api/*` payloads, refresh buttons, trader
   actions.
-- `static/` — the UI: `index.html` (Home / Inventory / Trade / More) plus `collection.html`,
-  `cards.html`, `settings.html` and the retired-lookup redirect stub, one `app.js`, one
-  `style.css`, one `theme.js` (30 palettes), one `chart.js`, the shared item drawer
+- `static/` — the UI: `index.html` (Home / Inventory / Trade / Collection / More) plus
+  `collection.html`, `cards.html`, `settings.html` and the retired-lookup redirect stub, one
+  `app.js`, one `style.css`, one `theme.js` (30 palettes), one `chart.js`, the shared item drawer
   (`drawer.js` / `drawer.css`) and the Home renderer (`home.js` / `home.css`). `lookup_items.json`
   is the offline item catalogue the drawer falls back to.
 - `scripts/` — the engines above; `tests/` — the public suite; `data/` — everything the app writes
   (gitignored); `secrets.json` — your warframe.market login (gitignored).
+- `setup.bat` / `refresh.bat` / `supervise.bat` — Windows entry points: one-time install, quick
+  re-price, keep-alive. `start.bat` / `stop.bat` — plain start / stop.
+- `tools/supervise.py` — the keep-alive behind `supervise.bat` (starts the server, restarts it when
+  it exits or stops answering; watches instead of double-serving if the port is already taken).
+  Offline checks: `python tools/supervise.py --selftest`.
 - `tools/make_preview.py` — rebuilds `assets/preview.gif` and the page screenshots from a running
   dashboard (headless Chrome via puppeteer-core; ffmpeg or Pillow for the assembly). Offline checks:
   `python tools/make_preview.py --selftest`.
