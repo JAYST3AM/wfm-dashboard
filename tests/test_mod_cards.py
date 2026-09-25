@@ -404,12 +404,37 @@ def test_js_can_find_the_build_on_this_machine():
 def test_js_renders_the_card_mechanics_the_page_promises():
     js = open(SCRIPT, encoding='utf-8').read()
     for token in ('rarityClass', "'r-'", 'is-prime', 'missing', 'mcd-dup', 'mcd-pips', 'flipped',
-                  'mcd-stats', 'mcd-pol', 'mcd-type', 'mcd-price', 'mcd-rank',
+                  'mcd-back-crest', 'mcd-pol', 'mcd-type', 'mcd-price', 'mcd-rank',
                   'floor ', 'med ', 'no local quote', 'not owned', '\u00d7'):
         assert token in js, token
     for polarity in ('madurai', 'vazarin', 'naramon', 'zenurik', 'unairu', 'penjaga', 'umbra',
                      'universal', 'aura'):
         assert polarity in js, polarity
+
+
+def test_back_is_crest_only_and_details_render_in_the_panel():
+    """Card spec: the physical back stays clean; every detail lives in the inspect panel."""
+    js = open(SCRIPT, encoding='utf-8').read()
+    for banned in ('mcd-stats', 'mcd-back-meta', 'mcd-back-name', 'mcd-back-slug', 'cardbacks/'):
+        assert banned not in js, banned                       # old back-info system fully gone
+    assert "mcd-back-crest" in js                             # backs carry the crest only
+    assert "I.info.appendChild(gradeLine(card))" in js        # grade reason moved to the panel
+    assert "ins-stats" in js and "stats_text" in js           # stat line + rows feed the panel
+    # full-art fronts: manifest-driven, front face, standard cards untouched
+    assert "cardart/index.json" in js
+    assert "has-fullart" in js and "'data-art'" in js and "state.cardart" in js
+    # foil is wired but disabled by default (Jay builds the selective-mask version himself)
+    assert 'HOLO_ENABLED = false' in js
+    assert 'foilFor' in js and 'FOILS' in js and 'mcd-foil' in js
+
+
+def test_interaction_never_reads_a_transformed_rect():
+    """The jitter bug: hover math read its own transformed rect and oscillated."""
+    js = open(SCRIPT, encoding='utf-8').read()
+    assert 'card._gr' in js                                   # grid reads the cached rect
+    assert 'stage.getBoundingClientRect()' in js              # viewer reads the stable stage
+    assert "tilt.getBoundingClientRect()" not in js           # never the tilted element itself
+    assert "ins.mode === 'settled'" in js                     # drag owns rotation after release
 
 
 def test_page_css_defines_every_state_the_js_sets():

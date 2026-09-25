@@ -116,11 +116,11 @@
       state.sources = res.json.sources || null;
       state.url = res.url;
       state.generated = res.json.generated_iso || res.json.generated || '';
-      // per-card back art manifest (static/cardbacks/index.json: slug -> file)
-      fetch('cardbacks/index.json', { cache: 'no-cache' })
+      // full-art manifest (static/cardart/index.json: slug -> file) — art renders on the FRONT
+      fetch('cardart/index.json', { cache: 'no-cache' })
         .then(function (r) { return r.ok ? r.json() : {}; })
-        .then(function (map) { state.cardbacks = map || {}; render(); })
-        .catch(function () { /* no art on disk — default back */ });
+        .then(function (map) { state.cardart = map || {}; render(); })
+        .catch(function () { /* no full-art on disk — standard fronts */ });
       buildTypeOptions();
       buildRarityButtons();
       buildChips();
@@ -520,6 +520,10 @@
   // ---------- holographic foil system (rendered ABOVE the art; never baked in) ----------
   // effect types: none | holo | prismatic | etched | legendary — intensity scales the layers
   var FOILS = { none: 0, holo: .38, prismatic: .52, etched: .64, legendary: .80 };
+  // Foil rendering is DISABLED by default while Jay builds the final selective-mask
+  // holo himself; the layer spans, type CSS, FOILS map and --mx/--my plumbing all stay
+  // wired so selective masking can reuse them. Flip to true to bring the effect back.
+  var HOLO_ENABLED = false;
   function foilFor(card) {
     if (isFoil(card)) return card.rarity === 'Legendary' ? 'legendary' : 'etched';
     if (card.rarity === 'Rare') return 'prismatic';
@@ -542,8 +546,8 @@
     node.type = 'button';
     node.setAttribute('role', 'listitem');
     node.setAttribute('data-slug', card.slug);
-    // foil: rarity picks the effect, intensity rides --foil-i into the CSS layers
-    var foil = foilFor(card);
+    // foil: rarity picks the effect (off for now — see HOLO_ENABLED above)
+    var foil = HOLO_ENABLED ? foilFor(card) : 'none';
     node.setAttribute('data-foil', foil);
     node.style.setProperty('--foil-i', String(FOILS[foil] || 0));
     node.style.setProperty('--mx', '50');
@@ -557,10 +561,16 @@
 
     var inner = el('div', 'mcd-inner');
 
-    // front
+    // front — full-art cards show the art across the whole face; name/stats stay on scrims
     var front = el('div', 'mcd-face mcd-front');
+    var fa = (state.cardart || {})[card.slug];
+    if (fa) {
+      front.classList.add('has-fullart');
+      front.style.setProperty('--cf', "url('/cardart/" + fa + "')");
+    }
+    node.setAttribute('data-art', fa ? 'full' : 'standard');
     var art = el('div', 'mcd-art');
-    if (artState === 'ok') addArt(art, card);
+    if (artState === 'ok' && !fa) addArt(art, card);   // full-art cards skip the icon fetch
     art.appendChild(el('span', 'mcd-type', card.type || 'mod'));
     if (!owned) art.appendChild(el('span', 'mcd-missing-flag', 'missing'));
     art.appendChild(el('span', 'mcd-pol', pol[0]));
@@ -578,34 +588,16 @@
     body.appendChild(priceLine(card));
     front.appendChild(body);
 
-    // back — per-card art when cardbacks/index.json has one for this slug
+    // back — clean collectible back (crest only); all card details live in the inspect panel
     var back = el('div', 'mcd-face mcd-back');
-    var cb = (state.cardbacks || {})[card.slug];
-    if (cb) {
-      back.classList.add('has-art');
-      back.style.setProperty('--cb', "url('/cardbacks/" + cb + "')");
-    }
-    back.appendChild(el('div', 'mcd-back-name', card.name));
-    back.appendChild(el('div', 'mcd-stats', card.stats_text || 'No stat line in the catalog for this mod.'));
-    back.appendChild(gradeLine(card));
-    var meta = el('div', 'mcd-back-meta');
-    var bits = [
-      (card.rarity || 'no rarity') + (isFoil(card) ? ' ★' : ''),
-      card.type || 'mod',
-      pol[1],
-      card.owned_copies + (card.owned_copies === 1 ? ' copy' : ' copies'),
-      card.owned_rank != null ? 'rank ' + card.owned_rank : 'rank unknown',
-      card.base_drain != null ? 'drain ' + card.base_drain : 'drain —',
-      card.max_rank != null ? 'max rank ' + card.max_rank : 'max rank —'
-    ];
-    bits.forEach(function (bit) {
-      meta.appendChild(el('div', null, bit));
-    });
-    if (card.floor != null || card.median != null) {
-      meta.appendChild(el('div', null, 'floor ' + fmt(card.floor) + 'p · med ' + fmt(card.median) + 'p'));
-    }
-    back.appendChild(meta);
-    back.appendChild(el('div', 'mcd-back-slug', card.slug));
+    var crest = el('div', 'mcd-back-crest');
+    var crestImg = el('img', null);
+    crestImg.src = '/favicon.png';
+    crestImg.alt = '';
+    crestImg.loading = 'lazy';
+    crest.appendChild(crestImg);
+    crest.appendChild(el('span', null, 'WFM Trader'));
+    back.appendChild(crest);
 
     addFoilLayers(front);
     addFoilLayers(back);
@@ -702,15 +694,19 @@
 
     ins = {
       wrap: wrap, bd: bd, holder: holder, tilt: tilt, sheen: sheen, glow: glow, info: info, bar: bar,
-      bigCard: null, rx: 0, ry: 0, tx: 0, ty: 0, tx2: 0, ty2: 0, zoom: 1.85, drag: null, moved: false, raf: 0, last: 0,
+      bigCard: null, rx: 0, ry: 0, tx: 0, ty: 0, tx2: 0, ty2: 0, zoom: 1.85, drag: null, moved: false,
+      raf: 0, last: 0, mode: 'idle',
     };
     bd.addEventListener('click', closeInspect);
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !ins.wrap.classList.contains('hidden')) closeInspect();
     });
 
-    // drag to rotate — targets are eased by tiltLoop (smooth, never snapping)
+    // ---- single unified rotation state: mode = idle | hover | drag | settled ----
+    // Hover math reads the STAGE rect (never transformed). Reading the card's own
+    // transformed rect made the tilt feed back into itself -> the left/right spazzing.
     tilt.addEventListener('pointerdown', function (e) {
+      ins.mode = 'drag';
       ins.drag = { x: e.clientX, y: e.clientY, tx: ins.tx, ty: ins.ty };
       ins.moved = false;
       tilt.classList.add('dragging');
@@ -718,7 +714,7 @@
       e.preventDefault();
     });
     tilt.addEventListener('pointermove', function (e) {
-      if (ins.drag) {
+      if (ins.drag) {                        // drag is the authoritative rotation input
         var dx = e.clientX - ins.drag.x;
         var dy = e.clientY - ins.drag.y;
         if (Math.abs(dx) + Math.abs(dy) > 6) ins.moved = true;
@@ -727,14 +723,20 @@
         ins.tx = Math.max(-30, Math.min(30, ins.drag.tx + dx * 0.26));
         return;
       }
+      if (ins.mode === 'settled') return;    // just dragged: hold the angle, hover stays out
       if (e.pointerType && e.pointerType !== 'mouse') return;
-      // hover (no drag): the card leans gently toward the cursor, max ~6.5deg
-      var r = tilt.getBoundingClientRect();
+      var r = stage.getBoundingClientRect(); // stable, untransformed reference
       ins.tx = Math.max(-6.5, Math.min(6.5, ((e.clientX - (r.left + r.width / 2)) / r.width) * 26));
       ins.ty = Math.max(-6.5, Math.min(6.5, -((e.clientY - (r.top + r.height / 2)) / r.height) * 26));
+      ins.mode = 'hover';
     });
-    tilt.addEventListener('pointerleave', function () { if (!ins.drag) { ins.tx = 0; ins.ty = 0; } });
-    function endDrag() { ins.drag = null; tilt.classList.remove('dragging'); }
+    tilt.addEventListener('pointerleave', function () {
+      if (ins.drag) return;
+      ins.mode = 'idle';                     // settle smoothly home; idle drift resumes
+      ins.tx = 0;
+      ins.ty = 0;
+    });
+    function endDrag() { ins.drag = null; ins.mode = 'settled'; tilt.classList.remove('dragging'); }
     tilt.addEventListener('pointerup', endDrag);
     tilt.addEventListener('pointercancel', endDrag);
     // a drag must not read as a click (clicks flip the card)
@@ -760,6 +762,7 @@
   function openInspect(card) {
     var I = ensureInspect();
     I.rx = 0; I.ry = 0; I.tx = 0; I.ty = 0; I.tx2 = 0; I.ty2 = 0;
+    I.mode = 'idle';
     I.zoom = 1.85;
     applyTilt();
 
@@ -786,6 +789,9 @@
     head.appendChild(chips);
     I.info.appendChild(head);
     if (card.stats_text) I.info.appendChild(el('div', 'ins-stats', card.stats_text));
+    // the grade/condition reason — moved here off the card back, so the panel is the
+    // single home for every card detail
+    I.info.appendChild(gradeLine(card));
 
     var pol = polarityOf(card);
     insRow('Type', card.type || '—');
@@ -856,6 +862,13 @@
     for (var i = 0; i < state.shown; i++) frag.appendChild(buildCard(state.filtered[i]));
     grid.textContent = '';
     grid.appendChild(frag);
+    // cache each card's untransformed rect (document space) for the hover-tilt math —
+    // measured now, before any tilt vars exist, so a read can never feed itself back
+    for (var c = 0; c < grid.children.length; c++) {
+      var gnode = grid.children[c];
+      var rr = gnode.getBoundingClientRect();
+      gnode._gr = { l: rr.left + window.scrollX, t: rr.top + window.scrollY, w: rr.width, h: rr.height };
+    }
   }
 
   function updateMeta() {
@@ -933,12 +946,21 @@
       var card = e.target && e.target.closest ? e.target.closest('.mcd-card') : null;
       if (card !== gTilt.card) { gReset(); gTilt.card = card; }
       if (!card) return;
-      var r = card.getBoundingClientRect();
-      gTilt.x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
-      gTilt.y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
+      // cached doc-space rect (measured at paint, before tilt) — a live read of a tilted
+      // card would feed the tilt back into itself and make the card jitter
+      var r = card._gr;
+      if (!r) {
+        var rr = card.getBoundingClientRect();
+        r = card._gr = { l: rr.left + window.scrollX, t: rr.top + window.scrollY, w: rr.width, h: rr.height };
+      }
+      gTilt.x = Math.max(0, Math.min(100, ((e.clientX + window.scrollX - r.l) / r.w) * 100));
+      gTilt.y = Math.max(0, Math.min(100, ((e.clientY + window.scrollY - r.t) / r.h) * 100));
       if (!gTilt.raf) gTilt.raf = requestAnimationFrame(gFlush);
     });
     gEl.addEventListener('pointerleave', gReset);
+    window.addEventListener('resize', function () {
+      for (var w = 0; w < gEl.children.length; w++) gEl.children[w]._gr = null;   // rects moved
+    });
     var stateRow = document.getElementById('stateRow');
     stateRow.querySelectorAll('[data-state]').forEach(function (btn) {
       btn.addEventListener('click', function () {
