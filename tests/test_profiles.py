@@ -498,7 +498,7 @@ def test_whoami_falls_back_to_trader_state_then_says_why(prof, run, live, aleca)
 def test_sanitize_name_makes_a_path_safe_component():
     mod = load_script('profiles')
     assert mod.sanitize_name('  John Doe #7  ') == 'John-Doe-7'
-    assert mod.sanitize_name('RoyalSpartanIIX') == 'RoyalSpartanIIX'
+    assert mod.sanitize_name('SampleTennoIX') == 'SampleTennoIX'
     assert mod.sanitize_name('***') is None
     assert mod.sanitize_name('') is None
 
