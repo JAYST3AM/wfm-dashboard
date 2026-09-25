@@ -80,6 +80,20 @@ function advTag(a) {
   }
   return t;
 }
+function advRec(a) {
+  const n = a.recommended_quantity || 0;
+  const p = a.recommended_price != null ? ' around ' + Math.round(a.recommended_price) + 'p' : '';
+  switch (a.recommendation) {
+    case 'list': return 'list ' + n + ' now' + p;
+    case 'burn_ducats': return 'burn ' + n + ' for ducats';
+    case 'open_relic': return 'open ' + n;
+    case 'assemble_set': return 'assemble the set, sell it as one';
+    case 'finish_set': return 'finish the set, sell it as one';
+    case 'already_listed': return 'already listed';
+    case 'keep': return 'hold - nothing sellable';
+    default: return 'hold';
+  }
+}
 function advNote(slug) {
   const a = advOf(slug);
   if (!a) return '';
@@ -487,15 +501,15 @@ function renderTable() {
   const slice = rs.slice(0, 400);
   tbody.innerHTML = slice.map(r => {
     const a = advOf(r.slug);
+    const recHasPrice = a && a.recommendation === 'list' && a.recommended_price != null;
     const facts = a
       ? `owned ${a.owned} · equipped ${a.equipped} · reserved ${a.reserved} · sellable ${a.sellable}`
-        + (a.market_price != null ? ` · floor ${a.market_price}p` : '')
-        + (a.median != null ? ` · median ${a.median}p` : '')
+        + (!recHasPrice && a.market_price != null ? ` · floor ${a.market_price}p` : '')
         + (a.best_sell_window ? ` · window ${a.best_sell_window}` : '')
         + (a.liquidity ? ` · liquidity ${a.liquidity}` : '')
       : '';
     const detail = a
-      ? `<pre class="adv-text">${escHtml(a.text)}</pre><div class="adv-facts">${escHtml(facts)}</div>`
+      ? `<div class="adv-facts" title="${escHtml(a.text)}"><b class="do-${a.recommendation}">${escHtml(advRec(a))}</b> · ${escHtml(facts)}</div>`
       : `<div class="dim pad">No advisor entry — nothing owned, or the advisor has not run yet.</div>`;
     return `
     <tr class="inv-row" data-slug="${escHtml(r.slug)}">

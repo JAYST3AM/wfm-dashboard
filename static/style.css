@@ -162,12 +162,11 @@ main { padding: 10px 18px 48px; }
 tr.inv-row { cursor: pointer; }
 tr.inv-row:hover { background: var(--hover); }
 tr.advrow td { padding: 2px 10px 12px; }
-.adv-text {
-  margin: 0 0 6px; padding: 10px 12px; background: var(--panel2);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); border-radius: 8px;
-  font: 12px/1.55 var(--mono); white-space: pre-wrap; color: var(--text);
-}
-.adv-facts { font-size: 10.5px; color: var(--muted); font-family: var(--mono); letter-spacing: .2px; }
+.adv-facts { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: .2px; }
+.adv-facts b { font-weight: 600; }
+.adv-facts .do-list { color: var(--accent); }
+.adv-facts .do-burn_ducats, .adv-facts .do-open_relic, .adv-facts .do-assemble_set, .adv-facts .do-finish_set { color: #d9b04a; }
+.adv-facts .do-already_listed, .adv-facts .do-keep, .adv-facts .do-hold { color: var(--muted); }
 .advchip {
   color: var(--muted); font-size: 10.5px; border: 1px solid var(--border);
   border-radius: 6px; padding: 0 5px; margin-left: 6px; white-space: nowrap;
