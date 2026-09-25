@@ -66,6 +66,7 @@ header {
   transition: border-color .2s ease, background-color .2s ease, transform .1s ease, filter .2s ease;
 }
 .btn:hover { border-color: var(--accent-dim); }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 .btn:active { transform: scale(.97); }
 .btn.icon { padding: 6px 10px; font-size: 13px; }
 .btn.primary {
