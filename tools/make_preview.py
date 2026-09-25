@@ -177,7 +177,7 @@ async function settleTrader(page) {
 }
 
 async function settleSettings(page) {
-  await page.waitForFunction("document.querySelectorAll('#cfgList .cfgrow').length >= 5", { timeout: 20000 })
+  await page.waitForFunction("document.querySelectorAll('#list-trading .cfgrow').length >= 5", { timeout: 20000 })
     .catch(() => { diag.settings_no_rows = 1; });
   await sleep(500);
 }
@@ -196,7 +196,7 @@ async function settleCards(page) {
 
 const counts = () => ({
   kpis: document.querySelectorAll('#kpis > *').length,
-  cfgRows: document.querySelectorAll('#cfgList > *').length,
+  cfgRows: document.querySelectorAll('#list-trading .cfgrow').length,
   dealRows: document.querySelectorAll('#dealsList > *').length,
   collTiles: (document.getElementById('grid') || { children: [] }).children.length,
   cards: document.querySelectorAll('.mcd-card').length,
@@ -225,7 +225,7 @@ const counts = () => ({
     await settleHome(page);
     await poster(page, 'shot_home.png');
 
-    await page.evaluate(() => { location.hash = '#trader'; });
+    await page.evaluate(() => { location.hash = '#trade'; });
     await settleTrader(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     await sleep(400);
@@ -234,15 +234,15 @@ const counts = () => ({
     await page.goto(CFG.url + '/settings.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await settleSettings(page);
     await page.evaluate(() => {
-      const el = document.getElementById('cfgList');
+      const el = document.getElementById('list-trading');
       if (el) (el.closest('.card') || el).scrollIntoView({ block: 'start' });
     });
     await sleep(500);
     await poster(page, 'shot_settings.png');
 
-    await page.goto(CFG.url + '/#market', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(CFG.url + '/#more', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForFunction(
-      "(() => { const v = document.getElementById('view-market'); return !!v && !v.classList.contains('hidden') && document.querySelectorAll('#dealsList > *').length > 3; })()",
+      "(() => { const v = document.getElementById('view-more'); return !!v && !v.classList.contains('hidden') && document.querySelectorAll('#dealsList > *').length > 3; })()",
       { timeout: 20000 }).catch(() => { diag.market_no_deals = 1; });
     await page.evaluate(() => window.scrollTo(0, 0));
     await sleep(500);
@@ -260,7 +260,7 @@ const counts = () => ({
   await settleHome(page);
   await hold(page, CFG.holds.home, 'home');
 
-  await page.evaluate(() => { location.hash = '#trader'; });
+  await page.evaluate(() => { location.hash = '#trade'; });
   await settleTrader(page);
   await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(400);
@@ -269,7 +269,7 @@ const counts = () => ({
   await page.goto(CFG.url + '/settings.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await settleSettings(page);
   await page.evaluate(() => {
-    const el = document.getElementById('cfgList');
+    const el = document.getElementById('list-trading');
     if (el) (el.closest('.card') || el).scrollIntoView({ block: 'start' });
   });
   await sleep(500);
@@ -290,9 +290,9 @@ const counts = () => ({
   });
   await hold(page, CFG.holds.theme, 'theme');
 
-  await page.goto(CFG.url + '/#market', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.goto(CFG.url + '/#more', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForFunction(
-    "(() => { const v = document.getElementById('view-market'); return !!v && !v.classList.contains('hidden') && document.querySelectorAll('#dealsList > *').length > 3; })()",
+    "(() => { const v = document.getElementById('view-more'); return !!v && !v.classList.contains('hidden') && document.querySelectorAll('#dealsList > *').length > 3; })()",
     { timeout: 20000 }).catch(() => { diag.market_no_deals = 1; });
   await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(500);
