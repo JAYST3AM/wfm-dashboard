@@ -81,6 +81,14 @@ is the one package, and only AlecaFrame's save needs it. `stop.bat` kills the pr
 
 Optional: copy `secrets.example.json` → `secrets.json` and run `python scripts/wfm_check.py` to sign
 in once and confirm your warframe.market session (needed only by the order-touching scripts).
+
+**Signing in — the verification step is yours, not the app's.** If warframe.market shows a Cloudflare
+browser check or wants a one-time code, that part is yours to complete (AlecaFrame tells its users
+the same thing). The app never asks for, fetches, stores or logs a code, and it stops with
+instructions instead of guessing. The quickest way past it is to sign in once in your own browser and
+hand the app that session: `secrets.json` → `"wfm_token": "<the JWT cookie from F12 → Application →
+Cookies → warframe.market>"`. It then uses your browser session and never needs the password sign-in.
+
 Schedule `scripts/snapshot_plat.py` every 15 minutes if you want the platinum chart to keep building
 history continuously, and `scripts/watch_save.py` if you want the inventory to re-sync itself when
 AlecaFrame rewrites the game save.
