@@ -7,7 +7,9 @@ each entry). The live data/ folder always holds exactly one account's files;
 data/profiles/current.json is the marker naming which profile that is (no marker = the live
 data was never switched, i.e. unmanaged).
 
-Reads : data/* (live state), data/profiles/*, data/kill_switch.json (safety gate)
+Reads : data/* (live state), data/profiles/*, data/kill_switch.json (safety gate),
+        %LOCALAPPDATA%/AlecaFrame/lastUsername.txt (the linked account name, for --whoami
+        and auto-named --create; WFM_ALECA_DIR overrides the dir)
 Writes: data/profiles/<name>/ (--create), data/* + data/profiles/current.json (--switch --apply),
         data/backups/*.zip (pre-switch safety zip via scripts/backup.py)
 Never : deletes a file, touches secrets.json, or goes near the network. Every write is atomic
@@ -15,14 +17,17 @@ Never : deletes a file, touches secrets.json, or goes near the network. Every wr
 
 Usage:
   python scripts/profiles.py --list
-  python scripts/profiles.py --create SampleTennoIX
+  python scripts/profiles.py --whoami                 (account name AlecaFrame is linked to)
+  python scripts/profiles.py --create                 (profile named after that account)
+  python scripts/profiles.py --create SampleTennoIX   (or a name you choose)
   python scripts/profiles.py --switch Alt            (DRY RUN: prints the switch plan)
   python scripts/profiles.py --switch Alt --apply    (backup zip -> save live -> restore Alt)
   python scripts/profiles.py --current
   python scripts/profiles.py --manifest              (what is profile-scoped, and why)
   python scripts/profiles.py --selftest              (offline, tmp dirs, no repo data)
 
-Env overrides (tests / selftest): WFM_DATA_DIR (live data dir), WFM_PROFILES_ROOT (profiles).
+Env overrides (tests / selftest): WFM_DATA_DIR (live data dir), WFM_PROFILES_ROOT (profiles),
+WFM_ALECA_DIR (AlecaFrame dir).
 Exit codes: 0 = ok, 1 = error (missing profile/data), 2 = refused (bad args, name collision,
 kill switch engaged, --apply without --switch).
 """
@@ -232,6 +237,51 @@ def profile_dir(name):
     if not ok:
         raise Refused(why)
     return os.path.join(profiles_root(), name)
+
+
+# ----------------------------------------------------------------- account identity (AlecaFrame)
+AUTO_NAME = '@auto'                       # --create with no NAME = name it from the account below
+LAST_USERNAME = 'lastUsername.txt'        # AlecaFrame writes the account it is linked to here
+
+
+def aleca_dir():
+    """AlecaFrame's data dir (env override WFM_ALECA_DIR keeps tests/selftest off the real one)."""
+    return os.environ.get('WFM_ALECA_DIR') or os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
+
+
+def sanitize_name(raw):
+    """A path-safe profile name from an account name (spaces / invalid chars -> '-')."""
+    s = re.sub(r'[^A-Za-z0-9._-]+', '-', (raw or '').strip())[:64]
+    s = s.strip('-._')
+    return s if check_name(s)[0] else None
+
+
+def detect_account_name():
+    """(name, source) for the account this PC's AlecaFrame is linked to.
+
+    Order: AlecaFrame's own lastUsername.txt (the account the game app is signed in as),
+    then data/trader_state.json's 'account' (what the market engines recorded). When neither
+    exists: (None, why-not). Lazy: reads the env/data at call time, so tests can point it
+    anywhere.
+    """
+    try:
+        with open(os.path.join(aleca_dir(), LAST_USERNAME), encoding='utf-8') as fh:
+            raw = fh.read().strip()
+        name = sanitize_name(raw)
+        if name:
+            return name, 'AlecaFrame %s' % LAST_USERNAME
+    except OSError:
+        pass
+    try:
+        with open(os.path.join(data_dir(), 'trader_state.json'), encoding='utf-8') as fh:
+            raw = str((json.load(fh) or {}).get('account') or '')
+        name = sanitize_name(raw)
+        if name:
+            return name, 'data/trader_state.json'
+    except (OSError, ValueError):
+        pass
+    return None, ('no account name found - is AlecaFrame installed and signed in? (looked at %s '
+                  'and data/trader_state.json)' % rel(os.path.join(aleca_dir(), LAST_USERNAME)))
 
 
 # ------------------------------------------------------------------------ file utils
@@ -701,6 +751,7 @@ def json_list_payload():
     """Machine-readable --list: marker state + every profile (the dashboard card reads this)."""
     marker, warn = read_marker()
     cur = marker.get('current')
+    det, why = detect_account_name()
     return {
         'managed': bool(cur),
         'current': cur or None,
@@ -710,6 +761,7 @@ def json_list_payload():
         'root': rel(profiles_root()),
         'warning': warn or None,
         'live': live_summary(),
+        'detected': {'name': det, 'source': (why if det else None), 'reason': (None if det else why)},
         'profiles': [{'name': p['name'], 'files': p['files'], 'bytes': p['bytes'],
                       'created': (p['meta'] or {}).get('created'),
                       'current': p['name'] == cur} for p in list_profiles()],
@@ -727,6 +779,19 @@ def json_current_payload():
         out['profile_dir'] = rel(pdir)
         out['profile_dir_exists'] = os.path.isdir(pdir)
     return out
+
+
+def cmd_whoami():
+    det, why = detect_account_name()
+    if _JSON:
+        print(json.dumps({'name': det, 'source': (why if det else None),
+                          'reason': (None if det else why)}, indent=1))
+        return 0 if det else 1
+    if det:
+        print(kv_block([('account name', det), ('source', why)]))
+        return 0
+    print(why)
+    return 1
 
 
 def cmd_list():
@@ -843,9 +908,10 @@ def selftest():
     owned_b = owned_a + [{'slug': 'archon_flow', 'name': 'Archon Flow', 'count': 1}]
     owned_c = [{'slug': 'growing_power', 'name': 'Growing Power', 'count': 4}]
     root = tempfile.mkdtemp(prefix='wfm-profiles-selftest-')
-    saved = {k: os.environ.get(k) for k in ('WFM_DATA_DIR', 'WFM_PROFILES_ROOT')}
+    saved = {k: os.environ.get(k) for k in ('WFM_DATA_DIR', 'WFM_PROFILES_ROOT', 'WFM_ALECA_DIR')}
     os.environ['WFM_DATA_DIR'] = os.path.join(root, 'data')
     os.environ['WFM_PROFILES_ROOT'] = os.path.join(root, 'data', 'profiles')
+    os.environ['WFM_ALECA_DIR'] = os.path.join(root, 'aleca')
     try:
         d = data_dir()
         chk('WFM_PROFILES_ROOT honoured', profiles_root(), os.path.join(root, 'data', 'profiles'))
@@ -902,6 +968,39 @@ def selftest():
         chk('create alpha: profile meta', read_json(os.path.join(alpha, PROFILE_META)).get('name'), 'alpha')
         chk('create alpha: kill switch NOT copied', os.path.isfile(os.path.join(alpha, 'kill_switch.json')), False)
         chk('create alpha: warns live untouched', 'live data/ untouched' in out, True)
+
+        # -- account identity: --whoami + auto-named --create -------------------
+        code, out = run(['--whoami'])
+        chk('whoami with only trader_state: exit 0', code, 0)
+        chk('whoami falls back to trader_state.json first', 'TESTER' in out and 'trader_state' in out, True)
+        os.makedirs(os.path.join(root, 'aleca'), exist_ok=True)
+        with open(os.path.join(root, 'aleca', 'lastUsername.txt'), 'w', encoding='utf-8') as fh:
+            fh.write('SampleTennoIX\n')
+        code, out = run(['--whoami'])
+        chk('whoami reads lastUsername.txt: exit', code, 0)
+        chk('whoami reads lastUsername.txt: name', 'SampleTennoIX' in out, True)
+        code, out = run(['--whoami', '--json'])
+        det = json.loads(out)
+        chk('whoami --json: name', det.get('name'), 'SampleTennoIX')
+        chk('whoami --json: names its source', 'lastUsername.txt' in (det.get('source') or ''), True)
+        code, out = run(['--create'])
+        chk('auto-create: exit', code, 0)
+        chk('auto-create: says where the name came from', 'lastUsername.txt' in out, True)
+        auto_dir = os.path.join(profiles_root(), 'SampleTennoIX')
+        chk('auto-create: profile named after the account', os.path.isdir(auto_dir), True)
+        chk('auto-create: manifest complete', manifest_gaps(auto_dir), [])
+        chk('auto-create: live data untouched', read_json(os.path.join(data_dir(), 'owned.json')), owned_a)
+        # a name with spaces / invalid chars is sanitised, and trader_state is the fallback
+        with open(os.path.join(root, 'aleca', 'lastUsername.txt'), 'w', encoding='utf-8') as fh:
+            fh.write('  John Doe #7  \n')
+        chk('sanitize_name: spaces and symbols', sanitize_name('  John Doe #7  '), 'John-Doe-7')
+        write_json(os.path.join(data_dir(), 'trader_state.json'), {'account': 'FallbackTenno', 'plat': 1})
+        os.remove(os.path.join(root, 'aleca', 'lastUsername.txt'))
+        code, out = run(['--whoami'])
+        chk('whoami falls back to trader_state.json', 'FallbackTenno' in out, True)
+        code, out = run(['--list', '--json'])
+        chk('list --json carries the detected account',
+            json.loads(out).get('detected', {}).get('name'), 'FallbackTenno')
 
         # -- collision + bad names --------------------------------------------
         before = scan_tree(alpha)
@@ -1057,8 +1156,11 @@ def build_parser():
                    help='print the profile the live data holds (marker data/profiles/current.json)')
     g.add_argument('--manifest', action='store_true',
                    help='print the profile-scoped file manifest (and what is shared) with reasons')
-    p.add_argument('--create', metavar='NAME', default=None,
-                   help='create a profile from the CURRENT live data state (refused if it exists)')
+    g.add_argument('--whoami', action='store_true',
+                   help='print the account name AlecaFrame is linked to (profiles auto-name from it)')
+    p.add_argument('--create', metavar='NAME', nargs='?', const=AUTO_NAME, default=None,
+                   help='create a profile from the CURRENT live data state; with no NAME the name '
+                        'comes from the AlecaFrame-linked account (see --whoami)')
     p.add_argument('--switch', metavar='NAME', default=None,
                    help='switch the live data to this profile (DRY RUN unless --apply)')
     p.add_argument('--apply', action='store_true',
@@ -1075,17 +1177,18 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
     _JSON = bool(getattr(args, 'json', False))
-    if args.json and not (args.list or args.current):
-        print('--json is only meaningful with --list or --current')
+    if args.json and not (args.list or args.current or args.whoami):
+        print('--json is only meaningful with --list, --current or --whoami')
         return 2
     if args.selftest:
-        if any([args.list, args.current, args.manifest, args.create, args.switch, args.apply]):
+        if any([args.list, args.current, args.manifest, args.create, args.switch,
+                args.apply, args.whoami]):
             print('--selftest runs on its own')
             return 2
         return selftest()
     actions = [n for n, v in (('--list', args.list), ('--current', args.current),
-                              ('--manifest', args.manifest), ('--create', args.create),
-                              ('--switch', args.switch)) if v]
+                              ('--manifest', args.manifest), ('--whoami', args.whoami),
+                              ('--create', args.create is not None), ('--switch', args.switch)) if v]
     if args.apply and not args.switch:
         print('--apply only makes sense with --switch NAME')
         return 2
@@ -1100,9 +1203,18 @@ def main(argv=None):
             return cmd_list()
         if args.current:
             return cmd_current()
+        if args.whoami:
+            return cmd_whoami()
         if args.manifest:
             return cmd_manifest()
-        if args.create:
+        if args.create is not None:
+            if args.create == AUTO_NAME:
+                name, source = detect_account_name()
+                if not name:
+                    print(source)
+                    return 1
+                print('profile name from %s: %r' % (source, name))
+                return cmd_create(name)
             return cmd_create(args.create)
         return cmd_switch(args.switch, args.apply)
     except Refused as exc:

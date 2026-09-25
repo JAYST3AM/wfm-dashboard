@@ -512,11 +512,14 @@ class H(BaseHTTPRequestHandler):
                 b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
                 action = str(b.get('action') or '')
                 name = str(b.get('name') or '').strip()
-                if action not in ('create', 'switch') or not name or len(name) > 40:
-                    return self._send(400, {'ok': False,
-                                            'error': 'need action=create|switch and a profile name (max 40 chars)'})
+                if action not in ('create', 'switch') or len(name) > 40:
+                    return self._send(400, {'ok': False, 'error': 'action must be create|switch (name max 40 chars)'})
+                if action == 'switch' and not name:
+                    return self._send(400, {'ok': False, 'error': 'switch needs a profile name'})
                 cmd = [sys.executable, os.path.join(ROOT, 'scripts', 'profiles.py'),
-                       '--create' if action == 'create' else '--switch', name]
+                       '--create' if action == 'create' else '--switch']
+                if name:
+                    cmd.append(name)   # create without a name = auto-name from the AlecaFrame account
                 if action == 'switch' and b.get('apply'):
                     cmd.append('--apply')
                 r = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=ROOT)

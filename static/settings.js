@@ -322,9 +322,25 @@ function renderAccounts() {
   live.appendChild(el('span', 'st-ameta', liveMeta));
   box.appendChild(live);
 
+  // the account AlecaFrame is linked to: profiles are named after it automatically
   const list = ACCT.profiles || [];
+  const det = ACCT.detected || {};
+  const detProf = list.find(p => p.name === det.name);
+  const input = document.getElementById('acctName');
+  if (input) input.placeholder = det.name ? ('auto: ' + det.name) : 'new profile name';
+  if (det.name) {
+    const state = ACCT.current === det.name ? 'this is the current profile'
+      : (detProf ? 'profile exists \u2014 switch to it to use this account'
+                 : 'no profile for it yet \u2014 create one');
+    box.appendChild(acctNote('Detected account: ' + det.name + ' \u2014 from ' + (det.source || 'AlecaFrame')
+      + ' (' + state + ').'));
+  } else {
+    box.appendChild(acctNote('No account name detected (' + (det.reason || 'AlecaFrame not found')
+      + ') \u2014 type a name to create a profile.'));
+  }
+
   if (!list.length) {
-    box.appendChild(acctNote('No profiles yet — name the current account above and click Create profile.'));
+    box.appendChild(acctNote('No profiles yet \u2014 click Create profile (leave the box empty to use the account name AlecaFrame is linked to).'));
     return;
   }
   list.forEach(p => {
@@ -392,15 +408,22 @@ async function createProfile() {
   const status = document.getElementById('status-accounts');
   const btn = document.getElementById('acctCreate');
   const name = ((input && input.value) || '').trim();
-  if (!name) { setStatus(status, 'Type a profile name first.', true); return; }
+  const det = (ACCT && ACCT.detected) || {};
+  if (!name && !det.name) {
+    setStatus(status, 'Type a profile name first \u2014 no AlecaFrame account was detected to name it from.', true);
+    return;
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Creating\u2026'; }
   try {
     const res = await fetch('/api/profiles', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'create', name: name }),
     }).then(r => r.json());
+    const made = (((res.stdout || '') + (res.stderr || '')).match(/profile '([^']+)' created/) || [])[1];
     if (res.ok) {
-      setStatus(status, 'Profile \u201c' + name + '\u201d created from the current live data. Live data untouched.');
+      setStatus(status, 'Profile \u201c' + (made || name || det.name || 'account') + '\u201d created \u2014 '
+        + (name ? 'named as typed.' : 'named after the account AlecaFrame is linked to.')
+        + ' Live data untouched.');
       if (input) input.value = '';
     } else {
       setStatus(status, 'Refused: ' + (((res.stdout || '') + (res.stderr || '')).trim() || res.error || 'unknown'), true);

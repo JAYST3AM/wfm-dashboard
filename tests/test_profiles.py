@@ -423,7 +423,7 @@ def test_json_current_payload(prof, run, live):
 
 def test_json_flag_is_gated_to_list_and_current(prof, run):
     code, out = run('--json')
-    assert code == 2 and '--list or --current' in out
+    assert code == 2 and '--list, --current or --whoami' in out
     assert run('--create', 'alpha', '--json')[0] == 2
 
 
@@ -465,3 +465,66 @@ def test_server_profiles_payload_shells_out_and_parses(server_mod, monkeypatch, 
     assert doc['ok'] is True
     assert doc['managed'] is False and doc['current'] is None
     assert doc['profiles'] == []
+
+
+# --------------------------------------------------------------------------- account identity (AlecaFrame)
+@pytest.fixture
+def aleca(tmp_path, monkeypatch):
+    """A fake AlecaFrame dir (WFM_ALECA_DIR) so tests never read the real one."""
+    d = tmp_path / 'aleca'
+    monkeypatch.setenv('WFM_ALECA_DIR', str(d))
+    return d
+
+
+def test_whoami_reads_alecaframe_last_username(prof, run, aleca):
+    aleca.mkdir()
+    (aleca / 'lastUsername.txt').write_text('SampleTennoIX\n', encoding='utf-8')
+    code, out = run('--whoami')
+    assert code == 0
+    assert 'SampleTennoIX' in out and 'lastUsername.txt' in out
+    code, out = run('--whoami', '--json')
+    doc = json.loads(out)
+    assert doc['name'] == 'SampleTennoIX' and 'lastUsername' in doc['source'] and doc['reason'] is None
+
+
+def test_whoami_falls_back_to_trader_state_then_says_why(prof, run, live, aleca):
+    code, out = run('--whoami')                       # the live fixture carries trader_state TESTER
+    assert code == 0 and 'TESTER' in out and 'trader_state' in out
+    (live / 'trader_state.json').unlink()
+    code, out = run('--whoami')
+    assert code == 1 and 'no account name found' in out
+
+
+def test_sanitize_name_makes_a_path_safe_component():
+    mod = load_script('profiles')
+    assert mod.sanitize_name('  John Doe #7  ') == 'John-Doe-7'
+    assert mod.sanitize_name('RoyalSpartanIIX') == 'RoyalSpartanIIX'
+    assert mod.sanitize_name('***') is None
+    assert mod.sanitize_name('') is None
+
+
+def test_create_without_a_name_uses_the_alecaframe_account(prof, run, live, aleca):
+    aleca.mkdir()
+    (aleca / 'lastUsername.txt').write_text('SampleTennoIX', encoding='utf-8')
+    code, out = run('--create')
+    assert code == 0
+    assert 'SampleTennoIX' in out and 'lastUsername.txt' in out
+    pdir = live / PROFILES / 'SampleTennoIX'
+    assert pdir.is_dir() and (pdir / 'owned.json').is_file()
+    assert read_json(live / 'owned.json') == OWNED_A      # live data untouched
+
+
+def test_create_without_a_name_and_no_detected_account_is_an_error(prof, run, live, aleca):
+    (live / 'trader_state.json').unlink()
+    code, out = run('--create')
+    assert code == 1 and 'no account name found' in out
+
+
+def test_list_json_carries_the_detected_account(prof, run, live, aleca):
+    aleca.mkdir()
+    (aleca / 'lastUsername.txt').write_text('SampleTennoIX', encoding='utf-8')
+    code, out = run('--list', '--json')
+    assert code == 0
+    det = json.loads(out)['detected']
+    assert det['name'] == 'SampleTennoIX'
+    assert 'lastUsername' in det['source'] and det['reason'] is None
