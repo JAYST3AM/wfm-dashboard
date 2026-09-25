@@ -561,7 +561,7 @@
 
     var inner = el('div', 'mcd-inner');
 
-    // front — full-art cards show the art across the whole face; name/stats stay on scrims
+    // front — full-art cards show the art across the whole face; wording + name stay visible
     var front = el('div', 'mcd-face mcd-front');
     var fa = (state.cardart || {})[card.slug];
     if (fa) {
@@ -605,8 +605,8 @@
     inner.appendChild(back);
     node.appendChild(inner);
 
-    // click opens the inspect view (hover still flips in the grid on desktop);
-    // inside the overlay (opts.quiet) a click flips the big card instead.
+    // click opens the inspect view (the grid never flips on hover — flipping lives
+    // in the overlay); inside the overlay (opts.quiet) a click flips the big card.
     node.addEventListener('click', function () {
       if (opts && opts.quiet) { node.classList.toggle('flipped'); return; }
       state.lastFocus = node;
@@ -736,7 +736,18 @@
       ins.tx = 0;
       ins.ty = 0;
     });
-    function endDrag() { ins.drag = null; ins.mode = 'settled'; tilt.classList.remove('dragging'); }
+    function endDrag(e) {
+      var wasMoved = ins.moved;
+      ins.drag = null; ins.mode = 'settled'; tilt.classList.remove('dragging');
+      // Pointer capture retargets the follow-up click to the tilt, so a plain click on
+      // the card never reaches the card's own click handler — flip here instead, only
+      // when the gesture wasn't a drag and the release landed on the card.
+      if (!wasMoved && e && e.type === 'pointerup') {
+        var hit = document.elementFromPoint(e.clientX, e.clientY);
+        var cc = hit && hit.closest ? hit.closest('.mcd-card') : null;
+        if (cc && tilt.contains(cc)) cc.classList.toggle('flipped');
+      }
+    }
     tilt.addEventListener('pointerup', endDrag);
     tilt.addEventListener('pointercancel', endDrag);
     // a drag must not read as a click (clicks flip the card)

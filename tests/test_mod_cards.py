@@ -428,6 +428,19 @@ def test_back_is_crest_only_and_details_render_in_the_panel():
     assert 'foilFor' in js and 'FOILS' in js and 'mcd-foil' in js
 
 
+def test_grid_never_flips_on_hover():
+    """Jay: hovering a grid card must never flip it; front wording stays visible on full-art."""
+    html = open(PAGE, encoding='utf-8').read()
+    assert ':hover .mcd-inner' not in html and ':focus-visible .mcd-inner' not in html
+    assert '.mcd-card.flipped .mcd-inner' in html             # flip still exists, explicit only
+    assert '.mcd-front.has-fullart .mcd-art > *' not in html  # no blanket hide of the wording
+    assert '.mcd-front.has-fullart .mcd-art > .mcd-type' in html
+    js = open(SCRIPT, encoding='utf-8').read()
+    # pointer capture retargets the follow-up click to the tilt, so the viewer flips on
+    # pointerup instead of relying on the card's own click handler
+    assert "e.type === 'pointerup'" in js and 'elementFromPoint' in js
+
+
 def test_interaction_never_reads_a_transformed_rect():
     """The jitter bug: hover math read its own transformed rect and oscillated."""
     js = open(SCRIPT, encoding='utf-8').read()
@@ -443,5 +456,5 @@ def test_page_css_defines_every_state_the_js_sets():
                 '.mcd-card.r-legendary', '.mcd-card.is-prime', '.mcd-card.missing',
                 '.mcd-dup', '.mcd-pips i.on', '.mcd-pips i.avail', '.mcd-back', '.mcd-card.flipped'):
         assert cls in html, cls
-    assert 'rotateY(180deg)' in html                     # hover flip is a real 3D transform
+    assert 'rotateY(180deg)' in html                     # the flip is a real 3D transform
     assert '--accent' in html and '--panel' in html      # colours come from theme vars

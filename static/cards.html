@@ -71,7 +71,9 @@
     position: absolute; inset: 0; transform-style: preserve-3d;
     transition: transform .42s cubic-bezier(.2, .7, .3, 1);
   }
-  .mcd-card:hover .mcd-inner, .mcd-card:focus-visible .mcd-inner, .mcd-card.flipped .mcd-inner {
+  /* flip only when explicitly asked (inspect overlay click) — never on hover/focus,
+     so simply passing the mouse over the grid never flips a card to its blank back */
+  .mcd-card.flipped .mcd-inner {
     transform: rotateY(180deg);
   }
   .mcd-face {
@@ -149,7 +151,11 @@
     background-repeat: no-repeat, no-repeat;
   }
   .mcd-card .mcd-front.has-fullart .mcd-art { background: none; border-bottom-color: transparent; box-shadow: none; }
-  .mcd-front.has-fullart .mcd-art > * { display: none; }
+  /* the card's own wording stays on full-art fronts too (type + polarity, exactly like
+     every other card) — just shadowed harder so it reads over the artwork */
+  .mcd-front.has-fullart .mcd-art > .mcd-type { color: color-mix(in srgb, white 82%, transparent); text-shadow: 0 1px 4px black, 0 0 10px rgba(0, 0, 0, .7); }
+  .mcd-front.has-fullart .mcd-art > .mcd-pol { color: #fff; text-shadow: 0 2px 6px rgba(0, 0, 0, .9), 0 0 16px rgba(0, 0, 0, .85); }
+  .mcd-front.has-fullart .mcd-art > .mcd-pol-name { color: color-mix(in srgb, white 76%, transparent); text-shadow: 0 1px 4px black; }
   .mcd-front.has-fullart .mcd-body { background: linear-gradient(180deg, rgba(9,10,13,0) 0%, rgba(9,10,13,.30) 26%, rgba(9,10,13,.64) 100%); }
   .mcd-front.has-fullart .mcd-name { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
 
