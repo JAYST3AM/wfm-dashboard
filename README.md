@@ -36,9 +36,16 @@ set: anything niche lives behind a disclosure or in Advanced trading, and one sh
 
 ## Install
 
-**Windows, quickest path:** double-click **`setup.bat`** once. It finds Python, installs the one
-dependency, checks AlecaFrame, builds the data (20-40 minutes the first time — resumable, stop it
-any time) and opens the dashboard. Later, **`refresh.bat`** re-prices everything in a few minutes.
+**Windows, no Python needed — download the app:** grab **`WFM-Trader-<date>.zip`** from the
+[Releases page](../../releases), unzip it anywhere and double-click **`WFM Trader.exe`**. It brings
+its own Python, checks AlecaFrame, builds your data on the first run (20-40 minutes, resumable),
+starts the dashboard and opens the browser. Nothing to install, no terminal. (`START HERE.txt` in the
+zip says the same.)
+
+**Windows, from source — the one-click script:** double-click **`setup.bat`** once. It finds Python,
+installs the one dependency, checks AlecaFrame, builds the data (20-40 minutes the first time —
+resumable, stop it any time) and opens the dashboard. Later, **`refresh.bat`** re-prices everything
+in a few minutes.
 
 Manual / any platform:
 
