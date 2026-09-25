@@ -46,6 +46,7 @@ def main():
     run('refresh.py')        # read inventory -> data/owned.json
     run('fetch_prices.py')   # live prices   -> data/prices.json
     run('fetch_stats.py')    # 48h stats     -> data/stats.json
+    run('fetch_lanes.py')    # per-rank order book -> data/price_lanes.json
     run('report.py')         # sell/buy plan -> data/report.json
     run('sell_advisor.py', '--write')  # per-item advice -> data/sell_advisor.json
     run('snapshot_plat.py')  # seed plat history

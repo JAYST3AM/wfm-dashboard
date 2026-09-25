@@ -106,6 +106,12 @@ Each engine is a script you can also run by hand; the dashboard buttons call the
 - `refresh.py` — refresh pipeline: decrypt the AlecaFrame save → `owned.json`.
 - `fetch_prices.py` — live top price for every owned sellable slug → `prices.json` (resumable).
 - `fetch_stats.py` — warframe.market item statistics (liquidity + price quality) for owned slugs.
+- `fetch_lanes.py` — the full order book per owned ranked mod, reduced to **rank lanes** →
+  `price_lanes.json`. An item-level "sell 15p / buy 55p" pair is usually a rank-0 listing next
+  to a rank-10 bid — neither prices the copy you hold. Each lane stores the cheapest sell
+  order (`ask` — undercut it by 1p to list) and the top buy order (`bid` — quick-sell price,
+  or outbid it by 1p to buy) for that rank, and the UI reads the lane of the rank the save
+  proves you own (resumable, same rate discipline as the other fetchers).
 - `snapshot_plat.py` — snapshots platinum and credits into `plat_history.json`.
 - `watch_save.py` — re-runs the refresh pipeline when AlecaFrame rewrites the game save.
 - `invdiff.py` — inventory change tracker: snapshot, then diff against the last one.

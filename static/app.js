@@ -107,7 +107,7 @@ function advNote(slug) {
 function renderPicks() {
   const rs = (REPORT && REPORT.sell_now || []).filter((r) => !r.in_use_only).slice(0, 8);
   const el = document.getElementById('sellPicks');
-  const note = `<div class="picks-note dim"><b>Sorted by earnings × how fast they sell.</b> List at = cheapest listing minus 1p. Copies slotted in a build are never listed. <b>Do</b> = smart sell advisor call — hover for the reasons.</div>`;
+  const note = `<div class="picks-note dim"><b>Sorted by earnings × how fast they sell.</b> List at = cheapest listing at your copy's rank (an <b>R#</b> tag marks a rank-priced row) minus 1p. Copies slotted in a build are never listed. <b>Do</b> = smart sell advisor call — hover for the reasons.</div>`;
   const head = `<div class="pick pick-head">
       <span class="c-rank">#</span><span class="c-name">Item</span>
       <span class="c-own" title="sellable copies — equipped copies are excluded">Sellable</span><span class="c-act">Sold · 48h</span>
@@ -483,12 +483,28 @@ function rowsFiltered() {
   rs = rs.slice().sort((a, b) => {
     let x = a[k], y = b[k];
     if (k === 'name' || k === 'cat') { x = String(x || ''); y = String(y || ''); return state.dir * x.localeCompare(y); }
+    // price columns sort (and display) from the rank lane when the item is ranked
+    if (k === 'wts') { x = laneVal(a); y = laneVal(b); }
+    else if (k === 'wtb') { x = laneBid(a); y = laneBid(b); }
+    else if (k === 'spread') { x = laneSpread(a); y = laneSpread(b); }
+    else if (k === 'value') { x = laneValue(a); y = laneValue(b); }
     x = (x === null || x === undefined) ? -Infinity : x;
     y = (y === null || y === undefined) ? -Infinity : y;
     return state.dir * (x - y);
   });
   return rs;
 }
+
+/* Rank lanes: a ranked copy is priced from the order book of the rank owned. The raw
+   wts is usually a rank-0 listing while wtb can be a rank-10 bid - an any-rank pair
+   would misprice the copy, so every price surface reads the lane first. */
+function laneVal(r) { return r.lane_rank != null ? r.lane_ask : r.wts; }
+function laneBid(r) { return r.lane_rank != null ? r.lane_bid : r.wtb; }
+function laneSpread(r) {
+  const p = laneVal(r), b = laneBid(r);
+  return (p != null && b != null) ? p - b : null;
+}
+function laneValue(r) { return (laneVal(r) || 0) * (r.count || 0); }
 
 function renderTable() {
   const rs = rowsFiltered();
@@ -511,23 +527,25 @@ function renderTable() {
     const detail = a
       ? `<div class="adv-facts" title="${escHtml(a.text)}"><b class="do-${a.recommendation}">${escHtml(advRec(a))}</b> · ${escHtml(facts)}</div>`
       : `<div class="dim pad">No advisor entry — nothing owned, or the advisor has not run yet.</div>`;
+    const rkTag = r.lane_rank != null
+      ? ` <span class="lane-tag" title="priced from the rank-${r.lane_rank} order book — the rank you own">R${r.lane_rank}</span>` : '';
     return `
     <tr class="inv-row" data-slug="${escHtml(r.slug)}">
       <td class="name" title="${r.name}">${r.name}</td>
       <td class="hide-s"><span class="cat ${r.cat}">${CAT_LABEL[r.cat] || r.cat}</span></td>
       <td class="num">${fmt(r.count)}</td>
       <td class="num hide-s">${fmt(r.ducats)}</td>
-      <td class="num">${fmt(r.wts)}</td>
-      <td class="num hide-s">${fmt(r.wtb)}</td>
-      <td class="num hide-s${(r.spread !== null && r.spread !== undefined && r.spread < 0) ? ' neg' : ''}">${fmt(r.spread)}</td>
+      <td class="num">${fmt(laneVal(r))}${rkTag}</td>
+      <td class="num hide-s">${fmt(laneBid(r))}</td>
+      <td class="num hide-s${(laneSpread(r) !== null && laneSpread(r) < 0) ? ' neg' : ''}">${fmt(laneSpread(r))}</td>
       <td class="num">${r.vol48 === null || r.vol48 === undefined ? '<span class="dim">—</span>' : r.vol48.toFixed(1)}</td>
       <td class="num hide-s">${fmt(r.median)}</td>
-      <td class="num v">${fmt(r.value)}</td>
+      <td class="num v">${fmt(laneValue(r))}</td>
     </tr>
     <tr class="advrow" style="display:none"><td colspan="10">${detail}</td></tr>`;
   }).join('');
   if (!slice.length) tbody.innerHTML = '<tr><td colspan="10" class="dim" style="padding:18px">No items match.</td></tr>';
-  const tot = rs.reduce((a, r) => a + (r.value || 0), 0);
+  const tot = rs.reduce((a, r) => a + laneValue(r), 0);
   document.getElementById('totals').innerHTML =
     `<span>${rs.length} stacks <span class="dim">(showing ${slice.length})</span></span>
      <span>Filtered value <b class="big">${tot.toLocaleString()}p</b></span>`;

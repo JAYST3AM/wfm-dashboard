@@ -115,6 +115,36 @@
   }
   .lk-est b { color: var(--accent); font-family: var(--mono); }
   .lk-est .sub { color: var(--muted); font-size: 11.5px; }
+  .lk-lanes { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .lk-lanes:empty { display: none; }
+  .lk-lanes-head {
+    padding: 7px 10px; font-size: 11px; line-height: 1.5; color: var(--muted);
+    background: var(--panel2); border-bottom: 1px solid var(--border);
+  }
+  .lk-lanes-head b { font-family: var(--mono); color: var(--text); font-weight: 600; }
+  .lk-lane {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 5px 10px; font-family: var(--mono); font-size: 11.5px;
+  }
+  .lk-lane + .lk-lane { border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
+  .lk-lane.mine { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .lk-lane-rk { color: var(--muted); min-width: 46px; }
+  .lk-lane.mine .lk-lane-rk { color: var(--text); font-weight: 700; }
+  .lk-lane-you {
+    color: var(--accent); font-size: 9.5px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+  }
+  .lk-lane-ask, .lk-lane-bid { cursor: help; }
+  .lk-lane-ask { color: var(--accent); }
+  .lk-lane-ask::before { content: '↓ '; color: var(--muted); }
+  .lk-lane-bid { color: var(--text); opacity: .9; }
+  .lk-lane-bid::before { content: '↑ '; color: var(--muted); }
+  .lk-chip {
+    border-radius: 999px; padding: 1px 8px; font-size: 10.5px;
+    border: 1px solid var(--border); white-space: nowrap; cursor: help;
+  }
+  .lk-chip-list { color: var(--accent); border-color: var(--accent-dim); }
+  .lk-chip-bid { color: var(--text); }
   .lk-links { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
   .lk-links a.btn { text-decoration: none; display: inline-block; }
   .lk-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1400px; margin: 0 auto; }
@@ -199,6 +229,7 @@
       <button class="lk-p-close" id="dClose" type="button" title="Close (Esc)" aria-label="Close details">✕</button>
     </div>
     <div class="lk-stats" id="dStats"></div>
+    <div class="lk-lanes" id="dLanes"></div>
     <div class="lk-est" id="dEst"></div>
     <div class="lk-links" id="dLinks"></div>
   </div>

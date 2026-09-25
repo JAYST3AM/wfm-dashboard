@@ -46,6 +46,14 @@ def items_payload():
     owned = jload(os.path.join(DATA, 'owned.json')) or []
     prices = jload(os.path.join(DATA, 'prices.json')) or {}
     stats = jload(os.path.join(DATA, 'stats.json')) or {}
+    cards = {c.get('slug'): c for c in
+             ((jload(os.path.join(DATA, 'mod_cards.json')) or {}).get('cards') or [])
+             if c.get('slug')}
+    lanes = (jload(os.path.join(DATA, 'price_lanes.json')) or {}).get('items') or {}
+    equipped = {}
+    for x in ((jload(os.path.join(DATA, 'inuse.json')) or {}).get('items') or []):
+        if x.get('slug'):
+            equipped[x['slug']] = equipped.get(x['slug'], 0) + 1
     out, seen = [], {}
     for o in owned:
         tags = set(o.get('tags') or [])
@@ -73,6 +81,23 @@ def items_payload():
         r['wts'] = p.get('wts'); r['wtb'] = p.get('wtb')
         s = stats.get(r['slug']) or {}
         r['vol48'] = s.get('vol48'); r['median'] = s.get('median'); r['avg48'] = s.get('avg48')
+        # Rank lanes (same rule as scripts/report.build_rows): a ranked copy is priced from
+        # the lane of the rank owned. The item-level wts is usually a rank-0 listing while
+        # the item-level wtb can be a rank-10 bid - an any-rank pair misleads on mods.
+        r['equipped'] = equipped.get(r['slug'], 0)
+        rank = (cards.get(r['slug']) or {}).get('owned_rank')
+        lane_doc = lanes.get(r['slug'])
+        if isinstance(rank, int):
+            r['own_rank'] = rank
+            if isinstance(lane_doc, dict):
+                cells = lane_doc.get('lanes') or {}
+                if cells:
+                    cell = cells.get(str(rank)) if isinstance(cells.get(str(rank)), dict) else {}
+                    r['lane_rank'] = rank
+                    r['lane_ask'] = cell.get('ask')
+                    r['lane_bid'] = cell.get('bid')
+                    r['lanes'] = cells
+                    r['max_rank'] = lane_doc.get('max_rank')
         r['value'] = (r['wts'] or 0) * r['count']
         r['spread'] = (r['wts'] - r['wtb']) if (r['wts'] is not None and r['wtb'] is not None) else None
         r['sections'] = ','.join(sorted(x for x in r['sections'] if x))

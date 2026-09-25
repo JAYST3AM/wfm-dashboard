@@ -144,7 +144,15 @@
           wts: p.wts == null ? null : Number(p.wts),
           wtb: p.wtb == null ? null : Number(p.wtb),
           vol48: p.vol48 == null ? null : Number(p.vol48),
-          median: p.median == null ? null : Number(p.median)
+          median: p.median == null ? null : Number(p.median),
+          // rank-lane fields (owned mods): the detail panel prices the copy you hold
+          own_rank: p.own_rank == null ? null : Number(p.own_rank),
+          equipped: p.equipped == null ? null : Number(p.equipped),
+          max_rank: p.max_rank == null ? null : Number(p.max_rank),
+          lane_rank: p.lane_rank == null ? null : Number(p.lane_rank),
+          lane_ask: p.lane_ask == null ? null : Number(p.lane_ask),
+          lane_bid: p.lane_bid == null ? null : Number(p.lane_bid),
+          lanes: p.lanes || null
         };
       });
       state.map = Object.create(null);
@@ -262,14 +270,72 @@
   }
 
   // ---------- detail panel (same page, no navigation) ----------
-  function stat(label, value, unit, cls) {
+  function stat(label, value, unit, cls, title) {
     var s = el('div', 'lk-stat');
     s.appendChild(el('span', 'k-label', label));
     var v = el('div', 'v' + (cls ? ' ' + cls : ''));
     v.textContent = value;
     if (unit && value !== '—') { v.appendChild(document.createTextNode(' ')); v.appendChild(el('span', 'u', unit)); }
     s.appendChild(v);
+    if (title) s.title = title;
     return s;
+  }
+
+  function renderLanes(it) {
+    // Order book by rank (how the market actually prices a mod): ask = cheapest sell
+    // order at that rank (you buy from it, or list just under); bid = top buy order
+    // (you sell to it, or bid just over). The rank you own leads its own row + chips.
+    var box = document.getElementById('dLanes');
+    box.innerHTML = '';
+    if (!it.lanes || it.own_rank == null) return;
+    var head = el('div', 'lk-lanes-head');
+    head.appendChild(document.createTextNode('Order book by rank — '));
+    head.appendChild(el('b', null, '↓ ask'));
+    head.appendChild(document.createTextNode(' = cheapest sell order (you buy from it, or list just under) · '));
+    head.appendChild(el('b', null, '↑ bid'));
+    head.appendChild(document.createTextNode(' = top buy order (you quick-sell to it, or bid just over). Ranks with no live orders are skipped.'));
+    box.appendChild(head);
+    var ranks = Object.keys(it.lanes).map(Number).sort(function (a, b) { return a - b; });
+    if (ranks.indexOf(it.own_rank) === -1) {
+      ranks.push(it.own_rank);
+      ranks.sort(function (a, b) { return a - b; });
+    }
+    var max = it.max_rank != null ? it.max_rank : ranks[ranks.length - 1];
+    ranks.forEach(function (rk) {
+      var cell = it.lanes[String(rk)] || {};
+      var mine = rk === it.own_rank;
+      var row = el('div', 'lk-lane' + (mine ? ' mine' : ''));
+      row.appendChild(el('span', 'lk-lane-rk', 'R' + rk + '/' + max));
+      if (mine) row.appendChild(el('span', 'lk-lane-you', 'your copy'));
+      var a = el('span', 'lk-lane-ask');
+      a.title = 'cheapest sell order at rank ' + rk + (cell.n_ask != null ? ' (' + cell.n_ask + ' listings)' : '') +
+        ' — buy from it, or list just under';
+      a.textContent = cell.ask != null ? 'asks from ' + fmt(cell.ask) + 'p' : 'no asks';
+      row.appendChild(a);
+      var b = el('span', 'lk-lane-bid');
+      var range = null;
+      if (cell.bid != null) {
+        range = (cell.bid_low != null && cell.bid_low !== cell.bid)
+          ? fmt(cell.bid_low) + '–' + fmt(cell.bid) + 'p' : fmt(cell.bid) + 'p';
+      }
+      b.title = 'buy orders at rank ' + rk + (cell.n_bid != null ? ' (' + cell.n_bid + ' bids)' : '') +
+        ' — sell to the top bid, or bid just over';
+      b.textContent = range != null ? 'bids ' + range : 'no bids';
+      row.appendChild(b);
+      if (mine) {
+        if (cell.ask != null) {
+          var list = el('span', 'lk-chip lk-chip-list', 'list ' + fmtInt(Math.max(1, Math.round(cell.ask) - 1)) + 'p ↓');
+          list.title = 'undercut the cheapest rank-' + rk + ' ask by 1p';
+          row.appendChild(list);
+        }
+        if (cell.bid != null) {
+          var ob = el('span', 'lk-chip lk-chip-bid', 'bid ' + fmtInt(Math.round(cell.bid) + 1) + 'p ↑');
+          ob.title = 'outbid the top rank-' + rk + ' buy order by 1p';
+          row.appendChild(ob);
+        }
+      }
+      box.appendChild(row);
+    });
   }
 
   function openDetail(slug, opener) {
@@ -288,44 +354,87 @@
 
     var stats = document.getElementById('dStats');
     stats.innerHTML = '';
-    stats.appendChild(stat('Sell (wts)', fmt(it.wts), it.wts != null ? 'plat' : '', 'accent'));
-    stats.appendChild(stat('Buy (wtb)', fmt(it.wtb), it.wtb != null ? 'plat' : ''));
-    stats.appendChild(stat('Median 48h', fmt(it.median), it.median != null ? 'plat' : ''));
+    var ranked = !!it.lanes && it.own_rank != null;
+    if (ranked) {
+      stats.appendChild(stat('Lowest ask · R' + it.own_rank, it.lane_ask != null ? fmt(it.lane_ask) : '—',
+                             it.lane_ask != null ? 'plat' : '', it.lane_ask != null ? 'accent' : 'dim',
+                             'cheapest sell order at the rank you own — list just under it to sell'));
+      stats.appendChild(stat('Top bid · R' + it.own_rank, it.lane_bid != null ? fmt(it.lane_bid) : '—',
+                             it.lane_bid != null ? 'plat' : '', it.lane_bid != null ? '' : 'dim',
+                             'highest buy order at the rank you own — quick-sell price'));
+    } else {
+      stats.appendChild(stat('Lowest ask', fmt(it.wts), it.wts != null ? 'plat' : '', 'accent',
+                             'cheapest visible sell order for this item'));
+      stats.appendChild(stat('Top bid', fmt(it.wtb), it.wtb != null ? 'plat' : '', '',
+                             'highest visible buy order for this item'));
+    }
+    stats.appendChild(stat('Median 48h', fmt(it.median), it.median != null ? 'plat' : '', '',
+                           'median of every 48h sale, all ranks — context only, not your copy’s price'));
     stats.appendChild(stat('Volume 48h', fmtInt(it.vol48), 'trades'));
-    stats.appendChild(stat('Owned', String(it.count || 0), it.count === 1 ? 'copy' : 'copies', it.count > 0 ? 'accent' : 'dim'));
+    stats.appendChild(stat(it.equipped ? 'Owned · equipped' : 'Owned', String(it.count || 0),
+                           it.count === 1 ? 'copy' : 'copies', it.count > 0 ? 'accent' : 'dim',
+                           it.equipped ? 'includes copies slotted in a loadout — equipped copies are never sellable' : ''));
     stats.appendChild(stat('Ducats each', it.ducats == null ? '—' : fmtInt(it.ducats), it.ducats == null ? '' : 'ducats'));
     stats.appendChild(stat('Ducat value (owned)', it.ducats == null ? '—' : fmtInt((it.count || 0) * it.ducats), 'ducats'));
+    renderLanes(it);
 
     var est = document.getElementById('dEst');
     est.innerHTML = '';
-    var total = (it.count || 0) * (it.wts || 0);
     var line = el('div');
-    if (it.wts == null) {
+    if (ranked) {
+      // Price the copy actually held: its rank lane, never the any-rank quote.
+      line.appendChild(document.createTextNode('Your rank-' + it.own_rank + ' copy: '));
+      if (it.lane_bid != null) {
+        line.appendChild(document.createTextNode('quick-sell to the top bid for '));
+        line.appendChild(el('b', null, fmt(it.lane_bid) + 'p'));
+      } else {
+        line.appendChild(document.createTextNode('no buy orders at this rank — nothing to quick-sell to'));
+      }
+      if (it.lane_ask != null) {
+        line.appendChild(document.createTextNode(it.lane_bid != null ? ' · or l' : ' — l'));
+        line.appendChild(document.createTextNode('ist just under the lowest ask ('));
+        line.appendChild(el('b', null, fmt(it.lane_ask) + 'p'));
+        line.appendChild(document.createTextNode(') = about '));
+        line.appendChild(el('b', null, fmtInt(Math.max(1, Math.round(it.lane_ask) - 1)) + 'p'));
+      } else if (it.lane_bid != null) {
+        line.appendChild(document.createTextNode(' · no sell orders at this rank'));
+      }
+      line.appendChild(document.createTextNode('.'));
+    } else if (it.wts == null) {
       line.appendChild(document.createTextNode('No sell orders in the current snapshot, so a platinum value can’t be estimated right now.'));
     } else if (it.count > 0) {
       line.appendChild(document.createTextNode('Estimated value: you own '));
       line.appendChild(el('b', null, String(it.count)));
       line.appendChild(document.createTextNode(' × '));
       line.appendChild(el('b', null, fmt(it.wts) + 'p'));
-      line.appendChild(document.createTextNode(' sell price = about '));
-      line.appendChild(el('b', null, fmtInt(total) + ' platinum'));
-      line.appendChild(document.createTextNode(' if every copy sells at today’s lowest sell price.'));
+      line.appendChild(document.createTextNode(' lowest ask = about '));
+      line.appendChild(el('b', null, fmtInt((it.count || 0) * (it.wts || 0)) + ' platinum'));
+      line.appendChild(document.createTextNode(' if every copy sells at today’s lowest ask.'));
     } else {
-      line.appendChild(document.createTextNode('You don’t own this item. Its listed sell price is '));
+      line.appendChild(document.createTextNode('You don’t own this item. Its lowest ask is '));
       line.appendChild(el('b', null, fmt(it.wts) + 'p'));
       line.appendChild(document.createTextNode(', so one copy would be worth about '));
       line.appendChild(el('b', null, fmtInt(it.wts) + ' platinum'));
       line.appendChild(document.createTextNode('.'));
     }
     est.appendChild(line);
+    if (it.equipped) {
+      var eqn = el('div', 'sub');
+      eqn.textContent = it.equipped + ' cop' + (it.equipped === 1 ? 'y is' : 'ies are') +
+        ' equipped in a loadout — equipped copies are never counted as sellable.';
+      est.appendChild(eqn);
+    }
     var sub = el('div', 'sub');
-    if (it.median != null && it.count > 0) {
+    if (ranked) {
+      sub.textContent = 'All-rank context: 48h median ' + (it.median != null ? fmt(it.median) + 'p' : '—') +
+        ' · volume ' + fmtInt(it.vol48) + ' trades. The median mixes every rank, so read it as context — not your copy’s price.';
+    } else if (it.median != null && it.count > 0) {
       sub.textContent = 'At the 48h median (' + fmt(it.median) + 'p) the same ' + it.count + ' cop' + (it.count === 1 ? 'y' : 'ies') +
         ' would be ≈ ' + fmtInt(it.count * it.median) + 'p · ' + (it.ducats != null ? ((it.count * it.ducats) + ' ducats if dissolved instead') : 'no ducat value');
     } else if (it.ducats != null && it.count > 0) {
       sub.textContent = it.count + ' × ' + it.ducats + ' ducats = ' + (it.count * it.ducats) + ' ducats if dissolved instead of sold';
     } else {
-      sub.textContent = '“Owned” counts this PC’s last inventory snapshot; sell/buy prices are the cheapest listing / top offer seen in the local 48h market scan.';
+      sub.textContent = '“Owned” counts this PC’s last inventory snapshot; ask = cheapest sell order, bid = top buy order, both read from the local market scan.';
     }
     est.appendChild(sub);
 

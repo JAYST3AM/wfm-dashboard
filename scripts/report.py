@@ -63,7 +63,37 @@ def pick_score(r, base=None):
     return (r['value'] if base is None else base) * min(1 + r['vol48'] / max(r['count'], 1), 4)
 
 
-def build_rows(owned, prices, stats, dec, in_use):
+def lane_price(lane_doc, rank):
+    """(ask, bid) at the owned rank from a price_lanes.json entry, or None.
+
+    None means "no order book to read" - the slug has no lane snapshot at all
+    (unranked tradeable, untradeable, or never fetched), so the item-level quote
+    stands. A slug WITH lanes but no orders at that rank resolves to (None, None)
+    on purpose: the item-level wts/wtb belong to other ranks (usually rank 0) and
+    would misprice this copy.
+    """
+    if not isinstance(lane_doc, dict) or not isinstance(rank, int):
+        return None
+    cells = lane_doc.get('lanes') or {}
+    if not isinstance(cells, dict) or not cells:
+        return None
+    cell = cells.get(str(rank))
+    cell = cell if isinstance(cell, dict) else {}
+
+    def side(key):
+        v = cell.get(key)
+        return v if isinstance(v, (int, float)) and v > 0 else None
+    return side('ask'), side('bid')
+
+
+def own_ranks_of(cards_doc):
+    """{slug: owned_rank} from mod_cards.json - the rank the save proves is owned."""
+    cards = (cards_doc or {}).get('cards') or []
+    return {c['slug']: c['owned_rank'] for c in cards
+            if c.get('slug') and isinstance(c.get('owned_rank'), int)}
+
+
+def build_rows(owned, prices, stats, dec, in_use, lanes=None, own_ranks=None):
     """Aggregate owned rows + price/stat snapshots into report rows.
 
     One source of truth for copy maths: `scripts/report.py` writes these rows to
@@ -85,6 +115,17 @@ def build_rows(owned, prices, stats, dec, in_use):
         p = prices.get(s) or {}
         t = stats.get(s) or {}
         wts, wtb = p.get('wts'), p.get('wtb')
+        # A ranked copy is priced from its own rank lane, never from the any-rank quote:
+        # the item-level wts is usually a rank-0 listing while wtb can be a rank-10 bid.
+        lane_rank = None
+        lane_ask = lane_bid = None
+        l_doc = (lanes or {}).get(s)
+        o_rank = (own_ranks or {}).get(s)
+        if isinstance(o_rank, int) and isinstance(l_doc, dict):
+            resolved = lane_price(l_doc, o_rank)
+            if resolved is not None:
+                lane_rank, (lane_ask, lane_bid) = o_rank, resolved
+                wts, wtb = lane_ask, lane_bid
         count = a['count']
         vol48 = t.get('vol48') or 0
         vold = t.get('volday90') or 0
@@ -97,6 +138,7 @@ def build_rows(owned, prices, stats, dec, in_use):
             slug=s, name=a['name'], cat=cat_of(a['tags']), count=count,
             dupes=a['refs'] or None, ducats=a['ducats'],
             wts=wts, wtb=wtb, med=round(med, 1) if med else None,
+            lane_rank=lane_rank, lane_ask=lane_ask, lane_bid=lane_bid,
             mn48=t.get('min48'), mx48=t.get('max48'),
             n_sell=p.get('n_sell'), n_buy=p.get('n_buy'),
             vol48=vol48, volday=round(vold, 2),
@@ -114,8 +156,10 @@ def main():
     stats = load('stats.json') or {}
     dec = load('lastData.dec.json') or {}
     in_use = in_use_counts(load('inuse.json'))
+    lanes = (load('price_lanes.json') or {}).get('items') or {}
+    own_ranks = own_ranks_of(load('mod_cards.json'))
 
-    rows = build_rows(owned, prices, stats, dec, in_use)
+    rows = build_rows(owned, prices, stats, dec, in_use, lanes, own_ranks)
 
     sellable = [r for r in rows if r['wts'] is not None]
     tot_val = sum(r['value'] for r in sellable)                        # sellable copies only

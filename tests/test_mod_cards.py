@@ -20,7 +20,8 @@ import pytest
 from conftest import REPO, load_script, read_json, write_json
 
 CARD_KEYS = {'slug', 'name', 'rarity', 'type', 'polarity', 'base_drain', 'max_rank',
-             'is_prime', 'owned_copies', 'owned_rank', 'floor', 'median', 'stats_text', 'icon'}
+             'is_prime', 'owned_copies', 'owned_rank', 'floor', 'median', 'stats_text', 'icon',
+             'lane_rank', 'lane_ask', 'lane_bid'}
 
 CATALOG = {'source_url': 'https://example.invalid/Mods.json', 'fetched': 1700000000,
            'fetched_iso': '2023-11-14T22:13:20Z', 'fields': ['name', 'uniqueName'],
@@ -247,6 +248,39 @@ def test_missing_mod_has_no_fake_owned_numbers(built):
     assert card['median'] == 12.3                    # a quote can exist without ownership
     unquoted = built.cards['hells_chamber']
     assert unquoted['floor'] is None and unquoted['median'] is None
+
+
+def test_lanes_price_the_rank_owned_not_rank_zero(mc):
+    """An any-rank floor is a rank-0 price; the lane is the copy's real price."""
+    owned = [{'slug': 'primed_continuity', 'name': 'Primed Continuity', 'count': 1,
+              'tags': ['mod', 'prime'], 'section': 'Upgrades',
+              'path': '/Lotus/Upgrades/Mods/Warframe/Expert/AvatarAbilityDurationModExpert'}]
+    save = {'Upgrades': [
+        {'ItemType': '/Lotus/Upgrades/Mods/Warframe/Expert/AvatarAbilityDurationModExpert',
+         'UpgradeFingerprint': '{"lvl":7}'}]}
+    lanes = {'primed_continuity': {'max_rank': 10, 'lanes': {
+        '0': {'ask': 15, 'n_ask': 4, 'bid': 4, 'bid_low': 4, 'n_bid': 2},
+        '7': {'ask': 90, 'n_ask': 3, 'bid': 61, 'bid_low': 55, 'n_bid': 2}}}}
+    cards, _ = mc.build_cards(CATALOG['mods'], WFM_ITEMS, owned, save,
+                              {'primed_continuity': {'wts': 15}}, {}, lanes)
+    card = {c['slug']: c for c in cards}['primed_continuity']
+    assert card['floor'] == 15                        # snapshot floor stays untouched...
+    assert (card['lane_rank'], card['lane_ask'], card['lane_bid']) == (7, 90, 61)
+
+
+def test_lane_row_without_orders_keeps_rank_and_null_sides(mc):
+    """A rank you own with no orders gets lane fields with null sides - never a rank-0 price."""
+    owned = [{'slug': 'primed_continuity', 'name': 'Primed Continuity', 'count': 1,
+              'tags': ['mod', 'prime'], 'section': 'Upgrades',
+              'path': '/Lotus/Upgrades/Mods/Warframe/Expert/AvatarAbilityDurationModExpert'}]
+    save = {'Upgrades': [
+        {'ItemType': '/Lotus/Upgrades/Mods/Warframe/Expert/AvatarAbilityDurationModExpert',
+         'UpgradeFingerprint': '{"lvl":7}'}]}
+    lanes = {'primed_continuity': {'max_rank': 10, 'lanes': {'7': {'n_ask': 0, 'n_bid': 0}}}}
+    cards, _ = mc.build_cards(CATALOG['mods'], WFM_ITEMS, owned, save,
+                              {'primed_continuity': {'wts': 15}}, {}, lanes)
+    card = {c['slug']: c for c in cards}['primed_continuity']
+    assert (card['lane_rank'], card['lane_ask'], card['lane_bid']) == (7, None, None)
 
 
 # ------------------------------------------------------------------ stats_text + prices

@@ -97,6 +97,9 @@
         owned_rank: num(c.owned_rank),
         floor: num(c.floor),
         median: num(c.median),
+        lane_rank: num(c.lane_rank),
+        lane_ask: num(c.lane_ask),
+        lane_bid: num(c.lane_bid),
         stats_text: c.stats_text ? String(c.stats_text) : '',
         icon: c.icon ? String(c.icon) : null
       });
@@ -586,7 +589,9 @@
       card.name + ', ' + (card.rarity || 'unknown rarity') + (isFoil(card) ? ' foil' : '') +
       ', ' + (owned ? (card.owned_copies + (card.owned_copies === 1 ? ' copy' : ' copies') +
         (card.owned_rank != null ? ', rank ' + card.owned_rank : '')) : 'not owned') +
-      (card.floor != null ? ', sell floor ' + fmt(card.floor) + ' platinum' : '') +
+      (card.lane_rank != null && card.lane_ask != null
+        ? ', lowest ask at rank ' + card.lane_rank + ' ' + fmt(card.lane_ask) + ' platinum'
+        : (card.floor != null ? ', lowest ask ' + fmt(card.floor) + ' platinum' : '')) +
       ', click to inspect the card');
 
     var inner = el('div', 'mcd-inner');
@@ -840,8 +845,17 @@
     insRow('Best copy', card.owned_rank != null
       ? 'rank ' + card.owned_rank + (card.max_rank != null ? ' / ' + card.max_rank : '') : 'not owned');
     if (card.owned_copies > 1) insRow('Spare copies', String(card.owned_copies - 1));
-    insRow('Sell floor', card.floor != null ? fmt(card.floor) + 'p' : 'no listings');
-    insRow('Median (48h)', card.median != null ? fmt(card.median) + 'p' : '—');
+    // Rank lanes: the rank you own is priced from its own order book (the any-rank
+    // "sell floor" is usually a rank-0 listing and misprices a ranked copy).
+    if (card.lane_rank != null) {
+      insRow('↓ Lowest ask · R' + card.lane_rank,
+        card.lane_ask != null ? fmt(card.lane_ask) + 'p' : 'nothing at this rank');
+      insRow('↑ Top bid · R' + card.lane_rank,
+        card.lane_bid != null ? fmt(card.lane_bid) + 'p' : 'nothing at this rank');
+    } else {
+      insRow('↓ Lowest ask', card.floor != null ? fmt(card.floor) + 'p' : 'no listings');
+    }
+    insRow('Median (48h · all ranks)', card.median != null ? fmt(card.median) + 'p' : '—');
     insRow('Slug', card.slug);
 
     // bar

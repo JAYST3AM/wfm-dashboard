@@ -17,11 +17,14 @@ INPUTS (only the catalog is fetched; everything else is local and read-only)
   data/lastData.dec.json     per-copy mod ranks (Upgrades[].UpgradeFingerprint "lvl")
   data/prices.json           sell floor  -> row['wts']   (lowest visible sell listing)
   data/stats.json            48h median  -> row['med48'] (falls back to row['median'])
+  data/price_lanes.json      per-rank order book -> lane_ask/lane_bid for the rank the
+                             save proves is owned (an any-rank floor is the rank-0 price
+                             and misleads on a ranked copy)
 
 OUTPUT data/mod_cards.json
   {generated, generated_iso,
    cards:[{slug,name,rarity,type,polarity,base_drain,max_rank,is_prime,owned_copies,
-           owned_rank,floor,median,stats_text}],
+           owned_rank,floor,median,stats_text,lane_rank,lane_ask,lane_bid}],
    summary:{cards,owned,missing,dupes,rarities:{<Rarity>:{total,owned}}},
    sources:{...}, notes:[...]}
 
@@ -31,6 +34,10 @@ RULES
     fingerprint can be matched -> null (unknown, never guessed).
   * floor/median are null when the local snapshot has no quote for the slug. Most
     un-owned mods have no quote, so the card shows no price instead of a fake one.
+  * lane_rank/lane_ask/lane_bid = the order book AT THE RANK OWNED (data/price_lanes.json):
+    lane_ask is the cheapest sell order at that rank (undercut by 1p to list), lane_bid
+    the top buy order (quick-sell price, or outbid by 1p to buy). A rank with no orders
+    on a side keeps the cell null - "nothing at this rank" - never a rank-0 price.
   * stats_text = the mod's in-game card text: EVERY max-rank line (stat modifiers AND
     the effect prose, one per line), cleaned of WFCD markup; falls back to the catalog
     description, then to ''. Clipped to STATS_MAX chars in total.
@@ -440,6 +447,24 @@ def price_of(slug, prices, stats):
     return clean_num(floor), clean_num(median)
 
 
+def lane_of(lanes, slug, rank):
+    """(lane_rank, lane_ask, lane_bid) for the owned rank from a price_lanes.json entry.
+
+    (None, None, None) when the slug has no order book to read (unranked item, or
+    never fetched); (rank, ask or None, bid or None) otherwise - a lane row with no
+    orders on a side is still meaningful ("nothing at this rank").
+    """
+    doc = (lanes or {}).get(slug) if isinstance(lanes, dict) else None
+    if not isinstance(doc, dict) or not isinstance(rank, int):
+        return None, None, None
+    cells = doc.get('lanes') or {}
+    if not isinstance(cells, dict) or not cells:
+        return None, None, None
+    cell = cells.get(str(rank))
+    cell = cell if isinstance(cell, dict) else {}
+    return rank, clean_num(posnum(cell.get('ask'))), clean_num(posnum(cell.get('bid')))
+
+
 VARIANT_RE = re.compile(r'/(Beginner|Expert|Intermediate)/|(Beginner|Expert|Intermediate)$')
 
 
@@ -457,7 +482,7 @@ def variant_score(mod, ref):
 
 
 # ---------------------------------------------------------------- build
-def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
+def build_cards(catalog, wfm_items, owned_rows, save, prices, stats, lanes=None):
     """Pure card build (no I/O). -> (cards, diagnostics)."""
     by_ref, by_name, wfm_rank = wfm_index(wfm_items)
     icons = wfm_icons(wfm_items)
@@ -499,6 +524,8 @@ def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
         entry = owned.get(slug)
         ranks_found = resolve_rank(entry, ranks) if entry else None
         floor, median = price_of(slug, prices, stats)
+        lane_rank, lane_ask, lane_bid = lane_of(
+            lanes, slug, ranks_found if isinstance(ranks_found, int) else None)
         cap = sane_rank(mod.get('fusionLimit'))
         if cap is None or VARIANT_RE.search(ref):
             # Junk fusionLimits (rivens) fall back to WFM. Beginner/Intermediate/Expert
@@ -526,6 +553,9 @@ def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
             'owned_rank': ranks_found,
             'floor': floor,
             'median': median,
+            'lane_rank': lane_rank,
+            'lane_ask': lane_ask,
+            'lane_bid': lane_bid,
             'stats_text': stats_text(mod),
             'icon': icon_url(slug),
         }
@@ -543,6 +573,9 @@ def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
         if slug in by_slug:
             continue
         floor, median = price_of(slug, prices, stats)
+        ex_rank = resolve_rank(entry, ranks)
+        lane_rank, lane_ask, lane_bid = lane_of(
+            lanes, slug, ex_rank if isinstance(ex_rank, int) else None)
         by_slug[slug] = {
             'slug': slug,
             'name': entry['name'] or slug,
@@ -553,9 +586,12 @@ def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
             'max_rank': sane_rank(wfm_rank.get(slug)),
             'is_prime': 'prime' in (entry.get('tags') or set()),
             'owned_copies': int(entry['copies']),
-            'owned_rank': resolve_rank(entry, ranks),
+            'owned_rank': ex_rank,
             'floor': floor,
             'median': median,
+            'lane_rank': lane_rank,
+            'lane_ask': lane_ask,
+            'lane_bid': lane_bid,
             'stats_text': '',
             'icon': icon_url(slug),
         }
@@ -574,6 +610,7 @@ def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
         'prime_cards': sum(1 for c in cards if c['is_prime']),
         'quoted': sum(1 for c in cards if c['floor'] is not None),
         'medianised': sum(1 for c in cards if c['median'] is not None),
+        'laned': sum(1 for c in cards if c['lane_rank'] is not None),
         'copies_owned': sum(c['owned_copies'] for c in cards),
     }
     return cards, diagnostics
@@ -606,9 +643,9 @@ def payload_hash(doc):
     return hashlib.sha256(blob.encode('ascii', 'replace')).hexdigest()
 
 
-def build_doc(catalog, wfm_items, owned_rows, save, prices, stats, sources, prev=None):
+def build_doc(catalog, wfm_items, owned_rows, save, prices, stats, sources, prev=None, lanes=None):
     """Assemble the output document; reuses prev stamps when nothing else changed."""
-    cards, diagnostics = build_cards(catalog, wfm_items, owned_rows, save, prices, stats)
+    cards, diagnostics = build_cards(catalog, wfm_items, owned_rows, save, prices, stats, lanes)
     summary = summarize(cards)
     notes = []
     if diagnostics['catalog_duplicates']:
@@ -620,6 +657,9 @@ def build_doc(catalog, wfm_items, owned_rows, save, prices, stats, sources, prev
     if diagnostics['owned_slugs_not_in_catalog']:
         notes.append('%d owned mods are absent from the WFCD catalog and carry catalog fields'
                      % diagnostics['owned_slugs_not_in_catalog'])
+    if diagnostics['laned']:
+        notes.append('%d cards price the rank the save proves is owned (order-book lanes, '
+                     'not the any-rank floor)' % diagnostics['laned'])
     no_rarity = sum(1 for c in cards if not c['rarity'])
     if no_rarity:
         notes.append('%d cards have no rarity in the catalog (neutral border)' % no_rarity)
@@ -750,6 +790,13 @@ FIXTURE_PRICES = {'vitality': {'wts': 2, 'wtb': None}, 'pressure_point': {'wts':
                   'extra_owned_mod': {'wts': 9}}
 FIXTURE_STATS = {'vitality': {'med48': 2.5}, 'primed_continuity': {'med48': 85.54},
                  'pressure_point': {'median': 1.5}, 'extra_owned_mod': {'med48': 0}}
+FIXTURE_LANES = {
+    'primed_continuity': {'max_rank': 10, 'lanes': {
+        '0': {'ask': 15, 'n_ask': 4, 'bid': 4, 'bid_low': 4, 'n_bid': 2},
+        '7': {'ask': 90, 'n_ask': 3, 'bid': 61, 'bid_low': 55, 'n_bid': 2},
+        '10': {'ask': 74, 'n_ask': 9, 'bid': 30, 'bid_low': 20, 'n_bid': 6}}},
+    'pressure_point': {'max_rank': 3, 'lanes': {'3': {'n_ask': 0, 'n_bid': 0}}},
+}
 
 
 def selftest():
@@ -762,10 +809,12 @@ def selftest():
         checks.append(name)
 
     doc = build_doc(FIXTURE_CATALOG, FIXTURE_WFM, FIXTURE_OWNED, FIXTURE_SAVE,
-                    FIXTURE_PRICES, FIXTURE_STATS, {'catalog': {'source_url': 'fixture'}})
+                    FIXTURE_PRICES, FIXTURE_STATS, {'catalog': {'source_url': 'fixture'}},
+                    lanes=FIXTURE_LANES)
     cards = {c['slug']: c for c in doc['cards']}
     keys = {'slug', 'name', 'rarity', 'type', 'polarity', 'base_drain', 'max_rank', 'is_prime',
-            'owned_copies', 'owned_rank', 'floor', 'median', 'stats_text', 'icon'}
+            'owned_copies', 'owned_rank', 'floor', 'median', 'stats_text', 'icon',
+            'lane_rank', 'lane_ask', 'lane_bid'}
 
     chk('top-level keys', set(doc), {'generated', 'generated_iso', 'cards', 'summary', 'sources', 'notes'})
     chk('card keys', set(cards['vitality']), keys)
@@ -782,6 +831,15 @@ def selftest():
     chk('vitality best rank wins', cards['vitality']['owned_rank'], 10)
     chk('pressure point rank', cards['pressure_point']['owned_rank'], 3)
     chk('primed continuity best of 7/2', cards['primed_continuity']['owned_rank'], 7)
+    chk('lane prices follow the rank owned, not rank 0',
+        (cards['primed_continuity']['lane_rank'], cards['primed_continuity']['lane_ask'],
+         cards['primed_continuity']['lane_bid']), (7, 90, 61))
+    chk('lane row with no orders keeps the rank, null sides',
+        (cards['pressure_point']['lane_rank'], cards['pressure_point']['lane_ask'],
+         cards['pressure_point']['lane_bid']), (3, None, None))
+    chk('no lane snapshot -> null lane fields',
+        (cards['vitality']['lane_rank'], cards['vitality']['lane_ask'],
+         cards['vitality']['lane_bid']), (None, None, None))
     chk('primed continuity is_prime', cards['primed_continuity']['is_prime'], True)
     chk('legendary rarity kept', cards['primed_continuity']['rarity'], 'Legendary')
     chk('stats_text uses MAX rank line', cards['primed_continuity']['stats_text'], '+55% Ability Duration')
@@ -893,6 +951,7 @@ def main(argv=None):
     save = load('lastData.dec.json', {}) or {}
     prices = load('prices.json', {}) or {}
     stats = load('stats.json', {}) or {}
+    lanes = (load('price_lanes.json', {}) or {}).get('items') or {}
 
     try:
         with open(OUT, encoding='utf-8') as fh:
@@ -906,8 +965,10 @@ def main(argv=None):
         'owned': {'file': 'data/owned.json', 'rows': len(owned_rows)},
         'ranks': {'file': 'data/lastData.dec.json',
                   'upgrades': len((save.get('Upgrades') or []) if isinstance(save, dict) else [])},
+        'lanes': {'file': 'data/price_lanes.json', 'items': len(lanes)},
     }
-    doc = build_doc(catalog, wfm_items, owned_rows, save, prices, stats, sources, prev=prev)
+    doc = build_doc(catalog, wfm_items, owned_rows, save, prices, stats, sources, prev=prev,
+                    lanes=lanes)
     atomic_write(OUT, doc)
 
     if not args.quiet:

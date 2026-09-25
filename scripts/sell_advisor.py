@@ -126,7 +126,9 @@ def build_context():
     stats = load('stats.json', {}) or {}
     dec = load('lastData.dec.json', {}) or {}
     in_use = report.in_use_counts(load('inuse.json', {}))
-    rows = report.build_rows(owned, prices, stats, dec, in_use)
+    lanes = (load('price_lanes.json', {}) or {}).get('items') or {}
+    own_ranks = report.own_ranks_of(load('mod_cards.json', {}))
+    rows = report.build_rows(owned, prices, stats, dec, in_use, lanes, own_ranks)
     by_slug = {r['slug']: r for r in rows}
 
     trends = {}
@@ -244,7 +246,10 @@ def advise(slug, ctx, now=None):
     # ---- market facts ----
     price = optnum(row.get('wts'))
     median = optnum(row.get('med'))
-    if price is None and median is not None:
+    lane_rank = int(row['lane_rank']) if isinstance(row.get('lane_rank'), int) else None
+    if price is None and median is not None and lane_rank is None:
+        # An all-rank median is a mix (rank-0 sales dominate it). Only fall back to it
+        # for unranked items - a ranked copy with no lane price has no honest quote.
         price = median
         notes.append('no seller listed - using the 48h median')
     vol48 = int(row.get('vol48') or 0)
@@ -360,7 +365,10 @@ def advise(slug, ctx, now=None):
     else:
         if price is None:
             rec, qty = 'hold', 0
-            notes.append('no local price data')
+            if lane_rank is not None:
+                notes.append('no sell orders at rank %d - nothing to undercut' % lane_rank)
+            else:
+                notes.append('no local price data')
         else:
             rec = 'list'
             cap = sellable
@@ -375,8 +383,10 @@ def advise(slug, ctx, now=None):
     # ---- reasons from market facts (only when data exists) ----
     if price is not None:
         line = 'Current market price: %sp' % pfmt(price)
+        if lane_rank is not None:
+            line += ' at rank %d (your copy\'s rank)' % lane_rank
         if median is not None:
-            line += ' (48h median %sp)' % pfmt(median)
+            line += ' (48h median %sp, all ranks)' % pfmt(median)
         reasons.append(line)
     if badge == 'spike':
         reasons.append('demand is rising (48h volume above the 90d rate)')
@@ -414,6 +424,8 @@ def advise(slug, ctx, now=None):
     lines.append('')
     if price is not None:
         block = 'Current market price: %sp' % pfmt(price)
+        if lane_rank is not None:
+            block += ' at rank %d (your copy\'s rank)' % lane_rank
         if median is not None:
             block += ' (48h median %sp)' % pfmt(median)
         lines.append(block + '.')
@@ -458,6 +470,7 @@ def advise(slug, ctx, now=None):
         'item': slug, 'name': name, 'cat': kind,
         'owned': owned, 'equipped': equipped, 'reserved': reserved, 'sellable': sellable,
         'market_price': price, 'median': median,
+        'lane_rank': lane_rank,
         'trend': {'spike': 'rising', 'fade': 'falling', 'steady': 'steady'}.get(badge),
         'demand_badge': badge, 'price_trend_pct': pct,
         'liquidity': liquidity, 'vol48': vol48, 'volday': volday,

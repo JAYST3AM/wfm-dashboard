@@ -100,6 +100,46 @@ def only(doc, key, slug):
     return by_slug(doc, key).get(slug)
 
 
+# ------------------------------------------------------- rank lanes
+
+def test_rank_lane_prices_the_copy_not_the_any_rank_quote(rep):
+    """The 15p/55p pair Jay caught: a rank-0 ask next to a rank-10 bid. Lane 9 wins."""
+    owned = [{'slug': 'blind_rage', 'name': 'Blind Rage', 'count': 1, 'tags': ['mod']}]
+    prices = {'blind_rage': {'wts': 15, 'wtb': 55}}
+    lanes = {'blind_rage': {'max_rank': 10, 'lanes': {
+        '0': {'ask': 15, 'n_ask': 412, 'bid': 18, 'bid_low': 4, 'n_bid': 55},
+        '9': {'ask': 55, 'n_ask': 11, 'n_bid': 0},
+        '10': {'ask': 40, 'n_ask': 240, 'bid': 75, 'bid_low': 20, 'n_bid': 94}}}}
+    r = rep.build_rows(owned, prices, {}, {}, {}, lanes, {'blind_rage': 9})[0]
+    assert (r['lane_rank'], r['lane_ask'], r['lane_bid']) == (9, 55, None)
+    assert r['wts'] == 55 and r['wtb'] is None      # lane beats the any-rank pair
+    assert r['value'] == 55 and r['spread'] is None
+
+
+def test_unranked_rows_keep_the_item_level_quote(rep):
+    owned = [{'slug': 'some_part', 'name': 'Some Part', 'count': 2, 'tags': ['prime', 'component']}]
+    r = rep.build_rows(owned, {'some_part': {'wts': 20, 'wtb': 15}}, {}, {}, {},
+                       {'some_part': {'max_rank': 0, 'lanes': {}}}, {})[0]
+    assert r['lane_rank'] is None
+    assert (r['wts'], r['wtb'], r['value']) == (20, 15, 40)
+
+
+def test_lane_with_no_orders_never_falls_back_to_rank_zero(rep):
+    """No asks at the owned rank -> no price. Falling back to the rank-0 ask is the bug."""
+    owned = [{'slug': 'blind_rage', 'name': 'Blind Rage', 'count': 2, 'tags': ['mod']}]
+    lanes = {'blind_rage': {'max_rank': 10, 'lanes': {'9': {'n_ask': 0, 'n_bid': 0}}}}
+    r = rep.build_rows(owned, {'blind_rage': {'wts': 15, 'wtb': 55}}, {}, {}, {},
+                       lanes, {'blind_rage': 9})[0]
+    assert (r['wts'], r['wtb']) == (None, None) and r['value'] == 0
+
+
+def test_own_ranks_of_reads_mod_cards_and_drops_unknowns(rep):
+    doc = {'cards': [{'slug': 'a', 'owned_rank': 3}, {'slug': 'b', 'owned_rank': None},
+                     {'slug': 'c'}, {'slug': 'd', 'owned_rank': 0}]}
+    assert rep.own_ranks_of(doc) == {'a': 3, 'd': 0}
+    assert rep.own_ranks_of(None) == {}
+
+
 # ------------------------------------------------------- quantity per row
 
 def test_plain_row_is_untouched_by_in_use_data(rep, monkeypatch, tmp_path):
