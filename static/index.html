@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFM Trader</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">◈</span> WFM Trader <span class="sub">local</span></div>
+  <div class="chips" id="chips"></div>
+  <div class="actions">
+    <div class="search"><span class="si">⌕</span><input id="search" type="text" placeholder="Search items…" autocomplete="off"></div>
+    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
+    <button id="refresh" class="btn primary">Refresh</button>
+  </div>
+  <div id="themePanel" class="theme-panel hidden">
+    <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
+    <div id="themeGrid" class="tp-grid"></div>
+  </div>
+</header>
+
+<nav class="mainnav" id="mainnav">
+  <a href="#home" class="navpill" data-v="home">Dashboard</a>
+  <a href="#inventory" class="navpill" data-v="inventory">Inventory</a>
+  <a href="#history" class="navpill" data-v="history">History</a>
+</nav>
+
+<main>
+  <section id="view-home">
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Platinum balance</div>
+        <div class="ranges" id="ranges">
+          <button data-r="24h">24h</button>
+          <button data-r="7d">7d</button>
+          <button data-r="30d">30d</button>
+          <button data-r="all" class="active">All</button>
+        </div>
+      </div>
+      <div class="chartwrap"><canvas id="platChart"></canvas><div id="chartTip" class="tip hidden"></div></div>
+      <div id="chartMeta" class="status"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Top sell picks <span class="dim small" id="picksMeta"></span></div></div>
+      <div id="sellPicks" class="picks"></div>
+    </div>
+  </section>
+
+  <section id="view-inventory" class="hidden">
+    <nav id="tabs" class="tabs"></nav>
+    <div id="totals" class="totals"></div>
+    <div class="tablewrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th data-k="name">Item</th>
+            <th data-k="cat" class="hide-s">Cat</th>
+            <th data-k="count" class="num">Qty</th>
+            <th data-k="ducats" class="num hide-s">Duc</th>
+            <th data-k="wts" class="num">Sell</th>
+            <th data-k="wtb" class="num hide-s">Buy</th>
+            <th data-k="spread" class="num hide-s">Spread</th>
+            <th data-k="vol48" class="num">48h vol</th>
+            <th data-k="median" class="num hide-s">Median</th>
+            <th data-k="value" class="num">Value</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div id="status" class="status"></div>
+  </section>
+
+  <section id="view-history" class="hidden">
+    <div class="kpis" id="histKpis"></div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Trade history <span class="dim small" id="histMeta"></span></div>
+        <div class="ranges" id="hFilters">
+          <button data-f="all" class="active">All</button>
+          <button data-f="sale">Sales</button>
+          <button data-f="purchase">Purchases</button>
+          <button data-f="other">Listings &amp; notes</button>
+        </div>
+      </div>
+      <div class="picks" id="tradeLog"></div>
+    </div>
+  </section>
+</main>
+<div class="foot" id="foot"></div>
+
+<script src="/chart.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+secrets.json
+data/*
+!data/.gitkeep
