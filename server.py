@@ -127,6 +127,7 @@ FEATURES = {
     'meta': 'meta_watch.json', 'craft': 'craft.json',
     'notify': 'notify_outbox.json',
     'collection': 'collection_log.json', 'cards': 'mod_cards.json', 'ledger': 'plat_ledger.json',
+    'advisor': 'sell_advisor.json',
 }
 
 
@@ -150,6 +151,10 @@ def feature_payload(name):
         raw.pop('ignored_ingredients', None)
     elif name == 'meta':
         raw['rows'] = (raw.get('rows') or [])[:60]
+    elif name == 'advisor':
+        raw.pop('ranked', None)  # UI reads items/ranked order from 'top' + per-slug lookups
+        for rec in (raw.get('items') or {}).values():
+            rec.pop('notes', None)
     return raw
 
 def cfg_payload():

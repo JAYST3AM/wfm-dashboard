@@ -16,9 +16,9 @@ SCRIPTS = os.path.join(ROOT, 'scripts')
 AF = os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
 
 
-def run(name):
+def run(name, *args):
     print(f'\n=== {name} ===', flush=True)
-    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, name)], cwd=ROOT)
+    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, name), *args], cwd=ROOT)
     if r.returncode != 0:
         print(f'\n{name} failed (exit {r.returncode}). Fix the error above and re-run: python scripts/setup.py')
         sys.exit(r.returncode)
@@ -47,6 +47,7 @@ def main():
     run('fetch_prices.py')   # live prices   -> data/prices.json
     run('fetch_stats.py')    # 48h stats     -> data/stats.json
     run('report.py')         # sell/buy plan -> data/report.json
+    run('sell_advisor.py', '--write')  # per-item advice -> data/sell_advisor.json
     run('snapshot_plat.py')  # seed plat history
 
     print('\nAll done.')

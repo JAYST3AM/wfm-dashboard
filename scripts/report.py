@@ -63,13 +63,13 @@ def pick_score(r, base=None):
     return (r['value'] if base is None else base) * min(1 + r['vol48'] / max(r['count'], 1), 4)
 
 
-def main():
-    owned = load('owned.json') or []
-    prices = load('prices.json') or {}
-    stats = load('stats.json') or {}
-    dec = load('lastData.dec.json') or {}
-    in_use = in_use_counts(load('inuse.json'))
+def build_rows(owned, prices, stats, dec, in_use):
+    """Aggregate owned rows + price/stat snapshots into report rows.
 
+    One source of truth for copy maths: `scripts/report.py` writes these rows to
+    report.json and `scripts/sell_advisor.py` consumes them for "what should I do
+    with this item" advice — never re-derive counts anywhere else.
+    """
     agg = {}
     for o in owned:
         s = o['slug']
@@ -105,6 +105,17 @@ def main():
             sellable_count=sellable_count, in_use_count=in_use_count,
             in_use_only=(sellable_count == 0 and in_use_count > 0),
         ))
+    return rows
+
+
+def main():
+    owned = load('owned.json') or []
+    prices = load('prices.json') or {}
+    stats = load('stats.json') or {}
+    dec = load('lastData.dec.json') or {}
+    in_use = in_use_counts(load('inuse.json'))
+
+    rows = build_rows(owned, prices, stats, dec, in_use)
 
     sellable = [r for r in rows if r['wts'] is not None]
     tot_val = sum(r['value'] for r in sellable)                        # sellable copies only

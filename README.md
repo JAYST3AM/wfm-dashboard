@@ -153,6 +153,10 @@ it is dry run)
 - `sell_timing.py` — which local hours this account actually sells in.
 - `session_stats.py` — trading-session analytics from local history.
 - `plat_ledger.py` — what the trade log explains, and what the game itself took out.
+- `sell_advisor.py` — the smart sell layer: one recommendation per owned item, composed from every
+  other data file ("what should I actually do with this item right now?"). Never counts equipped
+  copies, keeps one copy for the collection and reserves parts for sets/crafts, then explains the
+  call — floor, demand, price trend, your own sale hours, Baro/ducat/relic context.
 
 **Collection — `scripts/`**
 

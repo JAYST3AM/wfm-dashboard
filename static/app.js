@@ -64,22 +64,52 @@ function renderKpis() {
     <div class="kpi"><div class="k-label">Credits</div><div class="k-val">${(s.credits ?? 0).toLocaleString()}</div></div>`;
 }
 
+/* ---- smart sell advisor (scripts/sell_advisor.py -> /api/feature/advisor) ---- */
+function advOf(slug) {
+  const A = FEAT.advisor || {};
+  return (A.items && slug) ? (A.items[slug] || null) : null;
+}
+const ADV_VERB = { list: 'list', burn_ducats: 'burn', open_relic: 'open', assemble_set: 'assemble set',
+  finish_set: 'finish set', already_listed: 'listed', keep: 'keep', hold: 'hold' };
+function advTag(a) {
+  if (!a) return '';
+  let t = ADV_VERB[a.recommendation] || a.recommendation;
+  if (['list', 'burn_ducats', 'open_relic'].includes(a.recommendation) && a.recommended_quantity) {
+    t += ' ' + a.recommended_quantity;
+    if (a.recommendation === 'list' && a.recommended_price != null) t += ' · ' + Math.round(a.recommended_price) + 'p';
+  }
+  return t;
+}
+function advNote(slug) {
+  const a = advOf(slug);
+  if (!a) return '';
+  const bits = [];
+  if (a.demand_badge) bits.push(a.demand_badge === 'spike' ? 'demand rising' : a.demand_badge === 'fade' ? 'demand fading' : 'demand steady');
+  if (a.best_sell_window) bits.push('best ' + a.best_sell_window);
+  if (a.sellable) bits.push(a.sellable + ' sellable');
+  return bits.length ? ` <span class="advchip" title="${escHtml((a.reasons || []).join(' · '))}">advisor: ${bits.join(' · ')}</span>` : '';
+}
+
 function renderPicks() {
   const rs = (REPORT && REPORT.sell_now || []).filter((r) => !r.in_use_only).slice(0, 8);
   const el = document.getElementById('sellPicks');
-  const note = `<div class="picks-note dim"><b>Sorted by earnings × how fast they sell.</b> List at = cheapest listing minus 1p. Copies slotted in a build are never listed.</div>`;
+  const note = `<div class="picks-note dim"><b>Sorted by earnings × how fast they sell.</b> List at = cheapest listing minus 1p. Copies slotted in a build are never listed. <b>Do</b> = smart sell advisor call — hover for the reasons.</div>`;
   const head = `<div class="pick pick-head">
       <span class="c-rank">#</span><span class="c-name">Item</span>
       <span class="c-own" title="sellable copies — equipped copies are excluded">Sellable</span><span class="c-act">Sold · 48h</span>
-      <span class="c-soldfor">Sold for</span>
+      <span class="c-soldfor">Sold for</span><span class="c-do" title="smart sell advisor — what to actually do">Do</span>
       <span class="c-price">List at</span><span class="c-tot">If all sell</span>
     </div>`;
   const rows = rs.map((r, i) => {
+    const a = advOf(r.slug);
     const rng = (r.mn48 !== null && r.mn48 !== undefined && r.mx48 !== null && r.mx48 !== undefined)
       ? ` · range ${r.mn48}–${r.mx48}p` : '';
     const soldFor = (r.med !== null && r.med !== undefined)
       ? `<span class="c-soldfor" title="typical price actually paid, last 48h${rng}">${Math.round(r.med)}p</span>`
       : `<span class="c-soldfor dim" title="no sales in the last 48h">—</span>`;
+    const doCell = a
+      ? `<span class="c-do do-${a.recommendation}" title="${escHtml((a.reasons || []).join(' · '))}">${escHtml(advTag(a))}</span>`
+      : `<span class="c-do dim" title="no advisor entry">—</span>`;
     return `
     <div class="pick">
       <span class="c-rank dim">${i + 1}</span>
@@ -87,6 +117,7 @@ function renderPicks() {
       <span class="c-own">${(r.sellable_count !== undefined && r.sellable_count !== null) ? r.sellable_count : r.count}${r.in_use_count > 0 ? `<span class="dim" title="${r.in_use_count} equipped — never listed"> (+${r.in_use_count} use)</span>` : ''}</span>
       <span class="c-act dim">${r.vol48}</span>
       ${soldFor}
+      ${doCell}
       <span class="c-price">${r.wts}p</span>
       <span class="c-tot">${r.value}p</span>
     </div>`;
@@ -199,7 +230,7 @@ function renderTrader() {
         <span class="p-qty">${r.qty}</span>
         <span class="p-price">${r.price}p</span>
         <span class="p-est">${(r.est_total || 0).toLocaleString()}p</span>
-        <span class="p-note">${r.note || (r.subtype || '')}</span>
+        <span class="p-note">${r.note || (r.subtype || '')}${advNote(r.slug)}</span>
       </div>`).join('')
     : `<div class="empty">No plan yet — hit "Rebuild plan".</div>`;
   document.getElementById('heldMeta').textContent = held.length ? `· ${held.length}` : '';
@@ -454,8 +485,20 @@ function renderTable() {
     th.classList.toggle('sorted', th.dataset.k === state.sort);
   });
   const slice = rs.slice(0, 400);
-  tbody.innerHTML = slice.map(r => `
-    <tr>
+  tbody.innerHTML = slice.map(r => {
+    const a = advOf(r.slug);
+    const facts = a
+      ? `owned ${a.owned} · equipped ${a.equipped} · reserved ${a.reserved} · sellable ${a.sellable}`
+        + (a.market_price != null ? ` · floor ${a.market_price}p` : '')
+        + (a.median != null ? ` · median ${a.median}p` : '')
+        + (a.best_sell_window ? ` · window ${a.best_sell_window}` : '')
+        + (a.liquidity ? ` · liquidity ${a.liquidity}` : '')
+      : '';
+    const detail = a
+      ? `<pre class="adv-text">${escHtml(a.text)}</pre><div class="adv-facts">${escHtml(facts)}</div>`
+      : `<div class="dim pad">No advisor entry — nothing owned, or the advisor has not run yet.</div>`;
+    return `
+    <tr class="inv-row" data-slug="${escHtml(r.slug)}">
       <td class="name" title="${r.name}">${r.name}</td>
       <td class="hide-s"><span class="cat ${r.cat}">${CAT_LABEL[r.cat] || r.cat}</span></td>
       <td class="num">${fmt(r.count)}</td>
@@ -466,7 +509,9 @@ function renderTable() {
       <td class="num">${r.vol48 === null || r.vol48 === undefined ? '<span class="dim">—</span>' : r.vol48.toFixed(1)}</td>
       <td class="num hide-s">${fmt(r.median)}</td>
       <td class="num v">${fmt(r.value)}</td>
-    </tr>`).join('');
+    </tr>
+    <tr class="advrow" style="display:none"><td colspan="10">${detail}</td></tr>`;
+  }).join('');
   if (!slice.length) tbody.innerHTML = '<tr><td colspan="10" class="dim" style="padding:18px">No items match.</td></tr>';
   const tot = rs.reduce((a, r) => a + (r.value || 0), 0);
   document.getElementById('totals').innerHTML =
@@ -486,7 +531,7 @@ async function load() {
   ]);
   SUMMARY = s; ITEMS = i; PLAT = ph; REPORT = rep; TRADES = tr; TRADER = tdr; GAMENEWS = gn;
   FEAT = {};
-  await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'collection', 'cards']
+  await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'collection', 'cards', 'advisor']
     .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); }));
   renderChips(); renderTabs(); renderTable();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
@@ -796,6 +841,15 @@ document.addEventListener('keydown', e => {
 });
 
 document.getElementById('search').addEventListener('input', e => { state.q = e.target.value.trim(); renderTable(); });
+/* inventory rows expand into the smart sell advisor block (click to toggle) */
+document.getElementById('rows').addEventListener('click', e => {
+  const tr = e.target.closest('tr.inv-row');
+  if (!tr) return;
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains('advrow')) {
+    next.style.display = next.style.display === 'none' ? '' : 'none';
+  }
+});
 document.querySelectorAll('thead th').forEach(th => th.addEventListener('click', () => {
   const k = th.dataset.k;
   if (state.sort === k) state.dir *= -1; else { state.sort = k; state.dir = (k === 'name' || k === 'cat') ? 1 : -1; }
