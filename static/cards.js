@@ -517,6 +517,23 @@
     return row;
   }
 
+  // ---------- holographic foil system (rendered ABOVE the art; never baked in) ----------
+  // effect types: none | holo | prismatic | etched | legendary — intensity scales the layers
+  var FOILS = { none: 0, holo: .38, prismatic: .52, etched: .64, legendary: .80 };
+  function foilFor(card) {
+    if (isFoil(card)) return card.rarity === 'Legendary' ? 'legendary' : 'etched';
+    if (card.rarity === 'Rare') return 'prismatic';
+    if (card.rarity === 'Uncommon') return 'holo';
+    return 'none';
+  }
+  function addFoilLayers(face) {
+    // blend modes (dodge/screen/overlay) make BRIGHT artwork react hardest and dark
+    // armour stay clean — that is the "selective holo response" without per-pixel masks
+    face.appendChild(el('span', 'mcd-foil'));
+    face.appendChild(el('span', 'mcd-spec'));
+    face.appendChild(el('span', 'mcd-grain'));
+  }
+
   function buildCard(card, opts) {
     var owned = card.owned_copies > 0;
     var pol = polarityOf(card);
@@ -525,6 +542,12 @@
     node.type = 'button';
     node.setAttribute('role', 'listitem');
     node.setAttribute('data-slug', card.slug);
+    // foil: rarity picks the effect, intensity rides --foil-i into the CSS layers
+    var foil = foilFor(card);
+    node.setAttribute('data-foil', foil);
+    node.style.setProperty('--foil-i', String(FOILS[foil] || 0));
+    node.style.setProperty('--mx', '50');
+    node.style.setProperty('--my', '50');
     node.setAttribute('aria-label',
       card.name + ', ' + (card.rarity || 'unknown rarity') + (isFoil(card) ? ' foil' : '') +
       ', ' + (owned ? (card.owned_copies + (card.owned_copies === 1 ? ' copy' : ' copies') +
@@ -584,6 +607,8 @@
     back.appendChild(meta);
     back.appendChild(el('div', 'mcd-back-slug', card.slug));
 
+    addFoilLayers(front);
+    addFoilLayers(back);
     inner.appendChild(front);
     inner.appendChild(back);
     node.appendChild(inner);
@@ -617,9 +642,39 @@
 
   function applyTilt() {
     if (!ins) return;
-    ins.tilt.style.transform = 'rotateX(' + ins.rx.toFixed(1) + 'deg) rotateY(' + ins.ry.toFixed(1) + 'deg)';
-    ins.sheen.style.setProperty('--sx', (50 + ins.ry * 0.9).toFixed(0) + '%');
-    ins.sheen.style.setProperty('--sy', (50 - ins.rx * 1.1).toFixed(0) + '%');
+    ins.tilt.style.transform = 'rotateX(' + ins.rx.toFixed(2) + 'deg) rotateY(' + ins.ry.toFixed(2) + 'deg)';
+    // specular + holo react to the tilt: the reflection direction follows the angle
+    var px = Math.max(4, Math.min(96, 50 + ins.ry * 1.6));
+    var py = Math.max(4, Math.min(96, 50 - ins.rx * 1.7));
+    ins.sheen.style.setProperty('--sx', px.toFixed(1) + '%');
+    ins.sheen.style.setProperty('--sy', py.toFixed(1) + '%');
+    if (ins.bigCard) {
+      ins.bigCard.style.setProperty('--mx', px.toFixed(1));
+      ins.bigCard.style.setProperty('--my', py.toFixed(1));
+    }
+  }
+
+  // smooth interpolation (no snapping) + a gentle idle drift while the viewer is open
+  function tiltLoop(t) {
+    if (!ins || ins.wrap.classList.contains('hidden')) { if (ins) { ins.raf = 0; ins.last = 0; } return; }
+    var dt = ins.last ? Math.min(64, Math.max(4, t - ins.last)) : 16;
+    ins.last = t;
+    if (ins.drag || ins.tx !== 0 || ins.ty !== 0) {
+      ins.tx2 = ins.tx;
+      ins.ty2 = ins.ty;
+    } else {
+      // idle motion: ~1.4deg drift, auto-paused the moment the user interacts
+      ins.tx2 = Math.sin(t / 2600) * 1.4;
+      ins.ty2 = Math.cos(t / 3700) * 1.1;
+    }
+    var k = 1 - Math.pow(0.0018, dt / 1000);   // frame-rate independent easing
+    ins.rx += (ins.ty2 - ins.rx) * k;
+    ins.ry += (ins.tx2 - ins.ry) * k;
+    applyTilt();
+    ins.raf = requestAnimationFrame(tiltLoop);
+  }
+  function startTiltLoop() {
+    if (ins && !ins.raf) { ins.last = 0; ins.raf = requestAnimationFrame(tiltLoop); }
   }
 
   function ensureInspect() {
@@ -630,7 +685,9 @@
     var stage = el('div', 'ins-stage');
     var tilt = el('div', 'ins-tilt');
     var holder = el('div', 'ins-card');
+    var glow = el('div', 'ins-glow');
     var sheen = el('div', 'ins-sheen');
+    holder.appendChild(glow);
     holder.appendChild(sheen);
     tilt.appendChild(holder);
     stage.appendChild(tilt);
@@ -643,29 +700,40 @@
     wrap.appendChild(bar);
     document.body.appendChild(wrap);
 
-    ins = { wrap: wrap, bd: bd, holder: holder, tilt: tilt, sheen: sheen, info: info, bar: bar, rx: 0, ry: 0, drag: null, moved: false };
+    ins = {
+      wrap: wrap, bd: bd, holder: holder, tilt: tilt, sheen: sheen, glow: glow, info: info, bar: bar,
+      bigCard: null, rx: 0, ry: 0, tx: 0, ty: 0, tx2: 0, ty2: 0, zoom: 1.85, drag: null, moved: false, raf: 0, last: 0,
+    };
     bd.addEventListener('click', closeInspect);
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !ins.wrap.classList.contains('hidden')) closeInspect();
     });
 
-    // drag to tilt: pointer deltas angle the card; the sheen follows the light
+    // drag to rotate — targets are eased by tiltLoop (smooth, never snapping)
     tilt.addEventListener('pointerdown', function (e) {
-      ins.drag = { x: e.clientX, y: e.clientY, rx: ins.rx, ry: ins.ry };
+      ins.drag = { x: e.clientX, y: e.clientY, tx: ins.tx, ty: ins.ty };
       ins.moved = false;
       tilt.classList.add('dragging');
       if (tilt.setPointerCapture) tilt.setPointerCapture(e.pointerId);
       e.preventDefault();
     });
     tilt.addEventListener('pointermove', function (e) {
-      if (!ins.drag) return;
-      var dx = e.clientX - ins.drag.x;
-      var dy = e.clientY - ins.drag.y;
-      if (Math.abs(dx) + Math.abs(dy) > 6) ins.moved = true;
-      ins.rx = Math.max(-30, Math.min(30, ins.drag.rx - dy * 0.35));
-      ins.ry = Math.max(-42, Math.min(42, ins.drag.ry + dx * 0.4));
-      applyTilt();
+      if (ins.drag) {
+        var dx = e.clientX - ins.drag.x;
+        var dy = e.clientY - ins.drag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 6) ins.moved = true;
+        // bounded so it still reads like a physical card under inspection
+        ins.ty = Math.max(-20, Math.min(20, ins.drag.ty - dy * 0.22));
+        ins.tx = Math.max(-30, Math.min(30, ins.drag.tx + dx * 0.26));
+        return;
+      }
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      // hover (no drag): the card leans gently toward the cursor, max ~6.5deg
+      var r = tilt.getBoundingClientRect();
+      ins.tx = Math.max(-6.5, Math.min(6.5, ((e.clientX - (r.left + r.width / 2)) / r.width) * 26));
+      ins.ty = Math.max(-6.5, Math.min(6.5, -((e.clientY - (r.top + r.height / 2)) / r.height) * 26));
     });
+    tilt.addEventListener('pointerleave', function () { if (!ins.drag) { ins.tx = 0; ins.ty = 0; } });
     function endDrag() { ins.drag = null; tilt.classList.remove('dragging'); }
     tilt.addEventListener('pointerup', endDrag);
     tilt.addEventListener('pointercancel', endDrag);
@@ -673,6 +741,12 @@
     tilt.addEventListener('click', function (e) {
       if (ins.moved) { e.stopPropagation(); e.preventDefault(); ins.moved = false; }
     }, true);
+    // wheel = controlled zoom of the showcase card
+    tilt.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      ins.zoom = Math.max(1.25, Math.min(2.6, ins.zoom + (e.deltaY < 0 ? 0.12 : -0.12)));
+      ins.holder.style.setProperty('--ins-scale', ins.zoom.toFixed(2));
+    }, { passive: false });
     return ins;
   }
 
@@ -685,15 +759,19 @@
 
   function openInspect(card) {
     var I = ensureInspect();
-    I.rx = 0;
-    I.ry = 0;
+    I.rx = 0; I.ry = 0; I.tx = 0; I.ty = 0; I.tx2 = 0; I.ty2 = 0;
+    I.zoom = 1.85;
     applyTilt();
 
     // big card (same builder; inside the overlay a click flips it)
     I.holder.textContent = '';
     var big = buildCard(card, { quiet: true });
+    I.bigCard = big;
+    I.holder.style.setProperty('--ins-scale', '1.85');
     I.holder.appendChild(big);
+    I.holder.appendChild(I.glow);
     I.holder.appendChild(I.sheen);
+    startTiltLoop();
 
     // attached info card
     I.info.textContent = '';
@@ -724,7 +802,10 @@
     // bar
     I.bar.textContent = '';
     I.bar.appendChild(insButton('ins-flip', '↻ Flip card', function () { big.classList.toggle('flipped'); }));
-    I.bar.appendChild(insButton('ins-reset', '⟲ Reset view', function () { I.rx = 0; I.ry = 0; applyTilt(); }));
+    I.bar.appendChild(insButton('ins-reset', '⟲ Reset view', function () {
+      I.tx = 0; I.ty = 0; I.zoom = 1.85;   // loop eases back to neutral
+      I.holder.style.setProperty('--ins-scale', '1.85');
+    }));
     var mkt = el('a', 'mcd-btn ins-market', 'warframe.market ↗');
     mkt.href = MARKET + encodeURIComponent(card.slug);
     mkt.target = '_blank';
@@ -827,6 +908,37 @@
     document.getElementById('sortSel').addEventListener('change', function (e) {
       state.sort = e.target.value; render();
     });
+    // grid foil + tilt: ONE delegated, rAF-throttled pointer listener for all cards
+    var gTilt = { card: null, x: 50, y: 50, raf: 0 };
+    var gEl = document.getElementById('grid');
+    function gFlush() {
+      gTilt.raf = 0;
+      if (!gTilt.card) return;
+      gTilt.card.style.setProperty('--mx', gTilt.x.toFixed(1));
+      gTilt.card.style.setProperty('--my', gTilt.y.toFixed(1));
+      gTilt.card.style.setProperty('--ry', ((gTilt.x - 50) * 0.11).toFixed(2) + 'deg');
+      gTilt.card.style.setProperty('--rx', (-(gTilt.y - 50) * 0.09).toFixed(2) + 'deg');
+    }
+    function gReset() {
+      if (gTilt.card) {
+        gTilt.card.style.removeProperty('--rx');
+        gTilt.card.style.removeProperty('--ry');
+        gTilt.card.style.setProperty('--mx', '50');
+        gTilt.card.style.setProperty('--my', '50');
+      }
+      gTilt.card = null;
+    }
+    gEl.addEventListener('pointermove', function (e) {
+      if (e.pointerType && e.pointerType !== 'mouse') return;   // touch degrades to no tilt
+      var card = e.target && e.target.closest ? e.target.closest('.mcd-card') : null;
+      if (card !== gTilt.card) { gReset(); gTilt.card = card; }
+      if (!card) return;
+      var r = card.getBoundingClientRect();
+      gTilt.x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
+      gTilt.y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
+      if (!gTilt.raf) gTilt.raf = requestAnimationFrame(gFlush);
+    });
+    gEl.addEventListener('pointerleave', gReset);
     var stateRow = document.getElementById('stateRow');
     stateRow.querySelectorAll('[data-state]').forEach(function (btn) {
       btn.addEventListener('click', function () {
