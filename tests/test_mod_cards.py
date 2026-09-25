@@ -250,10 +250,17 @@ def test_missing_mod_has_no_fake_owned_numbers(built):
 
 
 # ------------------------------------------------------------------ stats_text + prices
-def test_stats_text_is_one_clean_max_rank_line(built):
+def test_stats_text_is_the_full_clean_card_text(built):
     assert built.cards['vitality']['stats_text'] == '+100% Health'
-    # a trailing prose line in levelStats must not survive, and markup is stripped
-    assert built.cards['primed_continuity']['stats_text'] == '+55% Ability Duration'
+    # every max-rank line survives — stat line AND effect prose (the in-game card text),
+    # markup stripped, one line each
+    assert built.cards['primed_continuity']['stats_text'] == \
+        '+55% Ability Duration\nKills grant Heat damage.'
+
+
+def test_clean_stat_keeps_negative_stats(mc):
+    assert mc.clean_stat('-55% Ability Efficiency') == '-55% Ability Efficiency'
+    assert mc.clean_stat('<DT_FREEZE_COLOR>Cold Abilities') == 'Cold Abilities'
 
 
 def test_stats_text_never_exceeds_the_cap(mc):
@@ -261,6 +268,24 @@ def test_stats_text_never_exceeds_the_cap(mc):
            'levelStats': [{'stats': ['x' * 400]}]}
     cards, _ = mc.build_cards([mod], [], [], {}, {}, {})
     assert len(cards[0]['stats_text']) <= mc.STATS_MAX
+    # several long lines: all kept, the whole multi-line string still within the cap
+    mod['levelStats'] = [{'stats': ['y' * 300, 'z' * 300]}]
+    cards, _ = mc.build_cards([mod], [], [], {}, {}, {})
+    text = cards[0]['stats_text']
+    assert text.startswith('yyy') and '\n' in text and len(text) <= mc.STATS_MAX
+
+
+def test_variant_rows_do_not_cap_the_card(mc):
+    """A Beginner row caps at 3; the real card caps higher — the higher sane cap wins."""
+    mod = {'name': 'Quick Learner',
+           'uniqueName': '/Lotus/Upgrades/Mods/Warframe/Beginner/QuickLearnerBeginner',
+           'type': 'Warframe Mod', 'compatName': 'WARFRAME', 'rarity': 'Rare',
+           'polarity': 'madurai', 'baseDrain': 4, 'fusionLimit': 3,
+           'levelStats': [{'stats': ['+50% Thing']}]}
+    item = {'slug': 'quick_learner', 'gameRef': mod['uniqueName'], 'maxRank': 5,
+            'tags': ['mod', 'rare', 'warframe'], 'i18n': {'en': {'name': 'Quick Learner'}}}
+    cards, _ = mc.build_cards([mod], [item], [], {}, {}, {})
+    assert cards[0]['max_rank'] == 5
 
 
 def test_stats_text_falls_back_to_description(mc):
@@ -404,7 +429,7 @@ def test_js_can_find_the_build_on_this_machine():
 def test_js_renders_the_card_mechanics_the_page_promises():
     js = open(SCRIPT, encoding='utf-8').read()
     for token in ('rarityClass', "'r-'", 'is-prime', 'missing', 'mcd-dup', 'mcd-pips', 'flipped',
-                  'mcd-back-crest', 'mcd-pol', 'mcd-type', 'mcd-price', 'mcd-rank',
+                  'mcd-back-crest', 'mcd-pol', 'mcd-type', 'mcd-desc', 'mcd-price', 'mcd-rank',
                   'floor ', 'med ', 'no local quote', 'not owned', '\u00d7'):
         assert token in js, token
     for polarity in ('madurai', 'vazarin', 'naramon', 'zenurik', 'unairu', 'penjaga', 'umbra',

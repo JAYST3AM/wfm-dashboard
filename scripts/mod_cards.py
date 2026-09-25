@@ -31,8 +31,9 @@ RULES
     fingerprint can be matched -> null (unknown, never guessed).
   * floor/median are null when the local snapshot has no quote for the slug. Most
     un-owned mods have no quote, so the card shows no price instead of a fake one.
-  * stats_text = the mod's max-rank stat line, ONE line, <= 120 chars; falls back to
-    the catalog description, then to ''.
+  * stats_text = the mod's in-game card text: EVERY max-rank line (stat modifiers AND
+    the effect prose, one per line), cleaned of WFCD markup; falls back to the catalog
+    description, then to ''. Clipped to STATS_MAX chars in total.
   * max_rank is the catalog fusionLimit when it is a sane 0..10 rank cap, else the WFM
     maxRank when sane, else null (riven/veiled rows carry nonsense fusionLimits).
   * Deterministic: cards sort owned-first, then rarity desc, then name, then slug, and
@@ -69,7 +70,7 @@ CATALOG_URL = 'https://raw.githubusercontent.com/WFCD/warframe-items/master/data
 UA = 'WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)'
 VERSION = 1
 STAMP_ISO = '%Y-%m-%dT%H:%M:%SZ'
-STATS_MAX = 120          # chars in stats_text
+STATS_MAX = 320          # chars in stats_text (multi-line card text)
 MAX_MOD_RANK = 10        # highest legal mod rank in-game (rank pips / sanity cap)
 SLEEP = 0.35             # polite pause between market calls (we only ever make one)
 
@@ -127,16 +128,19 @@ def clip(text, limit=STATS_MAX):
 
 MARKUP_RE = re.compile(r'<[^>]{0,48}>')
 NAMED_TOKEN_RE = re.compile(r'<[A-Z_]+(?:_COLOR)?>')
-STAT_LIKE_RE = re.compile(r'%|^[+-]|\d')
 
 
 def clean_stat(text):
-    """WFCD stat strings carry markup (<DT_..._COLOR>, <LINE_SEPARATOR>) and literal \\n."""
+    """WFCD stat strings carry markup (<DT_..._COLOR>, <LINE_SEPARATOR>) and literal \\n.
+
+    A leading "-" is a REAL negative stat ("-55% Ability Efficiency") and is kept.
+    """
     out = str(text or '').replace('\\n', ' ')
     out = NAMED_TOKEN_RE.sub(' ', out)
     out = MARKUP_RE.sub(' ', out)
     out = out.replace('\n', ' ').replace('\r', ' ')
-    return re.sub(r'\s+', ' ', out).strip(' \u00b7,;:-')
+    out = re.sub(r'\s+', ' ', out).strip(' \u00b7,;:')
+    return out[:-1].strip() if out.endswith('-') else out
 
 
 def clean_num(value):
@@ -192,23 +196,28 @@ def posnum(value):
 
 
 def stats_text(mod, limit=STATS_MAX):
-    """ONE short line: the max-rank stat line(s), else the description, else ''."""
+    """The mod's in-game card text: EVERY max-rank line, one per line.
+
+    Stat modifiers and the effect prose both belong on the card (e.g. Archon Flow shows
+    "+185% Energy Max" AND "Enemies killed by Cold Abilities have 10% chance ..."), so
+    nothing after the first line is dropped anymore. Falls back to the catalog
+    description, then ''. The whole string stays within `limit` chars.
+    """
     levels = mod.get('levelStats')
     if isinstance(levels, list):
         for entry in reversed(levels):
             rows = entry.get('stats') if isinstance(entry, dict) else None
             lines = [line for line in (clean_stat(s) for s in (rows or [])) if line]
             if lines:
-                picks = []
+                out = []
+                budget = limit
                 for line in lines:
-                    if not STAT_LIKE_RE.search(line):
-                        continue
-                    if picks and not line.startswith(('+', '-')):
-                        break           # keep stat modifiers, drop trailing prose
-                    picks.append(line)
-                    if len(picks) == 2:
+                    if budget <= 0:
                         break
-                return clip(' \u00b7 '.join(picks or lines[:1]), limit)
+                    piece = clip(line, budget)
+                    out.append(piece)
+                    budget -= len(piece) + 1            # +1 for the joining newline
+                return '\n'.join(out)
     return clip(clean_stat(mod.get('description')), limit)
 
 
@@ -491,8 +500,19 @@ def build_cards(catalog, wfm_items, owned_rows, save, prices, stats):
         ranks_found = resolve_rank(entry, ranks) if entry else None
         floor, median = price_of(slug, prices, stats)
         cap = sane_rank(mod.get('fusionLimit'))
-        if cap is None:                       # riven/veiled rows carry junk fusionLimits
-            cap = sane_rank(wfm_rank.get(slug))
+        if cap is None or VARIANT_RE.search(ref):
+            # Junk fusionLimits (rivens) fall back to WFM. Beginner/Intermediate/Expert
+            # rows are rank-capped variants of the real card (Quick Thinking ships ONLY
+            # as a Beginner row, cap 3, while the real card caps at 5) - take the higher
+            # credible cap.
+            wfm_cap = sane_rank(wfm_rank.get(slug))
+            if wfm_cap is not None:
+                cap = wfm_cap if cap is None else max(cap, wfm_cap)
+        if isinstance(ranks_found, int):
+            if cap is None and ranks_found > 0:
+                cap = ranks_found              # the save proves a real cap above 0
+            elif cap is not None and ranks_found > cap:
+                cap = ranks_found              # a rank above the cap is impossible
         card = {
             'slug': slug,
             'name': name,
@@ -608,8 +628,8 @@ def build_doc(catalog, wfm_items, owned_rows, save, prices, stats, sources, prev
                      % (summary['missing'], summary['cards']))
     notes.append('owned_rank = best ranked copy from lastData.dec.json fingerprints; '
                  'raw stack copies count as rank 0; unknown stays null')
-    notes.append('stats_text = max-rank stat line (catalog levelStats), clipped to %d chars'
-                 % STATS_MAX)
+    notes.append('stats_text = the mod card text - all max-rank stat + effect lines, '
+                 'one per line (catalog levelStats), clipped to %d chars total' % STATS_MAX)
 
     doc = {
         'generated': int(time.time()),
@@ -662,14 +682,15 @@ FIXTURE_CATALOG = [
      'name': 'Vitality', 'type': 'Warframe Mod', 'compatName': 'WARFRAME', 'rarity': 'Common',
      'polarity': 'vazarin', 'baseDrain': 2, 'fusionLimit': 3, 'tradable': True,
      'levelStats': [{'stats': ['+15% Health']}]},
-    # markup + trailing prose in levelStats: the card line must be the clean stat only
+    # markup in levelStats: the FULL card text survives (stat line + effect prose),
+    # cleaned of WFCD markup, one line each
     {'uniqueName': '/Lotus/Upgrades/Mods/Warframe/AvatarAbilityDurationArchon',
      'name': 'Archon Continuity', 'type': 'Warframe Mod', 'compatName': 'WARFRAME',
      'rarity': 'Legendary', 'polarity': 'vazarin', 'baseDrain': 6, 'fusionLimit': 10,
      'tradable': True,
      'levelStats': [{'stats': ['+55% Ability Duration',
                                'Abilities that inflict a <DT_TOXIN_COLOR>Toxin Status Effect '
-                               'grant +1% Ability Duration\\\\n<LINE_SEPARATOR>\\\\nper status type.']}]},
+                               'grant +1% Ability Duration <LINE_SEPARATOR>per status type.']}]},
     # riven rows carry a junk fusionLimit (592); the WFM maxRank has to rescue the cap
     {'uniqueName': '/Lotus/Upgrades/Mods/Randomized/PlayerMeleeWeaponRandomModRare',
      'name': 'Melee Riven Mod', 'type': 'Melee Riven Mod', 'compatName': None,
@@ -775,9 +796,9 @@ def selftest():
     chk('no rarity -> null + Unknown bucket', (cards['mod_with_no_rarity']['rarity'],
                                                'Unknown' in doc['summary']['rarities']), (None, True))
     chk('riven-style fusionLimit 0 -> 0 cap', cards['live_wire']['max_rank'], 0)
-    chk('parazon description fallback clipped',
-        len(cards['live_wire']['stats_text']) <= STATS_MAX and cards['live_wire']['stats_text'].endswith('…'),
-        True)
+    chk('parazon description fallback bounded + clip adds ellipsis',
+        (len(cards['live_wire']['stats_text']) <= STATS_MAX,
+         clip(cards['live_wire']['stats_text'], 40).endswith('…')), (True, True))
     chk('raw-only extra mod -> rank 0', cards['extra_owned_mod']['owned_rank'], 0)
     chk('extra owned mod keeps price', cards['extra_owned_mod']['floor'], 9.0)
     chk('zero median dropped by posnum', cards['extra_owned_mod']['median'], None)
@@ -798,8 +819,9 @@ def selftest():
     # Beginner/Expert duplicates collapse onto one card, and the CANONICAL row wins
     chk('beginner variant did not win the merge', cards['vitality']['max_rank'], 10)
     chk('beginner variant did not win the stat line', cards['vitality']['stats_text'], '+100% Health')
-    chk('markup + prose stripped from stats_text',
-        cards['archon_continuity']['stats_text'], '+55% Ability Duration')
+    chk('markup stripped, full card text kept', cards['archon_continuity']['stats_text'],
+        '+55% Ability Duration\nAbilities that inflict a Toxin Status Effect '
+        'grant +1% Ability Duration per status type.')
     chk('floors are clean ints, medians 1 decimal',
         (cards['vitality']['floor'], cards['primed_continuity']['median']), (2, 85.5))
     chk('junk fusionLimit rescued by the WFM maxRank',

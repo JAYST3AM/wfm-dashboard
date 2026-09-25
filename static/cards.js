@@ -583,6 +583,8 @@
     }
     var body = el('div', 'mcd-body');
     body.appendChild(el('div', 'mcd-name', card.name));
+    // the mod's own card text (stat line + effect prose) — the words the mod card shows
+    if (card.stats_text) body.appendChild(el('div', 'mcd-desc', card.stats_text));
     if (owned) body.appendChild(pips(card));
     else body.appendChild(el('div', 'mcd-missing-flag', 'not owned'));
     body.appendChild(priceLine(card));
