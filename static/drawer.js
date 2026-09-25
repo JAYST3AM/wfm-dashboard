@@ -470,7 +470,7 @@
     var head = null, why = [];
     if (!it) {
       head = 'Not in the local snapshot';
-      why = ['No market or inventory record was found for this key - check the spelling, or open it on warframe.market.'];
+      why = ['Nothing found for this key — check the spelling.'];
       box.className = 'dw-act dw-act-unknown';
     } else if (owned && adv && adv.recommendation) {
       var rec = adv.recommendation;
@@ -487,7 +487,7 @@
       why = ['The numbers below come from the local market snapshot; the advisor has no row for this item.'];
     } else {
       head = 'Not owned - market only';
-      why = ['Nothing of this item is in the inventory snapshot on this PC; everything below is market data.'];
+      why = ['Not in your inventory snapshot — everything below is market data.'];
     }
     var hEl = el('div', 'dw-act-line');
     hEl.appendChild(document.createTextNode(head));
@@ -563,7 +563,7 @@
 
     wrap.appendChild(tile('Typical price (context)', fmt(it.median), isNum(it.median) ? 'plat' : '',
       'all ranks, last 48h', isNum(it.median) ? '' : 'dw-zero',
-      'median of every sale in the last 48 hours across all ranks - context only, never your copy\u2019s price'));
+      '48h median, all ranks \u2014 context only'));
 
     wrap.appendChild(tile('Sales / 48h', fmtInt(it.vol48), isNum(it.vol48) ? 'trades' : '',
       isNum(it.vol48) && Number(it.vol48) === 0 ? 'no sales in the last 48h' : 'all ranks, last 48h',
@@ -593,7 +593,7 @@
       }
       t('.');
     } else if (!isNum(it.wts)) {
-      t('No sell orders in the current snapshot, so a platinum value can\u2019t be estimated right now.');
+      t('No sell orders in the snapshot \u2014 no platinum estimate right now.');
     } else if (it.count > 0) {
       t('Estimated value: you own ');
       b(String(it.count));
@@ -935,7 +935,7 @@
         bodyBox.appendChild(renderMarket(it));
         bodyBox.appendChild(renderEstimate(it));
       } else {
-        line(bodyBox, 'dw-note', 'The local price snapshot has no row for this item - the sections below carry what is known about it.');
+        line(bodyBox, 'dw-note', 'No price snapshot for this item — see what is known below.');
       }
       var secs = el('div');
       var m = section('market', 'Market details', 'the full per-rank order book plus live order counts');

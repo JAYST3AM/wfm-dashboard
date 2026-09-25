@@ -184,8 +184,8 @@ function statusRow(meta, src) {
   wrap.appendChild(cell);
   wrap.appendChild(el('span', 'cfg-val', dry ? 'dry run' : 'live'));
   wrap.appendChild(el('div', 'cfg-help', dry
-    ? 'Posting mode: Dry run — nothing is posted to warframe.market until this is turned off in the engine config.'
-    : 'Posting mode: Live — the trader may post to warframe.market. Set in the engine config; it cannot be changed from this page.'));
+    ? 'Dry run — nothing is posted until the engine config says otherwise.'
+    : 'Live — the engine config allows posting; not editable here.'));
   return wrap;
 }
 
@@ -340,7 +340,7 @@ function renderAccounts() {
   }
 
   if (!list.length) {
-    box.appendChild(acctNote('No profiles yet \u2014 click Create profile (leave the box empty to use the account name AlecaFrame is linked to).'));
+    box.appendChild(acctNote('No profiles yet \u2014 Create profile (empty name = the AlecaFrame account).'));
     return;
   }
   list.forEach(p => {
@@ -366,7 +366,7 @@ function renderPlanActions(name) {
   if (acctApply) { acctApply.remove(); acctApply = null; }
   if (!name || !pre || !pre.parentNode) return;
   acctApply = el('div', 'st-acctrow');
-  acctApply.appendChild(el('span', 'st-ameta', 'Two-step: applying re-runs the plan above as the real switch (safety zip first, nothing deleted).'));
+  acctApply.appendChild(el('span', 'st-ameta', 'Apply = run the plan for real (safety zip first, nothing deleted).'));
   const g = el('div', 'st-agrow');
   const b = el('button', 'btn', 'Apply switch to ' + name);
   b.type = 'button';

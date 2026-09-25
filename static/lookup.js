@@ -262,7 +262,7 @@
       empty.innerHTML = '';
       var b = el('b', null, 'No item matches “' + state.q.trim() + '”.');
       empty.appendChild(b);
-      empty.appendChild(el('div', null, 'Try a shorter term — search covers item names and slugs (e.g. “prime”, “continuity”, “relic”).'));
+      empty.appendChild(el('div', null, 'Try a shorter term — names and slugs (“prime”, “continuity”).'));
       empty.classList.remove('hidden');
     } else {
       empty.classList.add('hidden');
@@ -293,7 +293,7 @@
     head.appendChild(el('b', null, '↓ ask'));
     head.appendChild(document.createTextNode(' = cheapest sell order (you buy from it, or list just under) · '));
     head.appendChild(el('b', null, '↑ bid'));
-    head.appendChild(document.createTextNode(' = top buy order (you quick-sell to it, or bid just over). Ranks with no live orders are skipped.'));
+    head.appendChild(document.createTextNode(' = top buy order. Ranks with no live orders are skipped.'));
     box.appendChild(head);
     var ranks = Object.keys(it.lanes).map(Number).sort(function (a, b) { return a - b; });
     if (ranks.indexOf(it.own_rank) === -1) {
@@ -434,7 +434,7 @@
     } else if (it.ducats != null && it.count > 0) {
       sub.textContent = it.count + ' × ' + it.ducats + ' ducats = ' + (it.count * it.ducats) + ' ducats if dissolved instead of sold';
     } else {
-      sub.textContent = '“Owned” counts this PC’s last inventory snapshot; ask = cheapest sell order, bid = top buy order, both read from the local market scan.';
+      sub.textContent = 'Owned = your last snapshot · ask = cheapest sell · bid = top buy (local scan).';
     }
     est.appendChild(sub);
 

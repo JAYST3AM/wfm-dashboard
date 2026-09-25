@@ -120,7 +120,7 @@ function renderKpis() {
     <div class="kpi"><div class="k-label">Δ 24h</div><div class="k-val">${d(ph.d24)}</div></div>
     <div class="kpi"><div class="k-label">Δ 7d</div><div class="k-val">${d(ph.d7)}</div></div>
     <div class="kpi"><div class="k-label">Trades left</div><div class="k-val">${s.trades ?? '—'}</div></div>
-    <div class="kpi" title="sellable copies only — equipped copies never count (owned basis: ${(s.total_value_owned ?? s.total_value ?? 0).toLocaleString()}p)"><div class="k-label">Inventory value</div><div class="k-val">${(s.total_value ?? 0).toLocaleString()}p</div></div>
+    <div class="kpi" title="sellable only · equipped copies never count · owned basis: ${(s.total_value_owned ?? s.total_value ?? 0).toLocaleString()}p)"><div class="k-label">Inventory value</div><div class="k-val">${(s.total_value ?? 0).toLocaleString()}p</div></div>
     <div class="kpi"><div class="k-label">Credits</div><div class="k-val">${(s.credits ?? 0).toLocaleString()}</div></div>`;
 }
 
@@ -328,7 +328,7 @@ function renderTrader() {
           : `you're at ${r.my_price}p · best now ${r.floor ?? '—'}p`}${r.proposed ? ` · reprice to ${r.proposed}p` : ''}${r.reason ? ' · ' + escHtml(r.reason) : ''}</span>
       </div>`);
   const hy = FEAT.hygiene || {}, hc = hy.summary || {};
-  if (hc.total) attn.push(`<div class="heldline"><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} to hide · ${hc.refresh} to reprice · ${hc.show} to bring back${(hy.rules || {}).auto_hide_offline ? ` · auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline` : ''}</span></div>`);
+  if (hc.total) attn.push(`<div class="heldline"><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} hide · ${hc.refresh} reprice · ${hc.show} restore${(hy.rules || {}).auto_hide_offline ? ` · auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline` : ''}</span></div>`);
   document.getElementById('attnList').innerHTML = attn.length
     ? attn.join('')
     : (w.generated
@@ -522,7 +522,7 @@ function renderPlatLedger() {
   const el = document.getElementById('ledgerList');
   if (!t.windows) { el.innerHTML = '<div class="dim pad">Run scripts/plat_ledger.py</div>'; return; }
   const p = v => (v >= 0 ? '+' : '−') + Math.abs(v).toLocaleString() + 'p';
-  el.innerHTML = `<div class="limrow"><b>${t.trades_earned_plat.toLocaleString()}p earned · ${t.trades_spent_plat.toLocaleString()}p spent trading</b><span class="dim">balance ${t.first_balance}p → ${t.current_balance}p across ${t.reading_days} reading days (${t.gap_days} days without a reading)</span></div>` +
+  el.innerHTML = `<div class="limrow"><b>${t.trades_earned_plat.toLocaleString()}p earned · ${t.trades_spent_plat.toLocaleString()}p spent</b><span class="dim">balance ${t.first_balance}p → ${t.current_balance}p across ${t.reading_days} reading days (${t.gap_days} days without a reading)</span></div>` +
     `<div class="subhead">Balance windows (newest first)</div>` +
     rows.slice(0, 8).map(r => `<div class="sessrow">
       <span class="num dim">${r.date}</span>
@@ -1094,7 +1094,8 @@ document.getElementById('refresh').addEventListener('click', async e => {
   const b = e.target; b.disabled = true; b.textContent = 'Refreshing…';
   try {
     const r = await fetch('/api/refresh', { method: 'POST' }).then(r => r.json());
-    if (!r.ok) alert('Refresh failed: ' + (r.stderr || r.error || 'unknown'));
+    if (!r.ok) { if (window.sfx) sfx.play('warn'); alert('Refresh failed: ' + (r.stderr || r.error || 'unknown')); }
+    else if (window.sfx) sfx.play('done');
     await load();
   } finally { b.disabled = false; b.textContent = 'Refresh'; }
 });

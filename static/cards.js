@@ -339,8 +339,8 @@
       (g.order.length ? g.order.map(function (k) { return k + ' ' + g.by[k]; }).join(' · ') : 'no rarity values in this build'));
     gradeRow(panel, 'Foil metallic sweep', ' = Prime (is_prime) or Legendary rarity — ' + g.foil + (g.foil === 1 ? ' card' : ' cards'));
     gradeRow(panel, 'Neutral border', ' = no rarity in the game data — ' + g.none + (g.none === 1 ? ' card' : ' cards'));
-    gradeRow(panel, 'Dimmed', ' = not owned · rank pips = your best owned copy’s rank · ×N badge = copies owned · floor/median = live WFM prices');
-    gradeRow(panel, 'Condition', ' = the TCG-style wear grade, read from the best owned copy’s rank ratio — 1:1 (fully ranked) = Mint; a lone rank on a rank-10 mod = Poor. ' +
+    gradeRow(panel, 'Dimmed', ' = not owned · pips = best copy’s rank · ×N = copies · floor/median = live WFM prices');
+    gradeRow(panel, 'Condition', ' = wear grade from the best copy’s rank ratio (fully ranked = Mint). ' +
       CONDITIONS.map(function (c) { return c.label + ' ' + (g.cond[c.key] || 0); }).join(' · ') +
       ' · cards with no copy: ' + (state.all.length - g.condTotal));
   }

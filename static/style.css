@@ -446,3 +446,80 @@ body.show-a .hide-a { display: table-cell; }
   white-space: pre-wrap; overflow: auto; max-height: 260px;
 }
 .pad-b { padding: 0 14px 8px; }
+
+/* ======================= UI polish: subtle motion + sound button =======================
+   Jay (2026-09-26): "clean up ui ... add some clean ui vfx".
+   Rules for everything here: transform/opacity only (no reflow), quiet timings, and the whole
+   block collapses under prefers-reduced-motion. Feedback, not decoration. */
+
+@keyframes wfm-rise  { from { opacity: 0; transform: translateY(6px); }  to { opacity: 1; transform: none; } }
+@keyframes wfm-fade  { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes wfm-sheen { from { transform: translateX(-130%) skewX(-12deg); } to { transform: translateX(230%) skewX(-12deg); } }
+@keyframes wfm-glow  { 0%, 100% { opacity: .55; box-shadow: 0 0 6px var(--accent); }
+                       50%      { opacity: 1;   box-shadow: 0 0 12px var(--accent); } }
+
+/* a view fades/rises as it becomes visible (the display change restarts the animation) */
+main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .36, 1) both; }
+
+/* rows and KPIs land in a short stagger while their data arrives */
+.kpis > *,
+.picks > *   { animation: wfm-rise .3s cubic-bezier(.22, .61, .36, 1) both; }
+.kpis > *:nth-child(2), .picks > *:nth-child(2) { animation-delay: .035s; }
+.kpis > *:nth-child(3), .picks > *:nth-child(3) { animation-delay: .07s; }
+.kpis > *:nth-child(4), .picks > *:nth-child(4) { animation-delay: .10s; }
+.kpis > *:nth-child(5), .picks > *:nth-child(5) { animation-delay: .14s; }
+.kpis > *:nth-child(6), .picks > *:nth-child(6) { animation-delay: .18s; }
+.kpis > *:nth-child(n+7), .picks > *:nth-child(n+7) { animation-delay: .21s; }
+
+/* buttons lift a hair on hover, press in on click, ring for the keyboard */
+.btn { position: relative; overflow: hidden; }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(.97); }
+.btn:focus-visible, .navpill:focus-visible, .movedlink:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px;
+}
+
+/* one clean light sweep across the primary button and KPI tiles */
+.btn.primary::after, .kpi::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, white 13%, transparent), transparent);
+  pointer-events: none; opacity: 0; transform: translateX(-130%) skewX(-12deg);
+}
+.kpi { position: relative; overflow: hidden; }
+.btn.primary:hover::after, .kpi:hover::after { opacity: .75; animation: wfm-sheen .62s ease; }
+
+/* cards acknowledge the pointer without moving */
+.card { transition: border-color .22s ease, box-shadow .22s ease; }
+.card:hover { border-color: color-mix(in srgb, var(--accent) 20%, var(--border)); }
+
+/* nav: the active pill carries a quiet accent dot that breathes */
+.mainnav .navpill { position: relative; }
+.navpill::after {
+  content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: var(--accent); opacity: 0; transform: scale(.3);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.navpill:hover::after { opacity: .45; transform: none; }
+.navpill.active { box-shadow: 0 1px 6px color-mix(in srgb, black 25%, transparent); }
+.navpill.active::after { opacity: 1; transform: none; animation: wfm-glow 3.4s ease-in-out infinite; }
+
+/* drawer scrim fades behind the panel (the panel itself already rises) */
+.dw-scrim { animation: wfm-fade .2s ease both; }
+
+/* the header sound toggle: ♪ with a clean strike when muted */
+#soundBtn.muted { opacity: .55; }
+#soundBtn.muted::before {
+  content: ""; position: absolute; left: 22%; right: 22%; top: 50%; height: 1.5px;
+  background: currentColor; border-radius: 2px; transform: rotate(-28deg);
+}
+
+/* status lines fade in instead of popping */
+.status:not(:empty), .st-status:not(:empty), #advErr:not(:empty) { animation: wfm-fade .22s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+  .btn:hover, .btn:active, .kpi:hover, .card:hover { transform: none; }
+}
