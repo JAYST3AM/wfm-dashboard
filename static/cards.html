@@ -228,6 +228,13 @@
   .mcd-art > .mcd-pol, .mcd-art > .mcd-pol-name { position: relative; z-index: 1; }
   .mcd-art.has-art .mcd-pol, .mcd-art.has-art .mcd-pol-name { display: none; }
   .mcd-art.has-art .mcd-type { color: color-mix(in srgb, white 78%, transparent); text-shadow: 0 1px 4px black; }
+  /* the icon IS the complete in-game card (title, stat text and type banner are all baked
+     into the image) - the drawn nameplate below it would print the title twice, so an icon
+     card shows art only. Sibling combinator on purpose: cards built while the art probe is
+     still running (or the big inspect card, built before it enters the DOM) get the class
+     later, when the body already exists - the rule still applies. */
+  .mcd-front .mcd-art.has-art ~ .mcd-body { display: none; }
+  .mcd-front .mcd-art.has-art { border-bottom: 0; }
   .mcd-card.r-common  .mcd-art { --rarity-tint: var(--r-common); }
   .mcd-card.r-uncommon .mcd-art { --rarity-tint: var(--r-uncommon); }
   .mcd-card.r-rare     .mcd-art { --rarity-tint: var(--r-rare); }

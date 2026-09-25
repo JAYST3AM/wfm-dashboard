@@ -562,3 +562,20 @@ def test_baked_card_faces_and_the_art_probe_cannot_overwrite_them():
     assert isinstance(entry, dict) and entry.get('baked') is True
     assert str(entry.get('file', '')).endswith('.webp')
     assert os.path.exists(os.path.join(REPO, 'static', 'cardart', entry['file']))
+
+
+def test_icon_cards_never_print_the_title_twice():
+    """Jay (2026-09-26): "these cards already have the title they don't need it twice,
+    remove the bottom one." The WFM icon IS the complete in-game card - title, stat text
+    and type banner are baked into the image - so the drawn nameplate below it is a
+    duplicate title. One structural CSS rule (art sibling -> body) drops the nameplate
+    whenever an art image is present, whichever build path added the class (grid build,
+    hi-res probe, or the inspect big card, which gets its art before entering the DOM).
+    No-art cards and raw full-art cards (no baked title in the artwork) keep the name."""
+    js = open(SCRIPT, encoding='utf-8').read()
+    html = open(PAGE, encoding='utf-8').read()
+    assert "art.classList.add('has-art');" in js
+    assert '.mcd-front .mcd-art.has-art ~ .mcd-body { display: none; }' in html
+    # not keyed on has-fullart: raw-art full-art faces still draw their name + wording
+    assert '.mcd-front.has-fullart .mcd-name {' in html
+    assert '.mcd-front.has-fullart.art-baked .mcd-name,' in html   # baked faces hide it
