@@ -4,17 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WFM Trader</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
-  <div class="brand"><span class="logo">◈</span> WFM Trader <span class="sub">local</span></div>
+  <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">local</span></div>
   <div class="chips" id="chips"></div>
   <div class="actions">
     <div class="search"><span class="si">⌕</span><input id="search" type="text" placeholder="Search items…" autocomplete="off"></div>
     <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
     <button id="refresh" class="btn primary">Refresh</button>
+    <button id="btnExportPng" class="btn" title="Save top picks as a PNG">PNG</button>
   </div>
   <div id="themePanel" class="theme-panel hidden">
     <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
@@ -26,6 +29,12 @@
   <a href="#home" class="navpill" data-v="home">Dashboard</a>
   <a href="#inventory" class="navpill" data-v="inventory">Inventory</a>
   <a href="#history" class="navpill" data-v="history">History</a>
+  <a href="#trader" class="navpill" data-v="trader">Trader</a>
+  <a href="#market" class="navpill" data-v="market">Market</a>
+  <a href="/lookup.html" class="navpill">Lookup</a>
+  <a href="/collection.html" class="navpill">Collection</a>
+  <a href="/cards.html" class="navpill">Cards</a>
+  <a href="/settings.html" class="navpill">Settings</a>
 </nav>
 
 <main>
@@ -47,6 +56,10 @@
     <div class="card">
       <div class="card-head"><div class="card-title">Top sell picks <span class="dim small" id="picksMeta"></span></div></div>
       <div id="sellPicks" class="picks"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Game updates <span class="dim small" id="newsMeta"></span></div></div>
+      <div id="newsList" class="picks"></div>
     </div>
   </section>
 
@@ -73,6 +86,10 @@
       </table>
     </div>
     <div id="status" class="status"></div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Inventory changes <span class="dim small" id="diffMeta"></span></div></div>
+      <div class="picks" id="diffList"></div>
+    </div>
   </section>
 
   <section id="view-history" class="hidden">
@@ -89,11 +106,157 @@
       </div>
       <div class="picks" id="tradeLog"></div>
     </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Sessions <span class="dim small" id="sessMeta"></span></div></div>
+      <div class="picks" id="sessList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Sell timing <span class="dim small" id="timingMeta"></span></div></div>
+      <div class="picks" id="timingList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Platinum ledger — in-game spend <span class="dim small" id="ledgerMeta"></span></div></div>
+      <div class="picks" id="ledgerList"></div>
+    </div>
+  </section>
+
+  <section id="view-trader" class="hidden">
+    <div class="kpis" id="traderKpis"></div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Trade limit <span class="dim small" id="limMeta"></span></div></div>
+      <div class="picks" id="limList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Safety <span class="dim small" id="killMeta"></span></div>
+        <div class="actions"><button class="btn" id="btnKill">Arm kill switch</button></div>
+      </div>
+      <div class="picks" id="killList"></div>
+    </div>
+    <div class="card">
+      <div class="picks"><a class="movedlink" href="/settings.html">Engine settings moved → /settings.html</a></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Today's plan <span class="dim small" id="planMeta"></span></div>
+        <div class="actions">
+          <button class="btn" id="btnPlan">Rebuild plan</button>
+          <button class="btn" id="btnCycle">Run detector</button>
+        </div>
+      </div>
+      <div class="picks" id="planList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Held back <span class="dim small" id="heldMeta"></span></div></div>
+      <div class="picks" id="heldList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Detector <span class="dim small" id="detMeta"></span></div></div>
+      <div class="picks" id="detList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Undercut watch <span class="dim small" id="watchMeta"></span></div>
+        <div class="actions"><button class="btn" id="btnWatch">Check undercuts</button></div>
+      </div>
+      <div class="picks" id="watchList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Run queue — best buyers <span class="dim small" id="runqMeta"></span></div>
+        <div class="actions"><button class="btn" id="btnRunq">Refresh queue</button></div>
+      </div>
+      <div class="picks" id="runqList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Buy plan — flipper <span class="dim small" id="flipPlanMeta"></span></div>
+        <div class="actions"><button class="btn" id="btnFlip">Rebuild (live floors)</button></div>
+      </div>
+      <div class="picks" id="flipPlanList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Listing hygiene <span class="dim small" id="hygieneMeta"></span></div>
+        <div class="actions"><button class="btn" id="btnHygiene">Rebuild plan</button></div>
+      </div>
+      <div class="picks" id="hygieneList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Notify — Discord/webhook <span class="dim small" id="notifyMeta"></span></div>
+        <div class="actions"><button class="btn" id="btnNotify">Send test ping</button></div>
+      </div>
+      <div class="picks" id="notifyList"></div>
+    </div>
+  </section>
+
+  <section id="view-market" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Deals <span class="dim small" id="dealsMeta"></span></div>
+      </div>
+      <div id="dealsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Flips — margin × liquidity <span class="dim small" id="flipsMeta"></span></div></div>
+      <div id="flipsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Near-complete nudges <span class="dim small" id="nudgesMeta"></span></div></div>
+      <div class="picks" id="nudgesList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Ducats — sell vs burn <span class="dim small" id="ducatsMeta"></span></div></div>
+      <div class="picks" id="ducatsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Craft — build vs buy <span class="dim small" id="craftMeta"></span></div></div>
+      <div id="craftList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Wishlist — budget planner <span class="dim small" id="wishMeta"></span></div></div>
+      <div class="picks" id="wishList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Watchlist — bands &amp; alerts <span class="dim small" id="wlMeta"></span></div></div>
+      <div class="picks" id="wlList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Sets — build targets <span class="dim small" id="setsMeta"></span></div></div>
+      <div id="setsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Relic EV <span class="dim small" id="relicsMeta"></span></div></div>
+      <div id="relicsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Movers <span class="dim small" id="moversMeta"></span></div></div>
+      <div class="picks" id="moversList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Riven bands — veiled + owned <span class="dim small" id="rivensMeta"></span></div></div>
+      <div id="rivensList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Baro Ki'Teer <span class="dim small" id="baroMeta"></span></div></div>
+      <div class="picks" id="baroList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Demand trends <span class="dim small" id="trendsMeta"></span></div></div>
+      <div class="picks" id="trendsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Post-patch meta <span class="dim small" id="metaMeta"></span></div></div>
+      <div class="picks" id="metaList"></div>
+    </div>
   </section>
 </main>
 <div class="foot" id="foot"></div>
 
+<script src="/theme.js"></script>
 <script src="/chart.js"></script>
 <script src="/app.js"></script>
+<script src="/export.js"></script>
 </body>
 </html>

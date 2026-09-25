@@ -1,0 +1,346 @@
+/* collection.js - Warframe collection log (no frameworks, no external libs)
+   Data: data/collection_log.json written by scripts/collection_log.py, served as
+         /collection_log.json (static copy), /api/feature/collection or /data/collection_log.json.
+   Renders ONE category tab at a time (the log can hold ~800 items - only the active tab is
+   built into the DOM), with an overall completion bar, search and missing/buyable filters.
+   All injected strings are escaped/created as text nodes; no innerHTML with data. */
+'use strict';
+(function () {
+  var SOURCES = ['/collection_log.json', '/api/feature/collection', '/data/collection_log.json'];
+  var LOOKUP = '/lookup.html';
+  var RUN_CMD = 'python scripts/collection_log.py';
+
+  var state = { doc: null, cat: 0, q: '', missingOnly: false, buyable: false, src: '' };
+
+  // ---------- helpers ----------
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = String(text);
+    return n;
+  }
+
+  function fmtInt(v) {
+    var n = Number(v);
+    return isFinite(n) ? String(Math.round(n)) : '—';
+  }
+
+  function pctText(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return '—';
+    return (n % 1 === 0 ? String(n) : n.toFixed(1)) + '%';
+  }
+
+  function initial(name) {
+    var s = String(name || '?').replace(/[^A-Za-z0-9]/g, '');
+    return (s.charAt(0) || '?').toUpperCase();
+  }
+
+  function isCollected(it) { return !!(it && (it.owned || it.mastered)); }
+
+  // Catalog icon URLs come from the log (WFCD CDN / warframe.market CDN). Whitelist them so a
+  // tampered log can never break out of the src attribute, then fall back to a letter tile.
+  function safeUrl(u) {
+    if (typeof u !== 'string' || !u) return null;
+    if (u.indexOf('https://') !== 0 && u.indexOf('/') !== 0) return null;
+    if (/[\x00-\x1f\x7f"'<>\\\s]/.test(u)) return null;
+    return u;
+  }
+
+  function avatar(it, miss) {
+    var d = el('div', 'cl-avatar', initial(it.name));
+    d.setAttribute('aria-hidden', 'true');
+    if (miss) d.title = 'not collected';
+    return d;
+  }
+
+  function image(it, miss) {
+    var url = safeUrl(it.icon);
+    if (!url) return avatar(it, miss);
+    var img = el('img', 'cl-thumb');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', function () {
+      var av = avatar(it, miss);
+      if (img.parentNode) img.parentNode.replaceChild(av, img);
+    });
+    img.setAttribute('src', url);
+    return img;
+  }
+
+  // ---------- card ----------
+  function floorLink(it) {
+    // Missing + quoted in the local snapshot: show the floor and open the Lookup page for it.
+    var a = el('a', 'cl-floor');
+    a.href = LOOKUP + '?q=' + encodeURIComponent(it.name);
+    a.appendChild(el('span', null, '▲ ' + fmtInt(it.floor) + 'p'));
+    a.appendChild(el('span', 'k', it.floor_kind === 'item' ? '' : ' ' + it.floor_kind));
+    a.title = 'Lowest sell order in the local snapshot' +
+      (it.floor_kind && it.floor_kind !== 'item' ? ' (' + it.name + ' ' + it.floor_kind + ')' : '') +
+      ' - open the Lookup page';
+    return a;
+  }
+
+  function card(it) {
+    var got = isCollected(it);
+    var c = el('div', 'cl-card ' + (got ? 'got' : 'miss'));
+    c.setAttribute('role', 'listitem');
+
+    c.appendChild(image(it, !got));
+    c.appendChild(el('div', 'cl-name', it.name));
+
+    var flags = el('div', 'cl-flags');
+    if (it.mastered) flags.appendChild(el('span', 'cl-flag mastered', 'mastered'));
+    if (it.owned) flags.appendChild(el('span', 'cl-flag owned', 'owned'));
+    if (it.mastery_req != null && it.mastery_req > 0) {
+      flags.appendChild(el('span', 'cl-flag mr', 'MR' + fmtInt(it.mastery_req)));
+    }
+    if (flags.childNodes.length) c.appendChild(flags);
+
+    if (!got) {
+      if (it.floor) c.appendChild(floorLink(it));
+      else c.appendChild(el('div', 'cl-noprice', '—'));
+    }
+    return c;
+  }
+
+  // ---------- tabs ----------
+  function buildTabs() {
+    var tabs = document.getElementById('tabs');
+    tabs.textContent = '';
+    state.doc.categories.forEach(function (cat, i) {
+      var t = el('button', 'tab cl-tab' + (i === state.cat ? ' active' : ''));
+      t.type = 'button';
+      t.setAttribute('role', 'tab');
+      t.setAttribute('aria-selected', i === state.cat ? 'true' : 'false');
+      t.appendChild(document.createTextNode(cat.name));
+      t.appendChild(el('span', 'cl-tab-count', cat.obtained + '/' + cat.total));
+      var bar = el('span', 'cl-tab-bar');
+      var fill = el('i');
+      fill.style.width = (cat.total ? (100 * cat.obtained / cat.total) : 0).toFixed(1) + '%';
+      bar.appendChild(fill);
+      t.appendChild(bar);
+      t.title = cat.name + ': ' + cat.obtained + ' of ' + cat.total + ' collected (' +
+        pctText(cat.pct) + ')';
+      t.addEventListener('click', function () { selectCategory(i); });
+      tabs.appendChild(t);
+    });
+  }
+
+  function selectCategory(i) {
+    if (i === state.cat) return;
+    state.cat = i;
+    buildTabs();
+    render();
+  }
+
+  // ---------- filter + render ----------
+  function matches(it, q) {
+    if (!q) return true;
+    return it.name.toLowerCase().indexOf(q) !== -1 ||
+      String(it.slug || '').toLowerCase().indexOf(q) !== -1;
+  }
+
+  function visibleItems(cat) {
+    var q = state.q.trim().toLowerCase();
+    var out = [];
+    cat.items.forEach(function (it) {
+      var got = isCollected(it);
+      if (state.missingOnly && got) return;
+      if (state.buyable && (got || !it.floor)) return;
+      if (!matches(it, q)) return;
+      out.push(it);
+    });
+    return out;
+  }
+
+  function render() {
+    if (!state.doc) return;
+    var cat = state.doc.categories[state.cat];
+    if (!cat) return;
+    var shown = visibleItems(cat);
+    var grid = document.getElementById('grid');
+    var meta = document.getElementById('meta');
+    var empty = document.getElementById('empty');
+    var clearBtn = document.getElementById('clearBtn');
+
+    var frag = document.createDocumentFragment();
+    shown.forEach(function (it) { frag.appendChild(card(it)); });
+    grid.textContent = '';
+    grid.appendChild(frag);
+
+    var missing = cat.total - cat.obtained;
+    var buyable = cat.items.filter(function (it) { return !isCollected(it) && it.floor; }).length;
+
+    meta.textContent = '';
+    meta.appendChild(el('b', null, cat.name));
+    meta.appendChild(document.createTextNode(' · ' + cat.obtained + '/' + cat.total + ' collected (' +
+      pctText(cat.pct) + ') · ' + missing + ' missing'));
+    if (buyable) meta.appendChild(document.createTextNode(' · ' + buyable + ' with a local price'));
+    meta.appendChild(document.createTextNode(' · showing ' + shown.length +
+      (shown.length === 1 ? ' item' : ' items')));
+    if (state.missingOnly || state.buyable || state.q) {
+      meta.appendChild(document.createTextNode(' (filtered)'));
+    }
+
+    clearBtn.classList.toggle('hidden', !state.q);
+
+    if (!shown.length) {
+      empty.textContent = '';
+      var head = el('b', null, state.q
+        ? 'Nothing in ' + cat.name + ' matches “' + state.q.trim() + '”.'
+        : (state.missingOnly || state.buyable
+           ? 'Nothing left to show in ' + cat.name + ' - the filters are empty.'
+           : 'Nothing to show in ' + cat.name + '.'));
+      empty.appendChild(head);
+      var sub = el('div', null, state.buyable
+        ? '“Buyable” only lists missing items that have a floor price in this PC’s local WFM snapshot.'
+        : 'Clear the search or turn off the toggle to see the whole category.');
+      empty.appendChild(sub);
+      empty.classList.remove('hidden');
+    } else {
+      empty.classList.add('hidden');
+    }
+  }
+
+  // ---------- header / overall ----------
+  function paintSummary() {
+    var doc = state.doc;
+    var ov = doc.overall || {};
+    document.getElementById('ovPct').textContent = pctText(ov.pct);
+    document.getElementById('ovCount').textContent = fmtInt(ov.obtained) + ' / ' + fmtInt(ov.total) +
+      ' obtainable items collected';
+    document.getElementById('ovBar').style.width = Math.max(0, Math.min(100, Number(ov.pct) || 0)) + '%';
+
+    var foot = document.getElementById('ovFoot');
+    foot.textContent = '';
+    var bits = [
+      ['mastered only', fmtInt(ov.mastered_only) + (ov.mastered_only === 1 ? ' item' : ' items')],
+      ['owned only', fmtInt(ov.owned_only)],
+      ['missing', fmtInt(ov.missing)],
+      ['missing w/ price', fmtInt(ov.missing_with_price)]
+    ];
+    bits.forEach(function (pair) {
+      var s = el('span');
+      s.appendChild(el('b', null, pair[1]));
+      s.appendChild(document.createTextNode(' ' + pair[0]));
+      foot.appendChild(s);
+    });
+
+    var chips = document.getElementById('chips');
+    chips.textContent = '';
+    var c1 = el('span', 'chip');
+    c1.appendChild(el('b', null, fmtInt(ov.obtained) + '/' + fmtInt(ov.total)));
+    c1.appendChild(document.createTextNode(' collected'));
+    chips.appendChild(c1);
+    var c2 = el('span', 'chip');
+    c2.appendChild(el('b', null, fmtInt(doc.categories.length)));
+    c2.appendChild(document.createTextNode(' categories'));
+    chips.appendChild(c2);
+    var c3 = el('span', 'chip');
+    c3.appendChild(el('b', null, fmtInt(ov.missing)));
+    c3.appendChild(document.createTextNode(' missing'));
+    chips.appendChild(c3);
+    if (ov.missing_with_price) {
+      var c4 = el('span', 'chip warn');
+      c4.appendChild(el('b', null, fmtInt(ov.missing_with_price)));
+      c4.appendChild(document.createTextNode(' buyable'));
+      chips.appendChild(c4);
+    }
+    var src = doc.sources || {};
+    if (src.catalog_partial || !src.save_xpinfo_count) {
+      var warn = el('span', 'chip warn');
+      warn.appendChild(el('b', null, src.catalog_partial ? 'catalog partial' : 'no mastery data'));
+      chips.appendChild(warn);
+    }
+  }
+
+  function paintSource() {
+    var src = (state.doc && state.doc.sources) || {};
+    var line = document.getElementById('srcLine');
+    line.textContent = '';
+    line.appendChild(document.createTextNode('Collection log ' + (state.doc.generated_iso || '') +
+      ' · mastery list ' + fmtInt(src.save_xpinfo_count) + ' (' + (src.save_source || 'none') + ')'));
+    var link = el('a', null, state.src);
+    link.href = state.src;
+    line.appendChild(document.createTextNode(' · served from '));
+    line.appendChild(link);
+    line.appendChild(document.createTextNode(' · builder: ' + RUN_CMD));
+  }
+
+  // ---------- load ----------
+  function trySource(i) {
+    if (i >= SOURCES.length) {
+      fail(null);
+      return;
+    }
+    var url = SOURCES[i];
+    fetch(url, { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error(url + ' ' + r.status);
+      return r.json();
+    }).then(function (json) {
+      if (!json || !Array.isArray(json.categories) || !json.overall) {
+        throw new Error(url + ': not a collection log');
+      }
+      state.doc = json;
+      state.src = url;
+      start();
+    }).catch(function () { trySource(i + 1); });
+  }
+
+  function fail(err) {
+    var meta = document.getElementById('meta');
+    var empty = document.getElementById('empty');
+    document.getElementById('ovPct').textContent = '—';
+    document.getElementById('ovCount').textContent = 'no collection log loaded';
+    meta.textContent = 'Could not load the collection log' + (err ? ' (' + err + ')' : '') + '.';
+    empty.textContent = '';
+    empty.appendChild(el('b', null, 'No collection_log.json available.'));
+    var line = el('div');
+    line.appendChild(document.createTextNode('Build it with '));
+    line.appendChild(el('code', null, RUN_CMD));
+    line.appendChild(document.createTextNode(' - that writes data/collection_log.json and a static copy this page can fetch.'));
+    empty.appendChild(line);
+    empty.classList.remove('hidden');
+    document.getElementById('tabs').textContent = '';
+    document.getElementById('grid').textContent = '';
+  }
+
+  function start() {
+    paintSummary();
+    paintSource();
+    buildTabs();
+    render();
+  }
+
+  // ---------- wiring ----------
+  function toggleBtn(id, key) {
+    var btn = document.getElementById(id);
+    btn.addEventListener('click', function () {
+      state[key] = !state[key];
+      btn.setAttribute('aria-pressed', state[key] ? 'true' : 'false');
+      render();
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var q = document.getElementById('q');
+    q.addEventListener('input', function () { state.q = q.value; render(); });
+    document.getElementById('clearBtn').addEventListener('click', function () {
+      q.value = ''; state.q = ''; render(); q.focus();
+    });
+    toggleBtn('missBtn', 'missingOnly');
+    toggleBtn('priceBtn', 'buyable');
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); return; }
+      if (e.key === 'Escape' && document.activeElement === q) {
+        q.value = ''; state.q = ''; render(); q.blur();
+      }
+    });
+
+    trySource(0);
+  });
+})();

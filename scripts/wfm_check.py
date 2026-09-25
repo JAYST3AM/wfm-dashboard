@@ -6,7 +6,7 @@ Login comes from secrets.json ("wfm_email" / "wfm_password") or env WFM_EMAIL / 
 import json, os, re, sys, urllib.request, http.cookiejar
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+UA = 'WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)'
 
 
 def load_login():

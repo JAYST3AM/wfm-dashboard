@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFM Trader · Collection Log</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://cdn.warframestat.us" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* ---- collection log page (page-specific, built on the dashboard's CSS vars) ---- */
+  /* The nav grows with every page the dashboard gains; once the pill row is wider than the
+     window it wraps inside its own box instead of pushing the whole document sideways.
+     Page-local override - style.css is shared and stays untouched. */
+  .mainnav { max-width: calc(100% - 36px); flex-wrap: wrap; }
+  .cl-wrap { padding: 14px 18px 40px; max-width: 1400px; margin: 0 auto; }
+
+  /* overall completion bar */
+  .cl-overall {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 13px 16px 14px; margin-bottom: 14px;
+  }
+  .cl-ov-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .cl-ov-title { font-size: 12.5px; font-weight: 600; letter-spacing: .3px; }
+  .cl-ov-title::before { content: "◆"; color: var(--accent); font-size: 8px; margin-right: 7px; vertical-align: 2px; }
+  .cl-ov-num { font-family: var(--mono); font-size: 21px; font-weight: 700; color: var(--accent); }
+  .cl-ov-sub { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .cl-bar {
+    position: relative; height: 10px; margin-top: 11px; border-radius: 999px; overflow: hidden;
+    background: var(--panel2); border: 1px solid var(--border);
+  }
+  .cl-bar > i {
+    display: block; height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    transition: width .35s ease;
+  }
+  .cl-ov-foot { margin-top: 9px; display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 11.5px; font-family: var(--mono); }
+  .cl-ov-foot b { color: var(--text); font-weight: 600; }
+  .cl-ov-foot .warn { color: var(--accent); }
+
+  /* search + toggle row */
+  .cl-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; }
+  .cl-search { flex: 1; min-width: 220px; padding: 9px 14px; }
+  .cl-search input { width: 100%; font-size: 14px; }
+  .cl-search .si { font-size: 16px; }
+  .cl-clear { background: none; border: none; color: var(--muted); cursor: pointer; font: 13px var(--sans); padding: 2px 4px; }
+  .cl-clear:hover { color: var(--accent); }
+  .cl-toggle { display: inline-flex; align-items: center; gap: 7px; user-select: none; }
+  .cl-toggle .box {
+    width: 15px; height: 15px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--panel2); display: inline-flex; align-items: center; justify-content: center;
+    font: 700 10px var(--mono); color: transparent;
+  }
+  .cl-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); }
+  .cl-toggle[aria-pressed="true"] .box { color: var(--accent); border-color: var(--accent-dim); }
+
+  /* category tabs (house .tabs/.tab look + counts) */
+  .cl-tabs { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .cl-tab-count { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-left: 5px; }
+  .cl-tab.active .cl-tab-count { color: var(--accent); }
+  .cl-tab .cl-tab-bar {
+    display: block; height: 2px; margin-top: 5px; border-radius: 2px; background: var(--border); overflow: hidden;
+  }
+  .cl-tab .cl-tab-bar > i { display: block; height: 100%; background: var(--accent); }
+
+  .cl-meta { color: var(--muted); font-size: 12px; margin: 12px 2px 12px; }
+  .cl-meta b { color: var(--text); font-family: var(--mono); }
+  .cl-meta .warn { color: var(--accent); }
+
+  /* item grid */
+  .cl-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); }
+  .cl-card {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    text-align: center; background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 10px 8px 9px; color: var(--text); font: inherit;
+    transition: border-color .18s ease, transform .15s ease, background-color .18s ease;
+  }
+  .cl-card.got { border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
+  .cl-card.got:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .cl-thumb {
+    width: 68px; height: 68px; object-fit: contain; flex: 0 0 auto;
+    filter: drop-shadow(0 2px 6px color-mix(in srgb, black 45%, transparent));
+  }
+  .cl-card.miss .cl-thumb { filter: grayscale(1) brightness(.5) opacity(.42); }
+  .cl-avatar {
+    width: 68px; height: 68px; border-radius: 12px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel2); border: 1px solid var(--border);
+    color: var(--accent); font: 700 26px var(--mono);
+  }
+  .cl-card.miss .cl-avatar { color: var(--muted); background: color-mix(in srgb, var(--panel2) 70%, black); }
+  .cl-name {
+    font-size: 12px; line-height: 1.3; color: var(--text);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 31px; word-break: break-word;
+  }
+  .cl-card.miss .cl-name { color: var(--muted); }
+  .cl-flags { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
+  .cl-flag {
+    border-radius: 999px; padding: 1px 7px; font: 600 10px var(--mono);
+    border: 1px solid var(--border); color: var(--muted); background: var(--panel2);
+  }
+  .cl-flag.mastered { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+  .cl-flag.owned { color: #4ade80; border-color: color-mix(in srgb, #4ade80 45%, transparent); background: color-mix(in srgb, #4ade80 12%, var(--panel2)); }
+  .cl-flag.mr { color: var(--muted); }
+  .cl-floor {
+    display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
+    font: 600 11.5px var(--mono); color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
+    border: 1px solid var(--accent-dim); border-radius: 999px; padding: 2px 9px;
+  }
+  .cl-floor:hover { color: var(--text); border-color: var(--accent); }
+  .cl-floor .k { color: var(--muted); font-weight: 500; }
+  .cl-noprice { font: 10.5px var(--mono); color: var(--muted); }
+  .cl-empty { padding: 40px 12px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.8; }
+  .cl-empty b { color: var(--text); }
+  .cl-empty code { font-family: var(--mono); color: var(--accent); }
+  .cl-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1400px; margin: 0 auto; }
+  .cl-foot a { color: var(--muted); }
+  .cl-foot a:hover { color: var(--accent); }
+  @media (max-width: 420px) {
+    .cl-grid { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
+    .cl-ov-num { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">collection log</span></div>
+  <div class="chips" id="chips"></div>
+  <div class="actions">
+    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
+    <a class="btn" href="/">◀ Dashboard</a>
+  </div>
+</header>
+
+<div id="themePanel" class="theme-panel hidden">
+  <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
+  <div id="themeGrid" class="tp-grid"></div>
+</div>
+
+<nav class="mainnav" id="mainnav">
+  <a href="/#home" class="navpill">Dashboard</a>
+  <a href="/#inventory" class="navpill">Inventory</a>
+  <a href="/#history" class="navpill">History</a>
+  <a href="/#trader" class="navpill">Trader</a>
+  <a href="/#market" class="navpill">Market</a>
+  <a href="/lookup.html" class="navpill">Lookup</a>
+  <a href="/collection.html" class="navpill active">Collection</a>
+  <a href="/cards.html" class="navpill">Cards</a>
+  <a href="/settings.html" class="navpill">Settings</a>
+</nav>
+
+<main class="cl-wrap">
+  <div class="cl-overall" id="overall">
+    <div class="cl-ov-head">
+      <span class="cl-ov-title">Collection progress</span>
+      <span class="cl-ov-num" id="ovPct">—</span>
+      <span class="cl-ov-sub" id="ovCount">loading…</span>
+    </div>
+    <div class="cl-bar"><i id="ovBar" style="width:0%"></i></div>
+    <div class="cl-ov-foot" id="ovFoot"></div>
+  </div>
+
+  <div class="cl-controls">
+    <div class="search cl-search">
+      <span class="si">⌕</span>
+      <input id="q" type="text" placeholder="Search this category…" title="Search by item name or slug (e.g. prime, braton)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search collection items">
+      <button class="cl-clear hidden" id="clearBtn" type="button" title="Clear search" aria-label="Clear search">✕</button>
+    </div>
+    <button class="btn cl-toggle" id="missBtn" type="button" aria-pressed="false" title="Show only what is still missing">
+      <span class="box">✓</span> Missing only
+    </button>
+    <button class="btn cl-toggle" id="priceBtn" type="button" aria-pressed="false" title="Show only missing items with a known floor price">
+      <span class="box">✓</span> Buyable
+    </button>
+  </div>
+
+  <div class="tabs cl-tabs" id="tabs" role="tablist" aria-label="Collection categories"></div>
+  <div class="cl-meta" id="meta">Loading collection log…</div>
+  <div class="cl-grid" id="grid" role="list" aria-label="Catalog items"></div>
+  <div class="cl-empty hidden" id="empty"></div>
+</main>
+
+<footer class="cl-foot">
+  <span id="srcLine">Collection log built by <code>scripts/collection_log.py</code></span> · item icons from the WFCD image CDN ·
+  floor prices from this PC's local WFM snapshot (data/prices.json) · <a href="/">back to dashboard</a>
+</footer>
+
+<script src="/theme.js"></script>
+<script>wfmInitThemeUI();</script>
+<script src="/collection.js"></script>
+</body>
+</html>

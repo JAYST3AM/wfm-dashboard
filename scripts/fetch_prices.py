@@ -3,7 +3,7 @@ import json, os, time, urllib.request, urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
-UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+UA = 'WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)'
 
 owned = json.load(open(os.path.join(DATA, 'owned.json'), encoding='utf-8'))
 wfm = json.load(open(os.path.join(DATA, 'wfm_items_v2.json'), encoding='utf-8'))['data']

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFM Trader · Settings</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* ---- settings page (page-specific, built on the dashboard's CSS vars) ---- */
+  .st-wrap { padding: 14px 18px 40px; max-width: 1000px; margin: 0 auto; }
+  .st-note { color: var(--muted); font-size: 11.5px; margin: 2px 2px 14px; line-height: 1.7; }
+  .st-note b { color: var(--text); }
+  .st-note code { font-family: var(--mono); }
+  .st-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1000px; margin: 0 auto; }
+  .st-foot a { color: var(--muted); }
+  .st-foot a:hover { color: var(--accent); }
+  .st-foot code { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">settings</span></div>
+  <div class="chips" id="chips"></div>
+  <div class="actions">
+    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
+    <a class="btn" href="/">◀ Dashboard</a>
+  </div>
+</header>
+
+<div id="themePanel" class="theme-panel hidden">
+  <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
+  <div id="themeGrid" class="tp-grid"></div>
+</div>
+
+<nav class="mainnav" id="mainnav">
+  <a href="/#home" class="navpill">Dashboard</a>
+  <a href="/#inventory" class="navpill">Inventory</a>
+  <a href="/#history" class="navpill">History</a>
+  <a href="/#trader" class="navpill">Trader</a>
+  <a href="/#market" class="navpill">Market</a>
+  <a href="/lookup.html" class="navpill">Lookup</a>
+  <a href="/collection.html" class="navpill">Collection</a>
+  <a href="/cards.html" class="navpill">Cards</a>
+  <a href="/settings.html" class="navpill active">Settings</a>
+</nav>
+
+<main class="st-wrap">
+  <div class="st-note">
+    Engine guardrails live in <code>scripts/trader/settings.json</code>, dashboard knobs in
+    <code>data/config.json</code>. Every value is validated by its engine before anything is written —
+    a refused value changes nothing. <b>Port and host changes need a server restart.</b>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Guardrails — settings <span class="dim small" id="cfgMeta"></span></div>
+      <div class="actions"><button class="btn primary" id="btnCfgSave">Save</button></div>
+    </div>
+    <div class="picks" id="cfgList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Dashboard — config.json <span class="dim small" id="configMeta"></span></div>
+      <div class="actions"><button class="btn primary" id="btnConfigSave">Save</button></div>
+    </div>
+    <div class="picks" id="configList"></div>
+  </div>
+</main>
+
+<footer class="st-foot">
+  Guardrails via <code>scripts/trader/settings.py</code> · dashboard knobs via <code>scripts/config.py</code> ·
+  <a href="/">back to dashboard</a>
+</footer>
+
+<script src="/theme.js"></script>
+<script>wfmInitThemeUI();</script>
+<script src="/settings.js"></script>
+</body>
+</html>

@@ -3,3 +3,6 @@ __pycache__/
 secrets.json
 data/*
 !data/.gitkeep
+scripts/trader/
+static/hi/
+tools/preview_frames/

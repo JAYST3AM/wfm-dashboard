@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFM Trader · Mod Cards</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* ---- mod cards page (TCG grid on the dashboard's CSS vars) ----
+     Structure/colour come from theme.js vars (--panel/--panel2/--border/--text/
+     --muted/--accent/--accent-dim/--hover) so every theme works. Rarity hues are
+     semantic (bronze/silver/gold/foil) and are mixed INTO those vars, never used
+     as a stand-in for theme colour. */
+  :root {
+    --r-common: #b87333;   /* bronze  */
+    --r-uncommon: #b9c2cc; /* silver  */
+    --r-rare: #e0b431;     /* gold    */
+    --r-prime: #c9a227;    /* foil base */
+    --pip: color-mix(in srgb, var(--text) 55%, transparent);
+  }
+  /* nav: the pill row wraps inside its own box once it is wider than the window, instead of
+     pushing the whole document sideways (page-local; style.css is shared and stays untouched) */
+  .mainnav { max-width: calc(100% - 36px); flex-wrap: wrap; }
+  .mcd-wrap { padding: 14px 18px 40px; max-width: 1500px; margin: 0 auto; }
+
+  /* ---- toolbar ---- */
+  .mcd-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .mcd-search { flex: 1; min-width: 210px; padding: 8px 14px; }
+  .mcd-search input { width: 100%; font-size: 14px; }
+  .mcd-search .si { font-size: 16px; }
+  .mcd-clear { background: none; border: none; color: var(--muted); cursor: pointer; font: 13px var(--sans); padding: 2px 4px; }
+  .mcd-clear:hover { color: var(--accent); }
+  .mcd-select {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 7px 12px; font: 12.5px var(--sans); max-width: 210px;
+  }
+  .mcd-select:focus { outline: none; border-color: var(--accent-dim); }
+
+  .mcd-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .mcd-btn {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 999px; padding: 5px 13px; cursor: pointer; font: 600 12px var(--sans);
+    transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+  }
+  .mcd-btn:hover { color: var(--text); border-color: var(--accent-dim); }
+  .mcd-btn.active { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+  .mcd-btn.rar.active::before { content: "◆ "; font-size: 9px; vertical-align: 1px; }
+  .mcd-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .mcd-lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+
+  .mcd-meta { color: var(--muted); font-size: 12px; margin: 12px 2px 10px; line-height: 1.7; }
+  .mcd-meta b { color: var(--text); font-family: var(--mono); }
+  .mcd-meta .warn { color: var(--accent); }
+  .mcd-meta code { font-family: var(--mono); font-size: 11px; color: var(--text); }
+
+  /* ---- TCG grid ---- */
+  .mcd-grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  }
+  .mcd-card {
+    position: relative; padding: 0; margin: 0; background: none; border: none; cursor: pointer;
+    perspective: 900px; font: inherit; color: var(--text); text-align: left;
+    aspect-ratio: 5 / 7;
+  }
+  .mcd-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 13px; }
+  .mcd-inner {
+    position: absolute; inset: 0; transform-style: preserve-3d;
+    transition: transform .42s cubic-bezier(.2, .7, .3, 1);
+  }
+  .mcd-card:hover .mcd-inner, .mcd-card:focus-visible .mcd-inner, .mcd-card.flipped .mcd-inner {
+    transform: rotateY(180deg);
+  }
+  .mcd-face {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    border-radius: 12px; overflow: hidden;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: var(--panel); border: 1px solid var(--border);
+    box-shadow: 0 6px 18px color-mix(in srgb, black 28%, transparent);
+  }
+  .mcd-back { transform: rotateY(180deg); }
+
+  /* rarity border band + tint */
+  .mcd-front::before {
+    content: ""; position: absolute; inset: 0; border-radius: 12px; padding: 2px;
+    background: var(--rarity, var(--border));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events: none;
+  }
+  .mcd-card.r-common  { --rarity: linear-gradient(150deg, var(--r-common), color-mix(in srgb, var(--r-common) 40%, var(--border))); }
+  .mcd-card.r-uncommon { --rarity: linear-gradient(150deg, var(--r-uncommon), color-mix(in srgb, var(--r-uncommon) 40%, var(--border))); }
+  .mcd-card.r-rare     { --rarity: linear-gradient(150deg, var(--r-rare), color-mix(in srgb, var(--r-rare) 40%, var(--border))); }
+  .mcd-card.r-none     { --rarity: var(--border); }
+  /* PRIME / LEGENDARY foil: theme accent woven through a metallic sweep */
+  .mcd-card.is-prime, .mcd-card.r-legendary { --rarity: linear-gradient(115deg,
+      var(--accent), color-mix(in srgb, var(--accent) 30%, var(--r-prime)) 35%,
+      color-mix(in srgb, var(--r-prime) 55%, white) 50%,
+      color-mix(in srgb, var(--accent) 30%, var(--r-prime)) 65%, var(--accent)); }
+  .mcd-card.is-prime .mcd-art, .mcd-card.r-legendary .mcd-art {
+    background:
+      radial-gradient(120% 90% at 30% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+      linear-gradient(160deg, color-mix(in srgb, var(--r-prime) 26%, var(--panel2)), var(--panel2));
+  }
+
+  .mcd-art {
+    position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--rarity-tint, var(--border)) 30%, var(--panel2)), var(--panel2));
+  }
+  .mcd-art-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: .93; }
+  .mcd-art > .mcd-type, .mcd-art > .mcd-missing-flag { z-index: 1; }
+  .mcd-art > .mcd-pol, .mcd-art > .mcd-pol-name { position: relative; z-index: 1; }
+  .mcd-art.has-art .mcd-pol, .mcd-art.has-art .mcd-pol-name { display: none; }
+  .mcd-art.has-art .mcd-type { color: color-mix(in srgb, white 78%, transparent); text-shadow: 0 1px 4px black; }
+  .mcd-card.r-common  .mcd-art { --rarity-tint: var(--r-common); }
+  .mcd-card.r-uncommon .mcd-art { --rarity-tint: var(--r-uncommon); }
+  .mcd-card.r-rare     .mcd-art { --rarity-tint: var(--r-rare); }
+  .mcd-pol {
+    font: 700 34px var(--mono); line-height: 1; color: var(--text);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .mcd-pol-name { font: 10px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .mcd-type {
+    position: absolute; top: 5px; left: 7px; font: 9.5px var(--mono); color: var(--muted);
+    text-transform: uppercase; letter-spacing: .5px; max-width: 62%; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mcd-dup {
+    position: absolute; top: 5px; right: 6px; z-index: 2;
+    background: color-mix(in srgb, var(--accent) 20%, var(--panel2));
+    border: 1px solid var(--accent-dim); color: var(--accent);
+    border-radius: 999px; padding: 1px 7px; font: 700 10.5px var(--mono);
+  }
+
+  .mcd-body { padding: 7px 8px 8px; display: flex; flex-direction: column; gap: 6px; }
+  .mcd-name {
+    font-size: 12px; font-weight: 600; line-height: 1.25; color: var(--text);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 30px; word-break: break-word;
+  }
+  .mcd-pips { display: flex; gap: 2px; align-items: center; }
+  .mcd-pips i { width: 7px; height: 7px; border-radius: 50%; background: var(--border); display: block; }
+  .mcd-pips i.on { background: var(--accent); box-shadow: 0 0 5px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .mcd-pips i.avail { background: color-mix(in srgb, var(--text) 26%, transparent); }
+  .mcd-rank { font: 10px var(--mono); color: var(--muted); margin-left: 2px; }
+  .mcd-cond { font: 9px var(--mono); letter-spacing: .04em; padding: 1px 5px; border-radius: 6px; margin-left: 4px; white-space: nowrap; border: 1px solid currentColor; color: var(--muted); }
+  .cond-mint { color: #34d399; }
+  .cond-nm { color: #86efac; }
+  .cond-exc { color: #7dd3fc; }
+  .cond-good { color: #fbbf24; }
+  .cond-played { color: #fb923c; }
+  .cond-poor { color: #f87171; }
+  .mcd-price {
+    margin-top: auto; font: 11px var(--mono); color: var(--muted);
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline;
+  }
+  .mcd-price .f { color: var(--accent); font-weight: 700; }
+  .mcd-price .no { color: var(--muted); opacity: .75; font-size: 10.5px; }
+
+  /* missing mods: dimmed + greyscale, no rank pips */
+  .mcd-card.missing .mcd-front { filter: grayscale(.85); opacity: .52; }
+  .mcd-card.missing:hover .mcd-front { opacity: .8; }
+  .mcd-card.missing .mcd-name { color: var(--muted); font-weight: 500; }
+  .mcd-missing-flag { font: 10px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+  /* back face — full-art treatment: art fills the card, text sits on TCG-style scrims */
+  .mcd-back {
+    padding: 7px 8px; gap: 5px; overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(6,7,10,.90) 0%, rgba(6,7,10,.52) 16%, rgba(6,7,10,.22) 38%, rgba(6,7,10,.48) 66%, rgba(6,7,10,.90) 100%),
+      var(--panel);
+  }
+  .mcd-back-name {
+    font-size: 11.5px; font-weight: 700; line-height: 1.25; color: var(--accent);
+    align-self: flex-start; max-width: 100%;
+    background: rgba(8, 9, 12, .78); border-radius: 5px; padding: 2px 6px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+  }
+  .mcd-stats {
+    font-size: 11px; line-height: 1.4; color: var(--text); flex: 1 1 auto;
+    min-height: 30px; overflow: hidden;
+    display: block; word-break: break-word;
+    background: rgba(8, 9, 12, .80); border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 8px; padding: 5px 7px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+  }
+  .mcd-grade {
+    font-size: 9.5px; line-height: 1.3; color: var(--text); flex: 0 0 auto;
+    background: rgba(8, 9, 12, .72); border-radius: 6px; padding: 2px 6px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+  }
+  .mcd-back-meta {
+    font: 10px var(--mono); color: var(--muted); line-height: 1.35; flex: 0 0 auto;
+    display: flex; flex-wrap: wrap; gap: 1px 9px;
+    background: rgba(8, 9, 12, .78); border-radius: 8px; padding: 5px 7px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
+  }
+  .mcd-back-meta b { color: var(--text); font-weight: 600; }
+  .mcd-back-slug {
+    font: 9px var(--mono); color: color-mix(in srgb, var(--muted) 80%, white); flex: 0 0 auto;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+  }
+
+  /* ---------- per-card back art (cardbacks/index.json) — art-forward, frosted panels ---------- */
+  .mcd-back.has-art {
+    background-image: linear-gradient(180deg, rgba(6,7,10,.62) 0%, rgba(6,7,10,.26) 13%, rgba(6,7,10,.06) 36%, rgba(6,7,10,.20) 62%, rgba(6,7,10,.62) 100%), var(--cb);
+    background-size: 100% 100%, cover;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
+    background-color: var(--panel);
+  }
+  .mcd-back.has-art .mcd-back-name { background: rgba(8, 9, 12, .34); text-shadow: 0 1px 3px rgba(0, 0, 0, .95); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .mcd-back.has-art .mcd-stats { background: rgba(8, 9, 12, .32); border-color: rgba(255, 255, 255, .20); text-shadow: 0 1px 3px rgba(0, 0, 0, .95); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .mcd-back.has-art .mcd-grade { background: rgba(8, 9, 12, .30); text-shadow: 0 1px 3px rgba(0, 0, 0, .95); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .mcd-back.has-art .mcd-back-meta { background: rgba(8, 9, 12, .36); text-shadow: 0 1px 3px rgba(0, 0, 0, .95); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .mcd-back.has-art .mcd-back-slug { text-shadow: 0 1px 3px rgba(0, 0, 0, .95); }
+
+  /* ---------- inspect view: big card, drag-tilt 3D, flip, info card ---------- */
+  .ins-wrap { position: fixed; inset: 0; z-index: 95; display: flex; align-items: center; justify-content: center; }
+  .ins-wrap.hidden { display: none; }
+  .ins-backdrop { position: absolute; inset: 0; background: rgba(4, 5, 8, .76); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .ins-body { position: relative; display: flex; gap: 30px; align-items: center; justify-content: center; max-width: min(1100px, 95vw); max-height: 86vh; }
+  .ins-stage { flex: 0 0 auto; width: 360px; height: 480px; display: flex; align-items: center; justify-content: center; perspective: 1200px; }
+  .ins-tilt { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; transition: transform .18s ease-out; cursor: grab; touch-action: none; }
+  .ins-tilt.dragging { cursor: grabbing; transition: none; }
+  .ins-card { position: relative; width: 173px; height: 242px; transform: scale(var(--ins-scale, 1.85)); transform-origin: center center; }
+  .ins-card .mcd-card { width: 100%; height: 100%; }
+  .ins-sheen {
+    position: absolute; inset: -2px; z-index: 3; pointer-events: none; border-radius: 14px;
+    background: radial-gradient(circle at var(--sx, 50%) var(--sy, 50%), rgba(255,255,255,.20), rgba(255,255,255,0) 58%);
+    mix-blend-mode: screen;
+  }
+  .ins-info {
+    position: relative; width: 330px; max-height: 84vh; overflow: auto;
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px 12px;
+    box-shadow: 0 20px 46px rgba(0, 0, 0, .5); color: var(--text);
+  }
+  .ins-head { margin-bottom: 8px; }
+  .ins-name { font-size: 16px; font-weight: 700; color: var(--accent); line-height: 1.25; }
+  .ins-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .ins-chip { font: 10px var(--mono); color: var(--muted); border: 1px solid var(--border); border-radius: 7px; padding: 2px 7px; background: color-mix(in srgb, var(--panel2) 70%, transparent); }
+  .ins-stats { font-size: 12px; line-height: 1.5; color: var(--text); background: color-mix(in srgb, var(--panel2) 72%, transparent); border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px; margin: 8px 0; }
+  .ins-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.9; border-bottom: 1px dashed color-mix(in srgb, var(--border) 60%, transparent); }
+  .ins-row:last-of-type { border-bottom: 0; }
+  .ins-lbl { color: var(--muted); }
+  .ins-val { color: var(--text); text-align: right; }
+  .ins-bar { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .ins-bar .mcd-btn { padding: 8px 14px; }
+  .ins-market { text-decoration: none; display: inline-flex; align-items: center; }
+  @media (max-width: 880px) {
+    .ins-body { flex-direction: column; gap: 16px; max-height: 92vh; overflow: auto; }
+    .ins-stage { width: 260px; height: 340px; }
+    .ins-card { --ins-scale: 1.35; }
+    .ins-info { width: min(92vw, 430px); max-height: none; }
+    .ins-bar { bottom: 12px; }
+  }
+
+  .mcd-more { display: flex; justify-content: center; gap: 10px; margin: 18px 0 6px; }
+  .mcd-empty { padding: 44px 12px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.9; }
+  .mcd-empty b { color: var(--text); }
+  .mcd-empty code { font-family: var(--mono); color: var(--text); }
+  .mcd-empty .fix {
+    margin-top: 12px; padding: 12px 14px; text-align: left; max-width: 620px; margin-left: auto;
+    margin-right: auto; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    font-size: 12px; line-height: 1.8; color: var(--muted);
+  }
+  .mcd-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1500px; margin: 0 auto; line-height: 1.8; }
+  .mcd-foot a { color: var(--muted); }
+  .mcd-foot a:hover { color: var(--accent); }
+  .mcd-foot code { font-family: var(--mono); }
+
+  /* ---- grades legend ("Grades — why?": the rules behind the card art) ---- */
+  .mcd-grades {
+    margin: 10px 0 2px; padding: 11px 13px; max-width: 780px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+    font-size: 12px; line-height: 1.75; color: var(--muted);
+  }
+  .mcd-grades .g-head { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .mcd-grades .g-head .dim { font-weight: 400; color: var(--muted); }
+  .mcd-grades b { color: var(--text); font-weight: 600; }
+  .mcd-grades .g-row { margin-top: 3px; overflow-wrap: anywhere; }
+  @media (max-width: 460px) {
+    .mcd-grades { max-width: none; padding: 10px 11px; }   /* full-width + wrapped on phones */
+  }
+
+  /* grade reason line on the back of every card */
+  .mcd-grade { font: 10.5px var(--mono); color: var(--muted); line-height: 1.6; }
+  .mcd-grade b { color: var(--text); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mcd-inner { transition: none; }
+    .mcd-card:hover .mcd-inner { transform: none; }
+  }
+  @media (max-width: 460px) {
+    .mcd-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 9px; }
+    .mcd-sep { display: none; }                           /* no stray divider at a wrap point */
+  }
+  @media (max-width: 560px) {
+    .mcd-bar .mcd-lbl { display: none; }                  /* labels would strand beside the search box */
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">mod cards</span></div>
+  <div class="chips" id="chips"></div>
+  <div class="actions">
+    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
+    <a class="btn" href="/">◀ Dashboard</a>
+  </div>
+</header>
+
+<div id="themePanel" class="theme-panel hidden">
+  <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
+  <div id="themeGrid" class="tp-grid"></div>
+</div>
+
+<nav class="mainnav" id="mainnav">
+  <a href="/#home" class="navpill">Dashboard</a>
+  <a href="/#inventory" class="navpill">Inventory</a>
+  <a href="/#history" class="navpill">History</a>
+  <a href="/#trader" class="navpill">Trader</a>
+  <a href="/#market" class="navpill">Market</a>
+  <a href="/lookup.html" class="navpill">Lookup</a>
+  <a href="/collection.html" class="navpill">Collection</a>
+  <a href="/cards.html" class="navpill active">Cards</a>
+  <a href="/settings.html" class="navpill">Settings</a>
+</nav>
+
+<main class="mcd-wrap">
+  <div class="mcd-bar">
+    <div class="search mcd-search">
+      <span class="si">⌕</span>
+      <input id="q" type="text" placeholder="Search mods… (e.g. primed continuity, serration, riven)"
+             autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search mods">
+      <button class="mcd-clear hidden" id="clearBtn" type="button" title="Clear search" aria-label="Clear search">✕</button>
+    </div>
+    <label class="mcd-lbl" for="typeSel">Type</label>
+    <select class="mcd-select" id="typeSel" aria-label="Filter by mod type">
+      <option value="">All types</option>
+    </select>
+    <label class="mcd-lbl" for="sortSel">Sort</label>
+    <select class="mcd-select" id="sortSel" aria-label="Sort cards">
+      <option value="owned">Owned first (rarity, name)</option>
+      <option value="name">Name (A–Z)</option>
+      <option value="rarity">Rarity (best first)</option>
+      <option value="copies">Copies (most first)</option>
+      <option value="value">Sell floor (highest first)</option>
+    </select>
+  </div>
+
+  <div class="mcd-row" id="rarityRow" role="group" aria-label="Rarity filter">
+    <span class="mcd-lbl">Rarity</span>
+    <button class="mcd-btn rar active" type="button" data-rar="">All</button>
+  </div>
+
+  <div class="mcd-row" id="stateRow" role="group" aria-label="Ownership filter">
+    <span class="mcd-lbl">State</span>
+    <button class="mcd-btn active" type="button" data-state="owned" aria-pressed="true">Owned</button>
+    <button class="mcd-btn active" type="button" data-state="missing" aria-pressed="true">Missing</button>
+    <button class="mcd-btn" type="button" data-state="dupes" aria-pressed="false">Dupes ×N</button>
+    <span class="mcd-sep"></span>
+    <button class="mcd-btn" type="button" id="resetBtn">Reset filters</button>
+    <span class="mcd-sep"></span>
+    <button class="mcd-btn" type="button" id="gradeBtn" aria-expanded="false" aria-controls="gradeLegend"
+            title="What the border, the foil sweep, the rank pips and the condition badge mean">Grades — why?</button>
+  </div>
+
+  <div class="mcd-grades hidden" id="gradeLegend" role="region" aria-label="How the cards are graded"></div>
+
+  <div class="mcd-meta" id="meta">Loading mod cards…</div>
+  <div class="mcd-grid" id="grid" role="list" aria-label="Mod cards"></div>
+  <div class="mcd-more hidden" id="moreWrap"><button class="btn primary" type="button" id="moreBtn">Show more</button></div>
+  <div class="mcd-empty hidden" id="empty"></div>
+</main>
+
+<footer class="mcd-foot">
+  <span id="srcLine">Cards built by <code>scripts/mod_cards.py</code> → <code>data/mod_cards.json</code></span> ·
+  images: none (polarity glyph + rarity border are pure CSS) ·
+  <a href="/lookup.html">item lookup</a> · <a href="/">back to dashboard</a>
+</footer>
+
+<script src="/theme.js"></script>
+<script>wfmInitThemeUI();</script>
+<script src="/cards.js"></script>
+</body>
+</html>

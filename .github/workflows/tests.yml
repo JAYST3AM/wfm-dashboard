@@ -1,0 +1,44 @@
+name: tests
+
+# Public test-suite for the wfm-dashboard repo.
+# The trader engines under scripts/trader/ are private (gitignored) and are never
+# imported or run here; every test builds its own fixtures in tmp_path, so no data/
+# directory is required on the runner.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: pytest (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest cryptography
+
+      - name: Verify the suite needs no data/ directory
+        run: |
+          if [ -d data ]; then
+            echo "unexpected data/ directory in the checkout"
+            exit 1
+          fi
+          echo "clean checkout: tests must pass without data/"
+
+      - name: Run public test-suite
+        run: python -m pytest tests -q
