@@ -466,9 +466,9 @@ def test_grid_never_flips_on_hover():
     assert '.mcd-front.has-fullart .mcd-art > .mcd-type { display: none; }' in html
     assert '.mcd-front.has-fullart .mcd-art > .mcd-pol {' in html
     assert 'background-clip: text' in html                    # brushed-silver polarity seal
-    assert '.mcd-front.has-fullart .mcd-body > .mcd-pips' in html
-    assert '.mcd-front.has-fullart .mcd-body > .mcd-price' in html
     js = open(SCRIPT, encoding='utf-8').read()
+    assert 'body.appendChild(pips(card))' not in js           # no rank/price rows on faces
+    assert 'body.appendChild(priceLine(card))' not in js      # (they live in the panel right)
     assert 'if (fa && card.stats_text)' in js                 # mod text ONLY on full-art faces
     # pointer capture retargets the follow-up click to the tilt, so the viewer flips on
     # pointerup instead of relying on the card's own click handler

@@ -587,9 +587,9 @@
     // the mod's own card text rides ONLY on full-art faces — standard cards already show
     // their in-game artwork, so a text box there is noise (details stay in the inspect panel)
     if (fa && card.stats_text) body.appendChild(el('div', 'mcd-desc', card.stats_text));
-    if (owned) body.appendChild(pips(card));
-    else body.appendChild(el('div', 'mcd-missing-flag', 'not owned'));
-    body.appendChild(priceLine(card));
+    // rank pips, condition chip and local prices are NOT on card faces any more (Jay: the
+    // inspect panel to the right carries that) — pips()/priceLine() stay for future use
+    if (!owned) body.appendChild(el('div', 'mcd-missing-flag', 'not owned'));
     front.appendChild(body);
 
     // back — the universal card back (static/cardback.webp, painted by CSS); all card
