@@ -456,8 +456,19 @@
     return (state.hi && state.hi[card.slug]) ? '/hi/' + card.slug + '.webp' : (card.icon || null);
   }
 
+  /* cardart/index.json maps slug -> "file.webp" (art fills the front, our wording rides on it)
+     or {file: "file.webp", baked: true} when the file already IS the finished card face
+     (its own frame, title, stats and polarity) - then nothing is drawn on top of it. */
+  function artEntry(card) {
+    var v = card && (state.cardart || {})[card.slug];
+    if (!v) return null;
+    if (typeof v === 'string') return { file: v, baked: false };
+    return v.file ? { file: v.file, baked: !!v.baked } : null;
+  }
+
   function addArt(art, card) {
     if (!art || !card || art.querySelector('.mcd-art-img')) return;
+    if (artEntry(card)) return;   // full-art / baked faces NEVER take the base card image
     var src = artSrc(card);
     if (!src) return;
     var img = el('img', 'mcd-art-img');
@@ -583,10 +594,11 @@
     // front — full-art cards show the art across the whole face; the art leads, so only the
     // name + the mod's own text ride on it (the polarity seal sits top-right, CSS-positioned)
     var front = el('div', 'mcd-face mcd-front');
-    var fa = (state.cardart || {})[card.slug];
+    var fa = artEntry(card);
     if (fa) {
       front.classList.add('has-fullart');
-      front.style.setProperty('--cf', "url('/cardart/" + fa + "')");
+      if (fa.baked) front.classList.add('art-baked');
+      front.style.setProperty('--cf', "url('/cardart/" + fa.file + "')");
     }
     node.setAttribute('data-art', fa ? 'full' : 'standard');
     var art = el('div', 'mcd-art');

@@ -179,6 +179,19 @@
     background: rgba(8, 9, 12, .30); border-color: rgba(255, 255, 255, .10);
     -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   }
+  /* baked faces: the art file already IS the finished card (frame, title, stats, polarity) —
+     draw nothing on top of it and show the whole file edge-to-edge (source is exact 5:7) */
+  .mcd-front.has-fullart.art-baked {
+    background-image: var(--cf);
+    background-size: 100% 100%;
+    background-position: center;
+  }
+  .mcd-front.has-fullart.art-baked::before { display: none; }
+  .mcd-front.has-fullart.art-baked .mcd-body { background: none; }
+  .mcd-front.has-fullart.art-baked .mcd-name,
+  .mcd-front.has-fullart.art-baked .mcd-desc,
+  .mcd-front.has-fullart.art-baked .mcd-art > .mcd-pol,
+  .mcd-front.has-fullart.art-baked .mcd-art > .mcd-pol-name { display: none; }
 
   /* rarity border band + tint */
   .mcd-front::before {

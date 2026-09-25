@@ -503,3 +503,28 @@ def test_page_css_defines_every_state_the_js_sets():
         assert cls in html, cls
     assert 'rotateY(180deg)' in html                     # the flip is a real 3D transform
     assert '--accent' in html and '--panel' in html      # colours come from theme vars
+
+
+def test_baked_card_faces_and_the_art_probe_cannot_overwrite_them():
+    """Full-art regression fix (2026-09-26): after the local hi-res probe succeeds,
+    upgradeArt() used to inject the upscaled BASE card image into every card - including
+    full-art faces, which made Archon Continuity render as its base card. addArt() now
+    refuses any card with a cardart entry. The manifest also gained the baked form:
+    {file, baked: true} = the file already IS the finished card face (its own frame,
+    title, stats and polarity), so nothing is drawn over it and it shows edge-to-edge."""
+    import json
+    js = open(SCRIPT, encoding='utf-8').read()
+    html = open(PAGE, encoding='utf-8').read()
+    assert 'function artEntry(card)' in js
+    assert "typeof v === 'string'" in js and 'baked: !!v.baked' in js
+    assert 'if (artEntry(card)) return;' in js              # addArt refuses full-art cards
+    assert "front.classList.add('art-baked')" in js
+    assert '.mcd-front.has-fullart.art-baked {' in html
+    assert 'background-size: 100% 100%;' in html            # whole file, no crop
+    assert '.mcd-front.has-fullart.art-baked::before { display: none; }' in html
+    assert '.mcd-front.has-fullart.art-baked .mcd-name,' in html
+    man = json.load(open(os.path.join(REPO, 'static', 'cardart', 'index.json'), encoding='utf-8'))
+    entry = man.get('archon_continuity')
+    assert isinstance(entry, dict) and entry.get('baked') is True
+    assert str(entry.get('file', '')).endswith('.webp')
+    assert os.path.exists(os.path.join(REPO, 'static', 'cardart', entry['file']))

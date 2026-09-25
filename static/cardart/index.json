@@ -1,3 +1,3 @@
 {
- "archon_continuity": "archon_continuity.webp"
+ "archon_continuity": { "file": "archon_continuity.webp", "baked": true }
 }
