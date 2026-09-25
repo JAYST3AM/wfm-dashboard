@@ -429,7 +429,7 @@ def test_js_can_find_the_build_on_this_machine():
 def test_js_renders_the_card_mechanics_the_page_promises():
     js = open(SCRIPT, encoding='utf-8').read()
     for token in ('rarityClass', "'r-'", 'is-prime', 'missing', 'mcd-dup', 'mcd-pips', 'flipped',
-                  'mcd-back-crest', 'mcd-pol', 'mcd-type', 'mcd-desc', 'mcd-price', 'mcd-rank',
+                  'mcd-pol', 'mcd-type', 'mcd-desc', 'mcd-price', 'mcd-rank',
                   'floor ', 'med ', 'no local quote', 'not owned', '\u00d7'):
         assert token in js, token
     for polarity in ('madurai', 'vazarin', 'naramon', 'zenurik', 'unairu', 'penjaga', 'umbra',
@@ -437,12 +437,15 @@ def test_js_renders_the_card_mechanics_the_page_promises():
         assert polarity in js, polarity
 
 
-def test_back_is_crest_only_and_details_render_in_the_panel():
-    """Card spec: the physical back stays clean; every detail lives in the inspect panel."""
+def test_back_is_the_universal_card_back_and_details_render_in_the_panel():
+    """Card spec: one shared back design for every card; details live in the inspect panel."""
     js = open(SCRIPT, encoding='utf-8').read()
-    for banned in ('mcd-stats', 'mcd-back-meta', 'mcd-back-name', 'mcd-back-slug', 'cardbacks/'):
-        assert banned not in js, banned                       # old back-info system fully gone
-    assert "mcd-back-crest" in js                             # backs carry the crest only
+    html = open(PAGE, encoding='utf-8').read()
+    for banned in ('mcd-stats', 'mcd-back-meta', 'mcd-back-name', 'mcd-back-slug', 'cardbacks/',
+                   'mcd-back-crest'):
+        assert banned not in js, banned                       # old back-info systems fully gone
+    assert 'mcd-back-crest' not in html
+    assert "url('/cardback.webp')" in html                    # the universal back art
     assert "I.info.appendChild(gradeLine(card))" in js        # grade reason moved to the panel
     assert "ins-stats" in js and "stats_text" in js           # stat line + rows feed the panel
     # full-art fronts: manifest-driven, front face, standard cards untouched

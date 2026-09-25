@@ -158,7 +158,7 @@
      every other card) — just shadowed harder so it reads over the artwork */
   .mcd-front.has-fullart .mcd-art > .mcd-type { color: color-mix(in srgb, white 82%, transparent); text-shadow: 0 1px 4px black, 0 0 10px rgba(0, 0, 0, .7); }
   .mcd-front.has-fullart .mcd-art > .mcd-pol { color: #fff; text-shadow: 0 2px 6px rgba(0, 0, 0, .9), 0 0 16px rgba(0, 0, 0, .85); }
-  .mcd-front.has-fullart .mcd-art > .mcd-pol-name { color: color-mix(in srgb, white 76%, transparent); text-shadow: 0 1px 4px black; }
+  .mcd-front.has-fullart .mcd-art > .mcd-pol-name { color: color-mix(in srgb, white 88%, transparent); text-shadow: 0 1px 4px black, 0 0 10px rgba(0, 0, 0, .8); }
   .mcd-front.has-fullart .mcd-body { background: linear-gradient(180deg, rgba(9,10,13,0) 0%, rgba(9,10,13,.42) 26%, rgba(9,10,13,.78) 100%); }
   .mcd-front.has-fullart .mcd-name { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
 
@@ -259,19 +259,13 @@
   .mcd-card.missing .mcd-name { color: var(--muted); font-weight: 500; }
   .mcd-missing-flag { font: 10px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 
-  /* back face — clean collectible back: crest only, no stats panels. Every card detail
-     lives in the inspect panel (the card itself stays artwork + presentation). */
+  /* back face — ONE universal card back for every card: the Orokin plate art
+     (static/cardback.webp) is the design itself. No text on it, so it reads the
+     same upside-down; every card detail lives in the inspect panel. */
   .mcd-back {
-    padding: 0; align-items: center; justify-content: center; overflow: hidden;
-    background: radial-gradient(120% 100% at 50% 32%, #1b1d22 0%, #101114 55%, #0a0b0d 100%);
+    padding: 0; overflow: hidden;
+    background: #0a0b0d url('/cardback.webp') center / cover no-repeat;
   }
-  .mcd-back::before {
-    content: ""; position: absolute; inset: 7px; border-radius: 7px;
-    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); pointer-events: none;
-  }
-  .mcd-back-crest { display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: .85; }
-  .mcd-back-crest img { width: 44px; height: 44px; border-radius: 10px; box-shadow: 0 6px 18px rgba(0, 0, 0, .55); }
-  .mcd-back-crest span { font: 700 8.5px var(--mono); letter-spacing: 2.5px; color: var(--muted); text-transform: uppercase; }
   /* the grade reason line renders inside the inspect details panel */
   .mcd-grade {
     font: 11px var(--mono); color: var(--muted); line-height: 1.6;

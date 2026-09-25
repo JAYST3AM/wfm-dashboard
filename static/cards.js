@@ -590,16 +590,9 @@
     body.appendChild(priceLine(card));
     front.appendChild(body);
 
-    // back — clean collectible back (crest only); all card details live in the inspect panel
+    // back — the universal card back (static/cardback.webp, painted by CSS); all card
+    // details live in the inspect panel
     var back = el('div', 'mcd-face mcd-back');
-    var crest = el('div', 'mcd-back-crest');
-    var crestImg = el('img', null);
-    crestImg.src = '/favicon.png';
-    crestImg.alt = '';
-    crestImg.loading = 'lazy';
-    crest.appendChild(crestImg);
-    crest.appendChild(el('span', null, 'WFM Trader'));
-    back.appendChild(crest);
 
     addFoilLayers(front);
     addFoilLayers(back);
