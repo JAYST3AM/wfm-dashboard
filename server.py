@@ -220,6 +220,24 @@ def cfg_payload():
         pass
     return out
 
+def profiles_payload():
+    """Account profiles (scripts/profiles.py --list --json): marker state + every profile.
+
+    The dashboard's Settings > Accounts card reads this; the switch itself is a POST that
+    shells out to profiles.py, so the engine keeps owning every safety check.
+    """
+    spath = os.path.join(ROOT, 'scripts', 'profiles.py')
+    try:
+        r = subprocess.run([sys.executable, spath, '--list', '--json'],
+                           capture_output=True, text=True, timeout=30, cwd=ROOT)
+        if r.returncode != 0:
+            return {'ok': False, 'error': ((r.stdout or '') + (r.stderr or '')).strip()[-300:]}
+        doc = json.loads(r.stdout or '{}')
+        doc['ok'] = True
+        return doc
+    except Exception as e:
+        return {'ok': False, 'error': str(e)[:200]}
+
 def dashcfg_payload():
     """Dashboard config (scripts/config.py → data/config.json): current values + knob schema.
 
@@ -404,6 +422,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/gamenews': return self._send(200, gamenews_payload())
         if p == '/api/config': return self._send(200, dashcfg_payload())
         if p == '/api/trader/cfg': return self._send(200, cfg_payload())
+        if p == '/api/profiles': return self._send(200, profiles_payload())
         if p.startswith('/api/feature/'):
             name = p.rsplit('/', 1)[-1]
             if name in FEATURES:
@@ -485,6 +504,25 @@ class H(BaseHTTPRequestHandler):
                        '--body', 'test ping from the dashboard button', '--to', 'my-channel']
                 r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, cwd=ROOT)
                 return self._send(200, {'ok': r.returncode == 0, 'stdout': (r.stdout or '')[-1500:], 'stderr': (r.stderr or '')[-800:]})
+            except Exception as e:
+                return self._send(500, {'ok': False, 'error': str(e)})
+        if p == '/api/profiles':
+            try:
+                ln = int(self.headers.get('Content-Length') or 0)
+                b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
+                action = str(b.get('action') or '')
+                name = str(b.get('name') or '').strip()
+                if action not in ('create', 'switch') or not name or len(name) > 40:
+                    return self._send(400, {'ok': False,
+                                            'error': 'need action=create|switch and a profile name (max 40 chars)'})
+                cmd = [sys.executable, os.path.join(ROOT, 'scripts', 'profiles.py'),
+                       '--create' if action == 'create' else '--switch', name]
+                if action == 'switch' and b.get('apply'):
+                    cmd.append('--apply')
+                r = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=ROOT)
+                return self._send(200, {'ok': r.returncode == 0, 'rc': r.returncode,
+                                        'stdout': (r.stdout or '')[-4000:], 'stderr': (r.stderr or '')[-2000:],
+                                        'profiles': profiles_payload()})
             except Exception as e:
                 return self._send(500, {'ok': False, 'error': str(e)})
         if p == '/api/trader/settings':

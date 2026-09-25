@@ -45,6 +45,16 @@
   .st-foot2 { color: var(--muted); font-size: 11px; line-height: 1.7; padding: 4px 16px 0; margin: 0; }
   .st-foot2 code { font-family: var(--mono); }
   .status.err { color: var(--accent); }
+  /* accounts card: profile rows + the two-step switch */
+  .st-nam { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: 12.5px var(--sans); padding: 6px 10px; min-width: 168px; }
+  .st-nam:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .st-acctrow { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
+  .st-acctrow.first { border-top: none; }
+  .st-acctrow .st-aname { font-weight: 600; font-family: var(--mono); font-size: 12.5px; }
+  .st-acctrow .st-ameta { color: var(--muted); font-size: 11.5px; }
+  .st-acctrow .st-agrow { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .st-acctrow .btn { padding: 4px 12px; font-size: 12px; }
+  .st-acctnote { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 0 16px 10px; }
   .st-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1000px; margin: 0 auto; }
   .st-foot a { color: var(--muted); }
   .st-foot a:hover { color: var(--accent); }
@@ -111,6 +121,24 @@
     <p class="st-sub">How often things refresh on their own.</p>
     <div class="picks" id="list-updates"></div>
     <p class="status" id="status-updates" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="card" aria-labelledby="h-accounts">
+    <div class="card-head">
+      <h2 class="card-title" id="h-accounts">Accounts</h2>
+      <div class="actions">
+        <input id="acctName" class="st-nam" type="text" maxlength="40" placeholder="new profile name" aria-label="New profile name">
+        <button class="btn" id="acctCreate">Create profile</button>
+      </div>
+    </div>
+    <p class="st-sub">
+      One data profile per Warframe account. Switching saves the current account into its own profile,
+      takes a safety zip, then restores the chosen profile into the live data — nothing is ever deleted.
+      The warframe.market login (<code>secrets.json</code>) is shared and is never swapped.
+    </p>
+    <div id="list-accounts"></div>
+    <pre class="rawout" id="acctPlan" hidden></pre>
+    <p class="status" id="status-accounts" role="status" aria-live="polite"></p>
   </section>
 
   <section class="card">

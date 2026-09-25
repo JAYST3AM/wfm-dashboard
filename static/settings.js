@@ -292,6 +292,130 @@ async function saveGroup(g) {
   } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
 }
 
+/* ---------- accounts: one data profile per Warframe account (scripts/profiles.py) ---------- */
+let ACCT = null;
+let acctApply = null;
+
+function fmtBytes(n) {
+  const u = ['B', 'KB', 'MB', 'GB'];
+  let v = +n || 0, i = 0;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (i ? v.toFixed(1) : v) + ' ' + u[i];
+}
+
+function acctNote(text) { return el('div', 'st-acctnote', text); }
+
+function renderAccounts() {
+  const box = document.getElementById('list-accounts');
+  if (!box) return;
+  box.textContent = '';
+  const status = document.getElementById('status-accounts');
+  if (!ACCT || ACCT.ok === false) {
+    box.appendChild(acctNote('Profiles unavailable' + (ACCT && ACCT.error ? ': ' + ACCT.error : '.')));
+    return;
+  }
+  const live = el('div', 'st-acctrow first');
+  live.appendChild(el('span', 'st-aname', ACCT.current || 'unmanaged (live data)'));
+  live.appendChild(el('span', 'st-badge', ACCT.managed ? 'current profile' : 'no profile yet'));
+  let liveMeta = ACCT.live || '';
+  if (ACCT.managed && ACCT.switched) liveMeta += ' · switched ' + new Date(ACCT.switched * 1000).toLocaleString();
+  live.appendChild(el('span', 'st-ameta', liveMeta));
+  box.appendChild(live);
+
+  const list = ACCT.profiles || [];
+  if (!list.length) {
+    box.appendChild(acctNote('No profiles yet — name the current account above and click Create profile.'));
+    return;
+  }
+  list.forEach(p => {
+    const row = el('div', 'st-acctrow');
+    row.appendChild(el('span', 'st-aname', p.name));
+    if (p.current) row.appendChild(el('span', 'st-badge', 'current'));
+    const bits = [p.files + ' file' + (p.files === 1 ? '' : 's'), fmtBytes(p.bytes)];
+    if (p.created) bits.push('created ' + new Date(p.created * 1000).toLocaleDateString());
+    row.appendChild(el('span', 'st-ameta', bits.join(' · ')));
+    const g = el('div', 'st-agrow');
+    const b = el('button', 'btn', p.current ? 'In use' : 'Switch to this');
+    b.type = 'button';
+    if (p.current) b.disabled = true;
+    else b.addEventListener('click', () => switchProfile(p.name, false));
+    g.appendChild(b);
+    row.appendChild(g);
+    box.appendChild(row);
+  });
+}
+
+function renderPlanActions(name) {
+  const pre = document.getElementById('acctPlan');
+  if (acctApply) { acctApply.remove(); acctApply = null; }
+  if (!name || !pre || !pre.parentNode) return;
+  acctApply = el('div', 'st-acctrow');
+  acctApply.appendChild(el('span', 'st-ameta', 'Two-step: applying re-runs the plan above as the real switch (safety zip first, nothing deleted).'));
+  const g = el('div', 'st-agrow');
+  const b = el('button', 'btn', 'Apply switch to ' + name);
+  b.type = 'button';
+  b.addEventListener('click', () => switchProfile(name, true));
+  g.appendChild(b);
+  acctApply.appendChild(g);
+  pre.parentNode.insertBefore(acctApply, pre.nextSibling);
+}
+
+async function switchProfile(name, apply) {
+  const status = document.getElementById('status-accounts');
+  const plan = document.getElementById('acctPlan');
+  setStatus(status, apply ? 'Switching to ' + name + '…' : 'Building the switch plan for ' + name + '…');
+  try {
+    const res = await fetch('/api/profiles', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'switch', name: name, apply: !!apply }),
+    }).then(r => r.json());
+    const out = ((res.stdout || '') + (res.stderr ? '\n' + res.stderr : '')).trim();
+    if (plan) { plan.hidden = !out; plan.textContent = out; }
+    if (res.ok) {
+      if (apply) {
+        setStatus(status, 'Switched to \u201c' + name + '\u201d. Restart the server (stop.bat, then start.bat) so every page reads the new account.');
+        renderPlanActions(null);
+      } else {
+        setStatus(status, 'Dry run \u2014 nothing changed. Review the plan above, then apply.');
+        renderPlanActions(name);
+      }
+    } else {
+      setStatus(status, 'Refused: see the output above.', true);
+      renderPlanActions(null);
+    }
+    if (res.profiles) { ACCT = res.profiles; renderAccounts(); }
+  } catch (e) { setStatus(status, 'Request failed: ' + e, true); }
+}
+
+async function createProfile() {
+  const input = document.getElementById('acctName');
+  const status = document.getElementById('status-accounts');
+  const btn = document.getElementById('acctCreate');
+  const name = ((input && input.value) || '').trim();
+  if (!name) { setStatus(status, 'Type a profile name first.', true); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating\u2026'; }
+  try {
+    const res = await fetch('/api/profiles', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create', name: name }),
+    }).then(r => r.json());
+    if (res.ok) {
+      setStatus(status, 'Profile \u201c' + name + '\u201d created from the current live data. Live data untouched.');
+      if (input) input.value = '';
+    } else {
+      setStatus(status, 'Refused: ' + (((res.stdout || '') + (res.stderr || '')).trim() || res.error || 'unknown'), true);
+    }
+    if (res.profiles) { ACCT = res.profiles; renderAccounts(); }
+  } catch (e) { setStatus(status, 'Request failed: ' + e, true); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Create profile'; } }
+}
+
+async function loadAccounts() {
+  try { ACCT = await fetch('/api/profiles').then(r => r.json()); }
+  catch (e) { ACCT = { ok: false, error: String(e) }; }
+  renderAccounts();
+}
+
 /* ---------- header theme picker (port of app.js: toggle + outside-click + Escape close) ---------- */
 function initThemePanel() {
   const btn = document.getElementById('themeBtn'), panel = document.getElementById('themePanel');
@@ -346,3 +470,6 @@ SAVE_GROUPS.forEach(g => {
   if (btn) btn.addEventListener('click', () => saveGroup(g));
 });
 loadAll();
+loadAccounts();
+const acctBtn = document.getElementById('acctCreate');
+if (acctBtn) acctBtn.addEventListener('click', createProfile);

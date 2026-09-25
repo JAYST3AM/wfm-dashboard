@@ -694,7 +694,45 @@ def apply_switch(plan):
 
 
 # -------------------------------------------------------------------------- commands
+_JSON = False          # set by main() for --json (machine-readable --list / --current)
+
+
+def json_list_payload():
+    """Machine-readable --list: marker state + every profile (the dashboard card reads this)."""
+    marker, warn = read_marker()
+    cur = marker.get('current')
+    return {
+        'managed': bool(cur),
+        'current': cur or None,
+        'switched': marker.get('switched') or None,
+        'previous': marker.get('previous') or None,
+        'marker': rel(marker_path()),
+        'root': rel(profiles_root()),
+        'warning': warn or None,
+        'live': live_summary(),
+        'profiles': [{'name': p['name'], 'files': p['files'], 'bytes': p['bytes'],
+                      'created': (p['meta'] or {}).get('created'),
+                      'current': p['name'] == cur} for p in list_profiles()],
+    }
+
+
+def json_current_payload():
+    marker, warn = read_marker()
+    cur = marker.get('current')
+    out = {'managed': bool(cur), 'current': cur or None,
+           'switched': marker.get('switched') or None, 'previous': marker.get('previous') or None,
+           'marker': rel(marker_path()), 'warning': warn or None, 'live': live_summary()}
+    if cur:
+        pdir = os.path.join(profiles_root(), cur)
+        out['profile_dir'] = rel(pdir)
+        out['profile_dir_exists'] = os.path.isdir(pdir)
+    return out
+
+
 def cmd_list():
+    if _JSON:
+        print(json.dumps(json_list_payload(), indent=1))
+        return 0
     marker, warn = read_marker()
     cur = marker.get('current')
     if warn:
@@ -721,6 +759,9 @@ def cmd_list():
 
 
 def cmd_current():
+    if _JSON:
+        print(json.dumps(json_current_payload(), indent=1))
+        return 0
     marker, warn = read_marker()
     if warn:
         print(warn)
@@ -1024,12 +1065,19 @@ def build_parser():
                    help='with --switch: perform the switch (pre-switch backup zip first)')
     p.add_argument('--selftest', action='store_true',
                    help='offline self-test in a temp dir (no repo data touched)')
+    p.add_argument('--json', action='store_true',
+                   help='with --list / --current: print machine-readable JSON (used by the dashboard)')
     return p
 
 
 def main(argv=None):
+    global _JSON
     parser = build_parser()
     args = parser.parse_args(argv)
+    _JSON = bool(getattr(args, 'json', False))
+    if args.json and not (args.list or args.current):
+        print('--json is only meaningful with --list or --current')
+        return 2
     if args.selftest:
         if any([args.list, args.current, args.manifest, args.create, args.switch, args.apply]):
             print('--selftest runs on its own')

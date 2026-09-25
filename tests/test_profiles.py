@@ -384,3 +384,84 @@ def test_selftest_and_cli_never_touch_the_repo_data_dir(prof, run, live, tmp_pat
     assert repo_guard_state(manifest_names) == before
     if not existed:
         assert not os.path.exists(repo_profiles)
+
+
+# --------------------------------------------------------------------------- --json (dashboard card)
+def test_json_list_reports_marker_state_and_profiles(prof, run):
+    code, out = run('--list', '--json')
+    assert code == 0
+    doc = json.loads(out)
+    assert doc['managed'] is False and doc['current'] is None
+    assert doc['profiles'] == []
+    assert doc['live'].endswith('manifest files present')
+    assert doc['marker'].endswith('current.json')
+
+    assert run('--create', 'alpha')[0] == 0
+    assert run('--switch', 'alpha', '--apply')[0] == 0
+    code, out = run('--list', '--json')
+    doc = json.loads(out)
+    assert doc['managed'] is True and doc['current'] == 'alpha'
+    assert [p['name'] for p in doc['profiles']] == ['alpha']
+    assert doc['profiles'][0]['current'] is True
+    assert doc['profiles'][0]['files'] >= 1 and doc['profiles'][0]['bytes'] > 0
+    assert doc['switched']
+
+
+def test_json_current_payload(prof, run, live):
+    code, out = run('--current', '--json')
+    assert code == 0
+    doc = json.loads(out)
+    assert doc['managed'] is False and doc['current'] is None
+    assert run('--create', 'alpha')[0] == 0
+    assert run('--switch', 'alpha', '--apply')[0] == 0
+    code, out = run('--current', '--json')
+    doc = json.loads(out)
+    assert doc['current'] == 'alpha' and doc['managed'] is True
+    assert doc['profile_dir_exists'] is True
+    assert 'profiles' in doc['profile_dir']
+
+
+def test_json_flag_is_gated_to_list_and_current(prof, run):
+    code, out = run('--json')
+    assert code == 2 and '--list or --current' in out
+    assert run('--create', 'alpha', '--json')[0] == 2
+
+
+def test_json_flag_never_leaks_into_the_text_output(prof, run):
+    code, out = run('--list')
+    assert code == 0 and out.lstrip().startswith('profiles root:')
+    code, out = run('--current')
+    assert code == 0 and 'current profile' in out
+
+
+# --------------------------------------------------------------------------- dashboard surface
+def test_settings_accounts_card_and_server_routes_exist():
+    """The switcher's dashboard surface: /api/profiles + the Settings > Accounts card."""
+    srv = open(os.path.join(REPO, 'server.py'), encoding='utf-8').read()
+    assert "if p == '/api/profiles': return self._send(200, profiles_payload())" in srv
+    assert "action not in ('create', 'switch')" in srv
+    assert "'--list', '--json'" in srv
+    assert "'--create' if action == 'create' else '--switch'" in srv
+
+    html = open(os.path.join(REPO, 'static', 'settings.html'), encoding='utf-8').read()
+    for need in ('id="h-accounts"', 'id="acctName"', 'id="acctCreate"',
+                 'id="list-accounts"', 'id="acctPlan"', 'id="status-accounts"'):
+        assert need in html, need
+
+    js = open(os.path.join(REPO, 'static', 'settings.js'), encoding='utf-8').read()
+    for need in ('loadAccounts', 'switchProfile', 'createProfile',
+                 'Apply switch to ', "'/api/profiles'", 'loadAccounts();'):
+        assert need in js, need
+
+
+def test_server_profiles_payload_shells_out_and_parses(server_mod, monkeypatch, tmp_path):
+    """profiles_payload() runs the real engine: unmanaged + empty profile list on a clean dir."""
+    data = tmp_path / 'data'
+    data.mkdir(exist_ok=True)
+    monkeypatch.setattr(server_mod, 'ROOT', REPO)   # the fixture points ROOT at tmp; the engine lives in the repo
+    monkeypatch.setenv('WFM_DATA_DIR', str(data))
+    monkeypatch.setenv('WFM_PROFILES_ROOT', str(data / 'profiles'))
+    doc = server_mod.profiles_payload()
+    assert doc['ok'] is True
+    assert doc['managed'] is False and doc['current'] is None
+    assert doc['profiles'] == []

@@ -67,6 +67,10 @@ is the one package, and only AlecaFrame's save needs it. `stop.bat` kills the pr
 - Schedule `scripts/snapshot_plat.py` every 15 minutes if you want the platinum chart to keep building
   history continuously, and `scripts/watch_save.py` if you want the inventory to re-sync itself when
   AlecaFrame rewrites the game save.
+- **Multiple Warframe accounts:** Settings → **Accounts** keeps one data profile per account and
+  switches the live data between them — it shows the switch plan first, takes a safety zip, and never
+  deletes anything (the warframe.market login in `secrets.json` stays shared). Same engine on the CLI:
+  `python scripts/profiles.py --list | --create NAME | --switch NAME [--apply]`.
 
 Optional: copy `secrets.example.json` → `secrets.json` and run `python scripts/wfm_check.py` to sign
 in once and confirm your warframe.market session (needed only by the order-touching scripts).
