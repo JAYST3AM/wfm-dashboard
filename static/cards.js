@@ -962,7 +962,30 @@
   }
 
   // ---------- wiring ----------
+  /* #themePanel lives inside <header> now (the dashboard's pattern), so scrolling can no
+     longer leave it off-screen. theme.js - loaded before this file - already toggles the
+     panel and closes it on an outside click; these handlers are registered after it and
+     only mirror the state onto the button's ARIA, plus Escape closes the panel. */
+  function wireThemePanel() {
+    var btn = document.getElementById('themeBtn');
+    var panel = document.getElementById('themePanel');
+    if (!btn || !panel) return;
+    function sync() {
+      btn.setAttribute('aria-expanded', panel.classList.contains('hidden') ? 'false' : 'true');
+    }
+    btn.setAttribute('aria-controls', 'themePanel');
+    btn.addEventListener('click', sync);
+    document.addEventListener('click', sync);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || panel.classList.contains('hidden')) return;
+      panel.classList.add('hidden');
+      sync();
+    });
+    sync();
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
+    wireThemePanel();
     var q = document.getElementById('q');
     q.addEventListener('input', function () { state.q = q.value.trim().toLowerCase(); render(); });
     document.getElementById('clearBtn').addEventListener('click', function () {

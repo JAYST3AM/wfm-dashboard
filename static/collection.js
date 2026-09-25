@@ -7,7 +7,9 @@
 'use strict';
 (function () {
   var SOURCES = ['/collection_log.json', '/api/feature/collection', '/data/collection_log.json'];
-  var LOOKUP = '/lookup.html';
+  // Deep links out of this page go to the dashboard's global search route; the standalone
+  // Lookup page is discontinued, so '/#search?q=<name>' is the single item destination.
+  var SEARCH = '/#search?q=';
   var RUN_CMD = 'python scripts/collection_log.py';
 
   var state = { doc: null, cat: 0, q: '', missingOnly: false, buyable: false, src: '' };
@@ -72,14 +74,15 @@
 
   // ---------- card ----------
   function floorLink(it) {
-    // Missing + quoted in the local snapshot: show the floor and open the Lookup page for it.
+    // Missing + quoted in the local snapshot: show the floor and open the dashboard's
+    // global search for the item (name is URL-encoded into the '/#search?q=' route).
     var a = el('a', 'cl-floor');
-    a.href = LOOKUP + '?q=' + encodeURIComponent(it.name);
+    a.href = SEARCH + encodeURIComponent(it.name);
     a.appendChild(el('span', null, '▲ ' + fmtInt(it.floor) + 'p'));
     a.appendChild(el('span', 'k', it.floor_kind === 'item' ? '' : ' ' + it.floor_kind));
     a.title = 'Lowest sell order in the local snapshot' +
       (it.floor_kind && it.floor_kind !== 'item' ? ' (' + it.name + ' ' + it.floor_kind + ')' : '') +
-      ' - open the Lookup page';
+      ' - open the item search';
     return a;
   }
 
@@ -87,6 +90,7 @@
     var got = isCollected(it);
     var c = el('div', 'cl-card ' + (got ? 'got' : 'miss'));
     c.setAttribute('role', 'listitem');
+    if (it.slug) c.setAttribute('data-slug', it.slug);   // the drawer opens on this slug
 
     c.appendChild(image(it, !got));
     c.appendChild(el('div', 'cl-name', it.name));
@@ -316,6 +320,46 @@
   }
 
   // ---------- wiring ----------
+  /* The shared item drawer (drawer.js, defer-loaded) is optional: when it exposes
+     window.wfmOpenItem, clicking a collection tile opens the drawer for that slug and the
+     tile's own floor link no longer navigates. Without the drawer nothing changes - the
+     floor badge stays a plain link to '/#search?q=<name>'. */
+  function wireDrawer() {
+    var grid = document.getElementById('grid');
+    if (!grid) return;
+    grid.addEventListener('click', function (e) {
+      if (typeof window.wfmOpenItem !== 'function') return;
+      var t = e.target;
+      var tile = (t && t.closest) ? t.closest('.cl-card') : null;
+      var slug = tile && tile.getAttribute('data-slug');
+      if (!slug) return;
+      e.preventDefault();
+      window.wfmOpenItem(slug);
+    });
+  }
+
+  /* #themePanel lives inside <header> now (the dashboard's pattern), so scrolling can no
+     longer leave it off-screen. theme.js - loaded before this file - already toggles the
+     panel and closes it on an outside click; these handlers are registered after it and
+     only mirror the state onto the button's ARIA, plus Escape closes the panel. */
+  function wireThemePanel() {
+    var btn = document.getElementById('themeBtn');
+    var panel = document.getElementById('themePanel');
+    if (!btn || !panel) return;
+    function sync() {
+      btn.setAttribute('aria-expanded', panel.classList.contains('hidden') ? 'false' : 'true');
+    }
+    btn.setAttribute('aria-controls', 'themePanel');
+    btn.addEventListener('click', sync);
+    document.addEventListener('click', sync);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || panel.classList.contains('hidden')) return;
+      panel.classList.add('hidden');
+      sync();
+    });
+    sync();
+  }
+
   function toggleBtn(id, key) {
     var btn = document.getElementById(id);
     btn.addEventListener('click', function () {
@@ -333,6 +377,8 @@
     });
     toggleBtn('missBtn', 'missingOnly');
     toggleBtn('priceBtn', 'buyable');
+    wireThemePanel();
+    wireDrawer();
 
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); return; }

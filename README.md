@@ -25,10 +25,14 @@ No account is needed to start, and nothing is uploaded anywhere.
   as `WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)` — it does not pretend
   to be a browser.
 
-Honest status: the dashboard, inventory sync, trade log, market scanners, lookup, collection and
+Honest status: the dashboard, inventory sync, trade log, market scanners, search, collection and
 cards pages are in daily use. The trader stack (plan → detector → undercut watch → hygiene → run
 queue) runs dry run only. `auto.py`, the supervised orchestrator, is v0: one cycle at a time, dry
 run. Live posting is not in this repository.
+
+The UI is five sections — **Home / Inventory / Trade / Collection / More** — over the full engine
+set: anything niche lives behind a disclosure or in Advanced trading, and one shared item drawer
+(the header search, any inventory row, any collection tile) shows everything known about an item.
 
 ## Install
 
@@ -53,20 +57,51 @@ AlecaFrame rewrites the game save.
 
 Screenshots below show a real account with the account handle blurred.
 
-### Dashboard — `/`
+### Home — `/`
 
-KPI tiles (platinum now with 24h/7d deltas, trades left, inventory value, credits), the platinum
-chart, **top sell picks** ranked by earnings × how fast they sell, and the game-updates feed.
+KPI tiles (platinum now with 24h/7d deltas, trades left, inventory value, credits), **Today** —
+the smart sell advisor's ranked "do this next" list (sell / finish a set / burn for ducats / open
+relics) with expected platinum — a **needs attention** card when something moved, the platinum
+chart, recent activity and the game-updates feed. The header **search** covers your inventory and
+the whole item catalogue and opens the shared item drawer.
 
 ![Dashboard](assets/shot_home.png)
 
-### Trader — `/#trader`
+### Inventory — `/#inventory`
 
-Trade limit straight from the game save, the **Safety** kill switch, today's plan, held-back rows,
-the detector's sale feed, undercut watch, the run queue (buyers worth running to first) and the
-flipper's buy plan. Every action button runs its engine and shows the raw output.
+Every tradeable you own, filtered by category or by typing. Default columns stay simple (item,
+qty, equipped, safe to sell, sell price, value); **All columns** adds category, ducats, buyer
+offering, profit gap, sales / 48h, typical price and reserved. A ranked mod shows its `R#` lane
+tag, and rank-aware prices come from the order book of the rank you actually own. Click a row for
+the item drawer; the inventory-change list tracks what the game added or removed.
+
+### Trade — `/#trade`
+
+**Sell** — the trade limit straight from the game save, today's recommended listings, held-back
+rows ("not recommended right now") and listings needing attention (undercut + stale). **Buy** —
+flip opportunities ranked by margin × liquidity, and the wishlist budget planner. **History** —
+your own trade log (warframe.market has no public trade-history API, so the dashboard keeps the
+record as you trade), sessions, sell timing and the platinum ledger. **Advanced trading**
+(collapsed) holds engine status, the detector feed, run queue, flipper internals, hygiene, the
+raw output of the last action you ran, the **Safety** kill switch and notifications.
 
 ![Trader](assets/shot_trader.png)
+
+### Collection — `/collection.html` (Cards sub-tab `/cards.html`)
+
+**Collection** is "what has this account collected vs everything obtainable", with per-category
+progress. **Cards** renders every mod as a trading card — owned, missing, dupes and quotes, with
+full-art faces and a 3D inspect view.
+
+![Cards](assets/shot_cards.png)
+
+### More — `/#more`
+
+The long tail, in four groups: **Make platinum** (deals, movers, demand trends), **Item decisions**
+(ducats sell-vs-burn, craft or buy, relic EV, set completion, almost complete), **Tracking**
+(watchlist bands) and **Special markets** (riven bands, Baro, post-patch meta).
+
+![Market](assets/shot_market.png)
 
 ### Settings — `/settings.html`
 
@@ -74,27 +109,6 @@ The guardrail knobs (master gate shown **LOCKED** and on, caps, floors, poll int
 dashboard's own `config.json` knobs, both validated by their engine before anything is written.
 
 ![Settings and guardrails](assets/shot_settings.png)
-
-### Market — `/#market`
-
-Deals (spreads and undercuts live in the last 12h), flips ranked by margin × liquidity, near-complete
-nudges, ducats (sell vs burn), craft (build vs buy), wishlist budget planner, watchlist bands, set
-targets, relic EV, movers, riven bands, Baro, demand trends and post-patch meta.
-
-![Market](assets/shot_market.png)
-
-### Inventory · History · Lookup · Collection · Cards
-
-**Inventory** is every tradeable you own, searchable, with live prices and total value, plus the
-inventory-change list. **History** is your own trade log — warframe.market has no public
-trade-history API, so the dashboard keeps the record itself as you trade — with session stats, sell
-timing and the platinum ledger (what the log explains vs what the game took out). **Lookup**
-(`/lookup.html`) is a searchable item browser with zoomable images. **Collection**
-(`/collection.html`) is "what has this account collected vs everything obtainable", with per-category
-progress. **Cards** (`/cards.html`) renders every mod as a trading card — owned, missing, dupes and
-quotes.
-
-![Cards](assets/shot_cards.png)
 
 ## Engines
 
@@ -207,8 +221,11 @@ it on Python 3.11 (`.github/workflows/tests.yml`).
 
 - `server.py` — the whole HTTP server (stdlib): pages, `/api/*` payloads, refresh buttons, trader
   actions.
-- `static/` — the UI: `index.html` + `lookup.html`, `collection.html`, `cards.html`, `settings.html`,
-  one `app.js`, one `style.css`, one `theme.js` (30 palettes), one `chart.js`.
+- `static/` — the UI: `index.html` (Home / Inventory / Trade / More) plus `collection.html`,
+  `cards.html`, `settings.html` and the retired-lookup redirect stub, one `app.js`, one
+  `style.css`, one `theme.js` (30 palettes), one `chart.js`, the shared item drawer
+  (`drawer.js` / `drawer.css`) and the Home renderer (`home.js` / `home.css`). `lookup_items.json`
+  is the offline item catalogue the drawer falls back to.
 - `scripts/` — the engines above; `tests/` — the public suite; `data/` — everything the app writes
   (gitignored); `secrets.json` — your warframe.market login (gitignored).
 - `tools/make_preview.py` — rebuilds `assets/preview.gif` and the page screenshots from a running

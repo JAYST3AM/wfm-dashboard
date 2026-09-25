@@ -10,7 +10,10 @@ function buildThemeGrid() { wfmBuildThemeGrid(); }
 
 /* ---------- data ---------- */
 let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADER = null, GAMENEWS = null, FEAT = {};
-let state = { tab: 'prime_part', sort: 'value', dir: -1, q: '' };
+let state = { tab: 'all', sort: 'value', dir: -1, q: '' };
+/* global item search cache - declared up here because the hash router can call into
+   the search before the rest of the file has run (classic script, no module scope) */
+let CATALOG = null, CATALOG_LOADING = null;
 
 const CATS = [
   ['all', 'All'], ['prime_part', 'Prime Parts'], ['prime_bp', 'Blueprints'],
@@ -39,14 +42,48 @@ function renderChips() {
 }
 
 /* ---------- views ---------- */
+const VIEWS = ['home', 'inventory', 'trade', 'more'];
+/* legacy hashes from the 9-pill era still resolve: #history/#trader -> trade, #market -> more */
+const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', more: 'more',
+  history: 'trade', trader: 'trade', market: 'more' };
+
 function showView(v) {
-  document.getElementById('view-home').classList.toggle('hidden', v !== 'home');
-  document.getElementById('view-inventory').classList.toggle('hidden', v !== 'inventory');
-  document.getElementById('view-history').classList.toggle('hidden', v !== 'history');
-  document.getElementById('view-trader').classList.toggle('hidden', v !== 'trader');
-  document.getElementById('view-market').classList.toggle('hidden', v !== 'market');
-  document.querySelectorAll('.navpill').forEach(el => el.classList.toggle('active', el.dataset.v === v));
+  if (!VIEWS.includes(v)) v = 'home';
+  VIEWS.forEach(name => {
+    const el2 = document.getElementById('view-' + name);
+    if (el2) el2.classList.toggle('hidden', name !== v);
+  });
+  document.querySelectorAll('#mainnav .navpill').forEach(el2 =>
+    el2.classList.toggle('active', el2.dataset.v === v));
   if (window.PlatChart) PlatChart.redraw();
+  if (v === 'home' && window.wfmRenderHome) wfmRenderHome();
+}
+
+/* trade sub-tabs (Sell / Buy / History) */
+function switchTradeTab(panelId) {
+  const tabs = document.querySelectorAll('#tradeTabs [role="tab"]');
+  if (!tabs.length) return;
+  const ok = [...tabs].some(t => t.dataset.tp === panelId);
+  if (!ok) panelId = 'tp-sell';
+  tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tp === panelId)));
+  document.querySelectorAll('#view-trade .tpanel').forEach(p2 => p2.classList.toggle('hidden', p2.id !== panelId));
+}
+
+function applyHash() {
+  const raw = (location.hash || '#home').slice(1);
+  const [path, query] = raw.split('?');
+  const [v, sub] = path.split('/');
+  if (v === 'collection' || v === 'cards') { location.replace('/' + v + '.html'); return; }
+  if (v === 'search') {
+    showView('home');
+    globalSearchOpen((new URLSearchParams(query || '')).get('q') || '');
+    return;
+  }
+  const view = VIEW_ALIAS[v] || 'home';
+  showView(view);
+  if (view === 'trade') {
+    switchTradeTab(v === 'history' ? 'tp-history' : (sub ? 'tp-' + sub : 'tp-sell'));
+  }
 }
 
 /* ---------- home ---------- */
@@ -105,8 +142,12 @@ function advNote(slug) {
 }
 
 function renderPicks() {
-  const rs = (REPORT && REPORT.sell_now || []).filter((r) => !r.in_use_only).slice(0, 8);
+  /* the old Dashboard "Top sell picks" card is retired: HOME renders the advisor-driven
+     Today block (home.js) and TRADE > Sell renders the live plan. Kept only so the
+     export path and any stale markup keep working. */
   const el = document.getElementById('sellPicks');
+  if (!el) return;
+  const rs = (REPORT && REPORT.sell_now || []).filter((r) => !r.in_use_only).slice(0, 8);
   const note = `<div class="picks-note dim"><b>Sorted by earnings × how fast they sell.</b> List at = cheapest listing at your copy's rank (an <b>R#</b> tag marks a rank-priced row) minus 1p. Copies slotted in a build are never listed. <b>Do</b> = smart sell advisor call — hover for the reasons.</div>`;
   const head = `<div class="pick pick-head">
       <span class="c-rank">#</span><span class="c-name">Item</span>
@@ -137,7 +178,8 @@ function renderPicks() {
     </div>`;
   }).join('');
   el.innerHTML = rs.length ? note + head + rows : '<div class="dim" style="padding:10px 8px">No report yet — run scripts/report.py.</div>';
-  document.getElementById('picksMeta').textContent = (REPORT && REPORT.generated) ? '· ' + REPORT.generated : '';
+  const pm = document.getElementById('picksMeta');
+  if (pm) pm.textContent = (REPORT && REPORT.generated) ? '· ' + REPORT.generated : '';
 }
 
 function renderChartMeta() {
@@ -226,13 +268,8 @@ function renderTrader() {
   const plannedValue = rows.reduce((a, r) => a + (r.est_total || 0), 0);
   const held = plan.held_list || [];
   const ordersN = stt.orders ? Object.keys(stt.orders).length : (plan.live_orders || 0);
-  document.getElementById('traderKpis').innerHTML = `
-    <div class="kpi"><div class="k-label">Mode</div><div class="k-val ${set.dry_run ? 'accent' : 'downl'}">${set.dry_run ? 'DRY RUN' : 'LIVE'}</div></div>
-    <div class="kpi"><div class="k-label">Trades left today</div><div class="k-val">${stt.trades_left ?? '—'}</div></div>
-    <div class="kpi"><div class="k-label">Live orders</div><div class="k-val">${ordersN}</div></div>
-    <div class="kpi"><div class="k-label">Plat balance</div><div class="k-val upl">${stt.plat != null ? stt.plat.toLocaleString() + 'p' : '—'}</div></div>
-    <div class="kpi"><div class="k-label">Planned listings</div><div class="k-val">${plan.planned ?? rows.length}</div></div>
-    <div class="kpi"><div class="k-label">Plan value</div><div class="k-val accent">${plannedValue.toLocaleString()}p</div></div>`;
+  /* the trader KPI row is retired - those facts now live in Advanced > Engine status
+     (renderEngine below) so the default Trade surface stays action-first */
   document.getElementById('planMeta').textContent = plan.generated
     ? `· built ${ago(plan.generated)}${plan.mr != null ? ' · MR ' + plan.mr : ''}` : '';
   const head = `<div class="prow plan-head"><span>#</span><span>Item</span><span class="p-qty">Qty</span><span class="p-price">List at</span><span class="p-est">Est</span><span class="p-note">Notes</span></div>`;
@@ -258,18 +295,44 @@ function renderTrader() {
   document.getElementById('detList').innerHTML = det.map(x => `<div class="heldline dim">${x}</div>`).join('');
   document.getElementById('detMeta').textContent = stt.ts ? `· watching ${ordersN} orders` : '';
   const w = t.undercuts || {};
-  document.getElementById('watchMeta').textContent = w.generated
-    ? `· checked ${ago(w.generated)}${w.dry_run ? ' · DRY RUN' : ''}` : '';
+  document.getElementById('attnMeta').textContent = w.generated
+    ? `· checked ${ago(w.generated)}` : '';
   const wr = w.rows || [];
-  document.getElementById('watchList').innerHTML = wr.length
-    ? wr.map(r => `<div class="heldline">
-        <span class="l-name">${r.name}${r.lane ? ' · ' + r.lane : ''}</span>
-        <span class="dim">you ${r.my_price}p vs floor ${r.floor ?? '—'}p${r.proposed ? ' → ' + r.proposed + 'p' : ''} · ${r.action}${r.reason ? ' · ' + r.reason : ''}</span>
-      </div>`).join('')
+  const attn = wr.map(r => `<div class="heldline">
+        <span class="l-name">${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}</span>
+        <span class="dim">${r.floor != null && r.my_price != null && r.floor < r.my_price
+          ? `someone listed at ${r.floor}p - below your ${r.my_price}p`
+          : `you're at ${r.my_price}p · best now ${r.floor ?? '—'}p`}${r.proposed ? ` · reprice to ${r.proposed}p` : ''}${r.reason ? ' · ' + escHtml(r.reason) : ''}</span>
+      </div>`);
+  const hy = FEAT.hygiene || {}, hc = hy.summary || {};
+  if (hc.total) attn.push(`<div class="heldline"><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} to hide · ${hc.refresh} to reprice · ${hc.show} to bring back${(hy.rules || {}).auto_hide_offline ? ` · auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline` : ''}</span></div>`);
+  document.getElementById('attnList').innerHTML = attn.length
+    ? attn.join('')
     : (w.generated
-        ? `<div class="empty">No live orders to watch yet — it kicks in once listings go live.</div>`
-        : `<div class="empty">Not checked yet — hit "Check undercuts".</div>`);
-  renderRunQueue(); renderFlipper(); renderHygiene(); renderNotify();
+        ? `<div class="empty">Nothing needs attention right now.</div>`
+        : `<div class="empty">Not checked yet - hit "Check now".</div>`);
+  renderRunQueue(); renderFlipper(); renderHygiene(); renderNotify(); renderEngine();
+}
+
+/* Advanced > Engine status: the facts the old trader KPI row used to show */
+function renderEngine() {
+  const t = TRADER || {}, stt = t.state || {}, set = t.settings || {}, plan = t.plan || {};
+  const el = document.getElementById('engList');
+  if (!el) return;
+  const ordersN = stt.orders ? Object.keys(stt.orders).length : (plan.live_orders || 0);
+  const plannedValue = (plan.plan || []).reduce((a, r) => a + (r.est_total || 0), 0);
+  const K = FEAT.killswitch || {};
+  const m = document.getElementById('engMeta');
+  if (m) m.textContent = '· posting ' + (set.dry_run === false ? 'LIVE' : 'off (dry run)') + (K.active ? ' · kill switch engaged' : '');
+  const line = (k, v) => `<div class="mrow"><span class="m-name dim">${k}</span><span class="num">${v}</span></div>`;
+  el.innerHTML =
+    line('Posting mode', set.dry_run === false ? 'LIVE - orders can post' : 'Dry run - nothing is posted to warframe.market') +
+    line('Trades left today', stt.trades_left ?? '—') +
+    line('Live orders', ordersN) +
+    line('Platinum balance', stt.plat != null ? stt.plat.toLocaleString() + 'p' : '—') +
+    line('Planned listings', plan.planned ?? (plan.plan || []).length) +
+    line('Plan value', plannedValue.toLocaleString() + 'p') +
+    line('Last market check', stt.ts ? ago(stt.ts) : 'not yet');
 }
 
 /* ---------- round-3 renderers ---------- */
@@ -488,6 +551,9 @@ function rowsFiltered() {
     else if (k === 'wtb') { x = laneBid(a); y = laneBid(b); }
     else if (k === 'spread') { x = laneSpread(a); y = laneSpread(b); }
     else if (k === 'value') { x = laneValue(a); y = laneValue(b); }
+    else if (k === 'equipped') { x = advField(a, 'equipped'); y = advField(b, 'equipped'); }
+    else if (k === 'safe') { x = safeOf(a); y = safeOf(b); }
+    else if (k === 'reserved') { x = advField(a, 'reserved'); y = advField(b, 'reserved'); }
     x = (x === null || x === undefined) ? -Infinity : x;
     y = (y === null || y === undefined) ? -Infinity : y;
     return state.dir * (x - y);
@@ -505,6 +571,17 @@ function laneSpread(r) {
   return (p != null && b != null) ? p - b : null;
 }
 function laneValue(r) { return (laneVal(r) || 0) * (r.count || 0); }
+/* owned/equipped/reserved/safe come from the advisor when it has the item, else the row */
+function advField(r, k) {
+  const a = advOf(r.slug);
+  if (a && a[k] !== undefined && a[k] !== null) return a[k];
+  return (r[k] === undefined) ? null : r[k];
+}
+function safeOf(r) {
+  const a = advOf(r.slug);
+  if (a && a.sellable !== undefined && a.sellable !== null) return a.sellable;
+  return r.count || 0;
+}
 
 function renderTable() {
   const rs = rowsFiltered();
@@ -516,35 +593,26 @@ function renderTable() {
   });
   const slice = rs.slice(0, 400);
   tbody.innerHTML = slice.map(r => {
-    const a = advOf(r.slug);
-    const recHasPrice = a && a.recommendation === 'list' && a.recommended_price != null;
-    const facts = a
-      ? `owned ${a.owned} · equipped ${a.equipped} · reserved ${a.reserved} · sellable ${a.sellable}`
-        + (!recHasPrice && a.market_price != null ? ` · floor ${a.market_price}p` : '')
-        + (a.best_sell_window ? ` · window ${a.best_sell_window}` : '')
-        + (a.liquidity ? ` · liquidity ${a.liquidity}` : '')
-      : '';
-    const detail = a
-      ? `<div class="adv-facts" title="${escHtml(a.text)}"><b class="do-${a.recommendation}">${escHtml(advRec(a))}</b> · ${escHtml(facts)}</div>`
-      : `<div class="dim pad">No advisor entry — nothing owned, or the advisor has not run yet.</div>`;
     const rkTag = r.lane_rank != null
-      ? ` <span class="lane-tag" title="priced from the rank-${r.lane_rank} order book — the rank you own">R${r.lane_rank}</span>` : '';
+      ? ` <span class="lane-tag" title="priced from the rank-${r.lane_rank} order book - the rank you own">R${r.lane_rank}</span>` : '';
     return `
-    <tr class="inv-row" data-slug="${escHtml(r.slug)}">
-      <td class="name" title="${r.name}">${r.name}</td>
-      <td class="hide-s"><span class="cat ${r.cat}">${CAT_LABEL[r.cat] || r.cat}</span></td>
+    <tr class="inv-row" data-slug="${escHtml(r.slug)}" title="Click for the full item view">
+      <td class="name">${r.name}</td>
       <td class="num">${fmt(r.count)}</td>
-      <td class="num hide-s">${fmt(r.ducats)}</td>
+      <td class="num">${fmt(advField(r, 'equipped'))}</td>
+      <td class="num">${fmt(safeOf(r))}</td>
       <td class="num">${fmt(laneVal(r))}${rkTag}</td>
-      <td class="num hide-s">${fmt(laneBid(r))}</td>
-      <td class="num hide-s${(laneSpread(r) !== null && laneSpread(r) < 0) ? ' neg' : ''}">${fmt(laneSpread(r))}</td>
-      <td class="num">${r.vol48 === null || r.vol48 === undefined ? '<span class="dim">—</span>' : r.vol48.toFixed(1)}</td>
-      <td class="num hide-s">${fmt(r.median)}</td>
       <td class="num v">${fmt(laneValue(r))}</td>
-    </tr>
-    <tr class="advrow" style="display:none"><td colspan="10">${detail}</td></tr>`;
+      <td class="hide-a"><span class="cat ${r.cat}">${CAT_LABEL[r.cat] || r.cat}</span></td>
+      <td class="num hide-a">${fmt(r.ducats)}</td>
+      <td class="num hide-a">${fmt(laneBid(r))}</td>
+      <td class="num hide-a${(laneSpread(r) !== null && laneSpread(r) < 0) ? ' neg' : ''}">${fmt(laneSpread(r))}</td>
+      <td class="num hide-a">${r.vol48 === null || r.vol48 === undefined ? '<span class="dim">—</span>' : r.vol48.toFixed(1)}</td>
+      <td class="num hide-a">${fmt(r.median)}</td>
+      <td class="num hide-a">${fmt(advField(r, 'reserved'))}</td>
+    </tr>`;
   }).join('');
-  if (!slice.length) tbody.innerHTML = '<tr><td colspan="10" class="dim" style="padding:18px">No items match.</td></tr>';
+  if (!slice.length) tbody.innerHTML = '<tr><td colspan="13" class="dim" style="padding:18px">No items match.</td></tr>';
   const tot = rs.reduce((a, r) => a + laneValue(r), 0);
   document.getElementById('totals').innerHTML =
     `<span>${rs.length} stacks <span class="dim">(showing ${slice.length})</span></span>
@@ -563,17 +631,18 @@ async function load() {
   ]);
   SUMMARY = s; ITEMS = i; PLAT = ph; REPORT = rep; TRADES = tr; TRADER = tdr; GAMENEWS = gn;
   FEAT = {};
-  await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'collection', 'cards', 'advisor']
+  await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'advisor']
     .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); }));
   renderChips(); renderTabs(); renderTable();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
+  if (window.wfmRenderHome) wfmRenderHome();
   renderMarket(); renderLimits(); renderSessions(); renderDiff(); renderKill(); renderTiming(); renderPlatLedger(); loadAutoRefresh();
   PlatChart.setData(ph.points || []);
   document.getElementById('status').textContent = s.lastdata_mtime
     ? `prices updated ${ago(s.prices_mtime)} · data ${new Date().toLocaleTimeString()}`
     : 'No data yet — run: python scripts/setup.py';
   document.getElementById('foot').textContent =
-    `WFM Trader · local service on 127.0.0.1:8787 · refreshed ${new Date().toLocaleTimeString()} · ${(tr && tr.n) || 0} history events · snapshot collector every 15 min`;
+    `WFM Trader · refreshed ${new Date().toLocaleTimeString()} · ${(tr && tr.n) || 0} history events · prices refresh every 15 min`;
 }
 
 /* ---------- market ---------- */
@@ -659,7 +728,8 @@ function renderRelics() {
 function renderMovers() {
   const M = FEAT.movers || {}, rows = (M.movers || []).slice(0, 8);
   document.getElementById('moversMeta').textContent = rows.length
-    ? (M.mode === 'baseline' ? `· baseline day — real 24h deltas from tomorrow` : `· ${M.day || ''} vs ${M.prev_day || ''}`)
+    ? (M.mode === 'baseline' ? `· baseline day — real 24h deltas from tomorrow`
+        : (M.prev_day ? `· ${M.day || ''} vs ${M.prev_day}` : `· ${M.day || ''}`))
     : '';
   const el = document.getElementById('moversList');
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/price_history.py</div>'; return; }
@@ -821,12 +891,13 @@ const savedTheme = localStorage.getItem('wfm.theme');
 buildThemeGrid();
 PlatChart.init();
 applyTheme(savedTheme === null ? 0 : (+savedTheme || 0));
-function viewFromHash() {
-  const v = (location.hash || '#home').slice(1);
-  return ['home', 'inventory', 'history', 'trader', 'market'].includes(v) ? v : 'home';
-}
-showView(viewFromHash());
-window.addEventListener('hashchange', () => showView(viewFromHash()));
+applyHash();
+window.addEventListener('hashchange', applyHash);
+/* trade sub-tabs write the hash so a tab is deep-linkable (#trade/buy) */
+document.querySelectorAll('#tradeTabs [role="tab"]').forEach(t => t.addEventListener('click', () => {
+  switchTradeTab(t.dataset.tp);
+  if (history.replaceState) history.replaceState(null, '', '#trade/' + t.dataset.tp.replace('tp-', ''));
+}));
 
 document.querySelectorAll('#ranges button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#ranges button').forEach(x => x.classList.toggle('active', x === b));
@@ -842,18 +913,29 @@ async function traderAction(id, path, busy) {
   const b = document.getElementById(id);
   const old = b.textContent;
   b.disabled = true; b.textContent = busy;
-  try { await fetch(path, { method: 'POST' }); await load(); }
+  try {
+    const r = await fetch(path, { method: 'POST' });
+    const out = await r.text();
+    const el = document.getElementById('rawOut');
+    if (el) el.textContent = new Date().toLocaleTimeString() + ' · ' + path + ' (HTTP ' + r.status + ')\n' + out.slice(0, 4000);
+    await load();
+  }
   finally { b.disabled = false; b.textContent = old; }
 }
-document.getElementById('btnPlan').addEventListener('click', () => traderAction('btnPlan', '/api/trader/plan', 'Building…'));
-document.getElementById('btnCycle').addEventListener('click', () => traderAction('btnCycle', '/api/trader/cycle', 'Running…'));
-document.getElementById('btnWatch').addEventListener('click', () => traderAction('btnWatch', '/api/trader/watch', 'Checking…'));
-document.getElementById('btnFlip').addEventListener('click', () => traderAction('btnFlip', '/api/trader/flip', 'Checking floors…'));
-document.getElementById('btnRunq').addEventListener('click', () => traderAction('btnRunq', '/api/trader/runqueue', 'Scanning buyers…'));
-document.getElementById('btnHygiene').addEventListener('click', () => traderAction('btnHygiene', '/api/trader/hygiene', 'Planning…'));
-document.getElementById('btnNotify').addEventListener('click', () => traderAction('btnNotify', '/api/trader/notify', 'Sending…'));
-document.getElementById('btnExportPng').addEventListener('click', () => WFMExportPicks(REPORT && REPORT.sell_now));
-document.getElementById('btnKill').addEventListener('click', async () => {
+/* bind only when the control exists - the redesigned views move some buttons around */
+function bind(id, fn) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', fn);
+}
+bind('btnPlan', () => traderAction('btnPlan', '/api/trader/plan', 'Building…'));
+bind('btnCycle', () => traderAction('btnCycle', '/api/trader/cycle', 'Running…'));
+bind('btnWatch', () => traderAction('btnWatch', '/api/trader/watch', 'Checking…'));
+bind('btnFlip', () => traderAction('btnFlip', '/api/trader/flip', 'Checking floors…'));
+bind('btnRunq', () => traderAction('btnRunq', '/api/trader/runqueue', 'Scanning buyers…'));
+bind('btnHygiene', () => traderAction('btnHygiene', '/api/trader/hygiene', 'Planning…'));
+bind('btnNotify', () => traderAction('btnNotify', '/api/trader/notify', 'Sending…'));
+bind('btnExportPng', () => WFMExportPicks(REPORT && REPORT.sell_now));
+bind('btnKill', async () => {
   const active = !((FEAT.killswitch || {}).active);
   const note = (document.getElementById('killNote') || {}).value || '';
   try {
@@ -864,23 +946,111 @@ document.getElementById('btnKill').addEventListener('click', async () => {
   } finally { await load(); }
 });
 
+/* ---------- global item search: owned items + the full WFM catalogue ---------- */
+function catalogLoad() {
+  if (CATALOG) return Promise.resolve(CATALOG);
+  if (!CATALOG_LOADING) {
+    CATALOG_LOADING = fetch('/api/catalog').then(r => r.json())
+      .then(rows => { CATALOG = Array.isArray(rows) ? rows : []; return CATALOG; })
+      .catch(() => { CATALOG = []; return CATALOG; });
+  }
+  return CATALOG_LOADING;
+}
+
+function searchMatches(q) {
+  q = (q || '').trim().toLowerCase();
+  if (q.length < 2) return [];
+  const owned = new Map(ITEMS.map(r => [r.slug, r]));
+  const out = [];
+  const pool = CATALOG || ITEMS;
+  for (const c of pool) {
+    if ((c.slug || '').includes(q) || (c.name || '').toLowerCase().includes(q)) {
+      out.push({ slug: c.slug, name: c.name, owned: owned.get(c.slug) || null });
+    }
+    if (out.length >= 40) break;
+  }
+  out.sort((a, b) => (b.owned ? 1 : 0) - (a.owned ? 1 : 0)
+    || (a.name || '').toLowerCase().indexOf(q) - (b.name || '').toLowerCase().indexOf(q));
+  return out.slice(0, 8);
+}
+
+function searchDropRender(q) {
+  const drop = document.getElementById('searchDrop');
+  const input = document.getElementById('search');
+  if (!drop) return;
+  const rows = searchMatches(q);
+  drop.classList.toggle('hidden', !rows.length);
+  if (input) input.setAttribute('aria-expanded', String(!!rows.length));
+  drop.innerHTML = rows.map(r => `
+    <button class="srowx" role="option" data-slug="${escHtml(r.slug)}">
+      <span class="s-name">${escHtml(r.name)}</span>
+      ${r.owned ? `<span class="s-own">${r.owned.count} owned · ${laneVal(r.owned) ?? '—'}p</span>` : '<span class="s-own dim">not owned</span>'}
+    </button>`).join('');
+  drop.querySelectorAll('button[data-slug]').forEach(b => b.addEventListener('click', () => globalSearchPick(b.dataset.slug)));
+}
+
+function globalSearchPick(slug) {
+  const drop = document.getElementById('searchDrop');
+  if (drop) drop.classList.add('hidden');
+  if (window.wfmOpenItem) wfmOpenItem(slug);
+  else location.hash = '#search?q=' + encodeURIComponent(slug);
+}
+
+function globalSearchOpen(q) {
+  const input = document.getElementById('search');
+  catalogLoad().then(() => {
+    if (input && q) input.value = q;
+    if (q) {
+      const m = searchMatches(q);
+      const exact = m.find(r => r.slug === q) || (m.length === 1 ? m[0] : null);
+      if (exact) { globalSearchPick(exact.slug); return; }
+    }
+    searchDropRender(q || '');
+  });
+}
+
+const searchInput = document.getElementById('search');
+if (searchInput) {
+  searchInput.addEventListener('focus', () => catalogLoad());
+  searchInput.addEventListener('input', e => { catalogLoad(); searchDropRender(e.target.value); });
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const first = document.querySelector('#searchDrop button[data-slug]');
+      if (first) globalSearchPick(first.dataset.slug);
+    } else if (e.key === 'Escape') {
+      const drop = document.getElementById('searchDrop');
+      if (drop) drop.classList.add('hidden');
+      searchInput.blur();
+    }
+  });
+}
+document.addEventListener('click', e => {
+  const drop = document.getElementById('searchDrop');
+  if (drop && !drop.classList.contains('hidden') && !drop.contains(e.target) && e.target !== searchInput) drop.classList.add('hidden');
+});
+
 document.addEventListener('keydown', e => {
   if (e.key === '/' && !/input|textarea/i.test((e.target.tagName || ''))) {
     e.preventDefault();
-    location.hash = '#inventory';
-    document.getElementById('search').focus();
+    if (searchInput) searchInput.focus();
   }
 });
 
-document.getElementById('search').addEventListener('input', e => { state.q = e.target.value.trim(); renderTable(); });
-/* inventory rows expand into the smart sell advisor block (click to toggle) */
+/* inventory-local filter (the header search is the global lookup) */
+const invQ = document.getElementById('invQ');
+if (invQ) invQ.addEventListener('input', e => { state.q = e.target.value.trim(); renderTable(); });
+/* inventory rows open the shared item drawer */
 document.getElementById('rows').addEventListener('click', e => {
   const tr = e.target.closest('tr.inv-row');
-  if (!tr) return;
-  const next = tr.nextElementSibling;
-  if (next && next.classList.contains('advrow')) {
-    next.style.display = next.style.display === 'none' ? '' : 'none';
-  }
+  if (!tr || !tr.dataset.slug) return;
+  if (window.wfmOpenItem) wfmOpenItem(tr.dataset.slug);
+});
+/* "All columns" toggle */
+const btnCols = document.getElementById('btnCols');
+if (btnCols) btnCols.addEventListener('click', () => {
+  const on = document.body.classList.toggle('show-a');
+  btnCols.setAttribute('aria-pressed', String(on));
+  btnCols.textContent = on ? 'Fewer columns' : 'All columns';
 });
 document.querySelectorAll('thead th').forEach(th => th.addEventListener('click', () => {
   const k = th.dataset.k;
@@ -889,11 +1059,12 @@ document.querySelectorAll('thead th').forEach(th => th.addEventListener('click',
 }));
 const tBtn = document.getElementById('themeBtn');
 const tPanel = document.getElementById('themePanel');
-tBtn.addEventListener('click', e => { e.stopPropagation(); tPanel.classList.toggle('hidden'); });
+const tSync = () => tBtn.setAttribute('aria-expanded', String(!tPanel.classList.contains('hidden')));
+tBtn.addEventListener('click', e => { e.stopPropagation(); tPanel.classList.toggle('hidden'); tSync(); });
 document.addEventListener('click', e => {
-  if (!tPanel.classList.contains('hidden') && !tPanel.contains(e.target) && e.target !== tBtn) tPanel.classList.add('hidden');
+  if (!tPanel.classList.contains('hidden') && !tPanel.contains(e.target) && e.target !== tBtn) { tPanel.classList.add('hidden'); tSync(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') tPanel.classList.add('hidden'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tPanel.classList.add('hidden'); tSync(); } });
 
 document.getElementById('refresh').addEventListener('click', async e => {
   const b = e.target; b.disabled = true; b.textContent = 'Refreshing…';

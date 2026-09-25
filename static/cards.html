@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/drawer.css">
 <style>
   /* ---- mod cards page (TCG grid on the dashboard's CSS vars) ----
      Structure/colour come from theme.js vars (--panel/--panel2/--border/--text/
@@ -24,6 +25,9 @@
   /* nav: the pill row wraps inside its own box once it is wider than the window, instead of
      pushing the whole document sideways (page-local; style.css is shared and stays untouched) */
   .mainnav { max-width: calc(100% - 36px); flex-wrap: wrap; }
+  /* Cards is a Collection section now: the sub-tab row gets its own line directly under the
+     pill bar and reuses the same pill styling (no new colours, no new tokens) */
+  .mainnav.subnav { display: flex; width: fit-content; margin: 2px 0 0 18px; padding: 3px; }
   .mcd-wrap { padding: 14px 18px 40px; max-width: 1500px; margin: 0 auto; }
 
   /* ---- toolbar ---- */
@@ -448,26 +452,26 @@
   <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">mod cards</span></div>
   <div class="chips" id="chips"></div>
   <div class="actions">
-    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
+    <button id="themeBtn" class="btn icon" title="Change theme" aria-controls="themePanel" aria-expanded="false">◐ Theme</button>
     <a class="btn" href="/">◀ Dashboard</a>
+  </div>
+  <div id="themePanel" class="theme-panel hidden">
+    <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
+    <div id="themeGrid" class="tp-grid"></div>
   </div>
 </header>
 
-<div id="themePanel" class="theme-panel hidden">
-  <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
-  <div id="themeGrid" class="tp-grid"></div>
-</div>
+<nav class="mainnav" id="mainnav" aria-label="Primary">
+  <a href="/#home" class="navpill" data-v="home">Home</a>
+  <a href="/#inventory" class="navpill" data-v="inventory">Inventory</a>
+  <a href="/#trade" class="navpill" data-v="trade">Trade</a>
+  <a href="/collection.html" class="navpill active" data-v="collection" aria-current="page">Collection</a>
+  <a href="/#more" class="navpill" data-v="more">More</a>
+</nav>
 
-<nav class="mainnav" id="mainnav">
-  <a href="/#home" class="navpill">Dashboard</a>
-  <a href="/#inventory" class="navpill">Inventory</a>
-  <a href="/#history" class="navpill">History</a>
-  <a href="/#trader" class="navpill">Trader</a>
-  <a href="/#market" class="navpill">Market</a>
-  <a href="/lookup.html" class="navpill">Lookup</a>
-  <a href="/collection.html" class="navpill">Collection</a>
-  <a href="/cards.html" class="navpill active">Cards</a>
-  <a href="/settings.html" class="navpill">Settings</a>
+<nav class="mainnav subnav" aria-label="Collection sections">
+  <a href="/collection.html" class="navpill" data-v="collection">Collection</a>
+  <a href="/cards.html" class="navpill active" data-v="cards" aria-current="page">Cards</a>
 </nav>
 
 <main class="mcd-wrap">
@@ -520,11 +524,12 @@
 <footer class="mcd-foot">
   <span id="srcLine">Cards built by <code>scripts/mod_cards.py</code> → <code>data/mod_cards.json</code></span> ·
   images: none (polarity glyph + rarity border are pure CSS) ·
-  <a href="/lookup.html">item lookup</a> · <a href="/">back to dashboard</a>
+  <a href="/#search">item search</a> · <a href="/">back to dashboard</a>
 </footer>
 
 <script src="/theme.js"></script>
 <script>wfmInitThemeUI();</script>
 <script src="/cards.js"></script>
+<script src="/drawer.js" defer></script>
 </body>
 </html>

@@ -407,9 +407,10 @@ def test_sane_rank_guards_the_pip_cap(mc):
 # fetched data may be injected as HTML.
 PAGE = os.path.join(REPO, 'static', 'cards.html')
 SCRIPT = os.path.join(REPO, 'static', 'cards.js')
-NAV_PILLS = [('/#home', 'Dashboard'), ('/#inventory', 'Inventory'), ('/#history', 'History'),
-             ('/#trader', 'Trader'), ('/#market', 'Market'), ('/collection.html', 'Collection'),
-             ('/cards.html', 'Cards'), ('/lookup.html', 'Lookup')]
+# 2026-09-26 IA: five sections (Home / Inventory / Trade / Collection / More); Cards is a
+# Collection sub-tab, so its own pill lives in the subnav, not the primary row.
+NAV_PILLS = [('/#home', 'Home'), ('/#inventory', 'Inventory'), ('/#trade', 'Trade'),
+             ('/collection.html', 'Collection'), ('/#more', 'More')]
 
 
 def test_page_exists_and_reuses_the_shared_shell():
@@ -426,8 +427,11 @@ def test_nav_has_every_pill_with_cards_active():
     for href, label in NAV_PILLS:
         assert 'href="%s"' % href in nav, href
         assert '>%s</a>' % label in nav, label
-    assert 'href="/cards.html" class="navpill active">Cards</a>' in nav
+    assert 'href="/collection.html" class="navpill active"' in nav   # section = Collection
     assert nav.count('navpill active') == 1
+    subnav = html.split('<nav class="mainnav subnav"', 1)[1].split('</nav>', 1)[0]
+    assert 'href="/cards.html"' in subnav and '>Cards</a>' in subnav
+    assert 'aria-current="page"' in subnav
 
 
 def test_page_has_the_grid_and_every_filter_control():
@@ -509,15 +513,16 @@ def test_grid_never_flips_on_hover():
     assert "e.type === 'pointerup'" in js and 'elementFromPoint' in js
 
 
-def test_local_hi_res_set_backs_card_and_lookup_art():
-    """Art priority: the local 4x upscaled set (static/hi/index.json) beats the WFM CDN."""
+def test_local_hi_res_set_backs_card_and_drawer_art():
+    """Art priority: the local 4x upscaled set (static/hi/index.json) beats the WFM CDN.
+    The lookup page is retired - its art logic lives in the shared item drawer now."""
     cards = open(SCRIPT, encoding='utf-8').read()
-    look = open(os.path.join(REPO, 'static', 'lookup.js'), encoding='utf-8').read()
-    lookhtml = open(os.path.join(REPO, 'static', 'lookup.html'), encoding='utf-8').read()
-    assert "fetch('hi/index.json'" in cards and "fetch('/hi/index.json'" in look
+    drawer = open(os.path.join(REPO, 'static', 'drawer.js'), encoding='utf-8').read()
+    drawcss = open(os.path.join(REPO, 'static', 'drawer.css'), encoding='utf-8').read()
+    assert "fetch('hi/index.json'" in cards and "'/hi/index.json'" in drawer
     assert "state.hi && state.hi[card.slug]" in cards and "'/hi/' + card.slug + '.webp'" in cards
-    assert "'/hi/' + it.slug + '.webp'" in look
-    assert 'max-width: min(92vw, 720px)' in lookhtml              # zoom shows the big render
+    assert "HI_DIR" in drawer and "it.slug + '.webp'" in drawer
+    assert 'max-width: min(92vw, 720px)' in drawcss              # zoom shows the big render
 
 
 def test_interaction_never_reads_a_transformed_rect():

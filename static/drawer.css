@@ -1,0 +1,191 @@
+/* drawer.css - shared item-detail drawer (used with drawer.js on any page).
+   Built on the dashboard theme variables from style.css so every theme keeps working.
+   The only fixed colour is the dialog backdrop (dark scrim), as agreed.
+   Mobile: bottom sheet under 760px, centred panel above. Layer 1 (recommended action)
+   is deliberately the loudest block; layer 3 lives in collapsed sections. */
+
+.dw-hidden { display: none !important; }
+
+/* ---------- shell: scrim + panel ---------- */
+.dw-root {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.dw-scrim {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, black 62%, transparent);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+.dw-panel {
+  position: relative; width: 100%; max-width: 720px; max-height: 92vh; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px 16px 0 0;
+  padding: 14px 16px 18px;
+  box-shadow: 0 -12px 40px color-mix(in srgb, black 55%, transparent);
+  animation: dw-rise .18s ease-out;
+  outline: none;
+}
+@keyframes dw-rise { from { transform: translateY(14px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (min-width: 760px) {
+  .dw-root { align-items: center; padding: 20px; }
+  .dw-panel { border-radius: 16px; max-height: 88vh; }
+}
+
+/* ---------- header ---------- */
+.dw-head { display: flex; gap: 13px; align-items: flex-start; }
+.dw-imgslot { flex: 0 0 auto; }
+.dw-img {
+  width: 96px; height: 96px; object-fit: contain; display: block;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; padding: 4px;
+}
+.dw-avatar {
+  width: 96px; height: 96px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--accent); font: 700 34px var(--mono);
+}
+.dw-avatar-big { width: 96px; height: 96px; }
+.dw-titles { min-width: 0; flex: 1; }
+.dw-name { font-size: 18px; font-weight: 700; line-height: 1.25; margin: 0; word-break: break-word; }
+.dw-slug { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; word-break: break-all; }
+.dw-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+.dw-chipk {
+  border: 1px solid var(--border); border-radius: 999px; padding: 1.5px 8px;
+  font: 600 10.5px var(--mono); color: var(--muted); text-transform: lowercase; white-space: nowrap;
+}
+.dw-chipk-on { color: var(--accent); border-color: var(--accent-dim); }
+.dw-x {
+  flex: 0 0 auto; width: 32px; height: 32px; cursor: pointer; font-size: 15px;
+  background: var(--panel2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px;
+}
+.dw-x:hover { color: var(--text); border-color: var(--accent-dim); }
+.dw-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- layer 1: recommended action (dominant) ---------- */
+.dw-body { margin-top: 14px; }
+.dw-act {
+  padding: 13px 15px; border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
+  border: 1px solid var(--accent-dim);
+}
+.dw-act-unknown { background: var(--panel2); border-color: var(--border); }
+.dw-act-unknown .dw-act-line { color: var(--text); font-size: 18px; }
+.dw-act-line { font-size: 21px; line-height: 1.2; font-weight: 700; color: var(--accent); word-break: break-word; }
+.dw-act-sub { margin-top: 5px; font-size: 12px; color: var(--text); opacity: .85; }
+.dw-why { margin-top: 8px; display: grid; gap: 3px; }
+.dw-why-line { font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.dw-dim { opacity: .8; }
+
+/* ---------- layer 2: your copies + market tiles ---------- */
+.dw-owned { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; margin-top: 12px; }
+.dw-ostat { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 7px 9px; cursor: help; }
+.dw-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.dw-tile { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; cursor: help; }
+.dw-k { display: block; font-size: 10px; line-height: 1.35; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.dw-v { font-family: var(--mono); font-size: 16px; font-weight: 700; margin-top: 3px; }
+.dw-ostat .dw-v { font-size: 15px; }
+.dw-u { color: var(--muted); font-size: 10.5px; font-family: var(--mono); }
+.dw-sub { color: var(--muted); font-size: 10.5px; font-family: var(--mono); margin-top: 3px; line-height: 1.45; }
+.dw-tile.dw-hi .dw-v, .dw-ostat.dw-hi .dw-v { color: var(--accent); }
+.dw-tile.dw-zero .dw-v, .dw-ostat.dw-zero .dw-v { color: var(--muted); font-weight: 500; }
+.dw-est {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.6;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel2));
+  border: 1px solid var(--border);
+}
+.dw-est b { color: var(--accent); font-family: var(--mono); }
+.dw-est .dw-sub { font-size: 11px; }
+.dw-note { color: var(--muted); font-size: 11.5px; line-height: 1.55; margin: 2px 0 6px; }
+
+/* ---------- layer 3: collapsed sections ---------- */
+.dw-sec { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 9px; background: var(--panel); }
+.dw-sec-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--panel2); border: 0; border-bottom: 1px solid transparent;
+  color: var(--text); font: 600 12px var(--sans); padding: 9px 12px; cursor: pointer; text-align: left;
+}
+.dw-sec-head:hover { color: var(--accent); }
+.dw-sec-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dw-sec-head[aria-expanded="true"] { border-bottom-color: var(--border); }
+.dw-caret { color: var(--muted); font-size: 10px; }
+.dw-sec-body { padding: 10px 12px 12px; font-size: 12.5px; line-height: 1.55; }
+.dw-sec-body[hidden] { display: none; }
+
+/* order book by rank */
+.dw-lane {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 5px 6px; font-family: var(--mono); font-size: 11.5px; border-radius: 7px;
+}
+.dw-lane + .dw-lane { margin-top: 1px; }
+.dw-lane-head { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; cursor: help; }
+.dw-lane.dw-mine { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.dw-lane-rk { color: var(--muted); min-width: 52px; }
+.dw-lane.dw-mine .dw-lane-rk { color: var(--text); font-weight: 700; }
+.dw-lane-you { color: var(--accent); font-size: 9.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+.dw-lane-ask, .dw-lane-bid { cursor: help; }
+.dw-lane-ask { color: var(--accent); }
+.dw-lane-ask::before { content: '\2193 '; color: var(--muted); }
+.dw-lane-bid { color: var(--text); opacity: .9; }
+.dw-lane-bid::before { content: '\2191 '; color: var(--muted); }
+.dw-lane-head .dw-lane-ask::before, .dw-lane-head .dw-lane-bid::before { content: ''; }
+.dw-chip {
+  border-radius: 999px; padding: 1px 8px; font-size: 10.5px; font-family: var(--mono);
+  border: 1px solid var(--border); white-space: nowrap; cursor: help;
+}
+.dw-chip-list { color: var(--accent); border-color: var(--accent-dim); }
+.dw-chip-bid { color: var(--text); }
+
+/* raw field table (advanced) */
+.dw-raw { border-collapse: collapse; width: 100%; margin-top: 2px; }
+.dw-raw th, .dw-raw td {
+  text-align: left; padding: 3px 8px; font-family: var(--mono); font-size: 11.5px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); vertical-align: top;
+}
+.dw-raw tr:first-child th, .dw-raw tr:first-child td { border-top: 0; }
+.dw-raw th { color: var(--muted); font-weight: 500; width: 46%; }
+.dw-raw td { color: var(--text); word-break: break-all; }
+
+/* ---------- footer actions ---------- */
+.dw-foot { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+.dw-foot .btn { text-decoration: none; }
+
+/* ---------- image zoom overlay (nested dialog) ---------- */
+.dw-zoom { position: fixed; inset: 0; z-index: 95; display: flex; align-items: center; justify-content: center; }
+.dw-zoom-scrim {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, black 78%, transparent);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.dw-zoom-box {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  max-width: min(94vw, 780px); max-height: 94vh;
+  animation: dw-pop .16s ease-out;
+}
+@keyframes dw-pop { from { transform: scale(.94); opacity: .3; } to { transform: none; opacity: 1; } }
+.dw-zoom-slot { display: flex; align-items: center; justify-content: center; }
+.dw-zoom-slot img {
+  max-width: min(92vw, 720px); max-height: 78vh; width: auto; height: auto; object-fit: contain;
+  filter: drop-shadow(0 14px 44px color-mix(in srgb, black 70%, transparent));
+}
+.dw-zoom-slot .dw-avatar {
+  width: 220px; height: 220px; font-size: 84px;
+  background: var(--panel2); border-color: var(--border);
+}
+.dw-zoom-cap { color: var(--text); text-align: center; }
+.dw-zoom-name { font: 600 14px var(--sans); text-shadow: 0 1px 8px black; }
+.dw-zoom-sub { color: var(--muted); font: 11px var(--mono); margin-top: 3px; }
+.dw-zoom-actions { display: flex; gap: 9px; }
+.dw-zoom-x {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--panel); box-shadow: 0 2px 12px color-mix(in srgb, black 50%, transparent);
+}
+
+/* ---------- affordances ---------- */
+.dw-zoomable { cursor: zoom-in; }
+.dw-zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 420px) {
+  .dw-panel { padding: 12px 12px 16px; }
+  .dw-img, .dw-avatar { width: 74px; height: 74px; }
+  .dw-avatar-big { width: 74px; height: 74px; }
+  .dw-act-line { font-size: 18px; }
+  .dw-raw th { width: 40%; }
+}

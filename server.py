@@ -103,6 +103,28 @@ def items_payload():
         r['sections'] = ','.join(sorted(x for x in r['sections'] if x))
     return out
 
+_CATALOG = None
+
+def catalog_payload():
+    """Full WFM catalogue (slug/name/icon) behind the global item search - owned or not.
+    Cached in memory; the source dump is ~1.6 MB and stable for the session."""
+    global _CATALOG
+    if _CATALOG is None:
+        d = jload(os.path.join(DATA, 'wfm_items_v2.json')) or {}
+        items = d.get('data') if isinstance(d, dict) else None
+        out = []
+        for it in (items or []):
+            if not isinstance(it, dict):
+                continue
+            slug = str(it.get('slug') or '').strip()
+            if not slug:
+                continue
+            en = (it.get('i18n') or {}).get('en') or {}
+            out.append({'slug': slug, 'name': en.get('name') or slug, 'icon': en.get('icon') or ''})
+        out.sort(key=lambda r: r['name'].lower())
+        _CATALOG = out
+    return _CATALOG
+
 def plat_history_payload():
     hist = jload(os.path.join(DATA, 'plat_history.json')) or []
     now = int(time.time())
@@ -375,6 +397,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/': return self._serve_file('index.html')
         if p == '/api/summary': return self._send(200, summary_payload())
         if p == '/api/items': return self._send(200, items_payload())
+        if p == '/api/catalog': return self._send(200, catalog_payload())
         if p == '/api/plat_history': return self._send(200, plat_history_payload())
         if p == '/api/trades': return self._send(200, trades_payload())
         if p == '/api/trader': return self._send(200, trader_payload())

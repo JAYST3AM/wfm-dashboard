@@ -3,257 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WFM Trader · Item Lookup</title>
+<title>WFM Trader — Search</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="preconnect" href="https://warframe.market" crossorigin>
 <link rel="stylesheet" href="/style.css">
-<style>
-  /* ---- item lookup page (page-specific, built on the dashboard's CSS vars) ---- */
-  /* nav: the pill row wraps inside its own box once it is wider than the window, instead of
-     pushing the whole document sideways (page-local; style.css is shared and stays untouched) */
-  .mainnav { max-width: calc(100% - 36px); flex-wrap: wrap; }
-  .lk-wrap { padding: 14px 18px 40px; max-width: 1400px; margin: 0 auto; }
-  .lk-searchrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .lk-search { flex: 1; min-width: 220px; padding: 9px 14px; }
-  .lk-search input { width: 100%; font-size: 14px; }
-  .lk-search .si { font-size: 16px; }
-  .lk-clear {
-    background: none; border: none; color: var(--muted); cursor: pointer;
-    font: 13px var(--sans); padding: 2px 4px;
-  }
-  .lk-clear:hover { color: var(--accent); }
-  .lk-meta { color: var(--muted); font-size: 12px; margin: 10px 2px 12px; }
-  .lk-meta b { color: var(--text); font-family: var(--mono); }
-  .lk-meta .warn { color: var(--accent); }
-
-  .lk-grid {
-    display: grid; gap: 10px;
-    grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
-  }
-  .lk-card {
-    position: relative; display: flex; flex-direction: column; align-items: center;
-    gap: 6px; text-align: center; cursor: pointer;
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
-    padding: 10px 8px 9px; color: var(--text); font: inherit;
-    transition: border-color .18s ease, transform .15s ease, background-color .18s ease;
-  }
-  .lk-card:hover, .lk-card:focus-visible { border-color: var(--accent-dim); transform: translateY(-2px); background: var(--hover); outline: none; }
-  .lk-thumb {
-    width: 68px; height: 68px; object-fit: contain; flex: 0 0 auto;
-    filter: drop-shadow(0 2px 6px color-mix(in srgb, black 45%, transparent));
-  }
-  .lk-avatar {
-    width: 68px; height: 68px; border-radius: 12px; flex: 0 0 auto;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--panel2); border: 1px solid var(--border);
-    color: var(--accent); font: 700 26px var(--mono);
-  }
-  .lk-name {
-    font-size: 12px; line-height: 1.3; color: var(--text);
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    min-height: 31px; word-break: break-word;
-  }
-  .lk-row { display: flex; gap: 8px; justify-content: center; font-family: var(--mono); font-size: 11.5px; }
-  .lk-sell { color: var(--accent); font-weight: 700; }
-  .lk-buy { color: var(--text); opacity: .85; }
-  .lk-vol { color: var(--muted); font-size: 10.5px; font-family: var(--mono); }
-  .lk-own {
-    position: absolute; top: 6px; left: 6px;
-    background: color-mix(in srgb, var(--accent) 16%, var(--panel2));
-    border: 1px solid var(--accent-dim); color: var(--accent);
-    border-radius: 999px; padding: 1px 7px; font: 600 10px var(--mono);
-  }
-  .lk-cat {
-    position: absolute; top: 6px; right: 6px; color: var(--muted);
-    font: 9.5px var(--mono); text-transform: uppercase; letter-spacing: .4px;
-  }
-  .lk-avatar.big { width: 112px; height: 112px; font-size: 40px; }
-  .lk-empty { padding: 40px 12px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.8; }
-  .lk-empty b { color: var(--text); }
-
-  /* ---- detail panel (same page, no navigation) ---- */
-  .lk-detail { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
-  .lk-detail.hidden { display: none; }
-  .lk-backdrop { position: absolute; inset: 0; background: color-mix(in srgb, black 62%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-  .lk-panel {
-    position: relative; width: 100%; max-width: 720px; max-height: 92vh; overflow: auto;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 16px 16px 0 0;
-    padding: 16px 16px 22px; box-shadow: 0 -12px 40px color-mix(in srgb, black 55%, transparent);
-    animation: lk-rise .18s ease-out;
-  }
-  @keyframes lk-rise { from { transform: translateY(14px); opacity: .4; } to { transform: none; opacity: 1; } }
-  @media (min-width: 760px) {
-    .lk-detail { align-items: center; }
-    .lk-panel { border-radius: 16px; max-height: 88vh; }
-  }
-  .lk-p-head { display: flex; gap: 14px; align-items: flex-start; }
-  .lk-p-img {
-    width: 112px; height: 112px; object-fit: contain; flex: 0 0 auto;
-    background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; padding: 4px;
-  }
-  .lk-p-titles { min-width: 0; flex: 1; }
-  .lk-p-name { font-size: 19px; font-weight: 700; line-height: 1.25; word-break: break-word; }
-  .lk-p-slug { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 3px; word-break: break-all; }
-  .lk-p-close {
-    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 999px; width: 32px; height: 32px; cursor: pointer; font-size: 15px; flex: 0 0 auto;
-  }
-  .lk-p-close:hover { color: var(--text); border-color: var(--accent-dim); }
-  .lk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 14px; }
-  .lk-stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
-  .lk-stat .k-label { display: block; }
-  .lk-stat .v { font-family: var(--mono); font-size: 16px; font-weight: 700; margin-top: 3px; }
-  .lk-stat .v.accent { color: var(--accent); }
-  .lk-stat .v.dim { color: var(--muted); font-weight: 500; }
-  .lk-stat .u { color: var(--muted); font-size: 10.5px; font-family: var(--mono); }
-  .lk-est {
-    margin-top: 12px; padding: 11px 13px; border-radius: 10px;
-    background: color-mix(in srgb, var(--accent) 8%, var(--panel2));
-    border: 1px solid var(--accent-dim); font-size: 13px; line-height: 1.6;
-  }
-  .lk-est b { color: var(--accent); font-family: var(--mono); }
-  .lk-est .sub { color: var(--muted); font-size: 11.5px; }
-  .lk-lanes { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .lk-lanes:empty { display: none; }
-  .lk-lanes-head {
-    padding: 7px 10px; font-size: 11px; line-height: 1.5; color: var(--muted);
-    background: var(--panel2); border-bottom: 1px solid var(--border);
-  }
-  .lk-lanes-head b { font-family: var(--mono); color: var(--text); font-weight: 600; }
-  .lk-lane {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 5px 10px; font-family: var(--mono); font-size: 11.5px;
-  }
-  .lk-lane + .lk-lane { border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
-  .lk-lane.mine { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-  .lk-lane-rk { color: var(--muted); min-width: 46px; }
-  .lk-lane.mine .lk-lane-rk { color: var(--text); font-weight: 700; }
-  .lk-lane-you {
-    color: var(--accent); font-size: 9.5px; font-weight: 700;
-    letter-spacing: .5px; text-transform: uppercase;
-  }
-  .lk-lane-ask, .lk-lane-bid { cursor: help; }
-  .lk-lane-ask { color: var(--accent); }
-  .lk-lane-ask::before { content: '↓ '; color: var(--muted); }
-  .lk-lane-bid { color: var(--text); opacity: .9; }
-  .lk-lane-bid::before { content: '↑ '; color: var(--muted); }
-  .lk-chip {
-    border-radius: 999px; padding: 1px 8px; font-size: 10.5px;
-    border: 1px solid var(--border); white-space: nowrap; cursor: help;
-  }
-  .lk-chip-list { color: var(--accent); border-color: var(--accent-dim); }
-  .lk-chip-bid { color: var(--text); }
-  .lk-links { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
-  .lk-links a.btn { text-decoration: none; display: inline-block; }
-  .lk-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1400px; margin: 0 auto; }
-  .lk-foot a { color: var(--muted); }
-  .lk-foot a:hover { color: var(--accent); }
-  @media (max-width: 420px) {
-    .lk-grid { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
-    .lk-p-img { width: 88px; height: 88px; }
-  }
-
-  /* ---- image zoom (click any item image for the full-size render) ---- */
-  .lk-zoomable { cursor: zoom-in; }
-  .lk-zoom { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; }
-  .lk-zoom.hidden { display: none; }
-  .lk-zoom-back { position: absolute; inset: 0; background: color-mix(in srgb, black 78%, transparent); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-  .lk-zoom-box {
-    position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px;
-    max-width: min(94vw, 780px); max-height: 94vh;
-    animation: lk-pop .16s ease-out;
-  }
-  @keyframes lk-pop { from { transform: scale(.94); opacity: .3; } to { transform: none; opacity: 1; } }
-  .lk-z-img {
-    max-width: min(92vw, 720px); max-height: 84vh; width: auto; height: auto; object-fit: contain;
-    filter: drop-shadow(0 14px 44px color-mix(in srgb, black 70%, transparent));
-  }
-  .lk-z-img.lk-avatar { width: 220px; height: 220px; font-size: 84px; }
-  .lk-zoom-cap { color: var(--text); font: 600 14px var(--sans); text-align: center; text-shadow: 0 1px 8px black; }
-  .lk-zoom-cap .sub { display: block; color: var(--muted); font: 11px var(--mono); margin-top: 2px; }
-  .lk-zoom-actions { display: flex; gap: 9px; }
-  .lk-zoom .lk-p-close { position: absolute; top: 16px; right: 16px; background: var(--panel); box-shadow: 0 2px 12px color-mix(in srgb, black 50%, transparent); }
-</style>
+<!-- Item lookup is now the global search in the main app (it opens the shared item
+     drawer for owned and unowned items alike). This page is a stub so old
+     /lookup.html and /lookup.html?q=... links keep working. -->
+<script>
+(function () {
+  var q = (location.search || '').replace(/^\?/, '');
+  location.replace('/#search' + (q ? '?' + q : ''));
+})();
+</script>
+<meta http-equiv="refresh" content="0; url=/#search">
 </head>
 <body>
-<header>
-  <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">item lookup</span></div>
-  <div class="chips" id="chips"></div>
-  <div class="actions">
-    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
-    <a class="btn" href="/">◀ Dashboard</a>
-  </div>
-</header>
-
-<div id="themePanel" class="theme-panel hidden">
-  <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
-  <div id="themeGrid" class="tp-grid"></div>
-</div>
-
-<nav class="mainnav" id="mainnav">
-  <a href="/#home" class="navpill">Dashboard</a>
-  <a href="/#inventory" class="navpill">Inventory</a>
-  <a href="/#history" class="navpill">History</a>
-  <a href="/#trader" class="navpill">Trader</a>
-  <a href="/#market" class="navpill">Market</a>
-  <a href="/lookup.html" class="navpill active">Lookup</a>
-  <a href="/collection.html" class="navpill">Collection</a>
-  <a href="/cards.html" class="navpill">Cards</a>
-  <a href="/settings.html" class="navpill">Settings</a>
-</nav>
-
-<main class="lk-wrap">
-  <div class="lk-searchrow">
-    <div class="search lk-search">
-      <span class="si">⌕</span>
-      <input id="q" type="text" placeholder="Search items… (e.g. primed continuity)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search Warframe items">
-      <button class="lk-clear hidden" id="clearBtn" type="button" title="Clear search" aria-label="Clear search">✕</button>
+<main>
+  <div class="card">
+    <div class="card-head"><div class="card-title">Item search has moved</div></div>
+    <div class="picks">
+      <a class="movedlink" href="/#search">Open the item search →</a>
     </div>
   </div>
-  <div class="lk-meta" id="meta">Loading catalog…</div>
-  <div class="lk-grid" id="grid" role="list" aria-label="Item results"></div>
-  <div class="lk-empty hidden" id="empty"></div>
 </main>
-
-<div class="lk-detail hidden" id="detail" role="dialog" aria-modal="true" aria-labelledby="dName">
-  <div class="lk-backdrop" id="backdrop"></div>
-  <div class="lk-panel" id="panel">
-    <div class="lk-p-head">
-      <img class="lk-p-img" id="dImg" alt="" width="112" height="112">
-      <div class="lk-p-titles">
-        <div class="lk-p-name" id="dName">—</div>
-        <div class="lk-p-slug" id="dSlug"></div>
-      </div>
-      <button class="lk-p-close" id="dClose" type="button" title="Close (Esc)" aria-label="Close details">✕</button>
-    </div>
-    <div class="lk-stats" id="dStats"></div>
-    <div class="lk-lanes" id="dLanes"></div>
-    <div class="lk-est" id="dEst"></div>
-    <div class="lk-links" id="dLinks"></div>
-  </div>
-</div>
-
-<div class="lk-zoom hidden" id="zoom" role="dialog" aria-modal="true" aria-label="Item image viewer">
-  <div class="lk-zoom-back" id="zoomBackdrop"></div>
-  <div class="lk-zoom-box">
-    <img class="lk-z-img" id="zImg" alt="">
-    <div class="lk-zoom-cap" id="zCap"></div>
-    <div class="lk-zoom-actions">
-      <button class="btn" id="zDetails" type="button">Details ▸</button>
-      <button class="btn" id="zClose2" type="button">Close</button>
-    </div>
-  </div>
-  <button class="lk-p-close" id="zClose" type="button" title="Close (Esc)" aria-label="Close image">✕</button>
-</div>
-
-<footer class="lk-foot">
-  Prices from this PC's local WFM snapshot (<code>/api/items</code>) · images served by the warframe.market CDN · <a href="/">back to dashboard</a>
-</footer>
-
-<script src="/theme.js"></script>
-<script>wfmInitThemeUI();</script>
-<script src="/lookup.js"></script>
 </body>
 </html>

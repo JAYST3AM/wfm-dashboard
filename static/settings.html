@@ -11,13 +11,47 @@
 <style>
   /* ---- settings page (page-specific, built on the dashboard's CSS vars) ---- */
   .st-wrap { padding: 14px 18px 40px; max-width: 1000px; margin: 0 auto; }
-  .st-note { color: var(--muted); font-size: 11.5px; margin: 2px 2px 14px; line-height: 1.7; }
-  .st-note b { color: var(--text); }
-  .st-note code { font-family: var(--mono); }
+  .st-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 8px 2px 3px; }
+  .st-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 16px; max-width: 760px; }
+  .st-lead b { color: var(--text); }
+  .card-head h2.card-title { margin: 0; }
+  .st-sub { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 8px 16px 0; margin: 0; }
+  /* label | control | value+unit (the old 60px value column clipped unit words) */
+  .cfgrow { grid-template-columns: minmax(190px, 1.5fr) minmax(150px, 1fr) 118px; }
+  .cfgrow .st-unit { color: var(--muted); font-size: 11px; }
+  .cfgrow .m-name { cursor: pointer; }
+  .st-pill { display: inline-block; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+  .st-pill.dry { color: var(--accent); border-color: var(--accent-dim); }
+  .st-pill.live { color: var(--text); border-color: var(--accent); }
+  .st-badge { display: inline-block; margin-left: 6px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel2); color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+  .st-restart { color: var(--accent); font-weight: 600; }
+  /* collapsed advanced accordion: real button, focus ring, panel is a labelled region */
+  .st-advh { margin: 0; }
+  .st-advbtn { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); font: 600 13px var(--sans); letter-spacing: .2px; padding: 13px 16px; cursor: pointer; }
+  .st-advbtn:hover { background: var(--hover); }
+  .st-advbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .st-caret { color: var(--accent); font-size: 11px; }
+  .st-advbtn .st-hint { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+  .st-advpanel { padding-bottom: 8px; }
+  .st-advhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 16px 0; }
+  .st-rawwrap { padding: 4px 16px 2px; overflow-x: auto; }
+  .st-raw { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .st-raw th { text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .st-raw td { padding: 5px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); vertical-align: top; }
+  .st-raw td.k, .st-raw td.v { font-family: var(--mono); }
+  .st-raw td.v { color: var(--accent); }
+  .st-raw td.f, .st-raw td.by { color: var(--muted); }
+  .st-raw td.by .dead { color: var(--accent); }
+  .st-foot2 { color: var(--muted); font-size: 11px; line-height: 1.7; padding: 4px 16px 0; margin: 0; }
+  .st-foot2 code { font-family: var(--mono); }
+  .status.err { color: var(--accent); }
   .st-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1000px; margin: 0 auto; }
   .st-foot a { color: var(--muted); }
   .st-foot a:hover { color: var(--accent); }
-  .st-foot code { font-family: var(--mono); }
+  @media (max-width: 760px) {
+    .cfgrow { grid-template-columns: 1fr; }
+    .cfgrow .cfg-val { text-align: left; }
+  }
 </style>
 </head>
 <body>
@@ -25,59 +59,109 @@
   <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">settings</span></div>
   <div class="chips" id="chips"></div>
   <div class="actions">
-    <button id="themeBtn" class="btn icon" title="Change theme">◐ Theme</button>
+    <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel">◐ Theme</button>
     <a class="btn" href="/">◀ Dashboard</a>
+  </div>
+  <div id="themePanel" class="theme-panel hidden">
+    <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
+    <div id="themeGrid" class="tp-grid"></div>
   </div>
 </header>
 
-<div id="themePanel" class="theme-panel hidden">
-  <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
-  <div id="themeGrid" class="tp-grid"></div>
-</div>
-
-<nav class="mainnav" id="mainnav">
-  <a href="/#home" class="navpill">Dashboard</a>
-  <a href="/#inventory" class="navpill">Inventory</a>
-  <a href="/#history" class="navpill">History</a>
-  <a href="/#trader" class="navpill">Trader</a>
-  <a href="/#market" class="navpill">Market</a>
-  <a href="/lookup.html" class="navpill">Lookup</a>
-  <a href="/collection.html" class="navpill">Collection</a>
-  <a href="/cards.html" class="navpill">Cards</a>
-  <a href="/settings.html" class="navpill active">Settings</a>
+<nav class="mainnav" id="mainnav" aria-label="Primary">
+  <a href="/#home" class="navpill" data-v="home">Home</a>
+  <a href="/#inventory" class="navpill" data-v="inventory">Inventory</a>
+  <a href="/#trade" class="navpill" data-v="trade">Trade</a>
+  <a href="/collection.html" class="navpill" data-v="collection">Collection</a>
+  <a href="/#more" class="navpill active" data-v="more" aria-current="page">More</a>
 </nav>
 
 <main class="st-wrap">
-  <div class="st-note">
-    Engine guardrails live in <code>scripts/trader/settings.json</code>, dashboard knobs in
-    <code>data/config.json</code>. Every value is validated by its engine before anything is written —
-    a refused value changes nothing. <b>Port and host changes need a server restart.</b>
-  </div>
+  <h1 class="st-h1">Settings</h1>
+  <p class="st-lead">
+    Controls for how the trader behaves and how often the dashboard refreshes. Every value is checked by its
+    engine before anything is written, so a <b>refused value changes nothing</b>.
+  </p>
 
-  <div class="card">
+  <section class="card" aria-labelledby="h-trading">
     <div class="card-head">
-      <div class="card-title">Guardrails — settings <span class="dim small" id="cfgMeta"></span></div>
-      <div class="actions"><button class="btn primary" id="btnCfgSave">Save</button></div>
+      <h2 class="card-title" id="h-trading">Trading</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-trading">Save trading settings</button></div>
     </div>
-    <div class="picks" id="cfgList"></div>
-  </div>
+    <p class="st-sub">What the trader may do — listings, prices, buy budget and how often it checks.</p>
+    <div class="picks" id="list-trading"></div>
+    <p class="status" id="status-trading" role="status" aria-live="polite"></p>
+  </section>
 
-  <div class="card">
+  <section class="card" aria-labelledby="h-appearance">
     <div class="card-head">
-      <div class="card-title">Dashboard — config.json <span class="dim small" id="configMeta"></span></div>
-      <div class="actions"><button class="btn primary" id="btnConfigSave">Save</button></div>
+      <h2 class="card-title" id="h-appearance">Appearance</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-appearance">Save appearance settings</button></div>
     </div>
-    <div class="picks" id="configList"></div>
-  </div>
+    <p class="st-sub">Theme, units and how much the dashboard shows.</p>
+    <div class="picks" id="list-appearance"></div>
+    <p class="status" id="status-appearance" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="card" aria-labelledby="h-updates">
+    <div class="card-head">
+      <h2 class="card-title" id="h-updates">Updates</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-updates">Save update settings</button></div>
+    </div>
+    <p class="st-sub">How often things refresh on their own.</p>
+    <div class="picks" id="list-updates"></div>
+    <p class="status" id="status-updates" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="card">
+    <h2 class="st-advh">
+      <button type="button" class="st-advbtn" id="advBtn" aria-expanded="false" aria-controls="advPanel">
+        <span class="st-caret" aria-hidden="true">&#9656;</span> Advanced settings
+        <span class="st-hint">raw keys, files and scripts</span>
+      </button>
+    </h2>
+    <div id="advPanel" class="st-advpanel" role="region" aria-labelledby="advBtn" hidden>
+      <p class="st-sub">
+        Implementation details — the key names, files and scripts the app actually reads and writes.
+        Nothing here is needed for normal use.
+      </p>
+      <div class="st-advhead">
+        <span class="subhead">Server</span>
+        <button class="btn primary" id="btnSave-advanced">Save server settings</button>
+      </div>
+      <div class="picks" id="list-advanced"></div>
+      <p class="status" id="status-advanced" role="status" aria-live="polite"></p>
+      <div class="subhead">Raw config keys</div>
+      <div class="st-rawwrap">
+        <table class="st-raw">
+          <thead>
+            <tr>
+              <th scope="col">Key</th>
+              <th scope="col">Value</th>
+              <th scope="col">File</th>
+              <th scope="col">Read by</th>
+            </tr>
+          </thead>
+          <tbody id="rawRows"></tbody>
+        </table>
+      </div>
+      <p class="st-foot2">
+        Files: <code>data/config.json</code> (written by <code>scripts/config.py</code>) and
+        <code>scripts/trader/settings.json</code> (written by <code>scripts/trader/settings.py</code>).
+        Read by <code>server.py</code>, <code>static/app.js</code>, <code>scripts/watch_save.py</code> and the trader engines.
+      </p>
+      <p class="st-foot2">
+        Raw payloads: <code>GET /api/config</code> · <code>GET /api/trader/cfg</code>.
+        The kill switch and the test alert button live on the Trade page.
+      </p>
+      <p class="st-foot2" id="advErr"></p>
+    </div>
+  </section>
 </main>
 
-<footer class="st-foot">
-  Guardrails via <code>scripts/trader/settings.py</code> · dashboard knobs via <code>scripts/config.py</code> ·
-  <a href="/">back to dashboard</a>
-</footer>
+<footer class="st-foot"><a href="/">◀ Back to the dashboard</a></footer>
 
 <script src="/theme.js"></script>
-<script>wfmInitThemeUI();</script>
 <script src="/settings.js"></script>
 </body>
 </html>
