@@ -147,20 +147,40 @@
        wording stays readable in EVERY theme (a light theme's dark text vanishes on art) */
     --text: #f4f7fb; --muted: #b8c2d0; --accent: #ffb454; --accent-dim: #8a5a1a;
     background-image:
-      linear-gradient(180deg, rgba(6,7,10,.54) 0%, rgba(6,7,10,.20) 20%, rgba(6,7,10,.06) 42%, rgba(6,7,10,.34) 68%, rgba(6,7,10,.72) 100%),
+      linear-gradient(180deg, rgba(6,7,10,.32) 0%, rgba(6,7,10,.10) 24%, rgba(6,7,10,.02) 48%, rgba(6,7,10,.18) 72%, rgba(6,7,10,.50) 100%),
       var(--cf);
     background-size: 100% 100%, cover;
     background-position: center, center;
     background-repeat: no-repeat, no-repeat;
   }
   .mcd-card .mcd-front.has-fullart .mcd-art { background: none; border-bottom-color: transparent; box-shadow: none; }
-  /* the card's own wording stays on full-art fronts too (type + polarity, exactly like
-     every other card) — just shadowed harder so it reads over the artwork */
-  .mcd-front.has-fullart .mcd-art > .mcd-type { color: color-mix(in srgb, white 82%, transparent); text-shadow: 0 1px 4px black, 0 0 10px rgba(0, 0, 0, .7); }
-  .mcd-front.has-fullart .mcd-art > .mcd-pol { color: #fff; text-shadow: 0 2px 6px rgba(0, 0, 0, .9), 0 0 16px rgba(0, 0, 0, .85); }
-  .mcd-front.has-fullart .mcd-art > .mcd-pol-name { color: color-mix(in srgb, white 88%, transparent); text-shadow: 0 1px 4px black, 0 0 10px rgba(0, 0, 0, .8); }
-  .mcd-front.has-fullart .mcd-body { background: linear-gradient(180deg, rgba(9,10,13,0) 0%, rgba(9,10,13,.42) 26%, rgba(9,10,13,.78) 100%); }
-  .mcd-front.has-fullart .mcd-name { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+  /* full-art wording spec (Jay): the ART is the star — no WARFRAME type label, the polarity
+     seal moves to the top-right in brushed silver, and only the name + the mod's own text
+     stay on the face; rank/condition/prices live in the inspect panel */
+  .mcd-front.has-fullart .mcd-art { display: block; }
+  .mcd-front.has-fullart .mcd-art > .mcd-type { display: none; }
+  .mcd-front.has-fullart .mcd-art > .mcd-pol {
+    position: absolute; top: 6px; right: 8px; z-index: 1;
+    font: 700 20px var(--mono); line-height: 1; letter-spacing: 0; text-shadow: none;
+    background: linear-gradient(155deg, #ffffff 0%, #d3d9e1 30%, #8e97a4 55%, #eef1f5 76%, #b6bec9 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .8));
+  }
+  .mcd-front.has-fullart .mcd-art > .mcd-pol-name {
+    position: absolute; top: 29px; right: 8px; z-index: 1; text-align: right;
+    font: 8px var(--mono); letter-spacing: 1.6px; text-shadow: none;
+    background: linear-gradient(180deg, #f4f7fa 0%, #b9c1cb 55%, #e4e8ee 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .8));
+  }
+  .mcd-front.has-fullart .mcd-body { background: linear-gradient(180deg, rgba(9,10,13,0) 0%, rgba(9,10,13,.16) 30%, rgba(9,10,13,.58) 100%); }
+  .mcd-front.has-fullart .mcd-name { color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .95), 0 0 14px rgba(0, 0, 0, .6); }
+  .mcd-front.has-fullart .mcd-desc {
+    background: rgba(8, 9, 12, .30); border-color: rgba(255, 255, 255, .10);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  .mcd-front.has-fullart .mcd-body > .mcd-pips,
+  .mcd-front.has-fullart .mcd-body > .mcd-price { display: none; }
 
   /* rarity border band + tint */
   .mcd-front::before {

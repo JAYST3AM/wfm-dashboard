@@ -561,7 +561,8 @@
 
     var inner = el('div', 'mcd-inner');
 
-    // front — full-art cards show the art across the whole face; wording + name stay visible
+    // front — full-art cards show the art across the whole face; the art leads, so only the
+    // name + the mod's own text ride on it (the polarity seal sits top-right, CSS-positioned)
     var front = el('div', 'mcd-face mcd-front');
     var fa = (state.cardart || {})[card.slug];
     if (fa) {

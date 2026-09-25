@@ -457,12 +457,17 @@ def test_back_is_the_universal_card_back_and_details_render_in_the_panel():
 
 
 def test_grid_never_flips_on_hover():
-    """Jay: hovering a grid card must never flip it; front wording stays visible on full-art."""
+    """Jay: hovering a grid card must never flip it, and the full-art face keeps only the
+    art + name + mod text (no type label, silver polarity seal top-right, no rank/price row)."""
     html = open(PAGE, encoding='utf-8').read()
     assert ':hover .mcd-inner' not in html and ':focus-visible .mcd-inner' not in html
     assert '.mcd-card.flipped .mcd-inner' in html             # flip still exists, explicit only
     assert '.mcd-front.has-fullart .mcd-art > *' not in html  # no blanket hide of the wording
-    assert '.mcd-front.has-fullart .mcd-art > .mcd-type' in html
+    assert '.mcd-front.has-fullart .mcd-art > .mcd-type { display: none; }' in html
+    assert '.mcd-front.has-fullart .mcd-art > .mcd-pol {' in html
+    assert 'background-clip: text' in html                    # brushed-silver polarity seal
+    assert '.mcd-front.has-fullart .mcd-body > .mcd-pips' in html
+    assert '.mcd-front.has-fullart .mcd-body > .mcd-price' in html
     js = open(SCRIPT, encoding='utf-8').read()
     # pointer capture retargets the follow-up click to the tilt, so the viewer flips on
     # pointerup instead of relying on the card's own click handler
