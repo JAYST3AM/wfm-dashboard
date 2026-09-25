@@ -584,8 +584,9 @@
     }
     var body = el('div', 'mcd-body');
     body.appendChild(el('div', 'mcd-name', card.name));
-    // the mod's own card text (stat line + effect prose) — the words the mod card shows
-    if (card.stats_text) body.appendChild(el('div', 'mcd-desc', card.stats_text));
+    // the mod's own card text rides ONLY on full-art faces — standard cards already show
+    // their in-game artwork, so a text box there is noise (details stay in the inspect panel)
+    if (fa && card.stats_text) body.appendChild(el('div', 'mcd-desc', card.stats_text));
     if (owned) body.appendChild(pips(card));
     else body.appendChild(el('div', 'mcd-missing-flag', 'not owned'));
     body.appendChild(priceLine(card));

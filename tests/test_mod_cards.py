@@ -469,6 +469,7 @@ def test_grid_never_flips_on_hover():
     assert '.mcd-front.has-fullart .mcd-body > .mcd-pips' in html
     assert '.mcd-front.has-fullart .mcd-body > .mcd-price' in html
     js = open(SCRIPT, encoding='utf-8').read()
+    assert 'if (fa && card.stats_text)' in js                 # mod text ONLY on full-art faces
     # pointer capture retargets the follow-up click to the tilt, so the viewer flips on
     # pointerup instead of relying on the card's own click handler
     assert "e.type === 'pointerup'" in js and 'elementFromPoint' in js
