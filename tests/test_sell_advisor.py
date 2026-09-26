@@ -54,8 +54,8 @@ def test_equipped_copies_are_never_sellable(data_dir, monkeypatch):
                    prices={'some_prime_barrel': {'wts': 30}})
     rec = sa.advise('some_prime_barrel', ctx)
     assert (rec['owned'], rec['equipped'], rec['reserved'], rec['sellable']) == (4, 2, 0, 2)
-    assert '2 are genuinely sellable.' in rec['text']
-    assert '2 are equipped.' in rec['text']
+    assert '2 safe to sell.' in rec['text']
+    assert '2 equipped.' in rec['text']
 
 
 def test_mod_keeps_one_copy_for_the_collection(data_dir, monkeypatch):
@@ -72,7 +72,7 @@ def test_mod_keeps_one_copy_for_the_collection(data_dir, monkeypatch):
     assert rec['recommendation'] == 'list'
     assert rec['recommended_quantity'] == 2
     assert rec['recommended_price'] == 18
-    assert '1 stays in the mod collection' in rec['reasons']
+    assert 'keep 1 for collection' in rec['reasons']
     assert 'Recommendation: list 2' in rec['text'] and 'around 18p' in rec['text']
 
 
@@ -84,7 +84,7 @@ def test_equipped_mod_with_no_spare_is_kept(data_dir, monkeypatch):
                    mods=['primed_continuity'], prices={'primed_continuity': {'wts': 47}})
     rec = sa.advise('primed_continuity', ctx)
     assert rec['sellable'] == 0 and rec['recommendation'] == 'keep'
-    assert 'every copy is slotted in a loadout' in rec['reasons']
+    assert 'all copies equipped' in rec['reasons']
 
 
 def test_craft_and_near_set_parts_are_reserved(data_dir, monkeypatch):
@@ -124,7 +124,7 @@ def test_factors_without_data_are_omitted_not_guessed(data_dir, monkeypatch):
     assert rec['trend'] is None and rec['best_sell_window'] is None
     for absent in ('Demand', 'Price trend', 'Baro', 'fastest'):
         assert absent not in rec['text'], absent
-    assert 'Current market price: 10p.' in rec['text']
+    assert 'market 10p.' in rec['text']
 
 
 def test_demand_and_trend_lines_come_from_trends_json(data_dir, monkeypatch):

@@ -493,16 +493,16 @@
     hEl.appendChild(document.createTextNode(head));
     box.appendChild(hEl);
     if (owned && adv && adv.sellable === 0) {
-      box.appendChild(el('div', 'dw-act-sub', 'Nothing here is safe to list right now - every copy is equipped, reserved or earmarked.'));
+      box.appendChild(el('div', 'dw-act-sub', 'Nothing safe to list'));
     } else if (owned) {
       var safe = num(adv && adv.sellable);
-      if (safe != null) box.appendChild(el('div', 'dw-act-sub', safe + ' of ' + it.count + ' ' + (it.count === 1 ? 'copy is' : 'copies are') + ' safe to sell.'));
+      if (safe != null) box.appendChild(el('div', 'dw-act-sub', safe + ' of ' + it.count + ' safe to list'));
     }
     if (why.length) {
       var wbox = el('div', 'dw-why');
       why.forEach(function (w) { line(wbox, 'dw-why-line', '\u00b7 ' + String(w)); });
       var rest = owned && adv && adv.reasons ? adv.reasons.length - why.length : 0;
-      if (rest > 0) line(wbox, 'dw-why-line dw-dim', '\u00b7 ' + rest + ' more advisor reason' + (rest === 1 ? '' : 's') + ' - see Advanced');
+      if (rest > 0) line(wbox, 'dw-why-line dw-dim', '\u00b7 +' + rest + ' more');
       box.appendChild(wbox);
     }
     return box;
@@ -542,92 +542,67 @@
     var ask = ranked ? it.lane_ask : it.wts;
     var bid = ranked ? it.lane_bid : it.wtb;
     var sellSub;
-    if (isNum(ask)) sellSub = 'list just under: ' + fmtInt(Math.max(1, Math.round(Number(ask)) - 1)) + 'p';
-    else if (!ranked) sellSub = 'no sell orders right now';
-    else sellSub = hasLanes ? 'no sell orders at your rank' : 'no rank data in this snapshot';
+    if (isNum(ask)) sellSub = 'list ' + fmtInt(Math.max(1, Math.round(Number(ask)) - 1)) + 'p';
+    else if (!ranked) sellSub = 'no listings';
+    else sellSub = hasLanes ? 'no R' + it.own_rank + ' listings' : 'no rank data';
     wrap.appendChild(tile(ranked ? 'Sell price (your rank)' : 'Sell price', fmt(ask), isNum(ask) ? 'plat' : '',
       sellSub, isNum(ask) ? 'dw-hi' : 'dw-zero',
-      (ranked
-        ? 'lowest ask at rank ' + it.own_rank + ' - the cheapest sell order at the rank your copy is; list just under it to sell'
-        : 'lowest ask - the cheapest sell order for this item, any rank') +
-      ' (read from the local warframe.market snapshot)'));
+      ranked ? 'lowest ask at rank ' + it.own_rank + ' - list 1p under it'
+        : 'lowest ask, any rank'));
 
-    var bidSub = isNum(bid) ? 'quick-sell price'
-      : (ranked && !hasLanes ? 'no rank data in this snapshot' : 'no standing buy orders');
+    var bidSub = isNum(bid) ? 'quick-sell'
+      : (ranked && !hasLanes ? 'no rank data' : 'no bids');
     wrap.appendChild(tile('Buyer offering', fmt(bid), isNum(bid) ? 'plat' : '',
       bidSub, isNum(bid) ? '' : 'dw-zero',
-      (ranked
-        ? 'top bid at rank ' + it.own_rank + ' - the highest standing buy order at that rank; you quick-sell to it'
-        : 'top bid - the highest standing buy order for this item, any rank') +
-      ' (read from the local warframe.market snapshot)'));
+      ranked ? 'top bid at rank ' + it.own_rank : 'top bid, any rank'));
 
-    wrap.appendChild(tile('Typical price (context)', fmt(it.median), isNum(it.median) ? 'plat' : '',
-      'all ranks, last 48h', isNum(it.median) ? '' : 'dw-zero',
-      '48h median, all ranks \u2014 context only'));
+    wrap.appendChild(tile('Typical price', fmt(it.median), isNum(it.median) ? 'plat' : '',
+      '48h \u00b7 all ranks', isNum(it.median) ? '' : 'dw-zero',
+      '48h median, all ranks - context only, not your rank'));
 
     wrap.appendChild(tile('Sales / 48h', fmtInt(it.vol48), isNum(it.vol48) ? 'trades' : '',
-      isNum(it.vol48) && Number(it.vol48) === 0 ? 'no sales in the last 48h' : 'all ranks, last 48h',
+      isNum(it.vol48) && Number(it.vol48) === 0 ? 'none' : '48h \u00b7 all ranks',
       isNum(it.vol48) && Number(it.vol48) > 0 ? '' : 'dw-zero',
-      'number of trades completed in the last 48 hours, all ranks'));
+      'trades completed in the last 48 hours, all ranks'));
     return wrap;
   }
 
   function renderEstimate(it) {
+    /* one compact line - the "how" lives in the hover title, never in the layout */
     var box = el('div', 'dw-est');
     var ranked = it.own_rank != null;
-    var p = el('div');
+    var p = el('div', 'dw-est-line');
+    var tips = [];
     function t(s) { p.appendChild(document.createTextNode(s)); }
     function b(s) { p.appendChild(el('b', null, s)); }
     if (ranked) {
       var hasBid = isNum(it.lane_bid), hasAsk = isNum(it.lane_ask);
-      t('Your rank-' + it.own_rank + ' copy: ');
-      if (hasBid) { t('quick-sell to the top bid for '); b(fmt(it.lane_bid) + 'p'); }
-      else t('no buy orders at this rank');
       if (hasAsk) {
-        t(hasBid ? ' \u00b7 or list just under the lowest ask (' : ' - list just under the lowest ask (');
-        b(fmt(it.lane_ask) + 'p');
-        t(') = about ');
+        t('List ');
         b(fmtInt(Math.max(1, Math.round(Number(it.lane_ask)) - 1)) + 'p');
-      } else if (hasBid) {
-        t(' \u00b7 no sell orders at this rank');
+        tips.push('1p under the ' + fmt(it.lane_ask) + 'p lowest ask at rank ' + it.own_rank);
       }
-      t('.');
+      if (hasBid) {
+        if (hasAsk) t(' \u00b7 ');
+        t(hasAsk ? 'bid ' : 'Quick-sell ');
+        b(fmt(it.lane_bid) + 'p');
+        tips.push('top bid at rank ' + it.own_rank);
+      }
+      if (!hasAsk && !hasBid) t('No listings at rank ' + it.own_rank);
     } else if (!isNum(it.wts)) {
-      t('No sell orders in the snapshot \u2014 no platinum estimate right now.');
+      t('No sell orders in the snapshot');
     } else if (it.count > 0) {
-      t('Estimated value: you own ');
-      b(String(it.count));
-      t(' \u00d7 ');
-      b(fmt(it.wts) + 'p');
-      t(' lowest ask = about ');
-      b(fmtInt(it.count * Number(it.wts)) + ' platinum');
-      t(' if every copy sells at today\u2019s lowest ask.');
+      t(fmt(it.count) + ' \u00d7 ' + fmt(it.wts) + 'p \u2248 ');
+      b(fmtInt(it.count * Number(it.wts)) + 'p');
+      tips.push(it.count + ' copies at the lowest ask');
     } else {
-      t('You don\u2019t own this item. Its lowest ask is ');
+      t('1 copy \u2248 ');
       b(fmt(it.wts) + 'p');
-      t(', so one copy would be worth about ');
-      b(fmtInt(it.wts) + ' platinum');
-      t('.');
+      tips.push('lowest ask, any rank');
     }
+    if (tips.length) p.title = tips.join(' \u00b7 ');
     box.appendChild(p);
-    if (it.equipped) {
-      line(box, 'dw-sub', it.equipped + ' cop' + (it.equipped === 1 ? 'y is' : 'ies are') +
-        ' equipped in a loadout - equipped copies are never counted as sellable.');
-    }
-    var sub;
-    if (ranked) {
-      sub = 'All-rank context: 48h median ' + (isNum(it.median) ? fmt(it.median) + 'p' : '-') +
-        ' \u00b7 volume ' + fmtInt(it.vol48) + ' trades. The median mixes every rank, so read it as context - not your copy\u2019s price.';
-    } else if (isNum(it.median) && it.count > 0) {
-      sub = 'At the 48h median (' + fmt(it.median) + 'p) the same ' + it.count + ' cop' + (it.count === 1 ? 'y' : 'ies') +
-        ' would be \u2248 ' + fmtInt(it.count * Number(it.median)) + 'p' +
-        (isNum(it.ducats) ? ' \u00b7 ' + (it.count * Number(it.ducats)) + ' ducats if dissolved instead' : '');
-    } else if (isNum(it.ducats) && it.count > 0) {
-      sub = it.count + ' \u00d7 ' + fmtInt(it.ducats) + ' ducats = ' + (it.count * Number(it.ducats)) + ' ducats if dissolved instead of sold';
-    } else {
-      sub = 'Prices come from the local warframe.market snapshot on this PC.';
-    }
-    line(box, 'dw-sub', sub);
+    if (it.equipped) line(box, 'dw-sub', it.equipped + ' equipped \u00b7 not sellable');
     return box;
   }
 

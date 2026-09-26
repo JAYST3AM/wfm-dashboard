@@ -92,6 +92,7 @@
   border: 1px solid var(--border);
 }
 .dw-est b { color: var(--accent); font-family: var(--mono); }
+.dw-est .dw-est-line { font-size: 13px; }
 .dw-est .dw-sub { font-size: 11px; }
 .dw-note { color: var(--muted); font-size: 11.5px; line-height: 1.55; margin: 2px 0 6px; }
 

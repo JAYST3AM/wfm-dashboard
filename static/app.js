@@ -178,7 +178,7 @@ function renderPicks() {
   const el = document.getElementById('sellPicks');
   if (!el) return;
   const rs = (REPORT && REPORT.sell_now || []).filter((r) => !r.in_use_only).slice(0, 8);
-  const note = `<div class="picks-note dim"><b>Sorted by earnings × how fast they sell.</b> List at = cheapest listing at your copy's rank (an <b>R#</b> tag marks a rank-priced row) minus 1p. Copies slotted in a build are never listed. <b>Do</b> = smart sell advisor call — hover for the reasons.</div>`;
+  const note = `<div class="picks-note dim">Sorted by earnings × how fast they sell.</div>`;
   const head = `<div class="pick pick-head">
       <span class="c-rank">#</span><span class="c-name">Item</span>
       <span class="c-own" title="sellable copies — equipped copies are excluded">Sellable</span><span class="c-act">Sold · 48h</span>

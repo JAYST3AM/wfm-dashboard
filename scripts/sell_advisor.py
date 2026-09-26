@@ -233,11 +233,11 @@ def advise(slug, ctx, now=None):
     keeper = 0
     if spares >= 1 and slug in ctx['mod_slugs']:
         keeper = 1
-        reasons.append('1 stays in the mod collection')
+        reasons.append('keep 1 for collection')
     collection_need = 1 if (spares >= 1 and slug in ctx['coll_missing']) else 0
     if collection_need and not keeper:
         keeper = 1
-        reasons.append('still missing from your collection - keep 1')
+        reasons.append('collection missing \u00b7 keep 1')
     craft_for = ctx['craft_res'].get(slug) if spares >= 1 else None
     set_for = ctx['set_res'].get(slug) if spares >= 1 else None
     reserved = min(spares, keeper + (1 if craft_for else 0) + (1 if set_for else 0))
@@ -320,10 +320,10 @@ def advise(slug, ctx, now=None):
             return None
         if equipped and equipped >= owned:
             rec = 'keep'
-            reasons.append('every copy is slotted in a loadout')
+            reasons.append('all copies equipped')
         elif craft_for:
             rec = 'keep'
-            reasons.append('earmarked to craft %s' % craft_for)
+            reasons.append('crafting %s' % craft_for)
         elif set_for and set_for.get('missing') == 0:
             rec, qty, rec_price = 'assemble_set', 1, set_for.get('set_value')
         elif set_for and set_for.get('missing') == 1 and fnum(set_for.get('roi'), -1) >= 0.5:
@@ -377,57 +377,54 @@ def advise(slug, ctx, now=None):
                 notes.append('only ~%d sold in 48h - stagger the listings' % vol48)
             elif vol48 == 0 and volday < 0.2 and sellable > 1:
                 cap = 1
-                notes.append('thin local demand - list one and watch it')
+                notes.append('thin demand \u00b7 list 1')
             qty = cap
 
     # ---- reasons from market facts (only when data exists) ----
     if price is not None:
-        line = 'Current market price: %sp' % pfmt(price)
+        line = 'market %sp' % pfmt(price)
         if lane_rank is not None:
-            line += ' at rank %d (your copy\'s rank)' % lane_rank
+            line += ' \u00b7 R%d' % lane_rank
         if median is not None:
-            line += ' (48h median %sp, all ranks)' % pfmt(median)
+            line += ' \u00b7 median %sp' % pfmt(median)
         reasons.append(line)
     if badge == 'spike':
-        reasons.append('demand is rising (48h volume above the 90d rate)')
+        reasons.append('demand rising')
     elif badge == 'fade':
-        reasons.append('demand is fading (recent volume below the 90d rate)')
+        reasons.append('demand fading')
     elif badge == 'steady':
-        reasons.append('demand is steady')
+        reasons.append('demand steady')
     if pct is not None:
         if pct >= 5:
-            reasons.append('price trend up %s%% over 30d' % pfmt(pct))
+            reasons.append('trend +%s%% 30d' % pfmt(pct))
         elif pct <= -5:
-            reasons.append('price trend down %s%% over 30d' % pfmt(pct))
+            reasons.append('trend -%s%% 30d' % pfmt(abs(pct)))
         else:
-            reasons.append('price trend flat over 30d')
+            reasons.append('trend flat 30d')
     if vol48 or volday:
-        reasons.append('liquidity %s (%d sold in 48h, ~%s/day)' % (liquidity or 'unknown', vol48, pfmt(volday)))
+        reasons.append('liquidity %s \u00b7 %d/48h' % (liquidity or 'unknown', vol48))
     if window:
-        reasons.append('you sell %s fastest %s%s'
-                       % ('items' if window_src == 'all items' else kind.replace('_', ' ') + 's',
-                          window, ' (thin sample - hint only)' if timing_note else ''))
+        reasons.append('best window %s%s' % (window, ' (thin)' if timing_note else ''))
     if sold_n:
-        reasons.append('you have sold this exact item %d time%s before'
-                       % (sold_n, '' if sold_n == 1 else 's'))
+        reasons.append('sold \u00d7%d before' % sold_n)
     if baro_line:
         reasons.append(baro_line)
 
     # ---- text ----
-    lines = ['You own %d of this.' % owned]
+    lines = ['You own %d.' % owned]
     if equipped:
-        lines.append('%d %s equipped.' % (equipped, 'is' if equipped == 1 else 'are'))
+        lines.append('%d equipped.' % equipped)
     for extra in reasons:
         if extra.startswith('1 stays') or extra.startswith('still missing'):
             lines.append(extra[0].upper() + extra[1:] + '.')
-    lines.append('%d %s genuinely sellable.' % (sellable, 'is' if sellable == 1 else 'are'))
+    lines.append('%d safe to sell.' % sellable)
     lines.append('')
     if price is not None:
-        block = 'Current market price: %sp' % pfmt(price)
+        block = 'market %sp' % pfmt(price)
         if lane_rank is not None:
-            block += ' at rank %d (your copy\'s rank)' % lane_rank
+            block += ' \u00b7 R%d' % lane_rank
         if median is not None:
-            block += ' (48h median %sp)' % pfmt(median)
+            block += ' \u00b7 median %sp' % pfmt(median)
         lines.append(block + '.')
     for label, value in (('Demand', badge), ('Price trend', pct)):
         if label == 'Demand' and value:

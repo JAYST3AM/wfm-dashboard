@@ -380,54 +380,47 @@
 
     var est = document.getElementById('dEst');
     est.innerHTML = '';
-    var line = el('div');
+    var line = el('div', 'est-line');
+    var tips = [];
     if (ranked) {
       // Price the copy actually held: its rank lane, never the any-rank quote.
-      line.appendChild(document.createTextNode('Your rank-' + it.own_rank + ' copy: '));
-      if (it.lane_bid != null) {
-        line.appendChild(document.createTextNode('quick-sell to the top bid for '));
-        line.appendChild(el('b', null, fmt(it.lane_bid) + 'p'));
-      } else {
-        line.appendChild(document.createTextNode('no buy orders at this rank — nothing to quick-sell to'));
-      }
       if (it.lane_ask != null) {
-        line.appendChild(document.createTextNode(it.lane_bid != null ? ' · or l' : ' — l'));
-        line.appendChild(document.createTextNode('ist just under the lowest ask ('));
-        line.appendChild(el('b', null, fmt(it.lane_ask) + 'p'));
-        line.appendChild(document.createTextNode(') = about '));
+        line.appendChild(document.createTextNode('List '));
         line.appendChild(el('b', null, fmtInt(Math.max(1, Math.round(it.lane_ask) - 1)) + 'p'));
-      } else if (it.lane_bid != null) {
-        line.appendChild(document.createTextNode(' · no sell orders at this rank'));
+        tips.push('1p under the ' + fmt(it.lane_ask) + 'p lowest ask at rank ' + it.own_rank);
       }
-      line.appendChild(document.createTextNode('.'));
+      if (it.lane_bid != null) {
+        if (it.lane_ask != null) line.appendChild(document.createTextNode(' \u00b7 '));
+        line.appendChild(document.createTextNode(it.lane_ask != null ? 'bid ' : 'Quick-sell '));
+        line.appendChild(el('b', null, fmt(it.lane_bid) + 'p'));
+        tips.push('top bid at rank ' + it.own_rank);
+      }
+      if (it.lane_ask == null && it.lane_bid == null) {
+        line.appendChild(document.createTextNode('No listings at rank ' + it.own_rank));
+      }
     } else if (it.wts == null) {
-      line.appendChild(document.createTextNode('No sell orders in the current snapshot, so a platinum value can’t be estimated right now.'));
+      line.appendChild(document.createTextNode('No sell orders in the snapshot'));
     } else if (it.count > 0) {
-      line.appendChild(document.createTextNode('Estimated value: you own '));
-      line.appendChild(el('b', null, String(it.count)));
-      line.appendChild(document.createTextNode(' × '));
-      line.appendChild(el('b', null, fmt(it.wts) + 'p'));
-      line.appendChild(document.createTextNode(' lowest ask = about '));
-      line.appendChild(el('b', null, fmtInt((it.count || 0) * (it.wts || 0)) + ' platinum'));
-      line.appendChild(document.createTextNode(' if every copy sells at today’s lowest ask.'));
+      line.appendChild(document.createTextNode(fmt(it.count) + ' \u00d7 ' + fmt(it.wts) + 'p \u2248 '));
+      line.appendChild(el('b', null, fmtInt((it.count || 0) * (it.wts || 0)) + 'p'));
+      tips.push(it.count + ' copies at the lowest ask');
     } else {
-      line.appendChild(document.createTextNode('You don’t own this item. Its lowest ask is '));
+      line.appendChild(document.createTextNode('1 copy \u2248 '));
       line.appendChild(el('b', null, fmt(it.wts) + 'p'));
-      line.appendChild(document.createTextNode(', so one copy would be worth about '));
-      line.appendChild(el('b', null, fmtInt(it.wts) + ' platinum'));
-      line.appendChild(document.createTextNode('.'));
+      tips.push('lowest ask, any rank');
     }
+    if (tips.length) line.title = tips.join(' \u00b7 ');
     est.appendChild(line);
     if (it.equipped) {
       var eqn = el('div', 'sub');
       eqn.textContent = it.equipped + ' cop' + (it.equipped === 1 ? 'y is' : 'ies are') +
-        ' equipped in a loadout — equipped copies are never counted as sellable.';
+        ' equipped \u00b7 not sellable';
       est.appendChild(eqn);
     }
     var sub = el('div', 'sub');
     if (ranked) {
       sub.textContent = 'All-rank context: 48h median ' + (it.median != null ? fmt(it.median) + 'p' : '—') +
-        ' · volume ' + fmtInt(it.vol48) + ' trades. The median mixes every rank, so read it as context — not your copy’s price.';
+        ' · ' + fmtInt(it.vol48) + ' trades';
     } else if (it.median != null && it.count > 0) {
       sub.textContent = 'At the 48h median (' + fmt(it.median) + 'p) the same ' + it.count + ' cop' + (it.count === 1 ? 'y' : 'ies') +
         ' would be ≈ ' + fmtInt(it.count * it.median) + 'p · ' + (it.ducats != null ? ((it.count * it.ducats) + ' ducats if dissolved instead') : 'no ducat value');

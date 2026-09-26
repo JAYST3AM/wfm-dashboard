@@ -93,14 +93,14 @@
     var r = row || {}, a = adv || {};
     var rows = [
       { k: 'Sell price (snapshot)', v: plat(r.lane_rank != null ? r.lane_ask : r.wts), why: r.lane_rank != null ? 'rank ' + r.lane_rank + ' lane' : 'any rank' },
-      { k: 'Buy price (snapshot)', v: plat(r.lane_rank != null ? r.lane_bid : r.wtb), why: 'top buy order' },
-      { k: 'Spread', v: plat(r.spread), why: 'sell minus buy - thin lines mean quick fills' },
-      { k: 'Median 48h', v: plat(r.median), why: 'middle sell order' },
-      { k: 'Average 48h', v: plat(r.avg48), why: 'mean sell order' },
-      { k: 'Volume 48h', v: fmt(r.vol48), why: 'orders seen' },
-      { k: 'Your value', v: plat(r.value), why: 'safe copies x sell price' },
+      { k: 'Buy price (snapshot)', v: plat(r.lane_rank != null ? r.lane_bid : r.wtb), why: 'top bid' },
+      { k: 'Spread', v: plat(r.spread), why: 'sell - buy' },
+      { k: 'Median 48h', v: plat(r.median), why: '48h median' },
+      { k: 'Average 48h', v: plat(r.avg48), why: '48h average' },
+      { k: 'Volume 48h', v: fmt(r.vol48), why: '48h' },
+      { k: 'Your value', v: plat(r.value), why: 'safe × price' },
       { k: 'Advisor', v: a.recommendation ? String(a.recommendation).replace(/_/g, ' ') : '—',
-        why: (a.reasons || []).slice(0, 2).join('; ') || 'no advisor row', wrap: true },
+        why: (a.reasons || []).slice(0, 2).join('; ') || 'no advice', wrap: true },
     ];
     $('ipStats').innerHTML = '<table class="ip-table"><tbody>' + rows.map(function (x) {
       return '<tr><td>' + esc(x.k) + '</td><td class="num"><b>' + esc(x.v) + '</b></td>' +
