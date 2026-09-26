@@ -175,6 +175,8 @@ FEATURES = {
     'notify': 'notify_outbox.json',
     'collection': 'collection_log.json', 'cards': 'mod_cards.json', 'ledger': 'plat_ledger.json',
     'advisor': 'sell_advisor.json', 'itemhist': 'item_history.json',
+    'materials': 'materials.json',
+    'player': 'player.json',
 }
 
 
@@ -258,6 +260,141 @@ def feature_payload(name, query=None):
             if len(vals) >= 2:
                 items[slug] = vals
         return {'count': len(items), 'items': items}
+    elif name == 'materials':
+        # Materials + Clan Dojo panels. Two files, joined by slug (never shipped raw):
+        #   data/materials.json  -> what you own per slug (count, cat, dojo_hint)
+        #   data/dojo_costs.json -> per-room costs + per-material needed totals
+        # Both are owned by other scripts, so either one missing or corrupt degrades to an
+        # empty panel (count 0, no rows, dojo null) with HTTP 200 - the route never 500s,
+        # never writes, and never touches the network.
+        dcosts = jload(os.path.join(DATA, 'dojo_costs.json'))
+        have_dojo = isinstance(dcosts, dict)
+        dcosts = dcosts if have_dojo else {}
+
+        def to_int(v):
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return None
+
+        needed = {}
+        for slug, rec in (dcosts.get('materials') or {}).items():
+            if not isinstance(rec, dict):
+                continue
+            n = to_int(rec.get('needed'))
+            if n is None:
+                continue
+            needed[str(slug)] = (rec.get('name') or str(slug), n)
+        owned, rows = {}, []
+        for r in (raw.get('materials') or []):
+            if not isinstance(r, dict) or not r.get('slug'):
+                continue
+            slug = str(r['slug'])
+            if slug in owned:
+                continue
+            count = to_int(r.get('count')) or 0
+            owned[slug] = count
+            n = needed.get(slug, (None, None))[1]
+            rows.append({'slug': slug, 'name': r.get('name') or slug, 'count': count,
+                         'cat': r.get('cat') or '',
+                         'dojo': slug in needed or bool(r.get('dojo_hint')),
+                         'needed': n, 'short': max(0, n - count) if n is not None else None})
+        dojo = None
+        if have_dojo:
+            rooms, credits = [], 0
+            for rm in (dcosts.get('rooms') or []):
+                if not isinstance(rm, dict) or not rm.get('slug'):
+                    continue
+                cr = to_int(rm.get('credits')) or 0
+                credits += cr
+                costs = []
+                for cslug, qty in (rm.get('costs') or {}).items():
+                    q = to_int(qty)
+                    if q is None:
+                        continue
+                    cslug = str(cslug)
+                    costs.append({'slug': cslug,
+                                  'name': (needed.get(cslug) or (None,))[0] or next(
+                                      (r2['name'] for r2 in rows if r2['slug'] == cslug), cslug),
+                                  'qty': q, 'owned': owned.get(cslug, 0),
+                                  'short': max(0, q - owned.get(cslug, 0))})
+                costs.sort(key=lambda c: (-c['qty'], c['name'].lower()))
+                rooms.append({'slug': str(rm['slug']), 'name': rm.get('name') or str(rm['slug']),
+                              'url': rm.get('url') or '', 'credits': cr,
+                              'built': to_int(rm.get('built')) or 0,
+                              'note': str(rm.get('note') or ''), 'costs': costs})
+            mats = []
+            for slug, (mname, n) in needed.items():
+                have = owned.get(slug, 0)
+                mats.append({'slug': slug, 'name': mname, 'needed': n, 'owned': have,
+                             'short': max(0, n - have)})
+            mats.sort(key=lambda m: (-m['needed'], m['name'].lower()))
+
+            # Clan tiers: the wiki lists every room's cost at all five clan sizes. Needed/Owned/
+            # Short are rebuilt per tier from data/dojo_costs.json 'tier_totals' (verbatim source
+            # values, nothing scaled here) so the panel's tier switch matches the player's clan.
+            mat_names = {r['slug']: r['name'] for r in rows}
+            name_of = lambda s: (needed.get(s) or (None,))[0] or mat_names.get(s) or s
+            tiers_list = [t for t in (dcosts.get('tiers') or []) if isinstance(t, str)]
+            tier_totals = {}
+            for tier in tiers_list:
+                blk = (dcosts.get('tier_totals') or {}).get(tier)
+                if not isinstance(blk, dict):
+                    continue
+                trows = []
+                for slug, rec in (blk.get('materials') or {}).items():
+                    if not isinstance(rec, dict):
+                        continue
+                    n = to_int(rec.get('needed'))
+                    if n is None:
+                        continue
+                    slug = str(slug)
+                    have = owned.get(slug, 0)
+                    mat_names.setdefault(slug, str(rec.get('name') or slug))
+                    trows.append({'slug': slug, 'name': str(rec.get('name') or slug), 'needed': n,
+                                  'owned': have, 'short': max(0, n - have)})
+                trows.sort(key=lambda m: (-m['needed'], m['name'].lower()))
+                tier_credits = to_int(blk.get('credits')) or 0
+                if trows or tier_credits:        # a tier with no usable number is not a tier
+                    tier_totals[tier] = {'credits': tier_credits, 'materials': trows}
+            room_tiers = {}
+            for rm in rooms:
+                per = (dcosts.get('room_tiers') or {}).get(rm['slug'])
+                if not isinstance(per, dict):
+                    continue
+                tmap = {}
+                for tier, blk in per.items():
+                    if not isinstance(blk, dict):
+                        continue
+                    costs = []
+                    for cslug, qty in (blk.get('costs') or {}).items():
+                        q = to_int(qty)
+                        if q is None:
+                            continue
+                        cslug = str(cslug)
+                        costs.append({'slug': cslug, 'name': name_of(cslug), 'qty': q,
+                                      'owned': owned.get(cslug, 0),
+                                      'short': max(0, q - owned.get(cslug, 0))})
+                    costs.sort(key=lambda c: (-c['qty'], c['name'].lower()))
+                    if costs:                       # a tier with no usable cost is not a tier
+                        tmap[str(tier)] = {'credits': to_int(blk.get('credits')) or 0, 'costs': costs}
+                if tmap:
+                    room_tiers[rm['slug']] = tmap
+            dojo = {'source': str(dcosts.get('source') or ''),
+                    'fetched_iso': str(dcosts.get('fetched_iso') or ''),
+                    'scope': str(dcosts.get('scope') or ''), 'credits': credits,
+                    'rooms': rooms, 'materials': mats,
+                    'tiers': tiers_list, 'tier_totals': tier_totals, 'room_tiers': room_tiers,
+                    'skipped': [s for s in (dcosts.get('skipped') or []) if isinstance(s, dict)]}
+        return {'count': len(rows), 'updated_iso': str(raw.get('updated_iso') or ''),
+                'categories': raw.get('categories') if isinstance(raw.get('categories'), dict) else {},
+                'materials': rows, 'dojo': dojo}
+    elif name == 'player':
+        # data/player.json (profile snapshot: mastery, clan, syndicates, intrinsics, focus).
+        # Shipped as-is to the Player page. A missing, corrupt or non-object file answers {}
+        # with HTTP 200, so the page renders dashes instead of the route raising.
+        if not isinstance(raw, dict):
+            raw = {}
     return raw
 
 def cfg_payload():

@@ -118,8 +118,8 @@ def test_sparkline_colour_rule_matches_the_table_colours():
     assert "'upl'" in fn and "'downl'" in fn and "'dim'" in fn
     assert 'vals[vals.length - 1] >= vals[0]' in fn    # rising (last >= first) is the gain colour
     css = read('style.css')
-    assert '.upl { color: #4ade80; }' in css
-    assert '.downl { color: #f87171; }' in css
+    assert '.upl { color: var(--up, #4ade80); }' in css
+    assert '.downl { color: var(--down, #f87171); }' in css
     assert '.dim { color: var(--muted); }' in css
 
 

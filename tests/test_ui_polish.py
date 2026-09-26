@@ -27,7 +27,7 @@ def test_every_page_carries_the_full_nav(page):
     html = read(page)
     assert 'id="mainnav"' in html
     nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
-    assert nav.count('class="navpill') == 5                       # Home/Inventory/Trade/Collection/More
+    assert nav.count('class="navpill') == 6                       # Home/Inventory/Trade/Collection/Player/More
     for frag in ('#home', '#inventory', '#trade', '#more'):        # bare hash on the SPA, /#… elsewhere
         assert re.search(r'href="(?:/)?%s"' % re.escape(frag), nav), (page, frag)
     assert 'href="/collection.html"' in nav

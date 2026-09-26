@@ -88,7 +88,7 @@ def test_schema_row_contract_and_ranges(cfg):
     assert [r['key'] for r in rows] == cfg.SPEC_KEYS
     assert all({'key', 'type', 'min', 'max', 'default', 'choices', 'step', 'help',
                 'consumed_by', 'note'} <= set(r) for r in rows)
-    assert {r['type'] for r in rows} == {'min/max', 'choice', 'bool'}
+    assert {r['type'] for r in rows} == {'min/max', 'choice', 'bool', 'text'}
     assert json.loads(json.dumps(rows))[0]['key'] == 'port'          # UI-renderable
     by_key = {r['key']: r for r in rows}
     for key, (lo, hi, default) in RANGES.items():

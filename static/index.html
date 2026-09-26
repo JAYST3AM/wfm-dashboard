@@ -34,6 +34,7 @@
   <a href="#inventory" class="navpill" data-v="inventory">Inventory</a>
   <a href="#trade" class="navpill" data-v="trade">Trade</a>
   <a href="/collection.html" class="navpill" data-v="collection">Collection</a>
+  <a href="#player" class="navpill" data-v="player">Player</a>
   <a href="#more" class="navpill" data-v="more">More</a>
 </nav>
 
@@ -112,6 +113,67 @@
       </table>
     </div>
     <div id="status" class="status"></div>
+    <div class="invpanels">
+      <div class="card" id="matCard">
+        <div class="card-head mat-head">
+          <div class="card-title">Materials <span class="dim small" id="matMeta" title="distinct materials owned"></span></div>
+          <div class="mat-tools">
+            <input id="matQ" class="invq" type="text" placeholder="Search materials…" autocomplete="off" aria-label="Search materials">
+            <div class="matview" id="matView" role="group" aria-label="Materials view">
+              <button data-m="personal" aria-pressed="true">Personal</button>
+              <button data-m="dojo" aria-pressed="false">Dojo</button>
+            </div>
+            <button class="btn" id="matSort" title="Toggle sort by count or name">Sort: Count</button>
+          </div>
+        </div>
+        <div class="tablewrap matwrap">
+          <table id="matTbl">
+            <thead>
+              <tr id="matHead">
+                <th scope="col">Material</th>
+                <th scope="col" class="num">Count</th>
+                <th scope="col">Category</th>
+              </tr>
+            </thead>
+            <tbody id="matRows"></tbody>
+          </table>
+        </div>
+        <div id="matCap" class="mat-cap dim small"></div>
+      </div>
+      <div class="card" id="dojoCard">
+        <div class="card-head mat-head">
+          <div class="card-title" id="dojoTitle">Clan Dojo <span class="dim small" id="dojoMeta"></span></div>
+          <div class="mat-tools">
+            <div class="matview" id="dojoTier" role="group" aria-label="Clan tier">
+              <button data-t="ghost" title="Ghost clan cost column" aria-pressed="true">Ghost</button>
+              <button data-t="shadow" title="Shadow clan cost column" aria-pressed="false">Shadow</button>
+              <button data-t="storm" title="Storm clan cost column" aria-pressed="false">Storm</button>
+              <button data-t="mountain" title="Mountain clan cost column" aria-pressed="false">Mountain</button>
+              <button data-t="moon" title="Moon clan cost column" aria-pressed="false">Moon</button>
+            </div>
+          </div>
+        </div>
+        <div class="tablewrap dojowrap">
+          <table id="dojoTbl">
+            <thead>
+              <tr>
+                <th scope="col">Material</th>
+                <th scope="col" class="num">Needed</th>
+                <th scope="col" class="num">Owned</th>
+                <th scope="col" class="num">Short</th>
+              </tr>
+            </thead>
+            <tbody id="dojoRows"></tbody>
+          </table>
+        </div>
+        <div id="dojoNote" class="dojo-note dim small explain">Short counts what is still missing after your owned materials.</div>
+        <details class="acc sub" id="dojoRooms">
+          <summary>Rooms <span class="dim small" id="dojoRoomsMeta"></span></summary>
+          <div id="dojoRoomsList"></div>
+        </details>
+        <div class="dojo-src"><a class="movedlink" id="dojoSrc" href="https://wiki.warframe.com" target="_blank" rel="noopener">wiki.warframe.com</a></div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head"><div class="card-title">Inventory changes <span class="dim small" id="diffMeta"></span></div></div>
       <div class="picks" id="diffList"></div>
@@ -246,6 +308,37 @@
         <div class="picks" id="notifyList"></div>
       </div>
     </details>
+  </section>
+
+  <!-- PLAYER - profile snapshot: mastery, clan, syndicates, intrinsics, focus, market -->
+  <section id="view-player" class="hidden">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Player <span class="dim small" id="pcMeta"></span></div></div>
+      <div id="pcHead" class="pc-id"></div>
+      <div class="kpis" id="pcStats"></div>
+      <div class="subhead" title="top 5 items by experience">Most XP</div>
+      <div class="picks" id="pcTop"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Clan</div></div>
+      <div class="picks" id="pcClan"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Syndicates <span class="dim small" id="pcSynMeta"></span></div></div>
+      <div id="pcSyn"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Intrinsics</div></div>
+      <div id="pcInt" class="pc-cols"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Focus <span class="dim small" id="pcFocusMeta"></span></div></div>
+      <div id="pcFocus"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Market</div></div>
+      <div class="picks" id="pcMarket"></div>
+    </div>
   </section>
 
   <!-- MORE - market tools by intent + settings -->

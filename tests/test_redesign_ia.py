@@ -25,10 +25,11 @@ def test_index_has_the_five_section_nav():
     html = read('index.html')
     nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
     for href, label in (('#home', 'Home'), ('#inventory', 'Inventory'), ('#trade', 'Trade'),
-                        ('/collection.html', 'Collection'), ('#more', 'More')):
+                        ('/collection.html', 'Collection'), ('#player', 'Player'), ('#more', 'More')):
         assert 'href="%s"' % href in nav, href
         assert '>%s</a>' % label in nav, label
-    assert nav.count('class="navpill') == 5
+    assert nav.count('class="navpill') == 6
+    assert nav.index('/collection.html') < nav.index('#player') < nav.index('#more')   # Player sits between
 
 
 def test_index_has_four_view_sections_and_real_trade_tabs():

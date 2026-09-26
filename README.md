@@ -8,7 +8,7 @@ trade log. Everything runs on your own PC: a Python 3.11 standard-library server
 `127.0.0.1:8787`, a vanilla-JS front end (no framework, no build step) and JSON files under `data/`.
 No account is needed to start, and nothing is uploaded anywhere.
 
-*(The preview flips the palette once mid-tour — 30 themes ship, this is one of them switching.)*
+*(The preview flips the palette once mid-tour — 60 themes ship (30 dark + 30 light), this is one of them switching.)*
 
 ## Safety: posting is Not live by default, and that is the only shipped mode
 

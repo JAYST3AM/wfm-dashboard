@@ -86,6 +86,10 @@ SPEC = [
          help='Show the extra explanations, hints and footnotes across the dashboard.',
          note='false = pages stay clean (labels, values and status only). true = the extra '
               'explanations, setting hints and footnotes appear again.'),
+    dict(key='clan_name', type='text', min=None, max=32, default='', choices=None, step=None,
+         consumed_by='static/app.js, player page (clan card)',
+         help='Your clan name, shown on the Player page.',
+         note='Shown on the Player page as the clan label (leave blank to hide it).'),
     dict(key='gifs', type='bool', min=None, max=None, default=False, choices=None, step=None,
          consumed_by='static UI (celebration GIFs; nothing reads it yet)',
          help='Allow animated GIF extras in the dashboard UI.',
@@ -195,6 +199,18 @@ def coerce(row, raw):
         if v in _BOOL_FALSE:
             return True, False, None
         return False, None, f'{key} expects true/false (got {str(raw).strip()!r})'
+    if row['type'] == 'text':
+        if raw is None:
+            return True, row['default'], None
+        if isinstance(raw, (dict, list, bool)):
+            return False, None, f'{key} expects a line of text (got {raw!r})'
+        v = str(raw).strip()
+        bad = ('\r', '\n', '	')
+        if any(ch in v for ch in bad):
+            return False, None, f'{key} expects a single line of text'
+        if row['max'] is not None:
+            v = v[:row['max']]
+        return True, v, None
     if row['type'] == 'choice':
         if not isinstance(raw, str):
             return False, None, (f'{key} expects one of {", ".join(row["choices"])} '
@@ -459,7 +475,7 @@ def selftest():
             all({'key', 'type', 'min', 'max', 'default', 'choices', 'step', 'help',
                  'consumed_by', 'note'} <= set(r) for r in rows))
         chk('schema types are min/max, choice or bool',
-            {r['type'] for r in rows} == {'min/max', 'choice', 'bool'})
+            {r['type'] for r in rows} == {'min/max', 'choice', 'bool', 'text'})
         chk('schema is JSON-serializable', bool(json.dumps(rows)))
         chk('keys are unique and none is a _comment note',
             len(set(SPEC_KEYS)) == len(SPEC_KEYS) and not any(is_note(k) for k in SPEC_KEYS))

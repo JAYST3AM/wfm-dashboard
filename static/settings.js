@@ -136,6 +136,7 @@ function buildControl(meta, sch, src, id) {
   } else {
     ctl = el('input');
     ctl.type = 'text';
+    if (sch.max) ctl.maxLength = sch.max;
     ctl.value = String(val);
   }
   ctl.id = id;

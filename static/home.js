@@ -549,6 +549,91 @@
       if (today) renderToday(today, d.advisor);
       if (alerts) renderAlerts(alerts, d);
       if (recent) renderRecent(recent, d);
+      setTimeout(syncNewsHeight, 60);
     });
   };
+
+  /* ---- Game updates matches Recent activity in length (Jay 2026-09-26) ----
+     Two jobs: (1) keep #newsCard at least as tall as #recentCard, (2) grow the news list row by
+     row until the card is filled (app.js renders four; the payload usually carries more). Both are
+     re-applied after app.js re-renders the list on a refresh, so the columns never drift apart. */
+  const NEWS_FILL_MAX = 10;
+  let newsObserving = false;
+
+  function newsPayload() {
+    try {
+      if (typeof GAMENEWS !== 'undefined' && GAMENEWS && Array.isArray(GAMENEWS.items)) return GAMENEWS.items;
+    } catch (e) { /* app.js has not run yet - fine, try again on the next tick */ }
+    return null;
+  }
+
+  function newsDayLabel(ts) {
+    try { if (typeof fmtDay === 'function') return fmtDay(ts); } catch (e) { /* fall through */ }
+    return '';
+  }
+
+  function renderNewsRows(list, items, n) {
+    list.textContent = '';
+    items.slice(0, n).forEach((it) => {
+      const row = document.createElement('div'); row.className = 'newsrow';
+      const d = document.createElement('span'); d.className = 'n-date'; d.textContent = newsDayLabel(it.date);
+      const a = document.createElement('a'); a.className = 'n-title';
+      a.href = it.url || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.title || '';
+      if (it.excerpt) a.title = it.excerpt;
+      const s = document.createElement('span'); s.className = 'n-src dim'; s.textContent = it.source || '';
+      row.appendChild(d); row.appendChild(a); row.appendChild(s);
+      list.appendChild(row);
+    });
+  }
+
+  function syncNewsHeight() {
+    const news = document.getElementById('newsCard');
+    const recent = document.getElementById('recentCard');
+    if (!news || !recent) return;
+    const target = Math.round(recent.getBoundingClientRect().height);
+    if (target < 60) return;
+    if (Math.abs((parseFloat(news.style.minHeight) || 0) - target) > 1) news.style.minHeight = target + 'px';
+
+    const list = document.getElementById('newsList');
+    const items = newsPayload();
+    if (!list || !items || !items.length) return;
+    const shown = list.querySelectorAll('.newsrow').length;
+    const cap = Math.min(NEWS_FILL_MAX, items.length);
+    if (!shown || shown >= cap) return;
+    /* compare the card's CONTENT height against the target - min-height already made the box tall */
+    const cs = getComputedStyle(news);
+    const padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const headEl = news.querySelector('.card-head');
+    const headH = headEl ? headEl.getBoundingClientRect().height : 0;
+    const content = () => Math.round(list.getBoundingClientRect().height + headH + padV);
+    let n = shown;
+    while (n < cap) {
+      renderNewsRows(list, items, n + 1);
+      if (content() > target + 1) {          /* overshoot: fall back one row so the boxes match exactly */
+        renderNewsRows(list, items, n);
+        break;
+      }
+      n += 1;
+    }
+  }
+
+  function watchNews() {
+    const list = document.getElementById('newsList');
+    if (!list || !window.MutationObserver || newsObserving) return;
+    const mo = new MutationObserver(() => {
+      mo.disconnect();
+      syncNewsHeight();
+      mo.observe(list, { childList: true });
+    });
+    mo.observe(list, { childList: true });
+    newsObserving = true;
+  }
+
+  window.wfmSyncNewsHeight = syncNewsHeight;
+  window.addEventListener('resize', () => {
+    clearTimeout(window.wfmSyncNewsHeight._t);
+    window.wfmSyncNewsHeight._t = setTimeout(syncNewsHeight, 200);
+  });
+  setTimeout(() => { syncNewsHeight(); watchNews(); }, 700);
+  setInterval(syncNewsHeight, 30000);
 })();

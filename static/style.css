@@ -109,8 +109,8 @@ main { padding: 10px 18px 48px; }
 .k-label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 .k-val { font-family: var(--mono); font-size: 18px; font-weight: 700; margin-top: 3px; }
 .k-val.accent { color: var(--accent); }
-.upl { color: #4ade80; }
-.downl { color: #f87171; }
+.upl { color: var(--up, #4ade80); }
+.downl { color: var(--down, #f87171); }
 
 /* ---- range pills ---- */
 .ranges { display: flex; gap: 4px; }
@@ -536,3 +536,78 @@ main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .3
 /* ---- Advanced switch (static/adv.js): extra explanations are hidden until it is on ---- */
 .explain { display: none !important; }
 html[data-adv="on"] .explain { display: revert !important; }
+
+/* ---- inventory panels: materials + clan dojo (app.js renderMaterials / renderDojo) ----
+   Two cards in one row inside the inventory view; under 1040px they stack. Rows keep the
+   inventory table's condensed density, and both tables scroll inside their own .tablewrap
+   so the 14-column inventory table above is untouched. */
+.invpanels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.invpanels > .card { margin-bottom: 0; }
+.mat-head { flex-wrap: wrap; gap: 8px; }
+.mat-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mat-tools .invq { min-width: 150px; }
+/* Personal / Dojo segmented pills - same recipe as the range + trade pickers */
+.matview { display: inline-flex; gap: 3px; }
+.matview button {
+  background: none; color: var(--muted); cursor: pointer;
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
+  font: 500 11.5px var(--sans);
+}
+.matview button:hover { color: var(--text); background: var(--panel2); }
+.matview button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.invpanels .tablewrap { max-height: 420px; }
+.invpanels .dojowrap { max-height: 320px; }
+.mat-row td, .dojo-row td { padding: 3.5px 10px; font-size: 12px; }
+.dojobadge {
+  font-size: 9px; font-weight: 700; color: var(--accent); vertical-align: 1px;
+  border: 1px solid var(--accent-dim); border-radius: 999px; padding: 0 4px; margin-left: 3px;
+}
+.mat-cap { padding: 0 10px 8px; }
+.mat-empty { padding: 12px 10px; }
+.rcosts { padding: 0 10px 6px; }
+.dojo-src { padding: 0 10px 12px; }
+@media (max-width: 1040px) {
+  .invpanels { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  /* all three columns stay readable on a phone - the name ellipsizes, never scrolls sideways */
+  .mat-row td.name { max-width: 150px; }
+}
+
+/* ---- PLAYER page (static/app.js renderPlayer*): profile cards from data/player.json ----
+   Same palette vars as the rest of the sheet - accent + muted/border only, no new colours. */
+.pc-id { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 16px 2px; }
+.pc-alias { color: var(--accent); font-size: 30px; font-weight: 700; line-height: 1.15; }
+.pc-mr {
+  display: inline-flex; align-items: baseline; gap: 9px; padding: 6px 17px;
+  background: var(--panel2); border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.pc-mr-l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+.pc-mr-v { color: var(--text); font-family: var(--mono); font-size: 26px; font-weight: 700; }
+.pc-name { color: var(--text); font-weight: 600; }
+.pc-inrow { display: inline-flex; gap: 6px; align-items: center; }
+.pc-inrow .noteinput { width: 150px; }
+.pc-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 4px 18px; padding: 4px 8px 12px; }
+.pc-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 10px 6px; }
+.pc-syn {
+  display: grid; grid-template-columns: 46px minmax(130px, 260px) 104px 86px;
+  gap: 8px; align-items: center; justify-content: start; padding: 6px 12px; font-size: 13px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.pc-syn .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pc-synhead { border-top: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.pc-up { color: var(--accent); font-weight: 600; }
+.pc-frow {
+  display: grid; grid-template-columns: minmax(120px, 240px) 104px 96px;
+  gap: 10px; align-items: center; justify-content: start; padding: 6px 12px; font-size: 13px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.pc-frow:first-child { border-top: 0; }
+.pc-frow .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pc-bar { display: block; height: 6px; border-radius: 999px; background: var(--panel2); overflow: hidden; }
+.pc-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+@media (max-width: 640px) {
+  .pc-syn { grid-template-columns: 40px minmax(0, 1fr) 84px 70px; padding: 6px 10px; }
+  .pc-frow { grid-template-columns: minmax(0, 1fr) 84px 70px; padding: 6px 10px; }
+}

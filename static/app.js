@@ -10,7 +10,7 @@ function buildThemeGrid() { wfmBuildThemeGrid(); }
 
 /* ---------- data ---------- */
 let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADER = null, GAMENEWS = null, FEAT = {};
-let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {} };
+let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', dojoTier: 'ghost', player: null, cfg: null };
 /* global item search cache - declared up here because the hash router can call into
    the search before the rest of the file has run (classic script, no module scope) */
 /* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. Engine
@@ -49,10 +49,10 @@ function renderChips() {
 }
 
 /* ---------- views ---------- */
-const VIEWS = ['home', 'inventory', 'trade', 'more'];
+const VIEWS = ['home', 'inventory', 'trade', 'player', 'more'];
 /* legacy hashes from the 9-pill era still resolve: #history/#trader -> trade, #market -> more */
 const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', more: 'more',
-  history: 'trade', trader: 'trade', market: 'more' };
+  player: 'player', history: 'trade', trader: 'trade', market: 'more' };
 
 function showView(v) {
   if (!VIEWS.includes(v)) v = 'home';
@@ -63,6 +63,7 @@ function showView(v) {
   document.querySelectorAll('#mainnav .navpill').forEach(el2 =>
     el2.classList.toggle('active', el2.dataset.v === v));
   if (window.PlatChart) PlatChart.redraw();
+  if (v === 'player') renderPlayerPage();
   if (v === 'home' && window.wfmRenderHome) wfmRenderHome();
 }
 
@@ -673,6 +674,117 @@ function renderTable() {
      <span>Filtered value <b class="big">${tot.toLocaleString()}p</b></span>`;
 }
 
+/* ---------- inventory panels: materials + the clan dojo buildout ----------
+   One payload (state.materials, /api/feature/materials) feeds both cards: the owned
+   materials table (Personal/Dojo swap, search + a Count/Name sort toggle, capped at
+   MAT_CAP rows) and the clan dojo card (shortages first, per-room costs collapsed). */
+const MAT_CAP = 400;
+/* the swapped header cells - Personal is the shipped default in index.html (#matHead) */
+const MAT_HEADS = {
+  personal: '<th scope="col">Material</th><th scope="col" class="num">Count</th><th scope="col">Category</th>',
+  dojo: '<th scope="col">Material</th><th scope="col" class="num">Needed</th><th scope="col" class="num">Owned</th><th scope="col" class="num">Short</th>',
+};
+
+function matRowsFiltered() {
+  const M = state.materials || {};
+  const dojo = state.matView === 'dojo';
+  const q = (state.matQ || '').toLowerCase();
+  let rs = (M.materials || []).filter(r => (dojo ? !!r.dojo : true)
+    && (!q || String(r.name || '').toLowerCase().includes(q)));
+  if (dojo) {
+    return rs.slice().sort((a, b) => (b.short || 0) - (a.short || 0)
+      || (b.needed || 0) - (a.needed || 0));
+  }
+  if (state.matSort === 'name') {
+    rs = rs.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  } else {
+    rs = rs.slice().sort((a, b) => (b.count || 0) - (a.count || 0)
+      || String(a.name || '').localeCompare(String(b.name || '')));
+  }
+  return rs;
+}
+
+function renderMaterials() {
+  const M = state.materials || {};
+  const dojo = state.matView === 'dojo';
+  const meta = document.getElementById('matMeta');
+  if (meta) {
+    const all = (M.materials || []).filter(r => (dojo ? !!r.dojo : true));
+    const shortN = all.filter(r => (r.short || 0) > 0).length;
+    meta.title = dojo ? 'needed for the clan dojo buildout' : 'distinct materials owned';
+    meta.textContent = dojo
+      ? `${fmt(all.length)} dojo materials${shortN ? ` · ${fmt(shortN)} short` : ''}`
+      : (M.count ? '· ' + fmt(M.count) : '');
+  }
+  const tbody = document.getElementById('matRows');
+  if (!tbody) return;
+  const head = document.getElementById('matHead');
+  if (head) head.innerHTML = MAT_HEADS[dojo ? 'dojo' : 'personal'];
+  const rows = matRowsFiltered();
+  tbody.innerHTML = rows.slice(0, MAT_CAP).map(r => dojo ? `
+    <tr class="mat-row" data-slug="${escHtml(r.slug)}">
+      <td class="name" title="${escHtml(r.name)}">${escHtml(r.name)}</td>
+      <td class="num">${fmt(r.needed)}</td>
+      <td class="num">${fmt(r.count)}</td>
+      <td class="num">${(r.short || 0) > 0 ? '<span class="v">' + fmt(r.short) + '</span>' : (r.short == null ? '<span class="dim">—</span>' : '<span class="dim">ok</span>')}</td>
+    </tr>` : `
+    <tr class="mat-row" data-slug="${escHtml(r.slug)}">
+      <td class="name" title="${escHtml(r.name)}">${escHtml(r.name)}${r.dojo ? ' <span class="dojobadge" title="needed for the clan dojo buildout">DOJO</span>' : ''}</td>
+      <td class="num">${fmt(r.count)}</td>
+      <td><span class="cat">${escHtml(r.cat || '-')}</span></td>
+    </tr>`).join('') || (dojo
+      ? '<tr><td colspan="4" class="dim mat-empty">No dojo materials yet.</td></tr>'
+      : '<tr><td colspan="3" class="dim mat-empty">No material data yet.</td></tr>');
+  const cap = document.getElementById('matCap');
+  if (cap) cap.textContent = rows.length > MAT_CAP ? `showing ${MAT_CAP} of ${rows.length}` : '';
+}
+
+function renderDojo() {
+  const D = (state.materials || {}).dojo || null;
+  const head = document.getElementById('dojoTitle'), meta = document.getElementById('dojoMeta');
+  const tbody = document.getElementById('dojoRows'), rooms = document.getElementById('dojoRooms');
+  if (!tbody) return;
+  if (!D) {
+    if (meta) meta.textContent = '';
+    if (head) head.title = '';
+    if (rooms) rooms.classList.add('hidden');
+    tbody.innerHTML = '<tr><td colspan="4" class="dim mat-empty">No dojo data yet.</td></tr>';
+    return;
+  }
+  if (head) head.title = D.scope || '';
+  const TT = (D.tier_totals || {})[state.dojoTier] || null;   // the wiki's own column for this clan size
+  const rowsSrc = TT ? TT.materials : (D.materials || []);    // no column -> ghost totals
+  const credits = TT ? TT.credits : D.credits;
+  const shortN = rowsSrc.filter(m => (m.short || 0) > 0).length;
+  if (meta) meta.textContent = `· ${dojoTierLabel(D, TT)} · ${fmt(credits)} cr · ${shortN} short`;
+  const rows = rowsSrc.slice().sort((a, b) => (b.short || 0) - (a.short || 0)
+    || (b.needed || 0) - (a.needed || 0));
+  tbody.innerHTML = rows.map(m => `
+    <tr class="dojo-row" data-slug="${escHtml(m.slug)}">
+      <td class="name">${escHtml(m.name)}</td>
+      <td class="num">${fmt(m.needed)}</td>
+      <td class="num">${fmt(m.owned)}</td>
+      <td class="num">${(m.short || 0) > 0 ? '<span class="v">' + fmt(m.short) + '</span>' : '<span class="dim">ok</span>'}</td>
+    </tr>`).join('') || '<tr><td colspan="4" class="dim mat-empty">Nothing needed.</td></tr>';
+  if (rooms) rooms.classList.remove('hidden');
+  const rmeta = document.getElementById('dojoRoomsMeta');
+  if (rmeta) rmeta.textContent = `· ${(D.rooms || []).length}`;
+  const rlist = document.getElementById('dojoRoomsList');
+  if (rlist) rlist.innerHTML = (D.rooms || []).map(rm => {
+    const R = ((D.room_tiers || {})[rm.slug] || {})[state.dojoTier]
+      || ((D.room_tiers || {})[rm.slug] || {}).ghost || null;   // per-tier table, else ghost
+    const costs = R ? R.costs : (rm.costs || []), cr = R ? R.credits : rm.credits;
+    return `
+    <div class="mrow"><span class="m-name" title="${escHtml(rm.url || '')}">${escHtml(rm.name)}</span><span class="num">${fmt(cr)} cr</span></div>
+    <div class="rcosts dim small">${(costs || []).map(c => `<span title="needed ${fmt(c.qty)} · owned ${fmt(c.owned)}">${escHtml(c.name)} ${fmt(c.qty)}</span>`).join(' · ')}</div>`;
+  }).join('');
+  const a = document.getElementById('dojoSrc');
+  if (a && D.source) {
+    a.textContent = D.source;
+    a.href = /^https?:/i.test(D.source) ? D.source : 'https://' + D.source;
+  }
+}
+
 async function load() {
   const [s, i, ph, rep, tr, tdr, gn] = await Promise.all([
     fetch('/api/summary').then(r => r.json()),
@@ -691,8 +803,12 @@ async function load() {
     .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); })
     .concat([fetch('/api/feature/itemhist').then(r => r.json())
       .then(j => { state.itemhist = (j && j.items) || {}; })
-      .catch(() => { state.itemhist = {}; })]));
-  renderChips(); renderTabs(); renderTable();
+      .catch(() => { state.itemhist = {}; }),
+      fetch('/api/feature/materials').then(r => r.json())
+      .then(j => { state.materials = (j && typeof j === 'object') ? j : null; })
+      .catch(() => { state.materials = null; })]));
+  paintDojoTier();
+  renderChips(); renderTabs(); renderTable(); renderMaterials(); renderDojo();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
   renderFirstRun();
   if (window.wfmRenderHome) wfmRenderHome();
@@ -946,6 +1062,226 @@ function renderKill() {
     <span class="dim small explain">All engines are not live — posting is held until it ships.</span></div>`;
 }
 
+/* ---------- player page (#player): data/player.json ---------- */
+/* The page renders labels and values only. Every number goes through pnum(), so a missing
+   or non-numeric field prints a dash - never undefined or NaN. The payload is fetched once
+   and cached on state.player; the clan name is a dashboard config value, not player.json. */
+const PC_SIDES = [
+  ['Railjack', 'railjack', [['pilotting', 'Piloting'], ['gunnery', 'Gunnery'],
+    ['engineering', 'Engineering'], ['tactical', 'Tactical'], ['command', 'Command']]],
+  ['Drifter', 'drifter', [['riding', 'Riding'], ['combat', 'Combat'], ['opportunity', 'Opportunity']]],
+];
+let PLAYER_REQ = null, CFG_REQ = null, PC_CLAN_ERR = '';
+
+function pnum(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n.toLocaleString() : '—';
+}
+function ptxt(v) { return (v === null || v === undefined || v === '') ? '—' : escHtml(v); }
+function pyes(v) { return v === true ? 'Yes' : (v === false ? 'No' : '—'); }
+function pcVal(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v.toLocaleString() : '—';
+  if (typeof v === 'boolean') return pyes(v);
+  if (typeof v === 'string') return v ? escHtml(v) : '—';
+  return '—';
+}
+function pcStanding(s) {
+  const v = (s || {}).standing;
+  const n = typeof v === 'number' ? v : Number(v);
+  return (v === null || v === undefined || v === '' || !Number.isFinite(n)) ? -Infinity : n;
+}
+
+function loadPlayer() {
+  if (state.player) return Promise.resolve(state.player);
+  if (!PLAYER_REQ) {
+    PLAYER_REQ = fetch('/api/feature/player').then(r => r.json())
+      .then(j => (j && typeof j === 'object' && !Array.isArray(j)) ? j : {})
+      .catch(() => ({}));
+  }
+  return PLAYER_REQ.then(j => { state.player = j; return j; });
+}
+
+function loadDashCfg() {
+  if (state.cfg) return Promise.resolve(state.cfg);
+  if (!CFG_REQ) {
+    CFG_REQ = fetch('/api/config').then(r => r.json())
+      .then(j => { state.cfg = (j && j.values) || {}; return state.cfg; })
+      .catch(() => { state.cfg = {}; return state.cfg; });
+  }
+  return CFG_REQ;
+}
+
+function renderPlayerPage() {
+  loadPlayer().then(P => {
+    renderPlayerCard(P); renderPlayerSyndicates(P); renderPlayerIntrinsics(P);
+    renderPlayerFocus(P); renderPlayerMarket(P); renderPlayerClan(P);
+  });
+  if (state.cfg) renderPlayerClan(state.player || {});
+  else loadDashCfg().then(() => renderPlayerClan(state.player || {}));
+}
+
+function renderPlayerCard(P) {
+  const m = P.mastery || {}, s = P.stats || {};
+  const head = document.getElementById('pcHead');
+  if (head) head.innerHTML =
+    `<div class="pc-alias">${ptxt(P.alias)}</div><div class="pc-mr">` +
+    `<span class="pc-mr-l">MR</span><span class="pc-mr-v">${pnum(m.rank)}</span></div>`;
+  const meta = document.getElementById('pcMeta');
+  if (meta) meta.textContent = P.updated ? '· synced ' + ago(P.updated) : '';
+  const stats = document.getElementById('pcStats');
+  if (stats) stats.innerHTML =
+    `<div class="kpi"><div class="k-label">Items tracked</div><div class="k-val">${pnum(s.items_tracked)}</div></div>` +
+    `<div class="kpi"><div class="k-label">Achievements</div><div class="k-val">${pnum(s.achievements_tracked)}</div></div>` +
+    `<div class="kpi"><div class="k-label">Last region</div><div class="k-val">${ptxt(s.last_region)}</div></div>` +
+    `<div class="kpi"><div class="k-label">Railjack</div><div class="k-val">${pyes(s.railjack_owned)}</div></div>` +
+    `<div class="kpi"><div class="k-label">Necramech</div><div class="k-val">${pyes(s.necramech_owned)}</div></div>`;
+  const top = document.getElementById('pcTop');
+  const items = Array.isArray(m.top_items) ? m.top_items.slice(0, 8) : [];
+  if (top) top.innerHTML = items.length ? items.map(it => {
+    const r2 = it || {};
+    return `<div class="mrow"><span class="m-name" title="${escHtml(r2.name || '')}">${ptxt(r2.name)}</span>` +
+      `<span class="num">${pnum(r2.xp)}</span></div>`;
+  }).join('') : '<div class="dim pad">—</div>';
+}
+
+function renderPlayerClan(P) {
+  const el = document.getElementById('pcClan');
+  if (!el) return;
+  const C = (P && P.clan) || {}, cfg = state.cfg;
+  const name = cfg ? String(cfg.clan_name || '').trim() : '';
+  const rows = [];
+  if (name) {
+    rows.push(`<div class="mrow"><span class="m-name dim">Clan name</span><span class="num pc-name">${escHtml(name)}</span></div>`);
+  } else if (cfg) {
+    rows.push(`<div class="mrow"><label class="m-name dim" for="pcClanName">Clan name</label><span class="num pc-inrow">` +
+      `<input id="pcClanName" class="noteinput" type="text" maxlength="32" placeholder="—" aria-label="Clan name">` +
+      `<button class="btn" id="pcClanSave">Save</button></span></div>`);
+  } else {
+    rows.push(`<div class="mrow"><span class="m-name dim">Clan name</span><span class="num dim">—</span></div>`);
+  }
+  const cid = String(C.id || '');
+  rows.push(`<div class="mrow"><span class="m-name dim">Clan id</span><span class="num">` +
+    (cid ? `<span title="${escHtml(cid)}">${escHtml(cid.slice(0, 8))}</span>` : '<span class="dim">—</span>') + `</span></div>`);
+  rows.push(`<div class="mrow"><span class="m-name dim">Research blueprints</span><span class="num">${pnum(C.research_blueprints)}</span></div>`);
+  const vb = C.vault_bonus;
+  const vbTxt = (vb && vb.progress !== null && vb.progress !== undefined)
+    ? pnum(vb.progress) + ' / ' + pnum(vb.week_count) : '—';
+  rows.push(`<div class="mrow"><span class="m-name dim">Vault bonus</span><span class="num${vbTxt === '—' ? ' dim' : ''}">${vbTxt}</span></div>`);
+  rows.push(`<a class="movedlink" href="#inventory">Dojo materials →</a>`);
+  if (PC_CLAN_ERR) rows.push(`<div class="dim small pad">${escHtml(PC_CLAN_ERR)}</div>`);
+  el.innerHTML = rows.join('');
+  const inp = document.getElementById('pcClanName'), btn = document.getElementById('pcClanSave');
+  if (btn) btn.onclick = pcSaveClanName;
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') pcSaveClanName(); });
+}
+
+async function pcSaveClanName() {
+  const inp = document.getElementById('pcClanName');
+  if (!inp) return;
+  const name = String(inp.value || '').trim();
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pairs: { clan_name: name } }),
+    }).then(r => r.json());
+    if (res && res.ok === false) {
+      PC_CLAN_ERR = 'Not saved · ' + String(res.error || '').slice(0, 80);
+    } else {
+      PC_CLAN_ERR = '';
+      state.cfg = (res && res.cfg && res.cfg.values)
+        ? res.cfg.values : Object.assign({}, state.cfg || {}, { clan_name: name });
+    }
+  } catch (e) {
+    PC_CLAN_ERR = 'Not saved · ' + String((e && e.message) || e).slice(0, 80);
+  }
+  renderPlayerClan(state.player || {});
+}
+
+function renderPlayerSyndicates(P) {
+  const el = document.getElementById('pcSyn');
+  if (!el) return;
+  const list = (Array.isArray(P.syndicates) ? P.syndicates.slice() : [])
+    .sort((a, b) => pcStanding(b) - pcStanding(a));
+  const meta = document.getElementById('pcSynMeta');
+  if (meta) meta.textContent = list.length ? '· ' + list.length : '';
+  el.innerHTML = list.length
+    ? `<div class="pc-syn pc-synhead"><span>Rank</span><span>Syndicate</span>` +
+      `<span class="num">Standing</span><span class="num">Next</span></div>` +
+      list.map(s => {
+        const st = pcStanding(s), known = Number.isFinite(st);
+        const hasNext = s.next_at !== null && s.next_at !== undefined;
+        const next = !hasNext ? '<span class="dim">max</span>'
+          : pnum(known ? Math.max(0, Number(s.next_at) - st) : s.next_at);
+        return `<div class="pc-syn">` +
+          `<span class="dim">${pnum(s.title)}</span>` +
+          `<span class="d-name" title="${escHtml(s.tag || '')}">${ptxt(s.name)}</span>` +
+          `<span class="num ${known && st < 0 ? 'downl' : (known ? 'pc-up' : 'dim')}">${known ? st.toLocaleString() : '—'}</span>` +
+          `<span class="num">${next}</span></div>`;
+      }).join('')
+    : '<div class="dim pad">—</div>';
+}
+
+function renderPlayerIntrinsics(P) {
+  const el = document.getElementById('pcInt');
+  if (!el) return;
+  const I = P.intrinsics || {};
+  el.innerHTML = PC_SIDES.map(([label, key, stats]) => {
+    const side = I[key] || {};
+    const chips = stats.map(([k, tag]) => `<span class="chip">${tag} <b>${pnum(side[k])}</b></span>`).join('');
+    return `<div class="pc-col"><div class="subhead">${label} <span class="dim">XP ${pnum(side.xp)}</span></div>` +
+      `<div class="pc-chips">${chips}</div></div>`;
+  }).join('');
+}
+
+function renderPlayerFocus(P) {
+  const el = document.getElementById('pcFocus');
+  if (!el) return;
+  const fx = f => { const n = Number((f || {}).xp); return Number.isFinite(n) ? n : -1; };
+  const list = (Array.isArray(P.focus) ? P.focus.slice() : []).sort((a, b) => fx(b) - fx(a));
+  const total = list.reduce((a, f) => a + Math.max(0, fx(f)), 0);
+  const top = list.reduce((a, f) => Math.max(a, fx(f)), 0);
+  const df = (P.stats || {}).daily_focus;
+  const meta = document.getElementById('pcFocusMeta');
+  if (meta) {
+    meta.textContent = (typeof df === 'number' && Number.isFinite(df)) ? '· today ' + df.toLocaleString() : '';
+    meta.title = 'focus earned today (resets daily)';
+  }
+  el.innerHTML = list.length ? list.map(f => {
+    const share = total > 0 ? Math.round(Math.max(0, fx(f)) / total * 1000) / 10 : 0;
+    const bar = top > 0 ? Math.max(3, Math.round(Math.max(0, fx(f)) / top * 100)) : 0;   // vs the biggest school
+    return `<div class="pc-frow"><span class="d-name" title="${escHtml(f.tag || '')}">${ptxt(f.name)}</span>` +
+      `<span class="num">${pnum(f.xp)}</span>` +
+      `<span class="pc-bar" title="${share}% of your focus XP"><i style="width:${bar}%"></i></span></div>`;
+  }).join('') : '<div class="dim pad">—</div>';
+}
+
+function renderPlayerMarket(P) {
+  const el = document.getElementById('pcMarket');
+  if (!el) return;
+  const M = (P.market && typeof P.market === 'object' && !Array.isArray(P.market)) ? P.market : {};
+  const keys = Object.keys(M).filter(k => M[k] !== null && M[k] !== undefined && M[k] !== '');
+  const rows = keys.map(k => `<div class="mrow"><span class="m-name dim">${escHtml(pretty(k))}</span>` +
+    `<span class="num">${pcVal(M[k])}</span></div>`);
+  el.innerHTML = rows.join('') || '<div class="dim pad">—</div>';
+  /* the profile's own market numbers live on /api/trader, fetched once */
+  if (!rows.length) loadTrader().then(T => {
+    const st = (T && T.state) || {}, out = [];
+    if (st.account) out.push(`<div class="mrow"><span class="m-name dim">Account</span><span class="num">${escHtml(String(st.account))}</span></div>`);
+    if (typeof st.plat === 'number') out.push(`<div class="mrow"><span class="m-name dim">Platinum</span><span class="num">${fmt(st.plat)}p</span></div>`);
+    if (typeof st.trades_left === 'number') out.push(`<div class="mrow"><span class="m-name dim">Trades left</span><span class="num">${fmt(st.trades_left)}</span></div>`);
+    const orders = st.orders && typeof st.orders === 'object' ? Object.keys(st.orders).length : 0;
+    out.push(`<div class="mrow"><span class="m-name dim">Orders live</span><span class="num">${fmt(orders)}</span></div>`);
+    el.innerHTML = out.join('') || '<div class="dim pad">—</div>';
+  }).catch(() => {});
+}
+
+async function loadTrader() {
+  if (!state.trader) state.trader = await fetch('/api/trader').then(r => r.json()).catch(() => ({}));
+  return state.trader;
+}
+/* ---------- /player page ---------- */
+
 /* ---------- init ---------- */
 const savedTheme = localStorage.getItem('wfm.theme');
 buildThemeGrid();
@@ -1099,6 +1435,64 @@ document.addEventListener('keydown', e => {
 /* inventory-local filter (the header search is the global lookup) */
 const invQ = document.getElementById('invQ');
 if (invQ) invQ.addEventListener('input', e => { state.q = e.target.value.trim(); renderTable(); });
+/* materials card: local search + the Count/Name sort toggle */
+const matQ = document.getElementById('matQ');
+if (matQ) matQ.addEventListener('input', e => { state.matQ = e.target.value.trim(); renderMaterials(); });
+const matSort = document.getElementById('matSort');
+if (matSort) matSort.addEventListener('click', () => {
+  state.matSort = state.matSort === 'count' ? 'name' : 'count';
+  matSort.textContent = 'Sort: ' + (state.matSort === 'count' ? 'Count' : 'Name');
+  renderMaterials();
+});
+/* clan dojo card: the tier switch the wiki lists its cost tables by (ghost..moon) */
+function dojoTierLabel(D, TT) {
+  const tiers = (D && D.tiers) || [];
+  if (!TT || tiers.indexOf(state.dojoTier) < 0) return 'ghost clan';
+  return state.dojoTier + ' clan';
+}
+const dojoTierRow = document.getElementById('dojoTier');
+const paintDojoTier = () => {
+  if (!dojoTierRow) return;
+  const D = (state.materials || {}).dojo || {};
+  const known = (D.tiers || []).indexOf(state.dojoTier) >= 0 && !!(D.tier_totals || {})[state.dojoTier];
+  const on = known ? state.dojoTier : 'ghost';
+  dojoTierRow.querySelectorAll('button[data-t]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.t === on)));
+};
+if (dojoTierRow) {
+  if (((state.materials || {}).dojo || {}).tiers && ((state.materials || {}).dojo || {}).tiers.indexOf(
+    localStorage.getItem('wfm.dojoTier') || '') >= 0) {
+    state.dojoTier = localStorage.getItem('wfm.dojoTier');
+  }
+  dojoTierRow.addEventListener('click', e => {
+    const b = e.target.closest('button[data-t]');
+    if (!b) return;
+    state.dojoTier = b.dataset.t;
+    try { localStorage.setItem('wfm.dojoTier', state.dojoTier); } catch (err) { /* storage off */ }
+    paintDojoTier();
+    renderDojo();
+  });
+}
+
+/* materials card: the Personal/Dojo swap (remembered in localStorage, never re-fetches) */
+const matViewRow = document.getElementById('matView');
+function syncMatView() {
+  if (!matViewRow) return;
+  matViewRow.querySelectorAll('button[data-m]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.m === state.matView)));
+}
+if (matViewRow) {
+  if (localStorage.getItem('wfm.matView') === 'dojo') state.matView = 'dojo';
+  syncMatView();
+  matViewRow.addEventListener('click', e => {
+    const b = e.target.closest('button[data-m]');
+    if (!b) return;
+    state.matView = b.dataset.m === 'dojo' ? 'dojo' : 'personal';
+    try { localStorage.setItem('wfm.matView', state.matView); } catch (err) { /* storage off */ }
+    syncMatView();
+    renderMaterials();
+  });
+}
 /* inventory rows open the shared item drawer */
 document.getElementById('rows').addEventListener('click', e => {
   const tr = e.target.closest('tr.inv-row');

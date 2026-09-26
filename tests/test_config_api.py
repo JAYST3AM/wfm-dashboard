@@ -13,7 +13,7 @@ import os
 from conftest import REPO
 
 SHIPPED = os.path.join(REPO, 'data', 'config.json')
-KEYS = ['port', 'host', 'theme', 'auto_refresh_seconds', 'currency_display', 'advanced', 'gifs',
+KEYS = ['port', 'host', 'theme', 'auto_refresh_seconds', 'currency_display', 'advanced', 'clan_name', 'gifs',
         'gamenews_cache_seconds', 'deals_shown', 'sessions_shown']
 
 
@@ -63,7 +63,7 @@ def test_schema_rows_carry_the_fields_the_ui_renders(server_mod, monkeypatch, tm
 
     assert all({'key', 'type', 'min', 'max', 'default', 'choices', 'step', 'help',
                 'consumed_by', 'note'} <= set(r) for r in rows.values())
-    assert {r['type'] for r in rows.values()} == {'min/max', 'choice', 'bool'}
+    assert {r['type'] for r in rows.values()} == {'min/max', 'choice', 'bool', 'text'}
     assert rows['host']['choices'] == ['127.0.0.1', '0.0.0.0']       # JSON round-trip: list
     assert rows['currency_display']['choices'] == ['p', 'plat', 'none']
     assert (rows['port']['min'], rows['port']['max'], rows['port']['step']) == (1024, 65535, 1)
