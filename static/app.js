@@ -13,6 +13,13 @@ let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADE
 let state = { tab: 'all', sort: 'value', dir: -1, q: '' };
 /* global item search cache - declared up here because the hash router can call into
    the search before the rest of the file has run (classic script, no module scope) */
+/* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. Engine
+   plans still carry mode: 'dry-run' in their JSON, so mode strings are mapped for display. */
+function modeText(m) {
+  if (!m) return '';
+  return /dry/i.test(String(m)) ? 'Not live' : String(m);
+}
+
 let CATALOG = null, CATALOG_LOADING = null;
 
 const CATS = [
@@ -346,10 +353,10 @@ function renderEngine() {
   const plannedValue = (plan.plan || []).reduce((a, r) => a + (r.est_total || 0), 0);
   const K = FEAT.killswitch || {};
   const m = document.getElementById('engMeta');
-  if (m) m.textContent = '· posting ' + (set.dry_run === false ? 'LIVE' : 'off (dry run)') + (K.active ? ' · kill switch engaged' : '');
+  if (m) m.textContent = '· posting ' + (set.dry_run === false ? 'Live' : 'Not live') + (K.active ? ' · kill switch engaged' : '');
   const line = (k, v) => `<div class="mrow"><span class="m-name dim">${k}</span><span class="num">${v}</span></div>`;
   el.innerHTML =
-    line('Posting mode', set.dry_run === false ? 'LIVE - orders can post' : 'Dry run - nothing is posted to warframe.market') +
+    line('Posting mode', set.dry_run === false ? 'Live - orders can post' : 'Not live - nothing is posted to warframe.market') +
     line('Trades left today', stt.trades_left ?? '—') +
     line('Live orders', ordersN) +
     line('Platinum balance', stt.plat != null ? stt.plat.toLocaleString() + 'p' : '—') +
@@ -381,7 +388,7 @@ function renderFlipper() {
   const m = document.getElementById('flipPlanMeta');
   if (!m) return;
   m.textContent = b.buy_budget_p !== undefined
-    ? `· ${(P.orders || []).length} buy orders · spend ${b.planned_spend_p}p of ${b.buy_budget_p}p · ${c.skipped ?? (P.skipped || []).length} skipped · ${P.mode || ''}`
+    ? `· ${(P.orders || []).length} buy orders · spend ${b.planned_spend_p}p of ${b.buy_budget_p}p · ${c.skipped ?? (P.skipped || []).length} skipped · ${modeText(P.mode)}`
     : '';
   const el = document.getElementById('flipPlanList');
   const rows = P.orders || [];
@@ -408,7 +415,7 @@ function renderHygiene() {
   if (!H.mode) { el.innerHTML = '<div class="dim pad">Run scripts/trader/hygiene.py</div>'; return; }
   const acts = H.actions || [];
   const line = a => `<div class="heldline"><span class="l-name" title="${escHtml(a.order_id)}">${escHtml(a.item)}${a.lane ? ' · ' + escHtml(a.lane) : ''}</span><span class="dim">${escHtml(a.reason || '')}</span></div>`;
-  let html = `<div class="limrow"><b>DRY RUN — plan only</b><span class="dim">${acts.length} action(s) · ${ent.live || 0} live / ${ent.pending || 0} planned listings</span></div>`;
+  let html = `<div class="limrow"><b>NOT LIVE - plan only</b><span class="dim">${acts.length} action(s) · ${ent.live || 0} live / ${ent.pending || 0} planned listings</span></div>`;
   ['hide', 'show', 'refresh'].forEach(k => {
     const rows = acts.filter(a => a.action === k);
     if (rows.length) html += `<div class="subhead">${k} <span class="dim">(${rows.length})</span></div>` + rows.slice(0, 6).map(line).join('');
@@ -508,7 +515,7 @@ function renderNotify() {
   if (!el) return;
   const rows = N.slice().reverse().slice(0, 6);
   const sent = N.filter(r => r.status === 'sent').length;
-  if (m) m.textContent = N.length ? `· ${N.length} in outbox · ${sent} delivered (rest dry-run)` : '· no outbox yet';
+  if (m) m.textContent = N.length ? `· ${N.length} in outbox · ${sent} delivered (rest held)` : '· no outbox yet';
   el.innerHTML = rows.length ? rows.map(r => `<div class="mrow"><span class="m-name">${escHtml(r.title)} <span class="dim small">${escHtml(r.to || '')}</span></span><span class="num"><span class="chip ${r.status === 'sent' ? 'act-show' : 'act-offline'}">${escHtml(r.status)}</span> ${r.ts ? ago(Date.parse(r.ts) / 1000) : ''}</span></div>`).join('')
     : '<div class="dim pad">Configure a webhook in data/notify_config.json, then send a test ping.</div>';
 }
@@ -907,7 +914,7 @@ function renderKill() {
     <span class="dim">kill switch ${K.active ? 'engaged — every engine refuses to run' : 'disarmed — engines may run'}${K.note ? ' · ' + escHtml(K.note) : ''}${ts ? ' · ' + ts : ''}</span>
   </div>
   <div class="limrow"><input id="killNote" class="noteinput" placeholder="note (why / what)" maxlength="200">
-    <span class="dim small">All engines still dry-run — this is the hard stop for when posting ships.</span></div>`;
+    <span class="dim small">All engines are not live — posting is held until it ships.</span></div>`;
 }
 
 /* ---------- init ---------- */

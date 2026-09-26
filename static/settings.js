@@ -180,11 +180,11 @@ function statusRow(meta, src) {
   const wrap = el('div', 'cfgrow');
   wrap.appendChild(el('span', 'm-name', meta.label || meta.key));
   const cell = el('span');
-  cell.appendChild(el('span', 'st-pill ' + (dry ? 'dry' : 'live'), dry ? 'Dry run' : 'Live'));
+  cell.appendChild(el('span', 'st-pill ' + (dry ? 'dry' : 'live'), dry ? 'Not live' : 'Live'));
   wrap.appendChild(cell);
-  wrap.appendChild(el('span', 'cfg-val', dry ? 'dry run' : 'live'));
+  wrap.appendChild(el('span', 'cfg-val', dry ? 'not live' : 'live'));
   wrap.appendChild(el('div', 'cfg-help', dry
-    ? 'Dry run — nothing is posted until the engine config says otherwise.'
+    ? 'Not live - nothing is posted until the engine config says otherwise.'
     : 'Live — the engine config allows posting; not editable here.'));
   return wrap;
 }
@@ -392,7 +392,7 @@ async function switchProfile(name, apply) {
         setStatus(status, 'Switched to \u201c' + name + '\u201d. Restart the server (stop.bat, then start.bat) so every page reads the new account.');
         renderPlanActions(null);
       } else {
-        setStatus(status, 'Dry run \u2014 nothing changed. Review the plan above, then apply.');
+        setStatus(status, 'Not live \u2014 nothing changed. Review the plan above, then apply.');
         renderPlanActions(name);
       }
     } else {

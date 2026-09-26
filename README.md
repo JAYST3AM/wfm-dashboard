@@ -3,19 +3,19 @@
 ![The dashboard, the trader plan, the guardrails, the market tables, the collection log and the card grid — one tour](assets/preview.gif)
 
 A local, single-user dashboard for **your own Warframe inventory** and **warframe.market** prices,
-plus a **dry-run-first trader toolkit** that plans listings, watches undercuts and keeps its own
+plus a **plan-first trader toolkit** that plans listings, watches undercuts and keeps its own
 trade log. Everything runs on your own PC: a Python 3.11 standard-library server on
 `127.0.0.1:8787`, a vanilla-JS front end (no framework, no build step) and JSON files under `data/`.
 No account is needed to start, and nothing is uploaded anywhere.
 
 *(The preview flips the palette once mid-tour — 30 themes ship, this is one of them switching.)*
 
-## Safety: dry run is the default and the only shipped mode
+## Safety: posting is Not live by default, and that is the only shipped mode
 
-- **`dry_run` is locked on.** It is the master safety gate, and the settings writer refuses to set it
-  false: `python scripts/trader/settings.py --set dry_run=false` exits `3` and leaves the file
-  byte-identical. Every trader engine therefore plans and checks — none of them posts, relists or
-  reprices.
+- **Posting is Not live, and `dry_run` is locked on.** `dry_run` is the master gate; the settings
+  writer refuses to turn it off (i.e. go Live): `python scripts/trader/settings.py --set dry_run=false`
+  exits `3` and leaves the file byte-identical. Every trader engine therefore plans and checks —
+  none of them posts, relists or reprices.
 - **Kill switch.** Arm it from the Trader tab (`data/kill_switch.json`); the engines check it before
   every cycle, which makes it the hard stop for the day the live posting path lands.
 - **Guardrails, not constants.** Daily listing cap, ceiling on live sell orders, price floor, floor
@@ -27,8 +27,7 @@ No account is needed to start, and nothing is uploaded anywhere.
 
 Honest status: the dashboard, inventory sync, trade log, market scanners, search, collection and
 cards pages are in daily use. The trader stack (plan → detector → undercut watch → hygiene → run
-queue) runs dry run only. `auto.py`, the supervised orchestrator, is v0: one cycle at a time, dry
-run. Live posting is not in this repository.
+queue) is Not live. `auto.py`, the supervised orchestrator, is v0: one cycle at a time, Not live. Live posting is not in this repository.
 
 The UI is five sections — **Home / Inventory / Trade / Collection / More** — over the full engine
 set: anything niche lives behind a disclosure or in Advanced trading, and one shared item drawer
@@ -178,7 +177,7 @@ Each engine is a script you can also run by hand; the dashboard buttons call the
 - `wfm_check.py` — verifies the warframe.market login and prints your live orders.
 
 **Trader — `scripts/trader/`** (the local trader stack; it is not published with this repository, and
-it is dry run)
+it is Not live)
 
 - `lister.py` — builds today's listing plan from the report + live account state.
 - `detector.py` — completed sales from order, platinum and inventory diffs.
@@ -192,7 +191,7 @@ it is dry run)
 - `riven_lister.py` — veiled-riven orders + manual-price holds.
 - `notify_rules.py` — the trader-side gate in front of `scripts/notify.py`.
 - `settings.py` — the single read / validate / atomic-write path for the guardrail knobs.
-- `auto.py` — supervised single cycle over the engines (v0, dry run).
+- `auto.py` — supervised single cycle over the engines (v0, Not live).
 - `wfm_session.py` — warframe.market session helper (signs in from `secrets.json`).
 
 **Market research — `scripts/`**
@@ -241,7 +240,7 @@ changes nothing. The Settings page writes both; the CLI does the same thing.
   `auto_refresh_seconds` (60), `currency_display`, `gifs`, `gamenews_cache_seconds`, `deals_shown`,
   `sessions_shown`, `watch_save_seconds`. `python scripts/config.py --show` prints the effective
   values, `--set theme=17` writes one.
-- `scripts/trader/settings.json` — the trader guardrails: `dry_run` (locked on),
+- `scripts/trader/settings.json` — the trader guardrails: `dry_run` (the Live/Not-live gate, locked to Not live),
   `max_new_listings_per_day` (20), `max_active_listings` (40), `undercut_platinum` (1),
   `min_price_pct_of_median` (60), `min_price_platinum` (3), `buy_budget_cap_platinum` (300),
   `poll_seconds` (90). `python scripts/trader/settings.py --schema` lists them with their ranges and
@@ -285,11 +284,11 @@ it on Python 3.11 (`.github/workflows/tests.yml`).
   AlecaFrame is) and public warframe.market endpoints for prices, statistics and — only if you
   connect an account — your own orders. It identifies itself honestly and never disguises itself as
   a browser. You are responsible for how you use it against warframe.market's rules.
-- Nothing is posted on your behalf: the trader engines are dry run.
+- Nothing is posted on your behalf: the trader engines are Not live.
 
 ## Roadmap
 
-- harden `auto.py` (v0) so a supervised dry-run cycle can run on a timer, and fold the digest/push
+- harden `auto.py` (v0) so a supervised Not-live cycle can run on a timer, and fold the digest/push
   delivery into that loop.
 - deepen the price-history-driven scanners (sell timing, movers, trends).
 - the live posting path stays out until it can land behind the locked `dry_run` gate, the kill switch

@@ -20,7 +20,7 @@ Usage:
   python scripts/profiles.py --whoami                 (account name AlecaFrame is linked to)
   python scripts/profiles.py --create                 (profile named after that account)
   python scripts/profiles.py --create SampleTennoIX   (or a name you choose)
-  python scripts/profiles.py --switch Alt            (DRY RUN: prints the switch plan)
+  python scripts/profiles.py --switch Alt            (plan only: prints the switch plan)
   python scripts/profiles.py --switch Alt --apply    (backup zip -> save live -> restore Alt)
   python scripts/profiles.py --current
   python scripts/profiles.py --manifest              (what is profile-scoped, and why)
@@ -645,7 +645,7 @@ def plan_switch(name):
 
 def print_plan(plan, do_apply):
     c, oc = plan['counts'], plan['out_counts']
-    print('SWITCH PLAN%s' % ('' if do_apply else ' (DRY RUN - nothing is written)'))
+    print('SWITCH PLAN%s' % ('' if do_apply else ' (PLAN ONLY - nothing is written)'))
     print(kv_block([
         ('incoming', 'profile %s (%s)  ->  live data/' % (plan['name'], rel(plan['pdir']))),
         ('outgoing', 'live data/  ->  profile %s' % (plan['outgoing'] or 'none (live data is unmanaged)')),
@@ -1020,7 +1020,7 @@ def selftest():
         live_before = scan_tree(d)
         code, out = run(['--switch', 'alpha'])
         chk('switch dry-run: exit', code, 0)
-        chk('switch dry-run: labelled dry run', 'DRY RUN' in out, True)
+        chk('switch dry run: labelled plan only', 'PLAN ONLY' in out, True)
         chk('switch dry-run: lists files that would move',
             any(n in out for n in ('report.md', 'stats.json', 'prices.json')), True)
         chk('switch dry-run: counts line', 'identical' in out and 'left in place' in out, True)
@@ -1145,7 +1145,7 @@ def build_parser():
         epilog='examples:\n'
                '  profiles.py --list\n'
                '  profiles.py --create SampleTennoIX\n'
-               '  profiles.py --switch Alt              (dry run: prints the plan)\n'
+               '  profiles.py --switch Alt              (plan only: prints the plan)\n'
                '  profiles.py --switch Alt --apply      (backup zip, save live, restore Alt)\n'
                '  profiles.py --current\n'
                '  profiles.py --manifest\n'
@@ -1162,7 +1162,7 @@ def build_parser():
                    help='create a profile from the CURRENT live data state; with no NAME the name '
                         'comes from the AlecaFrame-linked account (see --whoami)')
     p.add_argument('--switch', metavar='NAME', default=None,
-                   help='switch the live data to this profile (DRY RUN unless --apply)')
+                   help='switch the live data to this profile (plan only unless --apply)')
     p.add_argument('--apply', action='store_true',
                    help='with --switch: perform the switch (pre-switch backup zip first)')
     p.add_argument('--selftest', action='store_true',

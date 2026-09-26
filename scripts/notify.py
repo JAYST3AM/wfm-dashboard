@@ -570,7 +570,7 @@ def positive_int(text):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog='notify.py',
-        description='Notification sender core for the dashboard: dry-run outbox by '
+        description='Notification sender core for the dashboard: plan-only outbox by '
                     'default, webhook delivery when the config says so.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='examples:\n'

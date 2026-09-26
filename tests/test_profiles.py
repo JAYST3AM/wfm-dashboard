@@ -223,7 +223,7 @@ def test_switch_dry_run_prints_the_plan_and_writes_nothing(prof, run, live):
     live_before = prof.scan_tree(str(live))
     code, out = run('--switch', 'alpha')
     assert code == 0
-    assert 'DRY RUN' in out and 'SWITCH PLAN' in out
+    assert 'PLAN ONLY' in out and 'SWITCH PLAN' in out
     assert 'owned.json' in out and 'replace' in out             # the drifted file is listed
     assert 'identical' in out and 'nothing is ever deleted' in out
     assert '--apply' in out and 'current.json' in out

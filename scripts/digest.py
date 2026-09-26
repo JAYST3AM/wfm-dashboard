@@ -26,7 +26,7 @@ Usage:
   python scripts/digest.py              # compose, print a status line + markdown, write json
   python scripts/digest.py --print      # markdown only on stdout (status line goes to stderr)
   python scripts/digest.py --save       # write data/daily_digest.json (the default)
-  python scripts/digest.py --no-save    # compose only, write nothing (dry run)
+  python scripts/digest.py --no-save    # compose only, write nothing (plan only)
   python scripts/digest.py --notify     # also hand the blob to trader/notify_rules.emit()
   python scripts/digest.py --selftest   # offline fixture checks in a tmp dir, writes nothing
 """
@@ -819,7 +819,7 @@ def build_parser():
         epilog='examples:\n'
                '  digest.py              # compose, print status + markdown, write data/daily_digest.json\n'
                '  digest.py --print      # markdown only on stdout\n'
-               '  digest.py --no-save    # dry run: compose and print, write nothing\n'
+               '  digest.py --no-save    # plan only: compose and print, write nothing\n'
                '  digest.py --notify     # also hand the blob to scripts/trader/notify_rules.emit()\n'
                '  digest.py --selftest   # offline fixture checks\n')
     parser.add_argument('--root', default=ROOT, help='repo root holding data/ (default: repo)')

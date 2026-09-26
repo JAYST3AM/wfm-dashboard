@@ -360,7 +360,7 @@
         out.push({
           kind: 'info',
           t: bits.join(' \u00b7 '),
-          d: live ? 'They go back up when you next play.' : 'Nothing is posted to the market yet - this is the dry-run plan.'
+          d: live ? 'They go back up when you next play.' : 'Nothing is posted to the market yet - this is only a plan.'
         });
       }
     }
@@ -386,7 +386,7 @@
       out.push({
         kind: 'info',
         t: 'Nothing is posted automatically',
-        d: 'Dry run is on - listings are planned here, nothing is sent out.'
+        d: 'Not live - listings are planned here, nothing is sent out.'
       });
     }
 

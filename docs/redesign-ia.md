@@ -21,7 +21,7 @@ shared drawer on any page. `/lookup.html` becomes a redirect stub to `/#search` 
 
 **Home** — Today block (advisor `recommendation='list'`, score-sorted, `List Y × Zp` dominant,
 "Potential platinum" total, expandable to 30 rows), keep/set + ducats + open-relic one-liners,
-alerts (listings needing attention, Baro, kill switch, dry-run), recent trades + session,
+alerts (listings needing attention, Baro, kill switch, Not live), recent trades + session,
 existing KPI row + platinum chart + game updates. *Removed: the old "Top sell picks" card
 (superseded by Today).*
 
@@ -67,7 +67,7 @@ Plus Settings + links (Collection, Cards).
 | undercut watch | "Someone listed X Np below you" | undercut |
 | held back | not recommended right now | held-back rows |
 | engine settings, JSON file names, consumed_by, host/port | (nothing) | Advanced settings |
-| dry_run | "Posting mode: Dry run — nothing is posted to warframe.market until turned off" | — |
+| dry_run | "Posting mode: Not live — nothing is posted to warframe.market until turned on" | — |
 
 Precise trader terms remain reachable in hover tooltips and the Advanced sections.
 
