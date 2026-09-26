@@ -90,6 +90,7 @@
     var got = isCollected(it);
     var c = el('div', 'cl-card ' + (got ? 'got' : 'miss'));
     c.setAttribute('role', 'listitem');
+    c._cl = it;                                          // the hover card reads the item off the tile
     if (it.slug) c.setAttribute('data-slug', it.slug);   // the drawer opens on this slug
 
     c.appendChild(image(it, !got));
@@ -338,6 +339,121 @@
     });
   }
 
+  /* ---------- how-to-obtain hover card ----------
+     Jay (2026-09-26): "hover over for information on where to get it, and drop chance. and
+     mission". Every tile shows a card built from collection_log item.obtain (WFCD drop tables:
+     relic / mission / enemy / source, each with the chance) - an item with no record says so
+     instead of inventing one. The wiki link inside the card stays clickable, so the card
+     outlives the pointer leaving the tile by one beat. */
+  var TIP = null;
+  function tipEl() {
+    if (TIP) return TIP;
+    TIP = el('div', 'cl-tip');
+    TIP.id = 'clTip';
+    TIP.setAttribute('role', 'tooltip');
+    document.body.appendChild(TIP);
+    return TIP;
+  }
+
+  function tipRow(line) {
+    var row = el('div', 'clt-row');
+    row.setAttribute('data-k', line.k || '');
+    var main = el('span', 'clt-main');
+    if (line.part) main.appendChild(el('span', 'clt-part', line.part));
+    main.appendChild(el('span', 'clt-src', line.label || ''));
+    row.appendChild(main);
+    if (line.detail) row.appendChild(el('span', 'clt-chance', line.detail));
+    return row;
+  }
+
+  function fillTip(tile) {
+    var tip = tipEl();
+    var it = tile._cl;
+    tip.textContent = '';
+    var head = el('div', 'clt-head');
+    head.appendChild(el('span', 'clt-name', it.name));
+    head.appendChild(el('span', 'clt-state', isCollected(it) ? 'collected' : 'missing'));
+    tip.appendChild(head);
+    var o = it.obtain || null;
+    var lines = (o && o.lines) || [];
+    if (lines.length) {
+      var body = el('div', 'clt-body');
+      lines.forEach(function (l) { body.appendChild(tipRow(l)); });
+      tip.appendChild(body);
+      if (o.lanes && o.lanes > lines.length) {
+        tip.appendChild(el('div', 'clt-more', 'showing ' + lines.length + ' of ' + o.lanes +
+          ' drop lanes'));
+      }
+    } else {
+      tip.appendChild(el('div', 'clt-note',
+        'No drop-table record for this item - it comes from a quest, vendor or event.'));
+    }
+    if (o && o.note) tip.appendChild(el('div', 'clt-note', o.note));
+    if (o && o.wiki) {
+      tip.appendChild(el('div', 'clt-wiki', o.wiki.replace('https://', '')));
+    }
+    tip._for = tile;
+    return tip;
+  }
+
+  /* Beside the tile, never on top of it: right if it fits, else left, else above/below. */
+  function placeTip(tile, tip) {
+    var r = tile.getBoundingClientRect();
+    var box = tip.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight, gap = 10;
+    var left, top;
+    if (r.right + gap + box.width <= vw - 8) {
+      left = r.right + gap;
+    } else if (r.left - gap - box.width >= 8) {
+      left = r.left - gap - box.width;
+    } else {
+      left = Math.max(8, Math.min(r.left + (r.width / 2) - (box.width / 2), vw - box.width - 8));
+    }
+    top = r.top + (r.height / 2) - (box.height / 2);
+    top = Math.max(8, Math.min(top, vh - box.height - 8));
+    tip.style.top = Math.round(top) + 'px';
+    tip.style.left = Math.round(left) + 'px';
+  }
+
+  var HIDE_TIMER = null;
+  function hideTip(now) {
+    if (HIDE_TIMER) { clearTimeout(HIDE_TIMER); HIDE_TIMER = null; }
+    var tip = TIP;
+    if (!tip) return;
+    if (now) { tip.classList.remove('on'); return; }
+    HIDE_TIMER = setTimeout(function () { tip.classList.remove('on'); }, 160);
+  }
+
+  function showTip(tile) {
+    if (HIDE_TIMER) { clearTimeout(HIDE_TIMER); HIDE_TIMER = null; }
+    var tip = (tipEl()._for === tile) ? tipEl() : fillTip(tile);
+    tip.classList.add('on');
+    placeTip(tile, tip);
+  }
+
+  function wireObtainTip() {
+    var grid = document.getElementById('grid');
+    function tileOf(node) {
+      var tile = (node && node.closest) ? node.closest('.cl-card') : null;
+      return (tile && tile._cl) ? tile : null;
+    }
+    if (grid) {
+      grid.addEventListener('mouseover', function (e) { var t = tileOf(e.target); if (t) showTip(t); });
+      grid.addEventListener('mouseout', function (e) {
+        var t = tileOf(e.target);
+        if (!t) return;
+        var to = e.relatedTarget;
+        if (to && to.closest && to.closest('.cl-card') === t) return;   // still inside the tile
+        hideTip();
+      });
+      grid.addEventListener('focusin', function (e) { var t = tileOf(e.target); if (t) showTip(t); });
+      grid.addEventListener('focusout', function () { hideTip(); });
+    }
+    document.addEventListener('scroll', function () { hideTip(true); }, true);
+    window.addEventListener('resize', function () { hideTip(true); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(true); });
+  }
+
   /* #themePanel lives inside <header> now (the dashboard's pattern), so scrolling can no
      longer leave it off-screen. theme.js - loaded before this file - already toggles the
      panel and closes it on an outside click; these handlers are registered after it and
@@ -379,6 +495,7 @@
     toggleBtn('priceBtn', 'buyable');
     wireThemePanel();
     wireDrawer();
+    wireObtainTip();
 
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); return; }

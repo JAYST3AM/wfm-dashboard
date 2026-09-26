@@ -587,8 +587,125 @@ def owned_index():
 
 
 # --------------------------------------------------------------------- log build
+# component words that make "Ash" -> "Ash Systems Blueprint" / "Braton Prime Barrel".
+# Deliberately a closed vocabulary: 'Prime Chassis Blueprint' must NOT attach to 'Ash'.
+COMPONENT_WORDS = {
+    'blueprint', 'chassis', 'neuroptics', 'helmet', 'systems', 'barrel', 'receiver', 'stock',
+    'handle', 'blade', 'hilt', 'guard', 'grip', 'string', 'limb', 'upper', 'lower', 'boot',
+    'pouch', 'stars', 'star', 'cerebrum', 'carapace', 'wings', 'wing', 'harness', 'engine',
+    'fuselage', 'reactor', 'ornament', 'head', 'gauntlet', 'buckle', 'band', 'chain', 'core',
+    'disc', 'drum', 'synergy', 'claw', 'link', 'day', 'night', 'aspect', 'warrant', 'casing',
+    'housing', 'motor', 'plate', 'limb', 'spur', 'talons', 'fur', 'fur', 'carapace',
+}
+
+
+def clean_num(value):
+    """13.33 -> '13.33', 25 -> '25', None -> '?' (for display only)."""
+    if value is None:
+        return '?'
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return '?'
+    return ('%d' % num) if num == int(num) else ('%.2f' % num).rstrip('0').rstrip('.')
+
+
+def build_item_obtain(name, index):
+    """'How to obtain' payload for one collection item, from data/obtain_index.json.
+
+    Jay (2026-09-26): *"each item ie ash needs to show how to get it"*, shown as a hover card
+    with where it drops, the mission and the drop chance. Component rows ('Ash Systems
+    Blueprint') belong to their parent item ('Ash'); a word that is not a component word
+    (e.g. 'Prime Chassis Blueprint' under 'Ash') never attaches. Nothing is invented - an item
+    with no record simply gets None and the UI says so."""
+    if not index or not name:
+        return None
+    keys = [name] if name in index else []
+    prefix = name + ' '
+    for key in index:
+        if not key.startswith(prefix):
+            continue
+        words = key[len(prefix):].replace('-', ' ').split()
+        if 0 < len(words) <= 3 and all(w.lower() in COMPONENT_WORDS for w in words):
+            keys.append(key)
+    lines, parts, missing_parts = [], [], []
+    for key in keys:
+        doc = index.get(key) or {}
+        part = None if key == name else key[len(prefix):]
+        if part:
+            fact_fields = ('relics', 'missions', 'enemies', 'other', 'market', 'research')
+            (parts if any(doc.get(f) for f in fact_fields) else missing_parts).append(part)
+        for relic in (doc.get('relics') or [])[:2]:
+            detail = '%s, %s%% intact' % (relic.get('rarity') or '?', clean_num(relic.get('chance')))
+            if relic.get('vaulted'):
+                detail += ' · vaulted'
+            lines.append({'k': 'relic', 'part': part, 'label': '%s relic' % relic.get('relic'),
+                          'detail': detail})
+        for mission in (doc.get('missions') or [])[:2]:
+            where = ' - '.join([p for p in (mission.get('planet'), mission.get('node')) if p])
+            bits = [b for b in (mission.get('mode'),
+                                ('rotation ' + mission['rotation']) if mission.get('rotation') else None,
+                                '%s%%' % clean_num(mission.get('chance'))) if b]
+            lines.append({'k': 'mission', 'part': part, 'label': where,
+                          'detail': ' · '.join(bits)})
+        for enemy in (doc.get('enemies') or [])[:1]:
+            lines.append({'k': 'enemy', 'part': part, 'label': 'Enemy: ' + (enemy.get('enemy') or '?'),
+                          'detail': ' - '.join([b for b in ('%s%%' % clean_num(enemy.get('chance')),
+                                                            enemy.get('rarity')) if b])})
+        for other in (doc.get('other') or [])[:1]:
+            lines.append({'k': 'other', 'part': part,
+                          'label': '%s: %s' % (other.get('source') or 'Source', other.get('detail') or ''),
+                          'detail': ' - '.join([b for b in ('%s%%' % clean_num(other.get('chance')),
+                                                            other.get('rarity')) if b])})
+        if doc.get('market'):
+            market = doc['market']
+            bits = []
+            if market.get('plat') is not None:
+                bits.append('%sp' % clean_num(market['plat']))
+            if market.get('credits') is not None:
+                bits.append('blueprint %s credits' % clean_num(market['credits']))
+            lines.append({'k': 'market', 'part': part, 'label': 'Market: ' + ' / '.join(bits)})
+        if doc.get('research'):
+            lines.append({'k': 'research', 'part': part, 'label': 'Dojo research (clan lab)'})
+
+    own = index.get(name) or {}
+    dedup, seen = [], set()
+    for line in lines:
+        sig = (line.get('k'), line.get('part'), line.get('label'), line.get('detail'))
+        if sig in seen:
+            continue
+        seen.add(sig)
+        dedup.append(line)
+    # facts first (relic / mission / enemy / other / market / research), wiki link last
+    order = {'relic': 0, 'mission': 1, 'enemy': 2, 'other': 3, 'market': 4, 'research': 5}
+    dedup.sort(key=lambda l: order.get(l.get('k'), 9))   # the wiki link renders on its own row
+    if not dedup and not own.get('wiki_note') and not own.get('wiki'):
+        return None
+    headline = next((l['label'] for l in dedup if l.get('k') != 'wiki'), None)
+    payload = {
+        'short': headline or 'See the wiki',
+        'lanes': len(dedup),
+        'lines': dedup[:10],
+        'parts': len(parts),
+        # every part this item is known to have, and whether each one has a recorded source
+        'complete': bool(parts or missing_parts) and not missing_parts,
+    }
+    if own.get('wiki_note'):
+        payload['note'] = own['wiki_note']
+    if own.get('wiki'):
+        payload['wiki'] = own['wiki']
+    return payload
+
+
+def load_obtain_index():
+    """data/obtain_index.json (built by scripts/obtain_index.py) - optional, never fatal."""
+    doc = jload(os.path.join(DATA, 'obtain_index.json'), None)
+    items = (doc or {}).get('items')
+    return items if isinstance(items, dict) else {}
+
+
 def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, catalog_meta,
-              save_meta, notes, now=None):
+              save_meta, notes, now=None, obtain_index=None):
     """The data/collection_log.json payload."""
     now = int(now if now is not None else time.time())
     buckets = {key: [] for key, _ in CATEGORIES}
@@ -619,6 +736,7 @@ def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, cat
             'floor': floor,
             'floor_kind': floor_kind,
             'mastery_req': entry.get('mastery_req'),
+            'obtain': build_item_obtain(entry.get('name'), obtain_index),
         })
 
     categories, obtained, total = [], 0, 0
@@ -977,8 +1095,14 @@ def main(argv=None):
     notes.append('Icons: WFCD imageName -> cdn.warframestat.us/img (verified 200 + PNG bytes), '
                  'else the warframe.market CDN path from data/wfm_items_v2.json, else null.')
     save_meta = dict(save_meta, owned_rows=owned_n)
+    obtain_index = load_obtain_index()
+    if obtain_index:
+        notes.append('How to obtain: data/obtain_index.json (WFCD drop tables + wiki) - each item '
+                     'carries a hover card with the source, mission and drop chance.')
+    else:
+        notes.append('How to obtain: no obtain_index.json - run scripts/obtain_index.py to add it.')
     doc = build_log(entries, save_meta['xp'], owned_paths, owned_slugs, prices, icon_map,
-                    catalog_meta, save_meta, notes)
+                    catalog_meta, save_meta, notes, obtain_index=obtain_index)
     digest = payload_hash(doc)
     doc['content_hash'] = digest
     prev = previous_stamp(doc, digest)
@@ -993,6 +1117,8 @@ def main(argv=None):
             static_note = 'static/collection_log.json written (server.py serves static/ only)'
         except OSError as exc:
             static_note = 'static copy failed: %s' % exc
+    with_obtain = sum(1 for cat in doc['categories'] for r in cat['items'] if r.get('obtain'))
+    print('  how-to-obtain cards: %d/%d items' % (with_obtain, doc['overall']['total']))
     print('collection log -> %s' % ascii_s(out_path().replace('\\', '/')))
     print('  %s  hash %s' % (doc['generated_iso'], digest))
     print('  overall %d/%d (%.1f%%) | mastered-only %d | owned-only %d | missing with price %d'

@@ -128,6 +128,39 @@
     .cl-grid { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
     .cl-ov-num { font-size: 18px; }
   }
+
+  /* ---------- how-to-obtain hover card (Jay: "hover over for information on where to get it,
+     and drop chance. and mission") ---------- */
+  .cl-tip {
+    position: fixed; z-index: 92; max-width: 540px; min-width: 260px; max-height: 62vh;
+    overflow: auto; padding: 9px 11px 10px; border: 1px solid var(--border);
+    border-radius: var(--r); background: var(--panel2); color: var(--text);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .5); opacity: 0; transform: translateY(3px);
+    pointer-events: none; transition: opacity .12s ease, transform .12s ease;
+    font-size: 11.5px; line-height: 1.45;
+  }
+  .cl-tip.on { opacity: 1; transform: none; }
+  .clt-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .clt-name { font-weight: 650; font-size: 12.5px; }
+  .clt-state { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+  .clt-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline;
+    padding: 3.5px 0; border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  }
+  .clt-part {
+    color: var(--accent); font-family: var(--mono); font-size: 10.5px; margin-right: 7px;
+    white-space: nowrap;
+  }
+  .clt-src { min-width: 0; }
+  .clt-chance {
+    color: var(--muted); font-family: var(--mono); font-size: 10.5px; text-align: right;
+    white-space: nowrap;
+  }
+  .clt-row[data-k="relic"] .clt-src, .clt-row[data-k="market"] .clt-src { color: var(--accent); }
+  .clt-row[data-k="enemy"] .clt-src { color: var(--text); }
+  .clt-note { margin-top: 7px; color: var(--muted); font-size: 11px; }
+  .clt-wiki { margin-top: 6px; color: var(--muted); font-size: 10.5px; font-family: var(--mono); }
+  .clt-more { margin-top: 5px; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
 </style>
 </head>
 <body>

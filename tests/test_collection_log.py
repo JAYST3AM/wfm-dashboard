@@ -185,7 +185,7 @@ def test_log_contract_and_counts(staged):
         assert cat['pct'] == round(100.0 * cat['obtained'] / cat['total'], 1)
         assert all(r['name'] and r['unique_name'] and r['slug'] for r in cat['items'])
         assert all(set(r) == {'name', 'slug', 'unique_name', 'icon', 'owned', 'mastered',
-                              'floor', 'floor_kind', 'mastery_req'} for r in cat['items'])
+                              'floor', 'floor_kind', 'mastery_req', 'obtain'} for r in cat['items'])
 
 
 def test_collected_union_and_flags(staged):
