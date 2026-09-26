@@ -356,7 +356,9 @@ function renderEngine() {
   if (m) m.textContent = '· posting ' + (set.dry_run === false ? 'Live' : 'Not live') + (K.active ? ' · kill switch engaged' : '');
   const line = (k, v) => `<div class="mrow"><span class="m-name dim">${k}</span><span class="num">${v}</span></div>`;
   el.innerHTML =
-    line('Posting mode', set.dry_run === false ? 'Live - orders can post' : 'Not live - nothing is posted to warframe.market') +
+    line('Posting mode', set.dry_run === false
+      ? 'Live<span class="explain"> - orders can post</span>'
+      : 'Not live<span class="explain"> - nothing is posted to warframe.market</span>') +
     line('Trades left today', stt.trades_left ?? '—') +
     line('Live orders', ordersN) +
     line('Platinum balance', stt.plat != null ? stt.plat.toLocaleString() + 'p' : '—') +
@@ -941,7 +943,7 @@ function renderKill() {
     <span class="dim">kill switch ${K.active ? 'engaged — every engine refuses to run' : 'disarmed — engines may run'}${K.note ? ' · ' + escHtml(K.note) : ''}${ts ? ' · ' + ts : ''}</span>
   </div>
   <div class="limrow"><input id="killNote" class="noteinput" placeholder="note (why / what)" maxlength="200">
-    <span class="dim small">All engines are not live — posting is held until it ships.</span></div>`;
+    <span class="dim small explain">All engines are not live — posting is held until it ships.</span></div>`;
 }
 
 /* ---------- init ---------- */

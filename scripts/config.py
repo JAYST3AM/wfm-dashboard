@@ -81,6 +81,11 @@ SPEC = [
          consumed_by='static/app.js, chart.js, lookup.js (platinum suffix)',
          help="Platinum suffix in the UI: 'p' (100p), 'plat' (100 plat) or 'none' (100).",
          note="Platinum suffix in the UI: 'p' (100p), 'plat' (100 plat), 'none' (100)."),
+    dict(key='advanced', type='bool', min=None, max=None, default=False, choices=None, step=None,
+         consumed_by='static/adv.js (html[data-adv] -> .explain visibility)',
+         help='Show the extra explanations, hints and footnotes across the dashboard.',
+         note='false = pages stay clean (labels, values and status only). true = the extra '
+              'explanations, setting hints and footnotes appear again.'),
     dict(key='gifs', type='bool', min=None, max=None, default=False, choices=None, step=None,
          consumed_by='static UI (celebration GIFs; nothing reads it yet)',
          help='Allow animated GIF extras in the dashboard UI.',

@@ -366,7 +366,10 @@ def main(argv=None):
     lanes_items = (load('price_lanes.json', {}) or {}).get('items') or {}
 
     # --- sweep window -------------------------------------------------------
-    cursor = int(old_meta.get('cursor') or 0)
+    try:
+        cursor = int(old_meta.get('cursor') or 0)
+    except (TypeError, ValueError):
+        cursor = 0                                     # a hand-edited store never breaks a sweep
     if args.slugs:
         tracked = sorted({s.strip() for s in args.slugs.split(',') if s.strip()})
         window, new_cursor = tracked, cursor          # an explicit list never moves the cursor

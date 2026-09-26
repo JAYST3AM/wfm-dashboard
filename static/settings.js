@@ -18,6 +18,13 @@ const READ_BY = {
 /* ---------- groups: display copy only; the raw key is what gets posted ---------- */
 const GROUPS = [
   {
+    id: 'verbose', title: 'Advanced', src: 'dash',
+    rows: [
+      { key: 'advanced', label: 'Advanced', apply: 1,
+        hint: 'Show the extra explanations, setting hints and footnotes across the dashboard. Off keeps every page to labels, values and status.' },
+    ],
+  },
+  {
     id: 'trading', title: 'Trading', src: 'trader',
     rows: [
       { key: 'dry_run', label: 'Posting mode', status: 1 },
@@ -158,7 +165,7 @@ function fieldRow(meta, src) {
   if (meta.unit) valCell.appendChild(el('span', 'st-unit', ' ' + meta.unit));
   wrap.appendChild(valCell);
 
-  const help = el('div', 'cfg-help');
+  const help = el('div', 'cfg-help' + (meta.hint ? ' explain' : ''));
   if (meta.hint) help.appendChild(el('span', null, meta.hint + ' '));
   if (meta.badge) help.appendChild(el('span', 'st-badge', meta.badge));
   if (meta.restart) help.appendChild(el('b', 'st-restart', 'restart required'));
@@ -168,6 +175,10 @@ function fieldRow(meta, src) {
     const show = () => { live.textContent = shownValue(ctl); };
     ctl.addEventListener('input', show);
     ctl.addEventListener('change', show);
+    /* the Advanced switch takes effect immediately - the Save button only persists it */
+    if (meta.apply && ctl.type === 'checkbox') {
+      ctl.addEventListener('change', () => { if (window.wfmAdv) window.wfmAdv.set(ctl.checked); });
+    }
   }
   return wrap;
 }
@@ -183,7 +194,7 @@ function statusRow(meta, src) {
   cell.appendChild(el('span', 'st-pill ' + (dry ? 'dry' : 'live'), dry ? 'Not live' : 'Live'));
   wrap.appendChild(cell);
   wrap.appendChild(el('span', 'cfg-val', dry ? 'not live' : 'live'));
-  wrap.appendChild(el('div', 'cfg-help', dry
+  wrap.appendChild(el('div', 'cfg-help explain', dry
     ? 'Not live - nothing is posted until the engine config says otherwise.'
     : 'Live — the engine config allows posting; not editable here.'));
   return wrap;
@@ -193,7 +204,7 @@ function noteRow(text) {
   const wrap = el('div', 'cfgrow');
   wrap.appendChild(el('span', 'm-name', 'Theme'));
   wrap.appendChild(el('span', 'dim', '◐ Theme button in the header'));
-  wrap.appendChild(el('div', 'cfg-help', text));
+  wrap.appendChild(el('div', 'cfg-help explain', text));
   return wrap;
 }
 

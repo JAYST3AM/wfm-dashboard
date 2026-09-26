@@ -531,3 +531,8 @@ main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .3
   }
   .btn:hover, .btn:active, .kpi:hover, .card:hover { transform: none; }
 }
+
+
+/* ---- Advanced switch (static/adv.js): extra explanations are hidden until it is on ---- */
+.explain { display: none !important; }
+html[data-adv="on"] .explain { display: revert !important; }

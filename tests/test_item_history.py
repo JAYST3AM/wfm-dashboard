@@ -245,6 +245,49 @@ def test_http_failure_on_a_fresh_slug_writes_no_point(ih):
     assert doc['meta']['failures'] == 1 and doc['meta']['fetched'] == 0
 
 
+def test_a_404_on_the_id_route_is_retried_by_slug(ih, monkeypatch):
+    # live, the v2 id index misses items whose slug still resolves - one retry, one outcome
+    catalogue(ih, 'blind_rage')
+    owned(ih, 'blind_rage')
+    calls = []
+
+    def stub(url, tries=4):
+        endpoint = url.rsplit('/orders/item/', 1)[-1]
+        calls.append(endpoint)
+        return {'error': 'http 404'} if endpoint.startswith('id-') else book(ask=21, bid=17)
+
+    monkeypatch.setattr(ih.mod, '_get', stub)
+    assert ih.mod.main(['--once', '--force']) == 0
+
+    doc = read_json(ih.store)
+    assert calls == ['id-blind_rage/top', 'blind_rage/top']
+    assert doc['items']['blind_rage']['points'][-1][1:] == [21, 17]
+    assert doc['meta']['fetched'] == 1 and doc['meta']['failures'] == 0
+
+
+def test_a_slug_unknown_on_both_routes_counts_exactly_one_failure(ih, monkeypatch):
+    catalogue(ih, 'blind_rage')
+    owned(ih, 'blind_rage')
+    monkeypatch.setattr(ih.mod, '_get', lambda url, tries=4: {'error': 'http 404'})
+
+    assert ih.mod.main(['--once', '--force']) == 0                # both routes 404
+
+    doc = read_json(ih.store)
+    assert doc['meta']['failures'] == 1 and doc['meta']['fetched'] == 0
+    assert doc['items'] == {}
+
+
+def test_a_slug_with_no_catalogue_row_is_fetched_by_slug(ih, monkeypatch):
+    write_json(ih.data / 'owned.json', [{'slug': 'gamma', 'name': 'Gamma Prime'}])   # no WFM id
+    serve(ih, monkeypatch, ask=9, bid=7)
+
+    assert ih.mod.main(['--once', '--force']) == 0
+
+    ent = read_json(ih.store)['items']['gamma']
+    assert ent['name'] == 'Gamma Prime' and ent['points'][-1][1:] == [9, 7]
+    assert ent['src']['ask'] == 'top_order'
+
+
 def test_self_throttle_skips_a_fresh_store_and_force_overrides(ih, monkeypatch, capsys):
     catalogue(ih, 'blind_rage')
     owned(ih, 'blind_rage')
