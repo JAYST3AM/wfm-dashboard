@@ -78,7 +78,7 @@ def test_no_long_winded_copy_in_the_scripts(js):
 
 def test_settings_lead_is_one_line_of_intent():
     html = read('settings.html')
-    lead = html.split('class="st-lead"', 1)[1].split('</p>', 1)[0]
+    lead = html.split('class="st-lead', 1)[1].split('</p>', 1)[0]
     words = len(re.sub(r'<[^>]+>', ' ', lead).split())
     assert words <= 22, words
 

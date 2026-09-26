@@ -50,7 +50,8 @@ def test_no_dry_run_wording_in_the_pages():
 def test_header_and_trader_card_say_live_not_live():
     js = read('static/app.js')
     assert "'· posting ' + (set.dry_run === false ? 'Live' : 'Not live')" in js
-    assert "'Live - orders can post' : 'Not live - nothing is posted to warframe.market'" in js
+    assert "'Live<span class=\"explain\"> - orders can post</span>'" in js
+    assert "'Not live<span class=\"explain\"> - nothing is posted to warframe.market</span>'" in js
 
 
 def test_engine_plan_modes_are_mapped_for_display():

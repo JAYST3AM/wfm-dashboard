@@ -13,7 +13,7 @@ import os
 from conftest import REPO
 
 SHIPPED = os.path.join(REPO, 'data', 'config.json')
-KEYS = ['port', 'host', 'theme', 'auto_refresh_seconds', 'currency_display', 'gifs',
+KEYS = ['port', 'host', 'theme', 'auto_refresh_seconds', 'currency_display', 'advanced', 'gifs',
         'gamenews_cache_seconds', 'deals_shown', 'sessions_shown']
 
 

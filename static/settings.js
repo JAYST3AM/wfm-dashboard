@@ -21,7 +21,7 @@ const GROUPS = [
     id: 'verbose', title: 'Advanced', src: 'dash',
     rows: [
       { key: 'advanced', label: 'Advanced', apply: 1,
-        hint: 'Show the extra explanations, setting hints and footnotes across the dashboard. Off keeps every page to labels, values and status.' },
+        hint: 'Show the extra explanations and hints. Off keeps pages to labels and values.' },
     ],
   },
   {
