@@ -41,6 +41,7 @@ PAGE_STEPS = [
     ('item_history.py',),               # intraday per-item points -> sparklines / price page
     ('materials.py',),                  # resources + counts -> Inventory materials panel
     ('dojo_costs.py',),                 # clan dojo build costs (wiki, cached) -> Dojo panel
+    ('player.py',),                     # player profile snapshot -> Player page
     ('sets.py',),                       # set completion
     ('ducats.py',),                     # sell vs burn
     ('relic_ev.py',),                   # open vs sell relics
