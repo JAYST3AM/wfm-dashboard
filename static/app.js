@@ -10,7 +10,7 @@ function buildThemeGrid() { wfmBuildThemeGrid(); }
 
 /* ---------- data ---------- */
 let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADER = null, GAMENEWS = null, FEAT = {};
-let state = { tab: 'all', sort: 'value', dir: -1, q: '' };
+let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {} };
 /* global item search cache - declared up here because the hash router can call into
    the search before the rest of the file has run (classic script, no module scope) */
 /* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. Engine
@@ -613,6 +613,27 @@ function safeOf(r) {
   return r.count || 0;
 }
 
+/* Price trend: one ask series (state.itemhist[slug]) as a 62x18 inline SVG. Rising gets the
+   table's gain colour (.upl), falling its loss colour (.downl), a series that never moved
+   reads muted; '' means "no line" so the cell falls back to a dash. */
+function sparkline(vals) {
+  if (!vals || vals.length < 2) return '';
+  const w = 62, h = 18, pad = 1.5;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < vals.length; i++) {
+    const v = Number(vals[i]);
+    if (!isFinite(v)) return '';
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const step = (w - pad * 2) / (vals.length - 1), span = (hi - lo) || 1;
+  const pts = vals.map((v, i) => (pad + i * step).toFixed(1) + ',' + (h - pad - ((v - lo) / span) * (h - pad * 2)).toFixed(1));
+  const cls = (hi === lo) ? 'dim' : (vals[vals.length - 1] >= vals[0] ? 'upl' : 'downl');
+  return '<svg class="' + cls + '" viewBox="0 0 62 18" width="62" height="18" aria-hidden="true" focusable="false">' +
+    '<path d="M' + pts.join('L') + '" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>' +
+    '</svg>';
+}
+
 function renderTable() {
   const rs = rowsFiltered();
   const tbody = document.getElementById('rows');
@@ -632,6 +653,7 @@ function renderTable() {
       <td class="num">${fmt(advField(r, 'equipped'))}</td>
       <td class="num">${fmt(safeOf(r))}</td>
       <td class="num">${fmt(laneVal(r))}${rkTag}</td>
+      <td class="spark">${state.itemhist ? (sparkline(state.itemhist[r.slug]) || '<span class="dim">-</span>') : '<span class="dim">-</span>'}</td>
       <td class="num v">${fmt(laneValue(r))}</td>
       <td class="hide-a"><span class="cat ${r.cat}">${CAT_LABEL[r.cat] || r.cat}</span></td>
       <td class="num hide-a">${fmt(r.ducats)}</td>
@@ -642,7 +664,7 @@ function renderTable() {
       <td class="num hide-a">${fmt(advField(r, 'reserved'))}</td>
     </tr>`;
   }).join('');
-  if (!slice.length) tbody.innerHTML = '<tr><td colspan="13" class="dim" style="padding:18px">No items match.</td></tr>';
+  if (!slice.length) tbody.innerHTML = '<tr><td colspan="14" class="dim" style="padding:18px">No items match.</td></tr>';
   const tot = rs.reduce((a, r) => a + laneValue(r), 0);
   document.getElementById('totals').innerHTML =
     `<span>${rs.length} stacks <span class="dim">(showing ${slice.length})</span></span>
@@ -661,8 +683,13 @@ async function load() {
   ]);
   SUMMARY = s; ITEMS = i; PLAT = ph; REPORT = rep; TRADES = tr; TRADER = tdr; GAMENEWS = gn;
   FEAT = {};
+  /* the Trend column reads one slim series map for the whole page (state.itemhist) - never a
+     fetch per row; a missing/empty file answers {} so every cell just shows a dash */
   await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'advisor']
-    .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); }));
+    .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); })
+    .concat([fetch('/api/feature/itemhist').then(r => r.json())
+      .then(j => { state.itemhist = (j && j.items) || {}; })
+      .catch(() => { state.itemhist = {}; })]));
   renderChips(); renderTabs(); renderTable();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
   renderFirstRun();
@@ -1085,6 +1112,7 @@ if (btnCols) btnCols.addEventListener('click', () => {
 });
 document.querySelectorAll('thead th').forEach(th => th.addEventListener('click', () => {
   const k = th.dataset.k;
+  if (!k) return;               /* Trend renders a series, it is not a sort key */
   if (state.sort === k) state.dir *= -1; else { state.sort = k; state.dir = (k === 'name' || k === 'cat') ? 1 : -1; }
   renderTable();
 }));

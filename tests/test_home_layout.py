@@ -85,16 +85,17 @@ def test_rows_and_cards_are_tightened_in_css():
 def test_platinum_axis_never_shows_a_negative_tick():
     js = read('static/chart.js')
     assert 'y0 = Math.max(0, y0 - padY)' in js
-    assert "const nice = step >= 200 ? Math.round(v / 50) * 50 : Math.round(v);" in js
+    assert "for (var v = Math.ceil(S.y0 / step) * step; v <= S.y1; v += step)" in js  # gridlines start at y0 >= 0
+    assert "niceStep" in js                                                          # round gridline steps
 
 
 def test_long_spans_label_the_year():
     js = read('static/chart.js')
-    assert "const multiYear = (range === 'all' || (x1 - x0) > 120 * 86400);" in js
+    assert "if (spanS <= 120 * 86400) return d.toLocaleDateString([], { month: 'short', day: 'numeric' });" in js
     assert "String(d.getFullYear()).slice(2)" in js
 
 
 def test_axis_labels_are_readable_and_cannot_clip():
     js = read('static/chart.js')
-    assert "n.toLocaleString('en-AU')" in js                      # 9,150p not 9150p
-    assert "ctx.textAlign = i === 0 ? 'left' : (i === 4 ? 'right' : 'center');" in js
+    assert "Math.round(v).toLocaleString('en-AU')" in js           # 9,150p not 9150p
+    assert "ctx.textAlign = i === 0 ? 'left' : (i === nT - 1 ? 'right' : 'center');" in js  # end ticks anchor inward

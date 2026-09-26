@@ -917,6 +917,56 @@
     return box;
   }
 
+  /* ---- mini price graph + link to the full price page (item.js) ---- */
+  var histCache = {};
+  function itemHist(slug) {
+    if (histCache[slug]) return histCache[slug];
+    histCache[slug] = fetch('/api/feature/itemhist?slug=' + encodeURIComponent(slug))
+      .then(function (r) { return r.json(); })
+      .then(function (j) { return (j && j.points) ? j : { points: [] }; })
+      .catch(function () { return { points: [] }; });
+    return histCache[slug];
+  }
+
+  function renderPriceGraph(it) {
+    var box = el('div', 'dw-graph');
+    var head = el('div', 'dw-graph-head');
+    head.appendChild(el('span', 'dw-graph-title', 'Price trend'));
+    var link = document.createElement('a');
+    link.className = 'dw-page-link';
+    link.href = '/item.html?slug=' + encodeURIComponent(it.slug || '');
+    link.textContent = 'Price page ▸';
+    link.title = 'Full price history, your trades and the order book for this item';
+    head.appendChild(link);
+    box.appendChild(head);
+
+    var wrap = el('div', 'dw-graph-wrap');
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-label', 'Price trend for ' + (it.name || it.slug || 'this item'));
+    wrap.appendChild(canvas);
+    box.appendChild(wrap);
+    var foot = el('div', 'dw-graph-foot', 'loading…');
+    box.appendChild(foot);
+
+    if (window.wfmChart) {
+      var chart = wfmChart({ canvas: canvas, mini: true, key: 'mini:' + (it.slug || ''), height: 64, range: '7d', style: 'area' });
+      itemHist(it.slug).then(function (j) {
+        chart.setData(j.points || []);
+        chart.setMarkers((j.sales || []).map(function (s) { return { ts: s[0], v: s[1] }; }));
+        var n = (j.points || []).length;
+        var info = chart.info();
+        var span = info.span_s || 0;
+        var spanTxt = span <= 0 ? '' : (span >= 86400 ? Math.round(span / 8640) / 10 + ' days' : Math.max(1, Math.round(span / 3600)) + 'h');
+        foot.textContent = n
+          ? n + ' points' + (spanTxt ? ' · ' + spanTxt : '') + (j.last ? ' · newest ' + new Date(j.last * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
+          : 'no snapshots for this item yet';
+      });
+    } else {
+      foot.textContent = 'graph unavailable';
+    }
+    return box;
+  }
+
   function renderAll(key, data) {
     var it = data.item;
     setHeader(it, key);
@@ -934,6 +984,7 @@
         bodyBox.appendChild(renderOwned(it, data.advisor));
         bodyBox.appendChild(renderMarket(it));
         bodyBox.appendChild(renderEstimate(it));
+        if (it.slug) bodyBox.appendChild(renderPriceGraph(it));
       } else {
         line(bodyBox, 'dw-note', 'No price snapshot for this item — see what is known below.');
       }

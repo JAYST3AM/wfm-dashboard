@@ -269,6 +269,14 @@ td.name { max-width: 350px; overflow: hidden; text-overflow: ellipsis; }
 .v { color: var(--accent); font-weight: 600; }
 .neg { color: #f87171; }
 .dim { color: var(--muted); }
+
+/* ---- Trend sparkline (app.js sparkline()) + a denser inventory table ---- */
+td.spark { width: 62px; }
+td.spark svg { display: block; width: 62px; height: 18px; pointer-events: none; }
+/* Jay: "this can be massively condensed" - 3.5px vertical padding (7px a row, was 11px) and
+   12px type, so 13 columns still fit 1440px without the tablewrap scrolling sideways */
+.inv-row td { padding: 3.5px 10px; font-size: 12px; }
+thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort key */
 .status { padding: 10px 2px; color: var(--muted); font-size: 12px; }
 
 /* ---- theme panel ---- */

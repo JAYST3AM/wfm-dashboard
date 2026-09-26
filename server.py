@@ -6,7 +6,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, 'data')
@@ -174,11 +174,11 @@ FEATURES = {
     'meta': 'meta_watch.json', 'craft': 'craft.json',
     'notify': 'notify_outbox.json',
     'collection': 'collection_log.json', 'cards': 'mod_cards.json', 'ledger': 'plat_ledger.json',
-    'advisor': 'sell_advisor.json',
+    'advisor': 'sell_advisor.json', 'itemhist': 'item_history.json',
 }
 
 
-def feature_payload(name):
+def feature_payload(name, query=None):
     raw = jload(os.path.join(DATA, FEATURES[name])) or {}
     if name == 'deals':
         raw['deals'] = (raw.get('deals') or [])[:_cfg.get('deals_shown') or 60]
@@ -202,6 +202,62 @@ def feature_payload(name):
         raw.pop('ranked', None)  # UI reads items/ranked order from 'top' + per-slug lookups
         for rec in (raw.get('items') or {}).values():
             rec.pop('notes', None)
+    elif name == 'itemhist':
+        # Two shapes from one store. With ?slug=<slug> the item price page gets the full record:
+        # [ts, ask, bid] points and your own sales at real timestamps. Without it the inventory
+        # Trend column gets the ask series only, oldest -> newest, last 48 usable points, ints.
+        # Either way a missing item_history.json answers empty, never a 500.
+        wanted = None
+        if query:
+            wanted = (query.get('slug') or [None])[0]
+        if wanted:
+            rec = ((raw.get('items') or {}).get(wanted) or {})
+            points, sales = [], []
+            for pt in (rec.get('points') or []):
+                if not (isinstance(pt, (list, tuple)) and len(pt) > 1) or pt[0] is None:
+                    continue
+                val = pt[1]
+                try:
+                    val = int(round(float(val))) if val is not None else None
+                except (TypeError, ValueError):
+                    val = None
+                bid = pt[2] if len(pt) > 2 else None
+                try:
+                    bid = int(round(float(bid))) if bid is not None else None
+                except (TypeError, ValueError):
+                    bid = None
+                if val is None and bid is None:
+                    continue
+                points.append([int(pt[0]), val, bid])
+            for sale in (rec.get('sales') or []):
+                if isinstance(sale, (list, tuple)) and len(sale) > 1 and sale[0] is not None:
+                    try:
+                        sales.append([int(sale[0]), int(round(float(sale[1]))), int(sale[2]) if len(sale) > 2 and sale[2] is not None else 1])
+                    except (TypeError, ValueError):
+                        continue
+            return {
+                'slug': wanted, 'name': rec.get('name') or wanted,
+                'points': points, 'sales': sales,
+                'first': rec.get('first'), 'last': rec.get('last'),
+                'src': rec.get('src') or {}, 'count': len(points),
+            }
+        src = raw.get('items') if isinstance(raw, dict) else None
+        items = {}
+        for slug, rec in (src or {}).items():
+            if not isinstance(rec, dict):
+                continue
+            vals = []
+            for pt in (rec.get('points') or [])[-48:]:
+                ask = pt[1] if isinstance(pt, (list, tuple)) and len(pt) > 1 else None
+                if ask is None:
+                    continue
+                try:
+                    vals.append(int(round(float(ask))))
+                except (TypeError, ValueError):
+                    continue
+            if len(vals) >= 2:
+                items[slug] = vals
+        return {'count': len(items), 'items': items}
     return raw
 
 def cfg_payload():
@@ -427,7 +483,7 @@ class H(BaseHTTPRequestHandler):
             name = p.rsplit('/', 1)[-1]
             if name in FEATURES:
                 try:
-                    return self._send(200, feature_payload(name))
+                    return self._send(200, feature_payload(name, parse_qs(urlparse(self.path).query)))
                 except Exception as e:
                     return self._send(500, {'error': str(e)[:200]})
             return self._send(404, {'error': 'unknown feature'})
