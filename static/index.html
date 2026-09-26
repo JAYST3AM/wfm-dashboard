@@ -42,15 +42,7 @@
   <section id="view-home">
     <div id="firstRun" class="card hidden"></div>
     <div class="kpis" id="kpis"></div>
-    <div class="card" id="todayCard">
-      <div class="card-head"><div class="card-title">Today <span class="dim small" id="todayMeta"></span></div></div>
-      <div id="homeToday" class="picks"><div class="empty">Loading recommendations…</div></div>
-    </div>
-    <div class="card hidden" id="alertsCard">
-      <div class="card-head"><div class="card-title">Needs attention</div></div>
-      <div id="homeAlerts" class="picks"></div>
-    </div>
-    <div class="card">
+    <div class="card" id="chartCard">
       <div class="card-head">
         <div class="card-title">Platinum balance</div>
         <div class="ranges" id="ranges">
@@ -63,13 +55,27 @@
       <div class="chartwrap"><canvas id="platChart"></canvas><div id="chartTip" class="tip hidden"></div></div>
       <div id="chartMeta" class="status"></div>
     </div>
-    <div class="card" id="recentCard">
-      <div class="card-head"><div class="card-title">Recent activity <span class="dim small" id="recentMeta"></span></div></div>
-      <div id="homeRecent" class="picks"></div>
+    <div class="card hidden" id="alertsCard">
+      <div class="card-head"><div class="card-title">Needs attention</div></div>
+      <div id="homeAlerts" class="picks"></div>
     </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title">Game updates <span class="dim small" id="newsMeta"></span></div></div>
-      <div id="newsList" class="picks"></div>
+    <div class="h-cols">
+      <div class="h-col">
+        <div class="card" id="newsCard">
+          <div class="card-head"><div class="card-title">Game updates <span class="dim small" id="newsMeta"></span></div></div>
+          <div id="newsList" class="picks"></div>
+        </div>
+        <div class="card" id="todayCard">
+          <div class="card-head"><div class="card-title">Today <span class="dim small" id="todayMeta"></span></div></div>
+          <div id="homeToday" class="picks"><div class="empty">Loading recommendations…</div></div>
+        </div>
+      </div>
+      <div class="h-col">
+        <div class="card" id="recentCard">
+          <div class="card-head"><div class="card-title">Recent activity <span class="dim small" id="recentMeta"></span></div></div>
+          <div id="homeRecent" class="picks"></div>
+        </div>
+      </div>
     </div>
   </section>
 

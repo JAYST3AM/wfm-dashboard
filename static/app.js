@@ -280,7 +280,7 @@ function renderNews() {
   const n = GAMENEWS || {};
   document.getElementById('newsMeta').textContent =
     (n.version ? `· v${n.version}` : '') + (n.fetched ? ` · checked ${ago(n.fetched)}` : ' · not loaded');
-  const items = (n.items || []).slice(0, 7);
+  const items = (n.items || []).slice(0, 4);
   document.getElementById('newsList').innerHTML = items.length
     ? items.map(it => `<div class="newsrow">
         <span class="n-date">${fmtDay(it.date)}</span>

@@ -6,7 +6,11 @@ window.PlatChart = (() => {
   const PAD = { l: 58, r: 16, t: 16, b: 30 };
 
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const fmtK = (v) => Math.abs(v) >= 10000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(Math.round(v));
+  const fmtK = (v) => {
+    const n = Math.round(v);
+    return Math.abs(n) >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+      : n.toLocaleString('en-AU');
+  };
   const fmtFull = (v) => Number(v).toLocaleString();
 
   function hexA(hex, a) {
@@ -42,7 +46,7 @@ window.PlatChart = (() => {
     let y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
     if (y1 === y0) { y0 -= 5; y1 += 5; }
     const padY = Math.max((y1 - y0) * 0.15, 2);
-    y0 -= padY; y1 += padY;
+    y0 = Math.max(0, y0 - padY); y1 += padY;      /* platinum never goes below zero */
     const X = (t) => PAD.l + (t - x0) / (x1 - x0) * (w - PAD.l - PAD.r);
     const Y = (v) => h - PAD.b - (v - y0) / (y1 - y0) * (h - PAD.t - PAD.b);
     return { X, Y, x0, x1, y0, y1 };
@@ -133,7 +137,9 @@ window.PlatChart = (() => {
       ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(w - PAD.r, y); ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.fillStyle = muted;
-      ctx.fillText(fmtK(v) + 'p', PAD.l - 8, y);
+      const step = (y1 - y0) / 4;
+      const nice = step >= 200 ? Math.round(v / 50) * 50 : Math.round(v);
+      ctx.fillText(fmtK(nice) + 'p', PAD.l - 8, y);
     }
 
     /* x labels */
@@ -142,12 +148,17 @@ window.PlatChart = (() => {
     for (let i = 0; i <= 4; i++) {
       const t = x0 + (x1 - x0) * i / 4;
       const d = new Date(t * 1000);
+      const multiYear = (range === 'all' || (x1 - x0) > 120 * 86400);
       const label = (range === '24h')
         ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        : multiYear
+          ? d.toLocaleDateString([], { month: 'short' }) + " '" + String(d.getFullYear()).slice(2)
+          : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
       if (label === lastLbl) continue;
       lastLbl = label;
       ctx.fillStyle = muted;
+      /* the end ticks sit ON the plot edge - anchor them inward so they cannot clip */
+      ctx.textAlign = i === 0 ? 'left' : (i === 4 ? 'right' : 'center');
       ctx.fillText(label, X(t), h - PAD.b + 8);
     }
 

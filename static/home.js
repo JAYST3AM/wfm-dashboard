@@ -19,7 +19,7 @@
    /api/feature/{sessions,baro,killswitch,hygiene}). */
 'use strict';
 (function () {
-  const TOP_SELL = 6;           /* sell actions shown straight away */
+  const TOP_SELL = 5;           /* sell actions shown straight away */
   const REST_SELL = 30;         /* extra rows behind the expander */
   const GROUP_ROWS = 2;         /* rows per secondary group */
   const RECENT_EVENTS = 5;      /* trade events in the recent card */
@@ -125,6 +125,25 @@
     return bits.join(' \u00b7 ');
   };
 
+  /* Condensed form for the narrow column (Jay: "condensed ... too much realestate"): counts and
+     rank only; the full sentence lives in the row's hover text. */
+  const ownLineShort = (r) => {
+    const bits = [];
+    if (r.sellable) bits.push(r.sellable + ' safe');
+    if (r.owned !== null && r.owned !== undefined && r.owned !== r.sellable) bits.push(r.owned + ' owned');
+    if (r.equipped) bits.push(r.equipped + ' equipped');
+    if (r.reserved) bits.push(r.reserved + ' kept back');
+    if (r.lane_rank !== null && r.lane_rank !== undefined) bits.push('rank ' + r.lane_rank);
+    return bits.join(' \u00b7 ');
+  };
+
+  const whyLineShort = (r) => {
+    const bits = [];
+    if (r.best_sell_window) bits.push('window ' + r.best_sell_window);
+    if (r.vol48) bits.push(r.vol48 + ' sold / 48h');
+    return bits.join(' \u00b7 ');
+  };
+
   /* Layer 2 - a short "why". Boilerplate price/liquidity/lane lines are skipped
      in favour of the first reason that says something about this item, and any
      bit that would repeat one already shown is dropped. */
@@ -210,15 +229,16 @@
     row.setAttribute('role', 'button');
     row.setAttribute('tabindex', '0');
     if (slug) row.setAttribute('data-slug', slug);
-    const tip = tipText(r);
+    const tip = [tipText(r), ownLine(r), whyLine(r)].filter(Boolean).join('\n\n');
     if (tip) row.setAttribute('title', tip);
     const l1 = add(row, 'div', 'h-l1');
     add(l1, 'span', 'h-name', r.name || slug || 'Item');
     add(l1, 'span', 'h-act', o.act || actText(r));
-    const l2 = ownLine(r);
+    /* one condensed meta line (counts + window + sales) - the row stays two lines tall and the
+       untouched sentences stay in the hover text */
+    const l2 = [ownLineShort(r), whyLineShort(r)].filter(Boolean).join(' · ');
     if (l2) add(row, 'div', 'h-l2', l2);
-    const why = o.why || whyLine(r);
-    if (why) add(row, 'div', 'h-l3', why);
+    if (o.why) add(row, 'div', 'h-l3', o.why);
     row.addEventListener('click', () => openItem(slug));
     row.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') { ev.preventDefault(); openItem(slug); }
@@ -247,23 +267,23 @@
 
     setMeta('todayMeta', adv && adv.generated ? '\u00b7 updated ' + clip(adv.generated, 24) : '');
 
-    add(body, 'div', 'h-lead', total
-      ? 'You have ' + total + ' things worth doing'
-      : 'Nothing needs doing right now');
-    const bits = [];
-    if (sells.length) bits.push(sells.length + ' to sell');
-    if (ducats.length) bits.push(ducats.length + ' to burn for ducats');
-    if (relics.length) bits.push(relics.length + ' relics to open');
-    if (sets.length) bits.push(plural(sets.length, 'set job'));
-    if (bits.length) add(body, 'div', 'h-lead2', bits.join(' \u00b7 '));
-
     const potential = sells.reduce((s, r) => s + qtyOf(r) * (r.recommended_price || 0), 0);
-    if (potential > 0) {
-      const pot = add(body, 'div', 'h-pot');
-      add(pot, 'span', null, 'Potential platinum: ');
-      add(pot, 'span', 'h-pot-n', plat(potential));
-      add(pot, 'span', 'h-pot-x', ' if every sell row moves');
+    const lead = add(body, 'div', 'h-lead');
+    if (total) {
+      add(lead, 'span', null, total + ' worth doing');
+      if (potential > 0) {
+        add(lead, 'span', 'h-pot-x', ' \u00b7 ');
+        add(lead, 'span', 'h-pot-n', plat(potential) + ' potential');
+      }
+    } else {
+      add(lead, 'span', null, 'Nothing needs doing right now');
     }
+    const bits = [];
+    if (sells.length) bits.push(sells.length + ' sell');
+    if (ducats.length) bits.push(ducats.length + ' ducats');
+    if (relics.length) bits.push(relics.length + ' relics');
+    if (sets.length) bits.push(sets.length + ' sets');
+    if (bits.length) add(body, 'div', 'h-lead2', bits.join(' \u00b7 '));
 
     sells.slice(0, TOP_SELL).forEach((r) => body.appendChild(itemRow(r)));
 
