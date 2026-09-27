@@ -67,6 +67,7 @@ function showView(v) {
   document.querySelectorAll('#mainnav .navpill').forEach(el2 =>
     el2.classList.toggle('active', el2.dataset.v === v));
   if (window.PlatChart) PlatChart.redraw();
+  if (v === 'trade') markScrollers();
   if (v === 'player') renderPlayerPage();
   if (v === 'mastery') renderMasteryPage();
   if (v === 'home' && window.wfmRenderHome) wfmRenderHome();
@@ -80,6 +81,7 @@ function switchTradeTab(panelId) {
   if (!ok) panelId = 'tp-sell';
   tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tp === panelId)));
   document.querySelectorAll('#view-trade .tpanel').forEach(p2 => p2.classList.toggle('hidden', p2.id !== panelId));
+  markScrollers();
 }
 
 function applyHash() {
@@ -167,14 +169,19 @@ function advRec(a) {
     default: return 'hold';
   }
 }
-function advNote(slug) {
+function advBits(slug) {
   const a = advOf(slug);
   if (!a) return '';
   const bits = [];
   if (a.demand_badge) bits.push(a.demand_badge === 'spike' ? 'demand rising' : a.demand_badge === 'fade' ? 'demand fading' : 'demand steady');
   if (a.best_sell_window) bits.push('best ' + a.best_sell_window);
   if (a.sellable) bits.push(a.sellable + ' sellable');
-  return bits.length ? ` <span class="advchip" title="${escHtml((a.reasons || []).join(' · '))}">advisor: ${bits.join(' · ')}</span>` : '';
+  return bits.join(' · ');
+}
+
+function advNote(slug) {
+  const bits = advBits(slug), a = advOf(slug) || {};
+  return bits ? ` <span class="advchip" title="${escHtml((a.reasons || []).join(' · '))}">advisor: ${bits}</span>` : '';
 }
 
 function renderPicks() {
@@ -306,15 +313,21 @@ function renderTrader() {
     ? `· built ${ago(plan.generated)}${plan.mr != null ? ' · MR ' + plan.mr : ''}` : '';
   const head = `<div class="prow plan-head"><span>#</span><span>Item</span><span class="p-qty">Qty</span><span class="p-price">List at</span><span class="p-est">Est</span><span class="p-note">Notes</span></div>`;
   document.getElementById('planList').innerHTML = rows.length
-    ? head + rows.map((r, i) => `
+    ? head + rows.map((r, i) => {
+      /* the notes are short by design: the note itself never shrinks, the advisor chip takes the
+         cut, and the cell title carries the whole line (note + advisor bits) for hover */
+      const note = r.note || (r.subtype || ''), bits = advBits(r.slug);
+      const tip = escHtml(note) + (bits ? escHtml(' · advisor: ' + bits) : '');
+      return `
       <div class="prow">
         <span class="dim">${i + 1}</span>
         <span class="l-name" title="${r.name}">${r.name}</span>
         <span class="p-qty">${r.qty}</span>
         <span class="p-price">${r.price}p</span>
         <span class="p-est">${(r.est_total || 0).toLocaleString()}p</span>
-        <span class="p-note" title="${escHtml(r.note || r.subtype || '')}">${r.note || (r.subtype || '')}${advNote(r.slug)}</span>
-      </div>`).join('')
+        <span class="p-note" title="${tip}"><span class="p-notxt">${note}</span>${advNote(r.slug)}</span>
+      </div>`;
+    }).join('')
     : `<div class="empty">${EMPTY_ICON}No plan yet — hit "Rebuild plan".</div>`;
   document.getElementById('heldMeta').textContent = held.length ? `· ${held.length}` : '';
   document.getElementById('heldList').innerHTML = held.length
@@ -324,20 +337,20 @@ function renderTrader() {
   document.getElementById('attnMeta').textContent = w.generated
     ? `· checked ${ago(w.generated)}` : '';
   const wr = w.rows || [];
-  const attn = wr.map(r => `<div class="heldline">
+  const attn = wr.map(r => `<div class="heldline attnrow">
         <span class="l-name" title="${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}">${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}</span>
         <span class="dim">${r.floor != null && r.my_price != null && r.floor < r.my_price
           ? `someone listed at ${r.floor}p - below your ${r.my_price}p`
           : `you're at ${r.my_price}p · best now ${r.floor ?? '—'}p`}${r.proposed ? ` · reprice to ${r.proposed}p` : ''}${r.reason ? ' · ' + escHtml(r.reason) : ''}</span>
       </div>`);
   const hy = FEAT.hygiene || {}, hc = hy.summary || {};
-  if (hc.total) attn.push(`<div class="heldline"><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} hide · ${hc.refresh} reprice · ${hc.show} restore${(hy.rules || {}).auto_hide_offline ? ` · auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline` : ''}</span></div>`);
+  if (hc.total) attn.push(`<div class="heldline attnrow"><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} hide · ${hc.refresh} reprice · ${hc.show} restore${(hy.rules || {}).auto_hide_offline ? ` · auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline` : ''}</span></div>`);
   document.getElementById('attnList').innerHTML = attn.length
     ? attn.join('')
     : (w.generated
         ? `<div class="empty">${EMPTY_ICON}Nothing needs attention right now.</div>`
         : `<div class="empty">${EMPTY_ICON}Not checked yet - hit "Check now".</div>`);
-  renderRunQueue(); renderHygiene(); renderNotify();
+  renderRunQueue(); renderHygiene(); renderNotify(); markScrollers();
 }
 
 /* ---------- round-3 renderers ---------- */
@@ -351,11 +364,18 @@ function renderRunQueue() {
   const el = document.getElementById('runqList');
   const rows = (R.queue || []).slice(0, 10);
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/trader/runqueue.py</div>'; return; }
-  el.innerHTML = rows.map(q => `<div class="runrow">
-      <span class="m-name" title="${escHtml(q.why || '')}">${escHtml(q.name)} <span class="dim">x${q.qty} @ ${q.my_price}p</span></span>
-      <span class="num"><span class="chip act-${q.buyer_status}">${q.buyer_status}</span> ${escHtml(q.buyer)} · ${q.buy_price}p</span>
-      <span class="runwhisper" title="${escHtml(q.whisper)}" data-icon="copy">${escHtml(q.whisper)}</span>
+  /* one row, five fixed columns: item / price / status / buyer / message. The message is the only
+     flexible one - it truncates, and the full whisper rides the cell title. */
+  el.innerHTML = '<div class="runrow runhead"><span>Item</span><span class="r-price">Price</span>'
+    + '<span>Status</span><span>Buyer</span><span>Message</span></div>'
+    + rows.map(q => `<div class="runrow">
+      <span class="r-name" title="${escHtml(q.why || '')}">${escHtml(q.name)}</span>
+      <span class="r-price">x${q.qty} @ ${q.my_price}p</span>
+      <span class="r-status"><span class="chip act-${q.buyer_status}">${q.buyer_status}</span></span>
+      <span class="r-buyer">${escHtml(q.buyer)} · ${q.buy_price}p</span>
+      <span class="runwhisper" title="${escHtml(q.whisper)}">${escHtml(q.whisper)}</span>
     </div>`).join('');
+  markScrollers();
 }
 
 function renderHygiene() {
@@ -735,6 +755,11 @@ function markScrollers() {
   document.querySelectorAll('.tablewrap').forEach(function (el) {
     el.classList.toggle('scrolly', el.scrollHeight > el.clientHeight + 2);
   });
+  /* the Trade lists are scrollers too: same cue, only when the list really has more rows below */
+  document.querySelectorAll('#view-trade .picks').forEach(function (el) {
+    const oy = getComputedStyle(el).overflowY;
+    el.classList.toggle('scrolly', (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 2);
+  });
 }
 
 function renderDojo() {
@@ -813,6 +838,15 @@ async function load() {
   renderFirstRun();
   if (window.wfmRenderHome) wfmRenderHome();
   window.addEventListener('resize', function () { window.clearTimeout(window.__wfmScrollerT); window.__wfmScrollerT = window.setTimeout(markScrollers, 180); });
+  /* the trade columns settle after the first paint (details content, flex heights), and any body
+     resize reflows them - re-mark so a list that overflows always shows the cue, a short one never */
+  if (window.ResizeObserver) {
+    const _scrollerRO = new ResizeObserver(function () {
+      window.clearTimeout(window.__wfmScrollerT);
+      window.__wfmScrollerT = window.setTimeout(markScrollers, 60);
+    });
+    _scrollerRO.observe(document.body);
+  }
   renderMarket(); renderLimits(); renderSessions(); renderDiff(); renderKill(); renderTiming(); renderPlatLedger(); loadAutoRefresh();
   PlatChart.setData(ph.points || []);
   document.getElementById('status').textContent = s.lastdata_mtime
@@ -923,9 +957,13 @@ function renderLimits() {
   if (!L.trade_cap) { el.innerHTML = '<div class="dim pad">Run scripts/trader/limits.py</div>'; document.getElementById('limMeta').textContent = ''; return; }
   const sec = L.seconds_until_reset || 0, h = Math.floor(sec / 3600), mn = Math.floor((sec % 3600) / 60);
   document.getElementById('limMeta').textContent = L.status === 'OK' ? '· live from game save' : '· ' + (L.status || '');
-  el.innerHTML = `<div class="limrow">
+  /* the numeral is the card's centrepiece: it, the used/cap bar and the meta share the column */
+  const used = L.trades_used ?? 0, cap = L.trade_cap || 0;
+  const pct = cap ? Math.min(100, Math.max(0, Math.round((used / cap) * 100))) : 0;
+  el.innerHTML = `<div class="limrow lim-hero">
     <span class="lim-big">${L.trades_left ?? '—'}<span class="dim">/${L.trade_cap}</span></span>
-    <span class="dim">trades left · used ${L.trades_used ?? '—'} · resets ${(L.reset_melbourne || '').slice(11, 16)} in ${h}h ${mn}m · ${L.mr_label || ''} · ${L.account || ''}</span>
+    <span class="limbar" title="used ${used} of ${cap}"><i style="width: ${pct}%"></i></span>
+    <span class="dim limmeta">trades left · used ${L.trades_used ?? '—'} · resets ${(L.reset_melbourne || '').slice(11, 16)} in ${h}h ${mn}m · ${L.mr_label || ''} · ${L.account || ''}</span>
   </div>`;
 }
 
@@ -1054,13 +1092,13 @@ function renderKill() {
   const btn = document.getElementById('btnKill');
   btn.textContent = K.active ? 'Disarm' : 'Arm kill switch';
   iconRepaint(btn);
-  document.getElementById('killMeta').textContent = K.active ? '· ENGAGED' : '· disarmed';
+  /* ONE state element: the chip in the card head. The body keeps the note field and the record
+     (why + when); there is no second ARMED/OFF anywhere. */
+  const meta = document.getElementById('killMeta');
+  meta.className = K.active ? 'chip kill-on' : 'chip';
+  meta.textContent = K.active ? 'ARMED' : 'disarmed';
   const ts = K.ts ? new Date(K.ts * 1000).toLocaleString([], { hour12: false }) : '';
-  el.innerHTML = `<div class="limrow">
-    <span class="lim-big ${K.active ? 'kill-on' : ''}">${K.active ? 'ARMED' : 'OFF'}</span>
-    <span class="dim">kill switch ${K.active ? 'engaged' : 'disarmed'}${K.note ? ' · ' + escHtml(K.note) : ''}${ts ? ' · ' + ts : ''}</span>
-  </div>
-  <div class="limrow"><input id="killNote" class="noteinput" placeholder="note (why / what)" maxlength="200">
+  el.innerHTML = `<div class="limrow killline"><span class="dim">${K.note ? escHtml(K.note) + ' · ' : ''}${ts || '—'}</span>
     <span class="dim small explain">Not live</span></div>`;
 }
 
@@ -1436,6 +1474,9 @@ document.querySelectorAll('#tradeTabs [role="tab"]').forEach(t => t.addEventList
   switchTradeTab(t.dataset.tp);
   if (history.replaceState) history.replaceState(null, '', '#trade/' + t.dataset.tp.replace('tp-', ''));
 }));
+/* opening/closing the held-back panel gives the plan table a different amount of room */
+const heldAcc = document.getElementById('heldAcc');
+if (heldAcc) heldAcc.addEventListener('toggle', () => markScrollers());
 
 document.querySelectorAll('#ranges button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#ranges button').forEach(x => x.classList.toggle('active', x === b));
@@ -1682,7 +1723,9 @@ document.getElementById('refresh').addEventListener('click', async e => {
   } finally { b.disabled = false; b.textContent = 'Refresh'; iconRepaint(b); }
 });
 
-load();
+/* the trade lists settle a frame or two after the data lands (details content, flex heights, the 20
+   rows themselves) - mark once more so a fresh load on #trade wears the same fade a click does */
+load().then(function () { window.setTimeout(markScrollers, 250); }).catch(function () {});
 
 /* auto-refresh: 30s until /api/config lands, then auto_refresh_seconds (capped to 60s) */
 syncAutoRefresh(null);

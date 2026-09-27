@@ -360,6 +360,11 @@ thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort 
 .subhead { padding: 8px 10px 2px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .runrow { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 4px 8px; align-items: center; padding: 7px 10px; font-size: 13px; border-top: 1px solid color-mix(in srgb, var(--border) 35%, transparent); }
 .runrow .num { text-align: right; font-variant-numeric: tabular-nums; }
+.runrow .r-price { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.runrow .r-name, .runrow .r-buyer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runrow .r-status { white-space: nowrap; }
+.runrow.runhead { position: sticky; top: 0; z-index: 2; background: var(--panel); border-top: 0; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; }
+.runrow.runhead .r-price { font-family: var(--sans); }
 .runwhisper { grid-column: 1 / -1; font-family: var(--mono); font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip.act-ingame { color: #4ec97a; background: color-mix(in srgb, #4ec97a 13%, transparent); }
 .chip.act-online { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -753,43 +758,86 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 #view-trade .pad { padding: 8px; }
 #view-trade .subhead { padding: 6px 8px 1px; }
 
-/* the plan table + the held-back list: one row when there is room for both (>=1500px) */
-.trade-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 12px; align-items: start; }
-.trade-split > details.acc.sub { margin: 4px 8px 2px; }
+/* the plan table + the held-back list: one row when there is room for both (>=1500px). Both
+   columns start on the same line and stop on the same line - the split row is the split's own
+   height, so the side panel is never a 30px stub beside the table's lower half: each list
+   scrolls inside its own half. */
+.trade-split { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.6fr) minmax(0, 1fr); gap: 2px 12px; align-items: stretch; }
+.trade-split > * { min-width: 0; min-height: 0; }
+.trade-split > details.acc.sub { margin: 0; display: flex; flex-direction: column; }
+.trade-split > details.acc.sub > summary { flex: 0 0 auto; }
+/* the summary sits on the plan table's header row line, so the two columns' rows line up */
+#view-trade .trade-split > details.acc.sub > summary { padding: 3px 12px; }
+.trade-split > details.acc.sub::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.trade-split > details.acc.sub > .picks { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
 @media (min-width: 1500px) {
   .trade-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .trade-split { grid-template-rows: minmax(0, 1fr); }
 }
 
-/* status + safety strip: 3-across when the window is wide enough for three readable cards */
-.trade-ops { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: start; }
+/* status + safety strip: three EQUAL columns (1fr each), tops and bottoms on the same line. Every
+   card stretches to the tallest one; a card whose list is longer scrolls it instead of cramming
+   (and instead of leaving a hole at the bottom of the short ones). */
+.trade-ops { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: stretch; }
+.trade-ops > .card { display: flex; flex-direction: column; min-width: 0; }
+.trade-ops > .card > .card-head { flex: 0 0 auto; }
+.trade-ops > .card > .picks { min-height: 0; }
+.trade-ops > .card > .picks.kill-input { flex: 0 0 auto; margin-top: auto; }
+.trade-ops > .card > #limList { flex: 1 1 auto; display: grid; align-content: center; }
+.trade-ops > .card > #killList { flex: 0 0 auto; display: flex; flex-direction: column; }
+.trade-ops > .card > #notifyList { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
 @media (min-width: 1200px) {
   .trade-ops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* plan rows: 25px each (was 32) and the Notes column is capped at 240px - every note text still
-   fits (measured), only the advisor chip's tail ellipsizes, and the row stops widening */
+/* plan rows: 25px each (was 32). The Notes column is the flexible one - it was capped at 240px
+   and the note + its advisor chip could not be read there; now the item column stops widening and
+   the notes take the room they need (measured: every note text reads whole at 1280-1920, only the
+   advisor chip's tail ellipsizes). The item column keeps its 168px floor so a name still fits. */
 @media (min-width: 901px) {
-  .plan-head, .prow { grid-template-columns: 22px minmax(120px, 1fr) 44px 62px 74px minmax(84px, 240px); gap: 8px; }
+  .plan-head, .prow { grid-template-columns: 22px minmax(168px, 1fr) 44px 62px 74px minmax(232px, 1.35fr); gap: 8px; }
 }
 #view-trade .prow { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }
 #view-trade .plan-head { padding: 4px 2px; font-size: 10.5px; }
 #view-trade .prow .p-note { font-size: 11px; }
+/* the note holds its width (the column is >= 232px, the longest note measures 203px), the advisor
+   chip takes every pixel of the cut, the cell title carries the whole line for hover */
+#view-trade .prow .p-note { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+#view-trade .prow .p-note > .p-notxt { flex: 0 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-trade .prow .p-note > .advchip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: 0; }
 
 /* held-back / attention / hygiene lines: 23px each (was 26-30) */
 #view-trade .heldline { padding: 6px 5px; font-size: 12px; line-height: 1.45; gap: 10px; }
+/* Listings needing attention stays a compact strip: its rows sit on the same left/right column
+   edges as the plan table above them (label left, values right), one line each. */
+@media (min-width: 901px) {
+  #view-trade #attnList .attnrow { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 10px; align-items: baseline; }
+}
 
-/* run queue: item+price, buyer, whisper on ONE 24px line (>=561px); the whisper keeps its full
-   text on hover, and the phone block below puts it back on its own line */
+/* run queue: five fixed columns - item / price / status / buyer / message. Only the message is
+   flexible: it truncates, and the full whisper rides its title. Below 561px the two-column stack
+   comes back (item + price, status + buyer, then the message on its own line). */
 @media (min-width: 561px) {
-  .runrow { grid-template-columns: minmax(0, 1.15fr) max-content minmax(0, 1fr); gap: 2px 10px; padding: 3px 10px; font-size: 12px; }
+  .runrow { grid-template-columns: minmax(0, 1.5fr) 84px 104px minmax(0, 1.1fr) minmax(0, 1.6fr); gap: 2px 10px; padding: 5px 10px; font-size: 12px; }
   .runwhisper { grid-column: auto; font-size: 11px; line-height: 1.35; }
 }
 
 /* trade limit / kill switch / notifications rows */
 #view-trade .limrow { padding: 5px 8px; gap: 8px; font-size: 12px; }
 #view-trade .lim-big { font-size: 20px; }
-#view-trade .noteinput { width: 100%; max-width: 220px; padding: 5px 8px; font-size: 11.5px; }
-#view-trade .mrow { padding: 3px 8px; font-size: 12px; line-height: 1.35; }
+#view-trade .noteinput { width: 100%; max-width: none; padding: 6px 10px; font-size: 12px; }
+#view-trade .mrow { padding: 4px 8px; font-size: 12px; line-height: 1.4; }
+/* Trade limit: the numeral IS the card - numeral, its used/cap bar and the meta in one column,
+   centred in the stretched card instead of hugging the top-left corner. No new prose. */
+#view-trade .lim-hero { display: grid; gap: 9px; padding: 14px 10px 12px; align-content: center; }
+#view-trade .lim-hero .lim-big { font-size: 34px; line-height: 1.05; }
+#view-trade .limbar { display: block; height: 6px; border-radius: 999px; background: var(--panel2); overflow: hidden; }
+#view-trade .limbar > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+#view-trade .limmeta { font-size: 11.5px; line-height: 1.5; }
+/* Kill switch: the one state element is the head chip (.chip), the body keeps the note field and
+   the recorded why/when line. The pair centres in the card so the card never reads as a hole. */
+#view-trade .killline { padding: 2px 8px 8px; font-size: 11.5px; }
+.trade-ops > .card > #killList { margin-bottom: auto; }
 
 /* header auto-sync status: one dim line beside Refresh, never a block */
 #syncState { white-space: nowrap; }
@@ -960,6 +1008,9 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
   body.shell-fit #view-trade #planList, body.shell-fit #view-trade #heldAcc {
     min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   }
+  /* the held panel is a column: its head stays put, the list under it is the half's scroller */
+  body.shell-fit #view-trade #heldAcc { overflow: hidden; }
+  body.shell-fit #view-trade #heldList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   body.shell-fit #view-trade #tp-sell > .card:last-child > .picks,
   body.shell-fit #view-trade #attnList { max-height: 22vh; overflow-y: auto; }
   body.shell-fit #view-trade #runqList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -1026,4 +1077,12 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 .tablewrap.scrolly {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);
+}
+/* the Trade lists wear the same cue the clan dojo table got - .scrolly means a real overflow, the
+   class puts the soft bottom fade on and the site scrollbar styles apply. The band is 46px because
+   the trade rows are 31px: an exact 30px band let the half-visible last row stay almost solid and
+   the cut read as accidental. The dojo table itself is untouched (.tablewrap.scrolly, 30px). */
+#view-trade .picks.scrolly {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent);
 }
