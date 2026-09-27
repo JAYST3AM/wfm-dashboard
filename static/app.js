@@ -39,12 +39,17 @@ const ago = ts => {
 
 function renderChips() {
   const s = SUMMARY; if (!s) return;
+  /* "Priced" counts owned rows that carry a live sell price (prices.json wts), out of owned rows -
+     one basis, both numbers from /api/summary. It is not the price-feed coverage: that file holds a
+     record for every owned slug, so the old "Prices 803/863" label read as if 60 rows had no price
+     data at all. The rows without a live quote are the ones the title names. */
+  const unquoted = Math.max(0, (s.items ?? 0) - (s.priced ?? 0));
   document.getElementById('chips').innerHTML = `
     <span class="chip">MR <b>${s.mr ?? '—'}</b></span>
     <span class="chip warn">Trades <b>${s.trades ?? '—'}</b>/day left</span>
     <span class="chip">Credits <b>${(s.credits ?? 0).toLocaleString()}</b></span>
     <span class="chip">Synced <b>${ago(s.lastdata_mtime)}</b></span>
-    <span class="chip">Prices <b>${s.priced ?? 0}/${s.items ?? 0}</b></span>
+    <span class="chip" title="owned rows with a live sell price / owned rows · ${unquoted} no live quote">Priced <b>${s.priced ?? 0}/${s.items ?? 0}</b></span>
     <span class="chip">Est. value <b>${(s.total_value ?? 0).toLocaleString()}p</b></span>`;
 }
 
@@ -312,12 +317,12 @@ function renderTrader() {
         <span class="p-qty">${r.qty}</span>
         <span class="p-price">${r.price}p</span>
         <span class="p-est">${(r.est_total || 0).toLocaleString()}p</span>
-        <span class="p-note">${r.note || (r.subtype || '')}${advNote(r.slug)}</span>
+        <span class="p-note" title="${escHtml(r.note || r.subtype || '')}">${r.note || (r.subtype || '')}${advNote(r.slug)}</span>
       </div>`).join('')
     : `<div class="empty">No plan yet — hit "Rebuild plan".</div>`;
   document.getElementById('heldMeta').textContent = held.length ? `· ${held.length}` : '';
   document.getElementById('heldList').innerHTML = held.length
-    ? held.map(h => `<div class="heldline"><span class="l-name">${h[0]}</span><span class="dim">${h[1]}</span></div>`).join('')
+    ? held.map(h => `<div class="heldline"><span class="l-name" title="${escHtml(h[0])}">${h[0]}</span><span class="dim">${h[1]}</span></div>`).join('')
     : `<div class="empty">Nothing held back.</div>`;
   const det = [];
   if (stt.ts) det.push(`last cycle ${ago(stt.ts)} · account ${stt.account || '—'} · tracked orders ${ordersN} · events last cycle ${stt.last_cycle_events ?? 0}`);
@@ -330,7 +335,7 @@ function renderTrader() {
     ? `· checked ${ago(w.generated)}` : '';
   const wr = w.rows || [];
   const attn = wr.map(r => `<div class="heldline">
-        <span class="l-name">${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}</span>
+        <span class="l-name" title="${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}">${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}</span>
         <span class="dim">${r.floor != null && r.my_price != null && r.floor < r.my_price
           ? `someone listed at ${r.floor}p - below your ${r.my_price}p`
           : `you're at ${r.my_price}p · best now ${r.floor ?? '—'}p`}${r.proposed ? ` · reprice to ${r.proposed}p` : ''}${r.reason ? ' · ' + escHtml(r.reason) : ''}</span>
@@ -439,7 +444,7 @@ function renderTiming() {
   const line = h => `<div class="mrow"><span class="m-name">${String(h.hour).padStart(2, '0')}:00 <span class="dim small">${h.sales} sales · ${h.plat}p</span></span><span class="num">${'\u2588'.repeat(Math.max(1, Math.round(h.sales / peak * 8)))}</span></div>`;
   el.innerHTML = `<div class="limrow"><b>${T.verdict === 'SELL_NOW' ? 'SELL NOW' : 'HOLD'}</b><span class="dim">${escHtml(T.verdict_reason || '')}</span></div>` +
     `<div class="subhead">Best hours (Melbourne)</div>` + top.map(line).join('') +
-    `<div class="mrow"><span class="m-name dim small">${escHtml(s.note || '')}</span><span class="num dim small">${Object.entries(kinds).map(([k, v]) => `${escHtml(k)} ${v.sales}`).join(' · ')}</span></div>`;
+    `<div class="mrow"><span class="m-name dim small" title="${escHtml(s.note || '')}">${escHtml(s.note || '')}</span><span class="num dim small">${Object.entries(kinds).map(([k, v]) => `${escHtml(k)} ${v.sales}`).join(' · ')}</span></div>`;
 }
 
 function renderWatchlist() {
@@ -472,7 +477,7 @@ function renderRivens() {
   if (!bands.length && !mine.length) { el.innerHTML = '<div class="dim pad">Run scripts/rivens.py</div>'; return; }
   let html = `<div class="subhead">Veiled bands — floor / 48h median (unrevealed)</div>` +
     `<div class="srow srowhead"><span>Family</span><span class="num">Floor</span><span class="num">Median</span><span class="num">Vol48</span><span></span></div>` +
-    bands.map(b => `<div class="srow"><span class="d-name">${escHtml(b.name)}</span><span class="num">${b.floor}p</span><span class="num">${b.median}p</span><span class="num dim">${b.vol48 ?? '—'}</span><span></span></div>`).join('');
+    bands.map(b => `<div class="srow"><span class="d-name" title="${escHtml(b.name)}">${escHtml(b.name)}</span><span class="num">${b.floor}p</span><span class="num">${b.median}p</span><span class="num dim">${b.vol48 ?? '—'}</span><span></span></div>`).join('');
   if (mine.length) html += `<div class="subhead">My rivens</div>` +
     `<div class="srow srowhead"><span>Riven</span><span class="num">Qty</span><span class="num">Low</span><span class="num">High</span><span></span></div>` +
     mine.map(r2 => `<div class="srow"><span class="d-name" title="${escHtml(r2.basis || '')}">${escHtml(r2.name)}</span><span class="num dim">×${r2.qty}</span><span class="num">${r2.est_low ?? '—'}p</span><span class="num upl">${r2.est_high ?? '—'}p</span><span></span></div>`).join('');
@@ -489,7 +494,7 @@ function renderMeta() {
   const el = document.getElementById('metaList');
   const sp = (M.spike || []).slice(0, 6), sk = (M.sink || []).slice(0, 6);
   if (!sp.length && !sk.length) { el.innerHTML = '<div class="dim pad">Run scripts/meta_watcher.py</div>'; return; }
-  const line = (r2, up) => `<div class="mrow"><span class="m-name">${escHtml(r2.name || pretty(r2.slug))} <span class="dim small">48h ${r2.vol48} · base ${r2.vol30_baseline}/d${r2.post_patch ? ' · post-patch' : ''}</span></span>
+  const line = (r2, up) => `<div class="mrow"><span class="m-name" title="${escHtml(r2.name || pretty(r2.slug))}">${escHtml(r2.name || pretty(r2.slug))} <span class="dim small">48h ${r2.vol48} · base ${r2.vol30_baseline}/d${r2.post_patch ? ' · post-patch' : ''}</span></span>
       <span class="num ${up ? 'upl' : 'downl'}">x${(r2.ratio ?? 0).toFixed(2)}</span></div>`;
   el.innerHTML = `<div class="subhead">Post-patch surges</div>` + sp.map(r2 => line(r2, true)).join('') +
     `<div class="subhead">Post-patch sinks</div>` + sk.map(r2 => line(r2, false)).join('');
@@ -519,7 +524,7 @@ function renderNotify() {
   const rows = N.slice().reverse().slice(0, 6);
   const sent = N.filter(r => r.status === 'sent').length;
   if (m) m.textContent = N.length ? `· ${N.length} in outbox · ${sent} delivered (rest held)` : '· no outbox yet';
-  el.innerHTML = rows.length ? rows.map(r => `<div class="mrow"><span class="m-name">${escHtml(r.title)} <span class="dim small">${escHtml(r.to || '')}</span></span><span class="num"><span class="chip ${r.status === 'sent' ? 'act-show' : 'act-offline'}">${escHtml(r.status)}</span> ${r.ts ? ago(Date.parse(r.ts) / 1000) : ''}</span></div>`).join('')
+  el.innerHTML = rows.length ? rows.map(r => `<div class="mrow"><span class="m-name" title="${escHtml(r.title)}${r.to ? ' · ' + escHtml(r.to) : ''}">${escHtml(r.title)} <span class="dim small">${escHtml(r.to || '')}</span></span><span class="num"><span class="chip ${r.status === 'sent' ? 'act-show' : 'act-offline'}">${escHtml(r.status)}</span> ${r.ts ? ago(Date.parse(r.ts) / 1000) : ''}</span></div>`).join('')
     : '<div class="dim pad">Configure a webhook in data/notify_config.json, then send a test ping.</div>';
 }
 
@@ -540,7 +545,7 @@ function renderPlatLedger() {
       <span>trades <span class="${r.trades_net >= 0 ? 'upl' : 'downl'}">${p(r.trades_net)}</span> · other <span class="${r.other_net >= 0 ? 'upl' : 'downl'}">${p(r.other_net)}</span>${r.inferred_spend ? ` <span class="dim">· inferred in-game spend ${r.inferred_spend}p</span>` : ''}</span>
       <span class="num ${r.delta >= 0 ? 'upl' : 'downl'}">${p(r.delta)}</span>
     </div>`).join('') +
-    `<div class="mrow"><span class="m-name dim small">${escHtml((L.notes || [])[0] || '')}</span><span class="num dim small">${chk.reconciles ? 'reconciles ✓' : 'NOT reconciled'} · tolerance ${chk.tolerance}p</span></div>`;
+    `<div class="mrow"><span class="m-name dim small" title="${escHtml((L.notes || [])[0] || '')}">${escHtml((L.notes || [])[0] || '')}</span><span class="num dim small">${chk.reconciles ? 'reconciles ✓' : 'NOT reconciled'} · tolerance ${chk.tolerance}p</span></div>`;
 }
 
 /* ---------- auto-refresh cadence (#45): auto_refresh_seconds from /api/config ---------- */
@@ -651,7 +656,7 @@ function renderTable() {
       ? ` <span class="lane-tag" title="priced from the rank-${r.lane_rank} order book - the rank you own">R${r.lane_rank}</span>` : '';
     return `
     <tr class="inv-row" data-slug="${escHtml(r.slug)}" title="Click for the full item view">
-      <td class="name">${r.name}</td>
+      <td class="name" title="${escHtml(r.name)}">${escHtml(r.name)}</td>
       <td class="num">${fmt(r.count)}</td>
       <td class="num">${fmt(advField(r, 'equipped'))}</td>
       <td class="num">${fmt(safeOf(r))}</td>
@@ -815,7 +820,7 @@ async function load() {
   renderMarket(); renderLimits(); renderSessions(); renderDiff(); renderKill(); renderTiming(); renderPlatLedger(); loadAutoRefresh();
   PlatChart.setData(ph.points || []);
   document.getElementById('status').textContent = s.lastdata_mtime
-    ? `prices updated ${ago(s.prices_mtime)} · data ${new Date().toLocaleTimeString()}`
+    ? `prices updated ${ago(s.prices_mtime)} · checked ${new Date().toLocaleTimeString()}`
     : 'No data yet — run: python scripts/setup.py';
   document.getElementById('foot').textContent =
     `WFM Trader · refreshed ${new Date().toLocaleTimeString()} · ${(tr && tr.n) || 0} history events · prices refresh every 15 min`;
@@ -1040,7 +1045,7 @@ function renderTrends() {
   const sp = (T.top_spikes || []).slice(0, 6), fd = (T.top_fades || []).slice(0, 6);
   if (!sp.length && !fd.length) { el.innerHTML = '<div class="dim pad">Run scripts/trends.py</div>'; return; }
   const line = (r, up) => `<div class="mrow">
-      <span class="m-name">${escHtml(r.name || pretty(r.slug))} <span class="dim small">30d ${r.vol30} · 90d ${r.vol90}</span></span>
+      <span class="m-name" title="${escHtml(r.name || pretty(r.slug))}">${escHtml(r.name || pretty(r.slug))} <span class="dim small">30d ${r.vol30} · 90d ${r.vol90}</span></span>
       <span class="num ${up ? 'upl' : 'downl'}">x${(r.ratio ?? 0).toFixed(2)} <span class="dim">${r.price_trend_pct != null ? ((r.price_trend_pct > 0 ? '+' : '') + r.price_trend_pct + '%') : ''}</span></span>
     </div>`;
   el.innerHTML = `<div class="subhead">Demand rising</div>` + sp.map(r => line(r, true)).join('') +

@@ -171,6 +171,9 @@ def test_xpinfo_names_tolerates_junk(log_mod):
 # ---------------------------------------------------------------- the written log
 def test_log_contract_and_counts(staged):
     doc = run(staged)
+    # no static/colimg/index.json in this fixture -> no `icons` block and no icon_local per
+    # item; both are added only when scripts/icon_cache.py has cached the images (see
+    # test_icon_cache_adds_icon_local_and_the_icons_block below).
     assert set(doc) == {'version', 'generated', 'generated_iso', 'overall', 'categories',
                         'sources', 'notes', 'content_hash'}
     assert isinstance(doc['generated'], int) and doc['generated_iso'].endswith('Z')
@@ -184,6 +187,8 @@ def test_log_contract_and_counts(staged):
         assert cat['name'] and cat['total'] > 0
         assert cat['pct'] == round(100.0 * cat['obtained'] / cat['total'], 1)
         assert all(r['name'] and r['unique_name'] and r['slug'] for r in cat['items'])
+        # the pinned item key set, plus icon_local only for icons cached in static/colimg
+        # (scripts/icon_cache.py) - the fixture here has no cache, so the base set is exact.
         assert all(set(r) == {'name', 'slug', 'unique_name', 'icon', 'owned', 'mastered',
                               'floor', 'floor_kind', 'mastery_req', 'obtain'} for r in cat['items'])
 
@@ -317,3 +322,35 @@ def test_atomic_write_leaves_no_tmp_file(staged):
 def test_selftest_passes_offline(staged, capsys):
     assert staged['mod'].selftest() == 0
     assert '0 failed' in capsys.readouterr().out
+
+
+def test_icon_cache_adds_icon_local_and_the_icons_block(staged):
+    """static/colimg/index.json (scripts/icon_cache.py) -> icon_local for cached icons.
+
+    A deliberate extension of the pinned item key set: rows whose remote `icon` is in the cache
+    gain `icon_local` ('/colimg/<file>', own origin) and the top-level icons block counts them;
+    `icon` (the remote URL) is untouched. An index entry whose file is gone from disk does not
+    count, and items outside the cache keep the base key set.
+    """
+    colimg = staged['static'] / 'colimg'
+    colimg.mkdir()
+    (colimg / 'Ash.png').write_text('x', encoding='utf-8')
+    (colimg / 'Nezha.png').write_text('x', encoding='utf-8')
+    write_json(colimg / 'index.json', {
+        'schema': 1, 'updated': 1700000000, 'count': 3,
+        'files': {'https://cdn.warframestat.us/img/Ash.png': {'file': 'Ash.png', 'bytes': 1},
+                  'https://cdn.warframestat.us/img/Nezha.png': {'file': 'Nezha.png', 'bytes': 1},
+                  'https://cdn.warframestat.us/img/gone.png': {'file': 'gone.png', 'bytes': 9}},
+        'failed': []})
+
+    doc = run(staged)
+    items = {r['name']: r for c in doc['categories'] for r in c['items']}
+    ash = items['Ash']
+    assert ash['icon_local'] == '/colimg/Ash.png'
+    assert ash['icon'] == 'https://cdn.warframestat.us/img/Ash.png'      # remote URL kept
+    assert set(ash) == {'name', 'slug', 'unique_name', 'icon', 'icon_local', 'owned', 'mastered',
+                        'floor', 'floor_kind', 'mastery_req', 'obtain'}
+    assert items['Nezha']['icon_local'] == '/colimg/Nezha.png'
+    assert 'icon_local' not in items['Braton']         # not in the cache -> remote only
+    assert doc['icons'] == {'cached': 2, 'total': 8}   # gone.png's file is missing from disk
+    assert any('static/colimg' in n for n in doc['notes'])

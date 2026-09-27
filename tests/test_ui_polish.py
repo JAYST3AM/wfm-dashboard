@@ -150,3 +150,43 @@ def test_theme_panel_survives_the_nav_work():
     for page in PAGES:
         html = read(page)
         assert 'id="themePanel"' in html and 'id="themeBtn"' in html, page
+
+
+# --------------------------------------------------------------------------- polish round 2 (2026-09-27)
+def test_header_counter_is_labelled_by_its_own_basis():
+    """The chip shows owned rows with a live sell price / owned rows - never 'Prices N/M', which read
+    as if the price feed had missed rows (it holds a record for every owned slug)."""
+    js = read('app.js')
+    assert 'Prices <b>' not in js
+    chip = js.split('no live quote">Priced ', 1)[1].split('</span>', 1)[0]
+    assert chip.startswith('<b>${s.priced ?? 0}/${s.items ?? 0}</b>')     # one basis, one payload
+    assert 'owned rows with a live sell price / owned rows' in js        # the how lives in the title
+
+
+def test_status_line_does_not_call_the_load_clock_data():
+    js = read('app.js')
+    assert '· checked ${new Date().toLocaleTimeString()}' in js
+    assert '· data ${new Date().toLocaleTimeString()}' not in js
+
+
+def test_phone_media_block_keeps_the_header_compact_and_the_pills_tappable():
+    css = read('style.css')
+    block = css.rsplit('@media (max-width: 560px)', 1)[1]
+    assert '.chips { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto;' in block
+    pills = block.split('.navpill {', 1)[1].split('}', 1)[0]
+    assert 'min-height: 34px' in pills                                  # >= the 32px touch minimum
+    assert 'flex: 1 1 calc(33.333% - 4px)' in pills                     # 3 + 3 rows, never 4 + 2
+    for row in ('.plan-head, .prow {', '.log-head, .lrow {', '.srow, .srowhead {', '.dealrow, .dealhead {'):
+        assert row in block, row                                       # data rows fit their card at 390px
+
+
+def test_numeric_cells_stay_right_aligned_with_tabular_numerals():
+    css = read('style.css')
+    assert 'td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }' in css
+    assert 'font-variant-numeric: tabular-nums; }' in css.split('.chip b {', 1)[1].split('\n', 1)[0]
+
+
+def test_header_controls_share_one_height_and_cards_one_inset():
+    css = read('style.css')
+    assert 'header .btn, header a.btn { min-height: 32px;' in css
+    assert '.picks { padding: 8px 16px 12px; }' in css        # the same 16px inset as .card-head

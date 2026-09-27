@@ -46,9 +46,11 @@ header {
   border: 1px solid var(--border); border-radius: 999px;
   padding: 4px 11px; font-size: 11.5px; color: var(--muted); white-space: nowrap;
 }
-.chip b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+.chip b { color: var(--text); font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
 .chip.warn b { color: var(--accent); }
 .actions { display: flex; gap: 8px; align-items: center; }
+/* one control height across the header row: search box, icon buttons, text buttons */
+header .btn, header a.btn { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }
 .search {
   display: flex; align-items: center; gap: 6px;
   background: var(--panel2); border: 1px solid var(--border); border-radius: 999px;
@@ -107,7 +109,7 @@ main { padding: 10px 18px 48px; }
 .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; transition: border-color .2s ease, transform .15s ease; }
 .kpi:hover { border-color: var(--accent-dim); transform: translateY(-1px); }
 .k-label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
-.k-val { font-family: var(--mono); font-size: 18px; font-weight: 700; margin-top: 3px; }
+.k-val { font-family: var(--mono); font-size: 18px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
 .k-val.accent { color: var(--accent); }
 .upl { color: var(--up, #4ade80); }
 .downl { color: var(--down, #f87171); }
@@ -117,6 +119,7 @@ main { padding: 10px 18px 48px; }
 .ranges button {
   background: transparent; color: var(--muted); border: 1px solid transparent;
   border-radius: 999px; padding: 3px 12px; cursor: pointer; font: 600 11.5px var(--sans);
+  min-height: 24px;
 }
 .ranges button:hover { color: var(--text); background: var(--panel2); }
 .ranges button.active { color: var(--accent); border-color: var(--border); background: var(--panel2); }
@@ -134,7 +137,7 @@ main { padding: 10px 18px 48px; }
 .tip b { font-family: var(--mono); }
 
 /* ---- sell picks ---- */
-.picks { padding: 8px 14px 12px; }
+.picks { padding: 8px 16px 12px; }
 .picks-note { font-size: 11.5px; margin: 2px 0 8px; line-height: 1.55; }
 .picks-note b { color: var(--text); font-weight: 600; }
 .pick {
@@ -198,7 +201,7 @@ tr.advrow td { padding: 2px 10px 12px; }
 .plan-head { padding: 5px 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
 .prow { padding: 6.5px 2px; border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); font-size: 12.5px; }
 .prow:hover { background: var(--hover); }
-.prow .p-qty, .prow .p-price, .prow .p-est, .plan-head .p-qty, .plan-head .p-price, .plan-head .p-est { text-align: right; font-family: var(--mono); }
+.prow .p-qty, .prow .p-price, .prow .p-est, .plan-head .p-qty, .plan-head .p-price, .plan-head .p-est { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .prow .p-price { color: var(--accent); font-weight: 600; }
 .prow .p-est { font-weight: 600; }
 .prow .p-note { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -215,7 +218,7 @@ tr.advrow td { padding: 2px 10px 12px; }
 .lrow { padding: 7px 2px; border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); font-size: 12.5px; }
 .lrow:hover { background: var(--hover); }
 .lrow .l-when { color: var(--muted); }
-.lrow .l-qty, .lrow .l-deal, .lrow .l-bal { text-align: right; font-family: var(--mono); }
+.lrow .l-qty, .lrow .l-deal, .lrow .l-bal { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .lrow .l-deal { color: var(--text); font-weight: 600; }
 .lrow .l-bal { color: var(--muted); }
 .l-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -241,8 +244,8 @@ tr.advrow td { padding: 2px 10px 12px; }
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 .totals { display: flex; gap: 22px; flex-wrap: wrap; padding: 10px 2px; color: var(--muted); font-size: 12px; align-items: baseline; }
-.totals b { color: var(--text); font-family: var(--mono); }
-.totals .big { color: var(--accent); font-size: 16px; font-weight: 700; font-family: var(--mono); }
+.totals b { color: var(--text); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.totals .big { color: var(--accent); font-size: 16px; font-weight: 700; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .tablewrap {
   border: 1px solid var(--border); border-radius: var(--r); overflow: auto;
   background: var(--panel); max-height: calc(100vh - 268px);
@@ -259,7 +262,7 @@ thead th:hover { color: var(--text); }
 thead th.sorted { color: var(--accent); }
 tbody td { padding: 5.5px 12px; white-space: nowrap; border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 tbody tr:hover { background: var(--hover); }
-td.num, th.num { text-align: right; font-family: var(--mono); }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 td.name { max-width: 350px; overflow: hidden; text-overflow: ellipsis; }
 .cat {
   font-size: 10.5px; padding: 1.5px 8px; border-radius: 999px;
@@ -278,6 +281,7 @@ td.spark svg { display: block; width: 62px; height: 18px; pointer-events: none; 
 .inv-row td { padding: 3.5px 10px; font-size: 12px; }
 thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort key */
 .status { padding: 10px 2px; color: var(--muted); font-size: 12px; }
+.card > .status { padding: 10px 16px; }   /* inside a card, sit on the title/content inset */
 
 /* ---- theme panel ---- */
 .theme-panel {
@@ -316,7 +320,7 @@ thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort 
 .dealrow, .srow, .sessrow, .mrow { border-top: 1px solid var(--border); }
 .dealrow.dealhead, .srow.srowhead { border-top: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .dealrow { display: grid; grid-template-columns: 78px minmax(180px, 1.6fr) 116px 108px 64px 40px; gap: 8px; align-items: center; padding: 7px 10px; font-size: 13px; }
-.srow { display: grid; grid-template-columns: minmax(160px, 1.7fr) 100px 82px 56px 92px; gap: 8px; align-items: center; padding: 7px 10px; font-size: 13px; }
+.srow { display: grid; grid-template-columns: minmax(160px, 1.7fr) 128px 82px 56px 92px; gap: 8px; align-items: center; padding: 7px 10px; font-size: 13px; }
 .mrow { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 8px; align-items: center; padding: 6px 10px; font-size: 13px; }
 .sessrow { display: grid; grid-template-columns: 88px 132px 1fr 72px; gap: 8px; align-items: center; padding: 7px 10px; font-size: 13px; }
 .dealrow .num, .srow .num, .mrow .num, .sessrow .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -551,7 +555,7 @@ html[data-adv="on"] .explain { display: revert !important; }
 .matview button {
   background: none; color: var(--muted); cursor: pointer;
   border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
-  font: 500 11.5px var(--sans);
+  font: 500 11.5px var(--sans); min-height: 24px;
 }
 .matview button:hover { color: var(--text); background: var(--panel2); }
 .matview button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
@@ -563,6 +567,7 @@ html[data-adv="on"] .explain { display: revert !important; }
   border: 1px solid var(--accent-dim); border-radius: 999px; padding: 0 4px; margin-left: 3px;
 }
 .mat-cap { padding: 0 10px 8px; }
+.mat-cap:empty { display: none; }   /* no cap line when nothing is capped */
 .mat-empty { padding: 12px 10px; }
 .rcosts { padding: 0 10px 6px; }
 .dojo-src { padding: 0 10px 12px; }
@@ -611,3 +616,42 @@ html[data-adv="on"] .explain { display: revert !important; }
   .pc-syn { grid-template-columns: 40px minmax(0, 1fr) 84px 70px; padding: 6px 10px; }
   .pc-frow { grid-template-columns: minmax(0, 1fr) 84px 70px; padding: 6px 10px; }
 }
+
+/* ---- phones (<=560px): compact header, one-row nav wrap, rows that fit their card ----
+   Measured before this block at 390x844: header 269px tall (the six chips stacked into a
+   188px column beside the brand, then the action cluster took two more rows), nav pills 30px
+   tall wrapping 4+2, trade plan rows 24px wider than the .picks box and trade-history rows
+   136px wider. Now: chips are one scrollable strip, the controls get their own row, the pills
+   wrap 3+3 at 34px (>= the 32px touch minimum) and every data row keeps its numbers on screen. */
+@media (max-width: 560px) {
+  header { padding: 8px 12px 6px; gap: 8px; }
+  .brand { flex: 0 0 auto; }
+  .chips { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .chips::-webkit-scrollbar { height: 3px; }
+  header .actions { flex: 1 1 100%; justify-content: flex-end; }
+  .search { flex: 1 1 128px; min-width: 0; }
+  .search input { width: 100%; min-width: 0; }
+  .mainnav { display: flex; margin: 10px 12px 0; max-width: calc(100% - 24px); gap: 6px; padding: 5px; }
+  .navpill {
+    flex: 1 1 calc(33.333% - 4px); min-height: 34px; padding: 7px 8px;
+    display: inline-flex; align-items: center; justify-content: center; text-align: center;
+  }
+  main { padding: 8px 12px 40px; }
+  /* data rows: keep every column inside the card instead of clipping the numbers away */
+  .plan-head, .prow { grid-template-columns: 18px minmax(0, 1fr) 30px 52px 62px; gap: 8px; }
+  .log-head, .lrow { grid-template-columns: 52px 66px minmax(0, 1fr) 28px 50px; gap: 6px; }
+  .srow, .srowhead { grid-template-columns: minmax(0, 1fr) 56px 48px 44px 58px; gap: 6px; font-size: 12px; }
+  .dealrow, .dealhead { grid-template-columns: 72px minmax(0, 1fr) 92px 84px; gap: 8px; }
+  .sessrow { grid-template-columns: 62px minmax(0, 1fr) 74px; gap: 8px; }
+  .srow > .dim { white-space: normal; }        /* parts + action chip wrap instead of clipping */
+  .srow > .dim .chip { display: none; }        /* action word needs 90px: phone keeps 4/4, desk keeps the word */
+  .heldline { flex-wrap: wrap; gap: 4px 10px; }
+  /* a data note is a whole sentence - wrap it on a phone instead of clipping it to nothing */
+  .mrow > .m-name.dim.small { white-space: normal; }
+  .newsrow { grid-template-columns: 52px minmax(0, 1fr) 62px; gap: 8px; }
+  /* the 14-column table scrolls sideways on a phone: keep its caption readable while it does */
+  .tablewrap caption { position: sticky; left: 0; max-width: calc(100vw - 48px); }
+  .h-cols .newsrow .n-title { white-space: normal; }   /* headlines read fully on a phone */
+  .h-cols .h-l2, .h-cols .h-l3 { white-space: normal; }  /* the why/how lines wrap, never clip */
+}
+

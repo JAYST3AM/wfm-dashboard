@@ -232,7 +232,8 @@
     const tip = [tipText(r), ownLine(r), whyLine(r)].filter(Boolean).join('\n\n');
     if (tip) row.setAttribute('title', tip);
     const l1 = add(row, 'div', 'h-l1');
-    add(l1, 'span', 'h-name', r.name || slug || 'Item');
+    const nm = add(l1, 'span', 'h-name', r.name || slug || 'Item');
+    nm.title = r.name || slug || 'Item';   /* long names ellipsize - the full one stays readable */
     add(l1, 'span', 'h-act', o.act || actText(r));
     /* one condensed meta line (counts + window + sales) - the row stays two lines tall and the
        untouched sentences stay in the hover text */

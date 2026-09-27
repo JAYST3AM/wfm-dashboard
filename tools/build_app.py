@@ -32,6 +32,7 @@ EXCLUDE_PATHS = {
     'secrets.json',                       # the user's warframe.market login
     'scripts/trader',                     # the private trader engines: never in a release
     'static/collection_log.json',         # regenerated from the local save (personal progress)
+    'static/colimg',                      # cached item icons: setup.py fetches them on first run
     'static/hi',                          # locally generated hi-res set
     'tools/preview_frames',               # dev-only preview frames
 }
@@ -308,6 +309,7 @@ def selftest(root=REPO):
         chk('ships %s' % need, need in files)
     for banned in ('secrets.json', 'static/collection_log.json', 'data/owned.json',
                    'data/prices.json', 'tests/test_profiles.py', 'static/hi/index.json',
+                   'static/colimg/index.json',
                    'scripts/trader/auto.py', 'scripts/trader/lister.py'):
         chk('never ships %s' % banned, banned in files, False)
     chk('no .pyc ships', any(f.endswith('.pyc') for f in files), False)

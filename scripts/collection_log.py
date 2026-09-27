@@ -8,6 +8,8 @@ Inputs
   data/owned.json                          current inventory (slug/name/path/count rows)
   data/prices.json                         local WFM price snapshot (wts = lowest sell order)
   data/wfcd_items_cache.json               cached catalog projection (written by this script)
+  static/colimg/index.json                 optional icon cache (scripts/icon_cache.py): adds
+                                           icon_local per item + the top-level icons block
   WFCD warframe-items data/json/*.json     network catalog (see "catalog sources" below)
 Output
   data/collection_log.json                 the log the Collection page renders
@@ -56,6 +58,10 @@ Icons
   for Ash.png).  Rows without imageName fall back to the local warframe.market catalog
   (data/wfm_items_v2.json gameRef -> market CDN path, the same CDN static/lookup.js uses).
   When neither matches, icon is null and the page draws a placeholder.
+  When static/colimg/index.json exists (scripts/icon_cache.py cached the images on this PC),
+  every item whose icon is cached also gets icon_local = '/colimg/<file>' - the page prefers
+  that (own origin, no redirect); `icon` (the remote URL) is never changed.  The log then also
+  carries a top-level icons {"cached": N, "total": N} block.
 
 Missing tradeables
   slugify(name) -> data/prices.json floor (wts).  Candidate order is the bare slug, then
@@ -211,6 +217,40 @@ def prices_path():
 
 def wfm_catalog_path():
     return os.path.join(DATA, 'wfm_items_v2.json')
+
+
+def colimg_dir():
+    return os.path.join(STATIC, 'colimg')
+
+
+def icon_cache_index():
+    """static/colimg/index.json (written by scripts/icon_cache.py) -> {url: file name}.
+
+    None when there is no cache at all - icon_local and the icons block are then simply absent
+    (the page falls back to the remote `icon`). Only entries whose file really is on this disk
+    with a size > 0 count, so the page is never pointed at a file that was deleted behind our
+    back. A junk or half-written index is treated as no cache.
+    """
+    path = os.path.join(colimg_dir(), 'index.json')
+    if not os.path.exists(path):
+        return None
+    doc = jload(path)
+    files = doc.get('files') if isinstance(doc, dict) else None
+    if not isinstance(files, dict):
+        return None
+    base = colimg_dir()
+    out = {}
+    for url, row in files.items():
+        name = row.get('file') if isinstance(row, dict) else None
+        if not isinstance(name, str) or not name or '/' in name or '\\' in name or '..' in name:
+            continue                                    # never trust the index for a path
+        try:
+            if os.path.getsize(os.path.join(base, name)) <= 0:
+                continue
+        except OSError:
+            continue
+        out[str(url)] = name
+    return out
 
 
 def save_live_path():
@@ -653,10 +693,21 @@ def build_item_obtain(name, index):
                           'detail': ' - '.join([b for b in ('%s%%' % clean_num(enemy.get('chance')),
                                                             enemy.get('rarity')) if b])})
         for other in (doc.get('other') or [])[:1]:
-            lines.append({'k': 'other', 'part': part,
-                          'label': '%s: %s' % (other.get('source') or 'Source', other.get('detail') or ''),
-                          'detail': ' - '.join([b for b in ('%s%%' % clean_num(other.get('chance')),
-                                                            other.get('rarity')) if b])})
+            src = other.get('source') or 'Source'
+            text = other.get('detail') or ''
+            chance, rarity = other.get('chance'), other.get('rarity')
+            if chance is None and not rarity:
+                # A prose row (the wiki acquisition / added-in pass) has no odds to show: render
+                # it as a labelled paragraph instead of a source-and-chance line, and never take
+                # the '?%' chance path. k = wiki/introduced keeps it out of the tile headline.
+                kind = 'wiki' if src.startswith('Wiki') else (
+                    'introduced' if src.startswith('WFCD') else 'other')
+                lines.append({'k': kind, 'part': part, 'label': src, 'detail': '', 'text': text})
+            else:
+                lines.append({'k': 'other', 'part': part,
+                              'label': '%s: %s' % (src, text),
+                              'detail': ' - '.join([b for b in ('%s%%' % clean_num(chance),
+                                                                rarity) if b])})
         if doc.get('market'):
             market = doc['market']
             bits = []
@@ -681,7 +732,12 @@ def build_item_obtain(name, index):
     dedup.sort(key=lambda l: order.get(l.get('k'), 9))   # the wiki link renders on its own row
     if not dedup and not own.get('wiki_note') and not own.get('wiki'):
         return None
-    headline = next((l['label'] for l in dedup if l.get('k') != 'wiki'), None)
+    headline = next((l['label'] for l in dedup if l.get('k') not in ('wiki', 'introduced')), None)
+    if not headline:
+        # only a prose line (wiki note / added-in update): lead with its own words, trimmed
+        prose = next((l.get('text') for l in dedup if l.get('text')), None)
+        if prose:
+            headline = prose if len(prose) <= 80 else prose[:79].rstrip() + '…'
     payload = {
         'short': headline or 'See the wiki',
         'lanes': len(dedup),
@@ -705,8 +761,13 @@ def load_obtain_index():
 
 
 def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, catalog_meta,
-              save_meta, notes, now=None, obtain_index=None):
-    """The data/collection_log.json payload."""
+              save_meta, notes, now=None, obtain_index=None, icon_cache=None):
+    """The data/collection_log.json payload.
+
+    icon_cache: {remote icon URL: cached file name} from static/colimg/index.json (None when
+    there is no cache). Cached icons add icon_local to their item and the icons block below;
+    nothing else about the payload changes.
+    """
     now = int(now if now is not None else time.time())
     buckets = {key: [] for key, _ in CATEGORIES}
     seen = set()
@@ -726,11 +787,19 @@ def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, cat
         floor, floor_kind = (None, None)
         if not (mastered or owned):
             floor, floor_kind = price_floor(entry.get('name'), prices)
-        buckets[key].append({
+        icon_url = icon_for(entry, icon_map)
+        cached_file = icon_cache.get(icon_url) if (icon_cache and icon_url) else None
+        row = {
             'name': entry.get('name'),
             'slug': slug,
             'unique_name': uniq,
-            'icon': icon_for(entry, icon_map),
+            'icon': icon_url,
+        }
+        if cached_file:
+            # the dashboard's own copy (static/colimg, scripts/icon_cache.py): same-origin and
+            # no redirect. `icon` stays the remote URL - the page falls back to it.
+            row['icon_local'] = '/colimg/' + cached_file
+        row.update({
             'owned': owned,
             'mastered': mastered,
             'floor': floor,
@@ -738,6 +807,7 @@ def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, cat
             'mastery_req': entry.get('mastery_req'),
             'obtain': build_item_obtain(entry.get('name'), obtain_index),
         })
+        buckets[key].append(row)
 
     categories, obtained, total = [], 0, 0
     for key, label in CATEGORIES:
@@ -766,6 +836,13 @@ def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, cat
                     'mastered_only': mastered_only, 'owned_only': owned_only,
                     'missing': total - obtained, 'missing_with_price': tradeable_missing},
         'categories': categories,
+    }
+    if icon_cache is not None:
+        # how many items the page can serve from this PC's own static/colimg cache
+        doc['icons'] = {'cached': sum(1 for cat in categories for r in cat['items']
+                                      if r.get('icon_local')),
+                        'total': total}
+    doc.update({
         'sources': {
             'catalog_source': catalog_meta.get('source'),
             'catalog_url': catalog_meta.get('source_url'),
@@ -784,7 +861,7 @@ def build_log(entries, xp_names, owned_paths, owned_slugs, prices, icon_map, cat
         },
         'notes': list(notes),
         'content_hash': None,
-    }
+    })
     if save_meta.get('error'):
         doc['notes'].append('save note: %s' % save_meta['error'])
     return doc
@@ -1102,7 +1179,12 @@ def main(argv=None):
     else:
         notes.append('How to obtain: no obtain_index.json - run scripts/obtain_index.py to add it.')
     doc = build_log(entries, save_meta['xp'], owned_paths, owned_slugs, prices, icon_map,
-                    catalog_meta, save_meta, notes, obtain_index=obtain_index)
+                    catalog_meta, save_meta, notes, obtain_index=obtain_index,
+                    icon_cache=icon_cache_index())
+    if doc.get('icons'):
+        doc['notes'].append('Icons: %d of %d served from static/colimg (icon_local), the rest '
+                            'from the remote CDN; refresh with scripts/icon_cache.py.'
+                            % (doc['icons']['cached'], doc['icons']['total']))
     digest = payload_hash(doc)
     doc['content_hash'] = digest
     prev = previous_stamp(doc, digest)
@@ -1119,6 +1201,9 @@ def main(argv=None):
             static_note = 'static copy failed: %s' % exc
     with_obtain = sum(1 for cat in doc['categories'] for r in cat['items'] if r.get('obtain'))
     print('  how-to-obtain cards: %d/%d items' % (with_obtain, doc['overall']['total']))
+    if doc.get('icons'):
+        print('  icons: %d/%d from static/colimg'
+              % (doc['icons']['cached'], doc['icons']['total']))
     print('collection log -> %s' % ascii_s(out_path().replace('\\', '/')))
     print('  %s  hash %s' % (doc['generated_iso'], digest))
     print('  overall %d/%d (%.1f%%) | mastered-only %d | owned-only %d | missing with price %d'

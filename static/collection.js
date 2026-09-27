@@ -40,12 +40,14 @@
 
   function isCollected(it) { return !!(it && (it.owned || it.mastered)); }
 
-  // Catalog icon URLs come from the log (WFCD CDN / warframe.market CDN). Whitelist them so a
-  // tampered log can never break out of the src attribute, then fall back to a letter tile.
+  // Catalog icon URLs come from the log (WFCD CDN / warframe.market CDN, or the dashboard's own
+  // /colimg/ cache written by scripts/icon_cache.py). Whitelist them so a tampered log can never
+  // break out of the src attribute, then fall back to a letter tile.
   function safeUrl(u) {
     if (typeof u !== 'string' || !u) return null;
-    if (u.indexOf('https://') !== 0 && u.indexOf('/') !== 0) return null;
     if (/[\x00-\x1f\x7f"'<>\\\s]/.test(u)) return null;
+    if (u.indexOf('/colimg/') === 0) return u;         // own origin: local icon cache, no redirect
+    if (u.indexOf('https://') !== 0 && u.indexOf('/') !== 0) return null;
     return u;
   }
 
@@ -57,7 +59,9 @@
   }
 
   function image(it, miss) {
-    var url = safeUrl(it.icon);
+    // Prefer the dashboard's own cached copy (`icon_local`, /colimg/, served from static/);
+    // the remote CDN URL (`icon`) is the fallback, the letter tile the last resort.
+    var url = safeUrl(it.icon_local) || safeUrl(it.icon);
     if (!url) return avatar(it, miss);
     var img = el('img', 'cl-thumb');
     img.alt = '';
@@ -358,6 +362,13 @@
   function tipRow(line) {
     var row = el('div', 'clt-row');
     row.setAttribute('data-k', line.k || '');
+    if (line.text) {
+      /* a prose line (wiki acquisition note / added-in update): one labelled paragraph */
+      row.className = 'clt-row clt-prose';
+      row.appendChild(el('span', 'clt-tag', line.label || 'Source'));
+      row.appendChild(el('div', 'clt-text', line.text));
+      return row;
+    }
     var main = el('span', 'clt-main');
     if (line.part) main.appendChild(el('span', 'clt-part', line.part));
     main.appendChild(el('span', 'clt-src', line.label || ''));

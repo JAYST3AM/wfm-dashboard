@@ -31,6 +31,23 @@ Output: data/obtain_index.json - one record per drop-table item name:
 Everything is a recorded fact from those files - nothing is inferred or guessed. A name the
 tables do not mention simply gets no record, and the consumer says so out loud.
 
+Wiki pass - "how do I get this?" for the items the drop tables are silent on
+  The wiki page is resolved from the catalogue name (as written, then all-caps form, then
+  first-letter capitalisation, then underscores for spaces, then the WFCD row's own wikiaUrl
+  title, then the wiki search API - the first hit sharing a distinctive word), and the page is
+  asked for its own answer: the Acquisition section when it has one (or the {{Acquisition|...}}
+  template many weapon pages use instead), otherwise the first sentence that names a real source
+  (Market, Research, Dojo, Quest, Syndicate, Standing, Bounty, Invasion, Sortie, Event, Relic,
+  Vault, a syndicate vendor) and says the item is actually acquired, quoted verbatim. Pages whose
+  text lives on a subpage ({{CompanionPage}} / {{ArchwingPage}} shells) fall through to
+  <title>/Main. Anything still unanswered gets the WFCD row's `introduced` update
+  ("Added in Update 10.0 (2013-09-13)", url = the wiki update page) - real data, never a guess.
+  Each line keeps its provenance (title, resolution step, section, url) under `acq`, and lands
+  in the record's `other` bucket so the collection hover card renders it. Pages and search
+  hits are cached under data/dropdata/wiki/, so re-runs are offline and idempotent.
+
+WFM_DATA_DIR overrides the data directory (drop tables, wiki cache, output) - for dry runs.
+
 Usage
   python scripts/obtain_index.py                # fetch (cached) + build + write
   python scripts/obtain_index.py --offline      # never touch the network
@@ -38,6 +55,7 @@ Usage
   python scripts/obtain_index.py --report       # coverage summary only, no write
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -193,6 +211,19 @@ def market_map(item_docs):
             out[row['name']] = {'plat': plat, 'credits': credits,
                                 'tradable': row.get('tradable') is True,
                                 'research': research, 'wiki': wiki}
+    return out
+
+
+PART_TYPES = ('Amp', 'K-Drive Component')
+
+
+def part_rows(item_docs):
+    """{name: row} for Amp / K-Drive component rows - parts the market flags never cover."""
+    out = {}
+    for rows in item_docs.values():
+        for row in (rows or []):
+            if isinstance(row, dict) and row.get('name') and row.get('type') in PART_TYPES:
+                out[row['name']] = row
     return out
 
 
@@ -369,6 +400,16 @@ def build(offline=False):
             doc['wiki'] = mkt['wiki']
         items[name] = doc
 
+    # Amp / K-Drive components: parts the game hands out as blueprints rather than as market
+    # items, so the WFCD rows carry no market/wiki flags - they still deserve a record and answer.
+    for name, row in part_rows(item_docs).items():
+        if name in items:
+            continue
+        doc = {'name': name, 'tradable': bool(row.get('tradable'))}
+        if row.get('wikiaUrl'):
+            doc['wiki'] = row['wikiaUrl']
+        items[name] = doc
+
     counts = {
         'items': len(items),
         'with_relics': sum(1 for d in items.values() if d.get('relics')),
@@ -389,6 +430,9 @@ def build(offline=False):
         'counts': counts,
         'notes': notes,
         'items': items,
+        # internal: {name: WFCD `introduced` row}, the wiki pass's last-resort line. main() pops
+        # it before the write - it is a lookup table, not part of the published payload.
+        '_introduced': introduced_map(item_docs),
     }
 
 
@@ -421,44 +465,171 @@ def coverage(doc, collection=None):
 
 # ------------------------------------------------------------------ wiki pass
 WIKI_API = 'https://wiki.warframe.com/api.php'
+WIKI_BASE = 'https://wiki.warframe.com/w/'
 WIKI_CACHE = os.path.join(os.path.dirname(DROP_DIR), 'dropdata', 'wiki')
-SECTION_RE = re.compile(r'={2,}\s*(Acquisition|How to Obtain|How to obtain|Obtained|Acquisition and'
-                        r' Usage|AcquisitionEdit)\s*={2,}', re.I)
+SECTION_RE = re.compile(r'={2,}\s*(Acquisition|How to Obtain|How to obtain|Obtained|Obtaining|'
+                        r'Acquisition and Usage|AcquisitionEdit)\s*={2,}', re.I)
 HEAD_RE = re.compile(r'\n={2,}[^=\n]+={2,}')
+SEC_RE = re.compile(r'^={2,}\s*([^=\n]+?)\s*={2,}\s*$', re.M)
 TRANSCLUDE_RE = re.compile(r'\{\{\s*Transclude\s*\|\s*([^#}|]+?)(?:#([^}|]+?))?\s*\}\}', re.I)
+
+# A sentence is only quoted as a line when it names somewhere items really come from.
+SOURCE_RE = re.compile(r"\b(?:Market|Tenno Lab|Clan Dojo|Dojo|Research|Quest|Syndicate|Standing|"
+                       r"Bounty|Invasion|Sortie|Event|Relic|Vault|Baro Ki'Teer|Cephalon Simaris|"
+                       r"Simaris|Quills|Ventkids|Roky|Legs|Little Duck|Necraloid|Kuva Lich|"
+                       r"Sisters of Parvos)\b|(?<!Mastery )\bRank\b", re.I)
+# words too generic to prove a sentence is about this item ('Hound' alone is every hound's word)
+WEAK_WORDS = {'the', 'and', 'for', 'with', 'from', 'into', 'of', 'to', 'in', 'on', 'at', 'by',
+              'or', 'is', 'it', 'as', 'an', 'its', 'prime', 'blueprint', 'blueprints', 'weapon',
+              'warframe', 'component', 'parts', 'part', 'set', 'moa', 'hound', 'amp', 'kdrive',
+              'kitgun', 'archwing', 'necramech', 'mod', 'mods'}
+# ...and a prose sentence only becomes a line when it says the item is actually ACQUIRED
+ACQ_VERB_RE = re.compile(r'\b(obtain(?:ed|able|s)?|acquir(?:e|ed|es)|purchas(?:e|ed|es|ing)|'
+                         r'bought|buy|earn(?:ed|s)?|award(?:ed|s)?|reward(?:ed|s)?|sold|sell|'
+                         r'research(?:ed)?|receiv(?:e|ed|es)|giv(?:e|en)|unlock(?:ed)?|'
+                         r'complet(?:e|ed|es|ion)|craft(?:ed|ing)?|built|build(?:ing)?|cost(?:s)?|'
+                         r'available|found|drop(?:s|ped)?|source(?:d)?|requir(?:e|ed|es))\b', re.I)
+# a page's own acquisition text can live in a {{Acquisition|...}} template instead of a heading
+ACQ_TPL_RE = re.compile(r'\{\{\s*Acquisition\s*\|', re.I)
+# variant markers: a page that lacks the item's qualifier ('Venari' vs 'Venari Prime') is another
+# item's page, so its words never answer for this one
+QUALIFIER_WORDS = ('prime', 'umbra', 'wraith', 'vandal', 'prisma', 'kuva', 'tenet', 'dex',
+                   'sancti', 'synoid', 'telos', 'vaykor', 'rakta', 'secura', 'coda', 'mk1')
+# display templates carry visible words ({{cc|25,000}} renders "25,000 credits") - keep the value
+TPL_RE = re.compile(r'\{\{\s*([a-zA-Z][\w ]*?)\s*\|([^{}]*?)\}\}')
+TPL_WORDS = {'cc': '{v} credits', 'sc': '{v} standing', 'dc': '{v} Ducats',
+             'plat': '{v} platinum', 'pc': '{v} platinum', 'faction': '{v}', 'wf': '{v}',
+             'weapon': '{v}', 'clan': '{v}', 'a': '{v}', 'e': '{v}', 'd': '{v}', 'm': '{v}'}
+UNIT_DUP_RE = re.compile(r'\b(standing|credits|Ducats|platinum)(?:\s+\1\b)+', re.I)
+SENT_SPLIT_RE = re.compile(r'(?<=[.!?])\s+')
+SECTIONS_BEFORE_LEAD = ('blueprint', 'blueprints', 'crafting', 'construction', 'building',
+                        'usage', 'notes', 'obtaining')
+MAX_SENTENCES = 2
+LINE_LIMIT = 240
+MAX_SEARCH_HITS = 4
+
+# the closed component vocabulary collection_log.build_item_obtain attaches a part row with -
+# mirrored so the wiki pass skips exactly the items whose card the parts already answer
+COMPONENT_WORDS = {
+    'blueprint', 'chassis', 'neuroptics', 'helmet', 'systems', 'barrel', 'receiver', 'stock',
+    'handle', 'blade', 'hilt', 'guard', 'grip', 'string', 'limb', 'upper', 'lower', 'boot',
+    'pouch', 'stars', 'star', 'cerebrum', 'carapace', 'wings', 'wing', 'harness', 'engine',
+    'fuselage', 'reactor', 'ornament', 'head', 'gauntlet', 'buckle', 'band', 'chain', 'core',
+    'disc', 'drum', 'synergy', 'claw', 'link', 'day', 'night', 'aspect', 'warrant', 'casing',
+    'housing', 'motor', 'plate', 'spur', 'talons', 'fur',
+}
+
+NET_CALLS = 0                     # how many wiki requests this process has made (for sleep+s tests)
+
+
+def words_of(text):
+    return {w for w in re.findall(r"[a-z0-9']+", (text or '').lower())}
+
+
+def distinctive_words(name):
+    """The words that make this item *this* item ('Lambeo Moa' -> {'lambeo'})."""
+    return {w for w in words_of(name) if len(w) >= 2 and w not in WEAK_WORDS}
+
+
+def title_variants(name):
+    """Wiki titles to try for a catalogue name: as written, then the normalised forms."""
+    out, seen = [], set()
+
+    def add(title, step):
+        if title and title not in seen:
+            seen.add(title)
+            out.append((title, step))
+
+    add(name, 'exact')
+    if name != name.upper() and re.search(r'\d', name):
+        add(name.upper(), 'upper')                     # 'Ax-52' -> 'AX-52'
+    cap = name[:1].upper() + name[1:]
+    if cap != name:
+        add(cap, 'capitalised')
+    if ' ' in name:
+        add(name.replace(' ', '_'), 'underscored')     # a Wiki-style title
+        add(name[:1].upper() + name[1:].lower(), 'sentence-case')   # 'Para Moa' -> 'Para moa'
+    return out
+
+
+def attaches_to_parent(name, key):
+    """True when `key` ('Ash Systems Blueprint') is a part row the card shows under `name`."""
+    words = key[len(name) + 1:].replace('-', ' ').split()
+    return 0 < len(words) <= 3 and all(w.lower() in COMPONENT_WORDS for w in words)
+
+
+def _net_get(url):
+    """One network read, counted (callers sleep after a run that actually fetched)."""
+    global NET_CALLS
+    NET_CALLS += 1
+    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read()
 
 
 def wiki_slug(title):
     return re.sub(r'[^a-z0-9]+', '_', title.lower()).strip('_')
 
 
+def wiki_cache_path(title):
+    """(path, cached doc) for a page title. The old cache is keyed by a lower-cased slug, which
+    made 'Ax-52' and 'AX-52' share one entry - a legacy file only counts when it was fetched for
+    this exact title; anything else gets its own case-hashed file."""
+    slug = wiki_slug(title)
+    legacy = os.path.join(WIKI_CACHE, slug + '.json')
+    doc = jload(legacy) if os.path.exists(legacy) else None
+    if doc is not None and doc.get('title') == title:
+        return legacy, doc
+    exact = os.path.join(WIKI_CACHE, '%s__%s.json'
+                         % (slug, hashlib.md5(title.encode('utf-8')).hexdigest()[:8]))
+    doc = jload(exact) if os.path.exists(exact) else None
+    return exact, doc
+
+
 def wiki_page(title, offline=False):
-    """Cached wikitext for a page title (redirects followed by the API)."""
-    path = os.path.join(WIKI_CACHE, wiki_slug(title) + '.json')
-    if os.path.exists(path):
-        doc = jload(path)
-        if doc is not None:
-            return doc.get('text'), doc.get('resolved')
+    """(text, resolved title) for one wiki page; cached by requested title, redirects followed.
+
+    `text` is None for a page that does not exist (the miss is cached too, so a re-run never
+    asks again) and `resolved` is the title the API landed on."""
+    path, doc = wiki_cache_path(title)
+    if doc is not None:
+        return doc.get('text'), doc.get('resolved')
     if offline:
         return None, None
     params = urllib.parse.urlencode({'action': 'query', 'prop': 'revisions', 'rvprop': 'content',
                                      'rvslots': 'main', 'redirects': '1', 'titles': title,
                                      'format': 'json', 'formatversion': '2'})
     try:
-        raw = urllib.request.urlopen(urllib.request.Request(WIKI_API + '?' + params, headers=UA),
-                                     timeout=60).read()
-        doc = json.loads(raw)
+        doc = json.loads(_net_get(WIKI_API + '?' + params))
     except Exception:
         return None, None
     page = (doc.get('query', {}).get('pages') or [{}])[0]
     text = None
     if 'revisions' in page:
         text = page['revisions'][0]['slots']['main'].get('content')
-    resolved = page.get('title')
+    resolved = page.get('title') or title
     os.makedirs(WIKI_CACHE, exist_ok=True)
     atomic_write(path, {'title': title, 'resolved': resolved, 'text': text,
-                        'fetched': int(time.time())})
+                        'missing': text is None, 'fetched': int(time.time())})
     return text, resolved
+
+
+def wiki_search(name, offline=False, limit=MAX_SEARCH_HITS):
+    """The wiki's own search hits for a name (cached - the last resolution step)."""
+    key = 'search__%s__%s' % (wiki_slug(name), hashlib.md5(name.encode('utf-8')).hexdigest()[:8])
+    path = os.path.join(WIKI_CACHE, key + '.json')
+    doc = jload(path) if os.path.exists(path) else None
+    if doc is None:
+        if offline:
+            return []
+        params = urllib.parse.urlencode({'action': 'query', 'list': 'search', 'srsearch': name,
+                                         'format': 'json', 'formatversion': '2'})
+        try:
+            doc = json.loads(_net_get(WIKI_API + '?' + params))
+        except Exception:
+            return []
+        os.makedirs(WIKI_CACHE, exist_ok=True)
+        atomic_write(path, doc)
+    hits = doc.get('query', {}).get('search') or []
+    return [h['title'] for h in hits[:limit] if isinstance(h, dict) and h.get('title')]
 
 
 def section_of(text, names=SECTION_RE):
@@ -473,61 +644,333 @@ def section_of(text, names=SECTION_RE):
     return text[start:nxt.start() if nxt else len(text)]
 
 
-def strip_wiki(text, limit=240):
-    """wikitext -> one readable line; templates/refs/tags removed, never inventing words."""
-    t = re.sub(r'<ref[^>]*>.*?</ref>', ' ', text, flags=re.S | re.I)
+def clean_wiki(text, pagename=None, limit=LINE_LIMIT):
+    """wikitext -> one readable line. Markup is only ever removed; display templates keep their
+    visible value ({{cc|25,000}} -> '25,000 credits') and {{PAGENAME}} becomes the item name."""
+    if not text:
+        return ''
+    t = text
+    if pagename:
+        t = re.sub(r'\{\{\s*PAGENAME\s*\}\}', pagename, t, flags=re.I)
+
+    def display(match):
+        word = TPL_WORDS.get(match.group(1).strip().lower())
+        if not word:
+            return ' '                                     # unknown template: markup, dropped
+        value = match.group(2).split('|')[0].strip(' |')
+        return (word.replace('{v}', value).strip() or ' ') if value else ' '
+
+    t = TPL_RE.sub(display, t)
+    t = re.sub(r'<ref[^>]*>.*?</ref>', ' ', t, flags=re.S | re.I)
     t = re.sub(r'<ref[^>]*/>', ' ', t, flags=re.I)
     t = re.sub(r'<!--.*?-->', ' ', t, flags=re.S)
-    t = re.sub(r'\{\{[^{}]*\}\}', ' ', t)                 # simple templates ({{WF|X}} etc.)
+    t = re.sub(r'\{\{[^{}]*\}\}', ' ', t)                  # leftover templates
     t = re.sub(r'\{\{[^{}]*\}\}', ' ', t)
-    t = re.sub(r'\[\[([^\]|]+)\|([^\]]+)\]\]', r'\2', t)  # [[Page|label]] -> label
+    t = re.sub(r'\[\[\s*(?:File|Image):[^\]]*\]\]', ' ', t, flags=re.I)
+    t = re.sub(r'\[\[\s*(?:File|Image):[^\]]*\]?\]?', ' ', t, flags=re.I)
+    t = re.sub(r'\[\[([^\]|]+)\|([^\]]+)\]\]', r'\2', t)   # [[Page|label]] -> label
     t = re.sub(r'\[\[([^\]]+)\]\]', r'\1', t)
     t = re.sub(r'\[https?://\S+\s+([^\]]+)\]', r'\1', t)
     t = re.sub(r'<[^>]+>', ' ', t)
     t = t.replace("'''", '').replace("''", '')
+    t = t.replace('\u200b', '').replace('\u00a0', ' ')
+    t = re.sub(r'^\s*(?:\{\||\|\}|[|!]).*$', ' ', t, flags=re.M)   # table rows are not sentences
     t = re.sub(r'^[*#:;]+\s*', '', t, flags=re.M)
     t = re.sub(r'\s+', ' ', t).strip(' |·-')
+    t = UNIT_DUP_RE.sub(r'\1', t)
     return t[:limit].rsplit(' ', 1)[0] if len(t) > limit else t
 
 
-def wiki_note(name, offline=False):
-    """Short sourced 'how to obtain' line from the wiki's Acquisition section, or None."""
-    text, _resolved = wiki_page(name, offline=offline)
-    body = section_of(text)
+def sentence_line(text, limit=LINE_LIMIT, sentences=MAX_SENTENCES):
+    """First `sentences` sentences of cleaned text, capped at `limit` chars ('' when too short)."""
+    picked = []
+    for raw in SENT_SPLIT_RE.split(text or ''):
+        sent = raw.strip()
+        if len(sent) < 15:
+            continue
+        if not picked and len(sent) > limit:
+            sent = sent[:limit].rsplit(' ', 1)[0]
+        if picked and len(' '.join(picked + [sent])) > limit:
+            break
+        picked.append(sent)
+        if len(picked) >= sentences:
+            break
+    line = ' '.join(picked).strip()
+    return line if len(line) >= 15 else ''
+
+
+def page_sections(text):
+    """[(heading, body)] in page order; the lead paragraph is the '' heading."""
+    heads = list(SEC_RE.finditer(text or ''))
+    if not heads:
+        return [('', text or '')]
+    out = [('', (text or '')[:heads[0].start()])]
+    for i, match in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(text or '')
+        out.append((match.group(1).strip(), (text or '')[match.end():end]))
+    return out
+
+
+def prose_line(name, title, text, pagename=None):
+    """(section, sentence) - the first sentence on the page that names a real source, says the item
+    is acquired, and is about this item: the page itself is about it, or the sentence mentions one
+    of its distinctive words. Another item's sentence is never quoted."""
+    words = distinctive_words(name)
+    sections = page_sections(text)
+    preferred = [s for s in sections if s[0] and distinctive_words(s[0]) & words]
+    lead = [s for s in sections if not s[0]]
+    named = [s for s in sections if s[0] and s[0].lower().split()
+             and s[0].lower().split()[0].strip(':') in SECTIONS_BEFORE_LEAD]
+    rest = [s for s in sections if s not in preferred and s not in lead and s not in named]
+    for heading, body in preferred + lead + named + rest:
+        cleaned = clean_wiki(body, pagename=pagename, limit=4000)
+        for raw in SENT_SPLIT_RE.split(cleaned):
+            sent = raw.strip()
+            if len(sent) < 15 or 'Category:' in sent or not sent.endswith(('.', '!', '?')):
+                continue                                   # markup leftovers are not sentences
+            if not SOURCE_RE.search(sent) or not ACQ_VERB_RE.search(sent):
+                continue
+            if not line_is_about(name, title, sent):
+                continue                                   # never quote another item's sentence
+            return heading or 'Lead', (sent[:LINE_LIMIT].rsplit(' ', 1)[0]
+                                       if len(sent) > LINE_LIMIT else sent)
+    return None, None
+
+
+def template_body(text, start):
+    """Raw text of the template starting at `start` (a '{{'), up to its matching '}}'."""
+    depth, i = 0, start
+    while i < len(text):
+        if text.startswith('{{', i):
+            depth += 1
+            i += 2
+            continue
+        if text.startswith('}}', i):
+            depth -= 1
+            i += 2
+            if depth <= 0:
+                return text[start:i - 2]
+            continue
+        i += 1
+    return text[start:]
+
+
+def split_template_args(body):
+    """Split a template body on its top-level '|' (nested templates/links stay whole)."""
+    out, depth, cur, i = [], 0, [], 0
+    while i < len(body):
+        pair = body[i:i + 2]
+        if pair in ('{{', '[['):
+            depth += 1
+            cur.append(pair)
+            i += 2
+            continue
+        if pair in ('}}', ']]'):
+            depth -= 1
+            cur.append(pair)
+            i += 2
+            continue
+        if body[i] == '|' and depth == 0:
+            out.append(''.join(cur))
+            cur = []
+            i += 1
+            continue
+        cur.append(body[i])
+        i += 1
+    out.append(''.join(cur))
+    return [arg.strip() for arg in out]
+
+
+def line_is_about(name, title, line):
+    """True when a quoted line belongs to this item: the page is about it (title shares a
+    distinctive word and the same qualifier - 'Venari' is not 'Venari Prime'), or the line itself
+    names one of the item's distinctive words (and the qualifier, when the title lacks it)."""
+    words = distinctive_words(name)
+    if not words:
+        return False
+    line_words = words_of(line)
+    if not (words & line_words):
+        return on_item_page(name, title)
+    missing = missing_qualifiers(name, title)
+    return not missing or any(q in line_words for q in missing)
+
+
+def on_item_page(name, title):
+    """True when the page title is this item's (shares a distinctive word, same qualifier)."""
+    return bool(distinctive_words(name) & words_of(title or '')) \
+        and not missing_qualifiers(name, title)
+
+
+def missing_qualifiers(name, title):
+    """Qualifier words the item name has and a candidate title lacks ('Venari' != 'Venari Prime')."""
+    title_words = words_of(title or '')
+    return [q for q in QUALIFIER_WORDS if q in words_of(name) and q not in title_words]
+
+
+def acquisition_template(text, pagename=None):
+    """(section, line) from a page's own {{Acquisition|...}} template (many weapon pages use it
+    instead of a heading). Named parameters ('name=...') are ignored, the text argument is read."""
+    match = ACQ_TPL_RE.search(text or '')
+    if not match:
+        return None, None
+    body = template_body(text, match.start())
+    inner = body[2:-2] if body.endswith('}}') else body[2:]
+    args = split_template_args(inner)[1:]
+    positional = [a for a in args if a and not re.match(r'^[\w ]+=', a)]
+    body = max(positional or [a for a in args if a], key=len, default='')
+    line = sentence_line(clean_wiki(body, pagename=pagename, limit=4000))
+    return ('Acquisition', line) if line else (None, None)
+
+
+def acquisition_section(text, pagename=None, offline=False):
+    """(section label, line) from a page's own acquisition section, following one {{Transclude}}."""
+    body = section_of(text, SECTION_RE)
     for target, section in TRANSCLUDE_RE.findall(body or ''):
-        sub, _r = wiki_page(target.strip(), offline=offline)
+        sub, _resolved = wiki_page(target.strip(), offline=offline)
         body = section_of(sub, re.compile(r'={2,}\s*(%s)\s*={2,}'
                                           % re.escape(section.strip() or 'Acquisition'), re.I)) or body
-    note = strip_wiki(body)
-    return note or None
+    if body:
+        line = sentence_line(clean_wiki(body, pagename=pagename, limit=4000))
+        if line:
+            return 'Acquisition', line
+    return acquisition_template(text, pagename=pagename)
 
 
-def wiki_fill(doc, offline=False, sleep_s=0.4, limit=None):
-    """Add `wiki_note` to every item that has no fact-bearing record yet.
+def wiki_line(name, title, text, pagename=None, offline=False):
+    """(section, line) for one page - its acquisition section first, then a sourced sentence.
+    A line pulled from another item's page (a search hit) must name this item itself."""
+    section, line = acquisition_section(text, pagename=pagename, offline=offline)
+    if line and line_is_about(name, title, line):
+        return section, line
+    return prose_line(name, title, text, pagename=pagename)
 
-    Component-aware: if a row like "Ash Prime Chassis Blueprint" already carries drop facts, the
-    parent item is answered and skipped - the wiki is only asked where the tables are silent."""
+
+def wiki_candidates(name, wiki_url=None, offline=False):
+    """(title, step) candidates, most likely first: the name's own variants, the WFCD row's own
+    wikiaUrl title, then the wiki search hits - hits whose title shares a distinctive word first,
+    then a search on just those words (how 'Bhaira Hound' finds the Model page), then the rest."""
+    out, seen = [], set()
+
+    def add(title, step):
+        if title and title not in seen:
+            seen.add(title)
+            out.append((title, step))
+
+    for title, step in title_variants(name):
+        add(title, step)
+    if wiki_url:
+        tail = urllib.parse.unquote(wiki_url.rstrip('/').rsplit('/', 1)[-1]).replace('_', ' ')
+        add(tail, 'wfcd-wiki-url')
+    words = distinctive_words(name)
+    hits = list(wiki_search(name, offline=offline))
+    word_hits = []
+    if words and not any(words & words_of(h) for h in hits):
+        word_hits = [h for h in wiki_search(' '.join(sorted(words)), offline=offline)
+                     if h not in hits]
+    sharing = [h for h in hits + word_hits if words and words & words_of(h)]
+    for hit in (sharing + [h for h in word_hits + hits if h not in sharing])[:MAX_SEARCH_HITS + 2]:
+        add(hit, 'search')
+    return out
+
+
+def wiki_acquire(name, wiki_url=None, offline=False):
+    """The wiki's own answer to "how do I get this?", or None when it has nothing sourced."""
+    for title, step in wiki_candidates(name, wiki_url=wiki_url, offline=offline):
+        text, resolved = wiki_page(title, offline=offline)
+        if not text:
+            continue
+        page = resolved or title
+        section, line = wiki_line(name, page, text, pagename=name, offline=offline)
+        if not line:                                       # template shell -> content subpage
+            sub = page + '/Main'
+            sub_text, sub_resolved = wiki_page(sub, offline=offline)
+            if sub_text:
+                section, line = wiki_line(name, sub_resolved or sub, sub_text, pagename=name,
+                                          offline=offline)
+                if line:
+                    page, step = sub_resolved or sub, step + '+main'
+        if line:
+            return {'kind': 'wiki', 'title': page, 'via': step, 'section': section,
+                    'url': WIKI_BASE + urllib.parse.quote(page.replace(' ', '_')), 'text': line}
+    return None
+
+
+def introduced_map(item_docs):
+    """{name: introduced row} straight from the WFCD item files - the update that added it."""
+    out = {}
+    for rows in item_docs.values():
+        for row in (rows or []):
+            if isinstance(row, dict) and row.get('name') and row.get('introduced'):
+                out[row['name']] = row['introduced']
+    return out
+
+
+def introduced_line(intro):
+    """The honest last resort: the update that added the item, named by the WFCD row itself."""
+    text = 'Added in %s' % (intro.get('name') or 'an unnamed update')
+    if intro.get('date'):
+        text += ' (%s)' % intro['date']
+    return {'kind': 'introduced', 'title': intro.get('name') or '', 'via': 'wfcd',
+            'section': 'introduced', 'url': intro.get('url') or '', 'text': text}
+
+
+def add_line(item, acq):
+    """Store the line where the collection card renders it: the record's free-text `other`
+    bucket (source label + detail) plus the full provenance under `acq`."""
+    source = ('Wiki (%s)' % acq['section']) if acq['kind'] == 'wiki' else 'WFCD (introduced)'
+    row = {'source': source, 'detail': acq['text'], 'chance': None, 'rarity': None,
+           'url': acq['url']}
+    bucket = item.setdefault('other', [])
+    if row not in bucket:
+        bucket.append(row)
+    item['acq'] = acq
+
+
+def wiki_fill(doc, offline=False, sleep_s=0.4, limit=None, introduced=None):
+    """Give every fact-less item a sourced acquisition line: the wiki first, `introduced` last.
+
+    Component-aware: an item whose parts the card already answers through (Ash <- Ash Systems
+    Blueprint) is skipped - but only when the part really attaches (Braton is not answered by
+    'Braton Prime Blueprint'). Every fetch is cached, so a re-run is offline and idempotent."""
     index = doc['items']
     fact_names = {k for k, v in index.items()
                   if any(v.get(f) for f in ('relics', 'missions', 'enemies', 'other', 'market',
                                             'research'))}
-    filled = tried = 0
+    introduced = introduced or {}
+    stats = {'tried': 0, 'wiki': 0, 'introduced': 0, 'empty': 0}
     for name, item in index.items():
-        if name in fact_names or item.get('wiki_note'):
+        if name in fact_names or item.get('acq'):
             continue
-        if any(k.startswith(name + ' ') for k in fact_names):
+        if any(k.startswith(name + ' ') and attaches_to_parent(name, k) for k in fact_names):
             continue
-        tried += 1
-        if limit and tried > limit:
+        tried_before = stats['tried']
+        stats['tried'] += 1
+        if limit and stats['tried'] > limit:
+            stats['tried'] = tried_before
             break
-        note = wiki_note(name, offline=offline)
-        if note:
-            item['wiki_note'] = note
-            filled += 1
-        if not offline and sleep_s:
+        calls_before = NET_CALLS
+        acq = wiki_acquire(name, wiki_url=item.get('wiki'), offline=offline)
+        if not acq and introduced.get(name):
+            acq = introduced_line(introduced[name])
+        if acq:
+            add_line(item, acq)
+            stats[acq['kind']] += 1
+            if acq['kind'] == 'wiki' and not item.get('wiki'):
+                item['wiki'] = acq['url']
+        else:
+            item['acq'] = {'kind': 'none', 'title': '', 'via': 'none', 'section': '',
+                           'url': '', 'text': ''}     # looked, found nothing - never invented
+            stats['empty'] += 1
+        if not offline and sleep_s and NET_CALLS > calls_before:
             time.sleep(sleep_s)
-    doc['counts']['with_wiki_note'] = sum(1 for d in index.values() if d.get('wiki_note'))
-    return {'tried': tried, 'filled': filled}
+    counts = doc.get('counts') or {}
+    counts['with_wiki_line'] = sum(1 for d in index.values()
+                                   if (d.get('acq') or {}).get('kind') == 'wiki')
+    counts['with_introduced_line'] = sum(1 for d in index.values()
+                                         if (d.get('acq') or {}).get('kind') == 'introduced')
+    counts['with_wiki_note'] = sum(1 for d in index.values() if d.get('wiki_note'))
+    doc['counts'] = counts
+    return stats
 
 
 # ------------------------------------------------------------------ selftest
@@ -588,6 +1031,57 @@ def selftest():
     check('market map keeps costs', mm['Ash']['plat'] == 375 and mm['Ash']['credits'] == 35000)
     check('clan-tech flagged as research', mm['Ignis']['research'] is True and mm['Ignis']['plat'] is None)
     check('rows without any fact are skipped', 'NoData' not in mm)
+    check('amp / k-drive parts get a record seed', set(part_rows({'Misc': [
+        {'name': 'Mote Prism', 'type': 'Amp'}, {'name': 'Bad Baby', 'type': 'K-Drive Component'},
+        {'name': 'Ash', 'type': 'Warframe'}]})) == {'Mote Prism', 'Bad Baby'})
+
+    # ---- wiki line pass (pure checks only: no network, no cache)
+    check('title variants: exact name first', title_variants('Braton') == [('Braton', 'exact')])
+    check('title variants: all-caps form for Ax-52', ('AX-52', 'upper') in title_variants('Ax-52'))
+    check('title variants: underscore form for spaces',
+          ('Orion_&_Sirius', 'underscored') in title_variants('Orion & Sirius'))
+    check('title variants: sentence-case form last',
+          title_variants('Para Moa')[-1] == ('Para moa', 'sentence-case'))
+    check('distinctive words drop the generic part',
+          distinctive_words('Lambeo Moa') == {'lambeo'} and distinctive_words('Hec Hound') == {'hec'})
+    check('part attach mirrors the card rule',
+          attaches_to_parent('Ash', 'Ash Systems Blueprint') and
+          not attaches_to_parent('Braton', 'Braton Prime Blueprint'))
+    check('template values kept, markup dropped',
+          clean_wiki('A built Strun can be purchased from the [[Market]] for {{cc|25,000}}.') ==
+          'A built Strun can be purchased from the Market for 25,000 credits.')
+    check('acquisition section is the first answer',
+          wiki_line('Braton', 'Braton',
+                    'x\n== Acquisition ==\nA fully built Braton can be purchased from the '
+                    '[[Market]] for {{cc|25,000}}.\n== Notes ==\ny', offline=True)[1] ==
+          'A fully built Braton can be purchased from the Market for 25,000 credits.')
+    check('section-less page: the source sentence is quoted verbatim',
+          prose_line('Orvius', 'Orvius', '== Notes ==\n* The blueprint can now be obtained from '
+                     'Cephalon Simaris for 100,000 standing.')[1] ==
+          'The blueprint can now be obtained from Cephalon Simaris for 100,000 standing.')
+    check("another item's sentence is never quoted",
+          prose_line('Lambeo Moa', 'Model',
+                     '== Para ==\nThe Para blueprint can be purchased from Legs for 2,000 '
+                     'standing.\n== Lambeo ==\nThe Lambeo blueprint can be purchased from Legs '
+                     'for 2,500 standing.') ==
+          ('Lambeo', 'The Lambeo blueprint can be purchased from Legs for 2,500 standing.'))
+    check('introduced fallback names the update and date',
+          introduced_line({'name': 'Update 10.0', 'date': '2013-09-13', 'url': 'u'})['text'] ==
+          'Added in Update 10.0 (2013-09-13)')
+    check('acquisition template is read when no heading exists',
+          acquisition_template('x {{Acquisition|name=Orvius|The blueprint is rewarded on '
+                               'completion of [[The War Within]].}} y') ==
+          ('Acquisition', 'The blueprint is rewarded on completion of The War Within.'))
+    check('table rows never leak into a line',
+          clean_wiki('{|\n| [[File:ParaMOA.png|150px]]\n| style="width:100%" |\n|}\n'
+                     'The Para blueprint can be purchased from [[Legs]].') ==
+          'The Para blueprint can be purchased from Legs.')
+    check('a variant page does not answer for a qualified item',
+          not line_is_about('Venari Prime', 'Venari',
+                            'All postures are available by default when Venari is unlocked at '
+                            'Warframe rank 5.'))
+    check('the item page itself answers',
+          line_is_about('Venari Prime', 'Venari Prime', 'Venari Prime can be traded.'))
 
     print('selftest: %d ok, %d failed' % (ok, fail))
     return fail == 0
@@ -600,15 +1094,17 @@ def main(argv=None):
     ap.add_argument('--report', action='store_true', help='print coverage, write nothing')
     ap.add_argument('--no-wiki', action='store_true', help='skip the wiki acquisition pass')
     ap.add_argument('--wiki-limit', type=int, default=None, help='cap wiki fetches this run')
+    ap.add_argument('--out', default=None, help='write the index to PATH (default: data/obtain_index.json)')
     args = ap.parse_args(argv)
 
     if args.selftest:
         sys.exit(0 if selftest() else 1)
 
     doc = build(offline=args.offline)
-    wiki = {'tried': 0, 'filled': 0}
+    introduced = doc.pop('_introduced', {})       # WFCD `introduced` rows: last-resort lines
+    wiki = {'tried': 0, 'wiki': 0, 'introduced': 0, 'empty': 0}
     if not args.no_wiki:
-        wiki = wiki_fill(doc, offline=args.offline, limit=args.wiki_limit)
+        wiki = wiki_fill(doc, offline=args.offline, limit=args.wiki_limit, introduced=introduced)
     cov = coverage(doc)
     print('items indexed      : %d' % doc['counts']['items'])
     print('  with relics      : %d (%d vaulted relics)' % (doc['counts']['with_relics'], doc['counts']['vaulted_relics']))
@@ -618,8 +1114,11 @@ def main(argv=None):
     print('  market price     : %d' % doc['counts']['with_market'])
     print('  dojo research    : %d' % doc['counts']['with_research'])
     print('  wiki link        : %d' % doc['counts']['with_wiki'])
-    print('  wiki note        : %d (fetched %d this run, %d filled)' % (
-        doc['counts'].get('with_wiki_note', 0), wiki['tried'], wiki['filled']))
+    print('  how-to-get line  : %d wiki + %d introduced (tried %d, still empty %d)' % (
+        doc['counts'].get('with_wiki_line', 0), doc['counts'].get('with_introduced_line', 0),
+        wiki['tried'], wiki['empty']))
+    print('  wiki note        : %d (legacy fallback: page text with nothing quotable)' % (
+        doc['counts'].get('with_wiki_note', 0)))
     print('collection items with a record: %d/%d (%s%%)' % (
         cov['with_some_record'], cov['collection_items'], cov['pct']))
     if doc['notes']:
@@ -627,8 +1126,13 @@ def main(argv=None):
     if args.report:
         print('sample without a record:', ', '.join(cov['sample_misses'][:12]))
         return 0
-    atomic_write(out_path(), doc)
-    print('wrote %s (%d bytes)' % (os.path.relpath(out_path(), ROOT), os.path.getsize(out_path())))
+    out = args.out or out_path()
+    atomic_write(out, doc)
+    try:
+        shown = os.path.relpath(out, ROOT)
+    except ValueError:
+        shown = out
+    print('wrote %s (%d bytes)' % (shown.replace('\\', '/'), os.path.getsize(out)))
     return 0
 
 
