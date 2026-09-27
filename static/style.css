@@ -688,6 +688,10 @@ html[data-adv="on"] .explain { display: revert !important; }
   .newsrow { grid-template-columns: 52px minmax(0, 1fr) 62px; gap: 8px; }
   /* the 14-column table scrolls sideways on a phone: keep its caption readable while it does */
   .tablewrap caption { position: sticky; left: 0; max-width: calc(100vw - 48px); }
+  /* trade view: a long card title + its meta wraps instead of running past the card edge */
+  #view-trade .card-title { white-space: normal; }
+  /* the run queue stays on two lines (the whisper needs the width) but keeps the dense spacing */
+  .runrow { gap: 2px 10px; padding: 3px 10px; font-size: 12px; }
   .h-cols .newsrow .n-title { white-space: normal; }   /* headlines read fully on a phone */
   .h-cols .h-l2, .h-cols .h-l3 { white-space: normal; }  /* the why/how lines wrap, never clip */
 }
@@ -721,4 +725,63 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 /* "view all recommendations" expander: the caret flips while the list is open */
 .h-more > .i { transition: transform .18s ease; }
 .h-more[aria-expanded="true"] > .i { transform: rotate(180deg); }
+
+/* ============ Trade view density (Jay 2026-09-27) ============
+   "trade page needs to be condensed to fit the information on there better."
+   Same rows, same columns, same controls - only the air between them goes, and the wide
+   screen is finally used sideways: the plan table and the held-back list share one row from
+   1500px, the three short cards (Trade limit / Kill switch / Notifications) line up 3-across
+   from 1200px, and every stacked view stays one column below that. Row budget <= 28px. */
+
+#view-trade .card { margin-bottom: 10px; }
+#view-trade .card-head { padding: 6px 12px 0; gap: 8px; flex-wrap: wrap; }   /* a narrow 1/3 column
+   wraps the action under the title instead of pushing it out of the card (card-title carries
+   nowrap via its data-icon) */
+#view-trade .card-head .actions { gap: 6px; }
+#view-trade .btn { padding: 4px 11px; font-size: 11.5px; }
+#view-trade .picks { padding: 4px 12px 8px; }
+#view-trade .pad { padding: 8px; }
+#view-trade .subhead { padding: 6px 8px 1px; }
+
+/* the plan table + the held-back list: one row when there is room for both (>=1500px) */
+.trade-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 12px; align-items: start; }
+.trade-split > details.acc.sub { margin: 4px 8px 2px; }
+@media (min-width: 1500px) {
+  .trade-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+/* status + safety strip: 3-across when the window is wide enough for three readable cards */
+.trade-ops { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: start; }
+@media (min-width: 1200px) {
+  .trade-ops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* plan rows: 25px each (was 32) and the Notes column is capped at 240px - every note text still
+   fits (measured), only the advisor chip's tail ellipsizes, and the row stops widening */
+@media (min-width: 901px) {
+  .plan-head, .prow { grid-template-columns: 22px minmax(120px, 1fr) 44px 62px 74px minmax(84px, 240px); gap: 8px; }
+}
+#view-trade .prow { padding: 4px 2px; font-size: 12px; line-height: 1.35; }
+#view-trade .plan-head { padding: 4px 2px; font-size: 10.5px; }
+#view-trade .prow .p-note { font-size: 11px; }
+
+/* held-back / attention / hygiene lines: 23px each (was 26-30) */
+#view-trade .heldline { padding: 3px 2px; font-size: 11.5px; line-height: 1.35; gap: 8px; }
+
+/* run queue: item+price, buyer, whisper on ONE 24px line (>=561px); the whisper keeps its full
+   text on hover, and the phone block below puts it back on its own line */
+@media (min-width: 561px) {
+  .runrow { grid-template-columns: minmax(0, 1.15fr) max-content minmax(0, 1fr); gap: 2px 10px; padding: 3px 10px; font-size: 12px; }
+  .runwhisper { grid-column: auto; font-size: 11px; line-height: 1.35; }
+}
+
+/* trade limit / kill switch / notifications rows */
+#view-trade .limrow { padding: 5px 8px; gap: 8px; font-size: 12px; }
+#view-trade .lim-big { font-size: 20px; }
+#view-trade .noteinput { width: 100%; max-width: 220px; padding: 5px 8px; font-size: 11.5px; }
+#view-trade .mrow { padding: 3px 8px; font-size: 12px; line-height: 1.35; }
+
+/* header auto-sync status: one dim line beside Refresh, never a block */
+#syncState { white-space: nowrap; }
+
 

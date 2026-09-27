@@ -52,7 +52,7 @@ HEADER = ("WFM Trader dashboard config - dashboard-side knobs only. Edit by hand
           "caps, price floors, poll_seconds) live in scripts/trader/settings.json.")
 
 # Every dashboard knob, in the order a fresh file gets them. Ranges (task spec + the
-# hardcoded values found in server.py / static/): 1024..65535 port, 15..3600 auto refresh,
+# hardcoded values found in server.py / static/): 1024..65535 port, 0..3600 auto sync,
 # 0..29 theme (static/theme.js ships 30 palettes), 60..86400 gamenews cache,
 # 1..200 deals rows, 1..60 session rows, 5..600 save-watch poll.
 SPEC = [
@@ -71,11 +71,12 @@ SPEC = [
          help='Default palette index into WFM_THEMES (0 = Vor Orange .. 29 = Nebula).',
          note='Default palette index into static/theme.js WFM_THEMES (0 = Vor Orange, '
               '29 = Nebula). A palette picked in the UI is remembered per browser.'),
-    dict(key='auto_refresh_seconds', type='min/max', min=15, max=3600, default=60,
+    dict(key='auto_refresh_seconds', type='min/max', min=0, max=3600, default=900,
          choices=None, step=1,
-         consumed_by='static/app.js auto-refresh poll',
-         help='Seconds between dashboard data polls (15..3600).',
-         note='Seconds between dashboard data polls. Lower = fresher, more CPU.'),
+         consumed_by='server.py auto-sync loop (refreshes the data); static/app.js polls the stores',
+         help='Seconds between automatic data syncs. 0 = manual only (the Refresh button).',
+         note='Seconds between automatic data syncs, 0 = manual only. The Settings picker writes '
+              '0 / 300 / 600 / 900 / 1800 / 3600 (manual / 5m / 10m / 15m / 30m / 1h).'),
     dict(key='currency_display', type='choice', min=None, max=None, default='p',
          choices=('p', 'plat', 'none'), step=None,
          consumed_by='static/app.js, chart.js, lookup.js (platinum suffix)',
@@ -481,8 +482,8 @@ def selftest():
             len(set(SPEC_KEYS)) == len(SPEC_KEYS) and not any(is_note(k) for k in SPEC_KEYS))
         rng = {r['key']: (r['type'], r['min'], r['max'], r['default']) for r in rows}
         chk('range: port 1024..65535 default 8787', rng['port'] == ('min/max', 1024, 65535, 8787))
-        chk('range: auto_refresh_seconds 15..3600 default 60',
-            rng['auto_refresh_seconds'] == ('min/max', 15, 3600, 60))
+        chk('range: auto_refresh_seconds 0..3600 default 900 (0 = manual)',
+            rng['auto_refresh_seconds'] == ('min/max', 0, 3600, 900))
         chk('range: theme 0..29 default 0 (theme.js ships 30 palettes)',
             rng['theme'] == ('min/max', 0, 29, 0))
         chk('range: gamenews cache 60..86400 default 1800',
@@ -520,8 +521,8 @@ def selftest():
         ok, val, _ = validate('port', '8787.0')
         chk('integral float text accepted, stored as int', ok and val == 8787
             and isinstance(val, int))
-        for raw, want in [('15', True), ('3600', True), ('14', False), ('3601', False),
-                          ('30', True), ('60000', False), ('1.5', False)]:
+        for raw, want in [('0', True), ('15', True), ('300', True), ('3600', True),
+                          ('3601', False), ('-1', False), ('1.5', False)]:
             chk(f'auto_refresh_seconds {raw!r} -> {"accepted" if want else "refused"}',
                 validate('auto_refresh_seconds', raw)[0] is want)
         for raw, want in [('0', True), ('29', True), ('30', False), ('-1', False),
@@ -640,7 +641,7 @@ def selftest():
             and served.count(b'\r\n') == served.count(b'\n') > 4)
 
         for pairs in ([('port', '80')], [('port', '65536')], [('host', 'localhost')],
-                      [('theme', '30')], [('auto_refresh_seconds', '5')],
+                      [('theme', '30')], [('auto_refresh_seconds', '3601')],
                       [('gifs', 'maybe')], [('nonsense', '1')], [('port', 'abc')]):
             before_refuse = _hash(p)
             res = apply_changes(pairs, p=p)

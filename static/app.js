@@ -354,7 +354,7 @@ function renderRunQueue() {
   el.innerHTML = rows.map(q => `<div class="runrow">
       <span class="m-name" title="${escHtml(q.why || '')}">${escHtml(q.name)} <span class="dim">x${q.qty} @ ${q.my_price}p</span></span>
       <span class="num"><span class="chip act-${q.buyer_status}">${q.buyer_status}</span> ${escHtml(q.buyer)} · ${q.buy_price}p</span>
-      <span class="runwhisper" title="copy-paste whisper" data-icon="copy">${escHtml(q.whisper)}</span>
+      <span class="runwhisper" title="${escHtml(q.whisper)}" data-icon="copy">${escHtml(q.whisper)}</span>
     </div>`).join('');
 }
 
@@ -495,11 +495,15 @@ function renderPlatLedger() {
     `<div class="mrow"><span class="m-name dim small" title="${escHtml((L.notes || [])[0] || '')}">${escHtml((L.notes || [])[0] || '')}</span><span class="num dim small">${chk.reconciles ? 'reconciles ✓' : 'NOT reconciled'} · tolerance ${chk.tolerance}p</span></div>`;
 }
 
-/* ---------- auto-refresh cadence (#45): auto_refresh_seconds from /api/config ---------- */
+/* ---------- auto-refresh cadence (#45): auto_refresh_seconds from /api/config ----------
+   The SERVER runs the sync pipeline on that cadence (GET /api/sync reports it); this timer only
+   re-reads the stores the page renders. It is capped at 60s so a 1-hour cadence still shows
+   fresh data - the data itself is refreshed by the server loop, not by this poll. */
 let AUTO_REFRESH_S = 0, autoTimer = null;
 function syncAutoRefresh(values) {
   const raw = Number((values || {}).auto_refresh_seconds);
-  const secs = (Number.isFinite(raw) && raw > 0) ? Math.max(15, Math.floor(raw)) : 30;
+  const knob = (Number.isFinite(raw) && raw > 0) ? Math.max(15, Math.floor(raw)) : 30;
+  const secs = Math.min(knob, 60);
   if (autoTimer && secs === AUTO_REFRESH_S) return;
   AUTO_REFRESH_S = secs;
   if (autoTimer) clearInterval(autoTimer);
@@ -510,6 +514,41 @@ async function loadAutoRefresh() {
     const c = await fetch('/api/config').then(r2 => r2.json());
     syncAutoRefresh((c || {}).values || {});
   } catch (e) { syncAutoRefresh(null); }
+}
+
+/* ---------- auto-sync status (server loop): GET /api/sync ----------
+   Label only, no prose: 'Auto sync off' (enabled false) / 'Syncing…' (running) /
+   'Sync failed' (last_ok false) / 'Synced 12:04' (last sync landed) / 'Auto sync —' before
+   the first sync has landed. The hover title carries the cadence + the next run. */
+const SYNC_POLL_MS = 60000;
+function syncClock(ts) {
+  return new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function syncText(s) {
+  if (s.enabled === false) return 'Auto sync off';
+  if (s.running) return 'Syncing…';
+  if (s.last_ok === false) return 'Sync failed';
+  if (s.last_sync) return 'Synced ' + syncClock(s.last_sync);
+  return 'Auto sync —';
+}
+function syncHint(s) {
+  if (s.enabled === false) return 'manual only';
+  const mins = Math.max(1, Math.round((Number(s.seconds) || 0) / 60));
+  const next = (s.next_in == null) ? '' : ' · next ' + syncClock(Math.floor(Date.now() / 1000) + Number(s.next_in));
+  return `auto sync every ${mins} minutes${next}`;
+}
+function renderSyncState(s) {
+  const el = document.getElementById('syncState');
+  if (!el) return;
+  const known = !!s && typeof s === 'object';
+  el.textContent = known ? syncText(s) : 'Auto sync —';
+  if (known) el.title = syncHint(s); else el.removeAttribute('title');
+  iconRepaint(el);   /* textContent drops the host's icon: re-arm it (icons.js repaints) */
+}
+async function loadSyncState() {
+  try {
+    renderSyncState(await fetch('/api/sync').then(r2 => r2.json()));
+  } catch (e) { renderSyncState(null); }
 }
 
 /* ---------- inventory ---------- */
@@ -1636,5 +1675,8 @@ document.getElementById('refresh').addEventListener('click', async e => {
 
 load();
 
-/* auto-refresh: 30s until /api/config lands, then auto_refresh_seconds (clamped >= 15s) */
+/* auto-refresh: 30s until /api/config lands, then auto_refresh_seconds (capped to 60s) */
 syncAutoRefresh(null);
+/* header status: the server's sync loop, once now and then every minute */
+loadSyncState();
+setInterval(loadSyncState, SYNC_POLL_MS);

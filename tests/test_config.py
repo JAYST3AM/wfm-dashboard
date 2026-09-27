@@ -19,7 +19,7 @@ CONFIG_PY = os.path.join(REPO, 'scripts', 'config.py')
 TRADER_SETTINGS = os.path.join(REPO, 'scripts', 'trader', 'settings.json')
 SHIPPED = os.path.join(REPO, 'data', 'config.json')
 
-RANGES = {'port': (1024, 65535, 8787), 'auto_refresh_seconds': (15, 3600, 60),
+RANGES = {'port': (1024, 65535, 8787), 'auto_refresh_seconds': (0, 3600, 900),
           'theme': (0, 29, 0), 'gamenews_cache_seconds': (60, 86400, 1800),
           'deals_shown': (1, 200, 60), 'sessions_shown': (1, 60, 12)}
 CHOICES = {'host': ('127.0.0.1', '0.0.0.0'), 'currency_display': ('p', 'plat', 'none')}
@@ -251,7 +251,7 @@ def test_refused_writes_leave_the_file_byte_identical(seeded):
     cfg, p = seeded
     before = sha(p)
     for pairs in ([('port', '80')], [('port', '65536')], [('host', 'localhost')],
-                  [('theme', '30')], [('auto_refresh_seconds', '5')], [('gifs', 'maybe')],
+                  [('theme', '30')], [('auto_refresh_seconds', '3601')], [('gifs', 'maybe')],
                   [('nonsense', '1')], [('port', 'abc')]):
         res = cfg.apply_changes(pairs, p=p)
         assert not res['ok'] and res['code'] == 2, pairs

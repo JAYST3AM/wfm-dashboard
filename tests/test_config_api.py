@@ -69,7 +69,7 @@ def test_schema_rows_carry_the_fields_the_ui_renders(server_mod, monkeypatch, tm
     assert (rows['port']['min'], rows['port']['max'], rows['port']['step']) == (1024, 65535, 1)
     assert (rows['deals_shown']['min'], rows['deals_shown']['max']) == (1, 200)
     assert (rows['sessions_shown']['min'], rows['sessions_shown']['max']) == (1, 60)
-    assert (rows['auto_refresh_seconds']['min'], rows['auto_refresh_seconds']['max']) == (15, 3600)
+    assert (rows['auto_refresh_seconds']['min'], rows['auto_refresh_seconds']['max']) == (0, 3600)
 
 
 def test_config_payload_degrades_when_the_engine_is_missing(server_mod, monkeypatch, tmp_path):

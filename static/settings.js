@@ -13,6 +13,26 @@ const READ_BY = {
   buy_budget_cap_platinum: 'flip planner',
 };
 
+/* ---------- auto sync picker (Jay: 5m / 10m / 15m / 30m / 1hr) ----------
+   Six presets over auto_refresh_seconds, saved through the same group Save as every other knob.
+   0 is 'Manual only'; a stored value that is not a preset is shown raw as Custom, never rounded
+   and never preselected. */
+const AUTO_SYNC_OPTIONS = [
+  { seconds: 0, label: 'Manual only' },
+  { seconds: 300, label: 'Every 5 minutes' },
+  { seconds: 600, label: 'Every 10 minutes' },
+  { seconds: 900, label: 'Every 15 minutes' },
+  { seconds: 1800, label: 'Every 30 minutes' },
+  { seconds: 3600, label: 'Every hour' },
+];
+/* the row's value text: a preset's label, or the raw seconds kept honest (no rounding) */
+function pickText(raw) {
+  const sec = Number(raw);
+  const preset = AUTO_SYNC_OPTIONS.find(o => o.seconds === sec);
+  if (preset) return preset.label;
+  return 'Custom \u00b7 ' + (Number.isFinite(sec) ? sec + 's' : String(raw));
+}
+
 /* ---------- groups: display copy only; the raw key is what gets posted ----------
    `icon` is a Phosphor sprite name (data-icon): it marks what the row or section means, and
    rides on the label host, so the label text, the field name and the save payload are untouched.
@@ -54,7 +74,7 @@ const GROUPS = [
   {
     id: 'updates', title: 'Updates', src: 'dash',
     rows: [
-      { key: 'auto_refresh_seconds', label: 'Auto-refresh the dashboard every', unit: 'seconds', icon: 'arrows-clockwise' },
+      { key: 'auto_refresh_seconds', label: 'Auto sync', pick: AUTO_SYNC_OPTIONS, icon: 'arrows-clockwise' },
       { key: 'watch_save_seconds', label: 'Check for a new game save every', unit: 'seconds', icon: 'floppy-disk',
         hint: 'lower is fresher' },
       { key: 'gamenews_cache_seconds', label: 'Refresh game news every', unit: 'minutes', factor: 60, icon: 'newspaper' },
@@ -89,7 +109,8 @@ function el(tag, cls, text) {
   if (text !== undefined) n.textContent = text;
   return n;
 }
-const shownValue = ctl => ctl.type === 'checkbox' ? (ctl.checked ? 'on' : 'off') : ctl.value;
+const shownValue = ctl => ctl.dataset.pick ? pickText(ctl.querySelector('input').value)
+  : ctl.type === 'checkbox' ? (ctl.checked ? 'on' : 'off') : ctl.value;
 const fmtValue = v => typeof v === 'boolean' ? (v ? 'true' : 'false') : String(v);
 /* a textContent write drops an already-rendered icon child: ask icons.js to put it back, once the
    sprite has landed (an earlier render would only mark the host as done and never draw it) */
@@ -107,12 +128,46 @@ function setStatus(node, msg, bad) {
 }
 
 /* ---------- controls ---------- */
+/* the auto sync picker: six pills over a hidden seconds input, so the row keeps its id and
+   data-k plumbing and saveGroup's number branch posts the picked value unchanged */
+function buildPickControl(meta, val, id, src) {
+  const sec = Number(val);
+  const wrap = el('span', 'st-segwrap');
+  wrap.dataset.pick = '1';
+  const store = el('input');
+  store.type = 'hidden';
+  store.id = id;
+  store.dataset.k = meta.key;
+  store.dataset.src = src;
+  store.value = String(val);
+  const box = el('span', 'st-seg');
+  box.setAttribute('role', 'group');
+  box.setAttribute('aria-label', meta.label || meta.key);
+  meta.pick.forEach(o => {
+    const b = el('button', null, o.label);
+    b.type = 'button';
+    b.dataset.sec = String(o.seconds);
+    b.setAttribute('aria-pressed', String(o.seconds === sec));   /* a Custom value presses none */
+    b.addEventListener('click', () => {
+      store.value = String(o.seconds);
+      box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      store.dispatchEvent(new Event('change', { bubbles: true }));  /* the value cell follows */
+    });
+    box.appendChild(b);
+  });
+  wrap.appendChild(store);
+  wrap.appendChild(box);
+  return wrap;
+}
+
 function buildControl(meta, sch, src, id) {
   const f = meta.factor || 1;
   const cur = valuesOf(src)[meta.key];
   const val = cur !== undefined ? cur : sch.default;
   let ctl;
-  if (sch.type === 'bool') {
+  if (meta.pick) {
+    return buildPickControl(meta, val, id, src);
+  } else if (sch.type === 'bool') {
     ctl = el('input');
     ctl.type = 'checkbox';
     ctl.checked = !!val;

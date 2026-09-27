@@ -22,6 +22,7 @@
     <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true"><span data-icon="speaker-high"></span><span data-icon="speaker-slash"></span></button>
     <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel" data-icon="palette">Theme</button>
     <a class="btn" id="settingsBtn" href="/settings.html" title="Trading rules, appearance, updates, accounts" data-icon="gear-six">Settings</a>
+    <span id="syncState" class="dim small" data-icon="arrows-clockwise"></span>
     <button id="refresh" class="btn primary" data-icon="arrows-clockwise">Refresh</button>
     <button id="btnExportPng" class="btn" title="Save top recommendations as a PNG" data-icon="download-simple">PNG</button>
   </div>
@@ -200,11 +201,13 @@
             <button class="btn" id="btnCycle" data-icon="arrows-clockwise">Check the market now</button>
           </div>
         </div>
-        <div class="picks" id="planList"></div>
-        <details class="acc sub">
-          <summary>Not recommended right now <span class="dim small" id="heldMeta"></span></summary>
-          <div class="picks" id="heldList"></div>
-        </details>
+        <div class="trade-split">
+          <div class="picks" id="planList"></div>
+          <details class="acc sub" id="heldAcc">
+            <summary>Not recommended right now <span class="dim small" id="heldMeta"></span></summary>
+            <div class="picks" id="heldList"></div>
+          </details>
+        </div>
       </div>
       <div class="card">
         <div class="card-head">
@@ -217,10 +220,6 @@
           <div class="actions pad-b"><button class="btn" id="btnHygiene" data-icon="list">Rebuild plan</button></div>
           <div class="picks" id="hygieneList"></div>
         </details>
-      </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="hourglass">Trade limit <span class="dim small" id="limMeta"></span></div></div>
-        <div class="picks" id="limList"></div>
       </div>
     </div>
 
@@ -265,30 +264,37 @@
 
     <!-- the trader internals (engine status, detector log, flipper plan, raw output) retired
          2026-09-27: the default surface stays action-first. Safety and the live controls stay
-         visible below, never buried in an accordion. -->
+         visible below, never buried in an accordion. 2026-09-27 (density): Trade limit moved
+         down to sit 3-across with the kill switch and notifications on wide screens. -->
+      <div class="trade-ops">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="hourglass">Trade limit <span class="dim small" id="limMeta"></span></div></div>
+          <div class="picks" id="limList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title" data-icon="warning">Kill switch <span class="dim small" id="killMeta"></span></div>
+            <div class="actions"><button class="btn" id="btnKill" data-icon="warning">Arm kill switch</button></div>
+          </div>
+          <div class="picks">
+            <input id="killNote" class="noteinput" type="text" placeholder="Optional note (why)" aria-label="Kill switch note">
+          </div>
+          <div class="picks" id="killList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title" data-icon="megaphone">Notifications - Discord / webhook <span class="dim small" id="notifyMeta"></span></div>
+            <div class="actions"><button class="btn" id="btnNotify" data-icon="bell">Send test ping</button></div>
+          </div>
+          <div class="picks" id="notifyList"></div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-head">
           <div class="card-title" data-icon="list-dashes">Run queue - best buyers <span class="dim small" id="runqMeta"></span></div>
           <div class="actions"><button class="btn" id="btnRunq" data-icon="arrows-clockwise">Refresh queue</button></div>
         </div>
         <div class="picks" id="runqList"></div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title" data-icon="warning">Kill switch <span class="dim small" id="killMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnKill" data-icon="warning">Arm kill switch</button></div>
-        </div>
-        <div class="picks">
-          <input id="killNote" class="noteinput" type="text" placeholder="Optional note (why)" aria-label="Kill switch note">
-        </div>
-        <div class="picks" id="killList"></div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title" data-icon="megaphone">Notifications - Discord / webhook <span class="dim small" id="notifyMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnNotify" data-icon="bell">Send test ping</button></div>
-        </div>
-        <div class="picks" id="notifyList"></div>
       </div>
   </section>
 

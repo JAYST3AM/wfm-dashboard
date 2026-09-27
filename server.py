@@ -1,7 +1,7 @@
 """WFM Trader dashboard — localhost server (stdlib only).
 Serves static/ + JSON API over the project's data/ folder.
 """
-import json, os, sys, subprocess, time, re, html as htmllib
+import json, os, sys, subprocess, time, re, html as htmllib, threading
 import urllib.request
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
@@ -23,6 +23,7 @@ try:
         PORT = int(_cfg.get('port') or PORT)
     HOST = os.environ.get('WFM_HOST') or _cfg.get('host') or HOST
 except Exception:
+    _dashcfg = None
     _cfg = {}
 
 # When launched via pythonw (no console) sys.stdout/stderr are None — log to data/server.log.
@@ -580,6 +581,118 @@ def summary_payload():
         plat_hist=plat_history_payload(),
     )
 
+# ---------------------------------------------------------------- auto sync
+# Jay (2026-09-27): "can we get an auto sync with settings ie 5m 10m 15m 30m 1hr".
+# The cadence is the dashboard knob auto_refresh_seconds (0 = manual only, default 900). While the
+# server runs, sync_tick() runs the LOCAL pipeline steps below on that cadence so the numbers the
+# UI polls are actually refreshed, not just re-rendered. Prices (fetch_prices.py) stay out: it is
+# a ~2 minute network job, not a 5-minute one - the Refresh button still runs the full pass.
+SYNC_STEPS = [('refresh.py', []), ('invdiff.py', []), ('progress.py', ['--once'])]
+SYNC = {'seconds': 0, 'last_sync': None, 'last_ok': None, 'last_ms': None,
+        'next_at': None, 'running': False, 'error': None}
+
+
+def sync_config_seconds(default=900):
+    """auto_refresh_seconds from data/config.json (read via scripts/config.py). Never raises."""
+    try:
+        if _dashcfg is None:
+            return default
+        v = _dashcfg.read().get('auto_refresh_seconds')
+    except Exception:
+        return default
+    try:
+        return max(0, min(3600, int(v)))
+    except (TypeError, ValueError):
+        return default
+
+
+def sync_run(steps=None):
+    """Run the local pipeline steps in order. -> (ok, ms, notes). One failure never stops the rest."""
+    t0 = time.time()
+    ok, notes = True, []
+    for script, args in (SYNC_STEPS if steps is None else steps):
+        try:
+            r = subprocess.run([sys.executable, os.path.join(ROOT, 'scripts', script)] + list(args),
+                               capture_output=True, text=True, timeout=600, cwd=ROOT)
+            if r.returncode != 0:
+                ok = False
+                notes.append('%s rc=%d' % (script, r.returncode))
+        except Exception as e:
+            ok = False
+            notes.append('%s %s' % (script, str(e)[:80]))
+    return ok, int((time.time() - t0) * 1000), notes
+
+
+def sync_tick(now=None):
+    """One decision, and one run when it is due. -> 'off' | 'waiting' | 'ran' | 'failed'."""
+    now = time.time() if now is None else now
+    secs = SYNC['seconds'] = sync_config_seconds()
+    if not secs:
+        SYNC['next_at'] = None
+        return 'off'
+    if SYNC['next_at'] is None:
+        SYNC['next_at'] = now + secs
+        return 'waiting'
+    if now < SYNC['next_at']:
+        return 'waiting'
+    SYNC['running'], SYNC['error'] = True, None
+    try:
+        ok, ms, notes = sync_run()
+    except Exception as e:                                   # never kill the loop
+        ok, ms, notes = False, 0, [str(e)[:120]]
+    SYNC.update(last_sync=int(time.time()), last_ok=ok, last_ms=ms, running=False,
+                error=('; '.join(notes) or None))
+    SYNC['next_at'] = time.time() + secs
+    print('auto sync: %s %dms%s' % ('ok' if ok else 'FAILED', ms,
+                                    (' ' + '; '.join(notes)) if notes else ''), flush=True)
+    sync_log_write()
+    return 'ran' if ok else 'failed'
+
+
+def sync_log_write(keep=50):
+    """Append this run to data/sync_log.json (last `keep` rows). Never raises.
+
+    The loop's own print has nowhere to land when the supervisor starts the server with
+    pythonw, so the history lives next to the other data files instead.
+    """
+    try:
+        path = os.path.join(DATA, 'sync_log.json')
+        rows = jload(path) or []
+        if not isinstance(rows, list):
+            rows = []
+        rows.append({'ts': SYNC['last_sync'], 'ok': SYNC['last_ok'], 'ms': SYNC['last_ms'],
+                     'error': SYNC['error']})
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(rows[-keep:], f, indent=1)
+        os.replace(tmp, path)
+    except Exception:
+        pass
+
+
+def sync_payload():
+    """GET /api/sync - the loop's own state (the UI reads this, it never guesses)."""
+    s = SYNC
+    next_in = None
+    if s['seconds'] and s['next_at']:
+        next_in = max(0, int(round(s['next_at'] - time.time())))
+    return {'enabled': bool(s['seconds']), 'seconds': int(s['seconds'] or 0),
+            'last_sync': s['last_sync'], 'last_ok': s['last_ok'], 'last_ms': s['last_ms'],
+            'next_in': next_in, 'running': bool(s['running']), 'error': s['error'],
+            'steps': [name for name, _ in SYNC_STEPS]}
+
+
+def autosync_loop():
+    """Daemon body: tick, then sleep a slice short enough to notice a cadence change."""
+    slice_s = float(os.environ.get('WFM_SYNC_SLICE') or 5)
+    while True:
+        try:
+            sync_tick()
+        except Exception as e:
+            SYNC['error'] = str(e)[:120]
+        time.sleep(max(0.2, min(slice_s, max(1.0, (SYNC['seconds'] or 60) / 4.0))))
+
+
 class H(BaseHTTPRequestHandler):
     def _send(self, code, body, ctype='application/json'):
         if isinstance(body, (dict, list)):
@@ -617,6 +730,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/trader': return self._send(200, trader_payload())
         if p == '/api/gamenews': return self._send(200, gamenews_payload())
         if p == '/api/config': return self._send(200, dashcfg_payload())
+        if p == '/api/sync': return self._send(200, sync_payload())
         if p == '/api/trader/cfg': return self._send(200, cfg_payload())
         if p == '/api/profiles': return self._send(200, profiles_payload())
         if p.startswith('/api/feature/'):
@@ -767,5 +881,6 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     srv = ThreadingHTTPServer((HOST, PORT), H)
+    threading.Thread(target=autosync_loop, daemon=True).start()
     print(f'WFM Trader serving on http://{HOST}:{PORT}/ (ctrl-c to stop)', flush=True)
     srv.serve_forever()
