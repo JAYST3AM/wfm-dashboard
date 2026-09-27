@@ -1,0 +1,64 @@
+/* WFM Trader - chat dock layout (HOME, right side).
+   Loaded by home.js on index.html only. Owns #homeMain / #chatDock / #chatRows / .chatrow, and the
+   #view-home.chat-docked grid. Nothing here touches app.js or style.css, and colours come from the
+   palette vars so every theme works.
+
+   Breakpoints mirror the relic dock on the collection page (the house pattern):
+     >=1500px  two columns: cards left, 360px sticky chat rail right
+     1200-1499 cards full width, 300px rail right
+     <1200px   chat sits under the cards as a normal block, list scrolls inside itself */
+
+#view-home.chat-docked { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: start; }
+#view-home.chat-docked > #homeMain { display: flex; flex-direction: column; min-width: 0; }
+#view-home.chat-docked > #homeMain > * { min-width: 0; }
+
+#chatDock { margin-bottom: 10px; display: flex; flex-direction: column; min-width: 0; }
+#chatDock .card-head { flex: 0 0 auto; }
+#chatDock .chat-rows {
+  flex: 1 1 auto; min-height: 140px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px 12px 4px; display: flex; flex-direction: column; gap: 0;
+}
+#chatDock .chatrow {
+  display: flex; gap: 6px; align-items: baseline; padding: 4px 2px; font-size: 12px;
+  line-height: 1.35; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+#chatDock .chatrow:first-child { border-top: 0; }
+#chatDock .chat-who {
+  flex: 0 0 auto; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px; color: var(--accent);
+}
+#chatDock .chatrow.mine .chat-who { color: var(--text); font-weight: 600; }
+#chatDock .chat-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+#chatDock .chat-at { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+#chatDock #chatEmpty { padding: 10px 4px; }
+
+#chatDock .chat-form { display: flex; gap: 6px; padding: 6px 12px 10px; flex: 0 0 auto; }
+#chatDock .chat-input {
+  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 12px; color: var(--text);
+  background: color-mix(in srgb, var(--hover) 60%, transparent);
+  border: 1px solid var(--border); border-radius: var(--r); padding: 5px 8px;
+}
+#chatDock .chat-input:focus { outline: none; border-color: var(--accent); }
+#chatDock .chat-form .btn { flex: 0 0 auto; }
+
+@media (min-width: 1200px) {
+  #view-home.chat-docked { grid-template-columns: minmax(0, 1fr) 300px; }
+  #chatDock { position: sticky; top: 10px; max-height: calc(100vh - 240px); }
+}
+
+@media (min-width: 1500px) {
+  #view-home.chat-docked { grid-template-columns: minmax(0, 1fr) 360px; }
+}
+
+/* stack: the chat becomes a normal block under the cards; keep it short so it does not push the
+   page down on phones */
+@media (max-width: 1199px) {
+  #chatDock { max-height: 300px; margin: 0 0 12px; }
+  #chatDock .chat-rows { max-height: 200px; }
+}
+
+@media (max-width: 540px) {
+  #chatDock { max-height: 260px; }
+  #chatDock .chat-rows { max-height: 168px; }
+  #chatDock .chat-who { max-width: 36%; }
+}

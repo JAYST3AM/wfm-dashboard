@@ -1,0 +1,116 @@
+/* cards.css — mod cards page, condensed (Jay 2026-09-27: "all pages should be condensed").
+   Same entries, same fields, same controls, same counts — only the air between them goes.
+   Loaded after style.css; the page's own <style> in cards.html now carries only the
+   face/art/foil/inspect visuals, so every layout number for this page has one home here.
+
+   Recipe (same as the trade view's round):
+   - the wrap uses the whole window from 1500px (it was a 1500px island on a 1920 screen)
+   - tiles pack at a 10px gap on ~130px columns (13 across at 1920, was 8 at 173px)
+   - the two filter rows share one line from 1500px
+   - the meta line and the foot give their margins back
+   Below 1200px nothing changes shape: the same controls, stacked, with no sideways scroll. */
+
+/* ---------- page shell ---------- */
+.mcd-wrap { padding: 10px 14px 18px; max-width: 1500px; margin: 0 auto; }
+@media (min-width: 1500px) { .mcd-wrap { max-width: 1840px; } }
+
+/* ---------- toolbar ---------- */
+.mcd-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mcd-search { flex: 1 1 210px; min-width: 180px; padding: 4px 12px; }
+.mcd-search input { width: 100%; font-size: 13px; }
+.mcd-search .si { font-size: 15px; }
+.mcd-clear { background: none; border: none; color: var(--muted); cursor: pointer; font: 12px var(--sans); padding: 2px 3px; }
+.mcd-clear:hover { color: var(--accent); }
+.mcd-select {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 999px; padding: 4px 10px; font: 12px var(--sans); max-width: 190px;
+}
+.mcd-select:focus { outline: none; border-color: var(--accent-dim); }
+
+/* rarity + state filters: one line from 1500px, stacked below */
+.mcd-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 12px; align-items: start; margin-top: 6px; }
+@media (min-width: 1500px) { .mcd-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+.mcd-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mcd-btn {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 999px; padding: 3px 11px; cursor: pointer; font: 600 11.5px var(--sans);
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.mcd-btn:hover { color: var(--text); border-color: var(--accent-dim); }
+.mcd-btn.active { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+.mcd-btn.rar.active::before { content: "◆ "; font-size: 9px; vertical-align: 1px; }
+.mcd-sep { width: 1px; height: 18px; background: var(--border); margin: 0 3px; }
+.mcd-lbl { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; }
+.mcd-rank { font: 10px var(--mono); color: var(--muted); margin-left: 2px; }
+
+.mcd-meta { color: var(--muted); font-size: 11.5px; margin: 5px 2px 6px; line-height: 1.45; }
+.mcd-meta b { color: var(--text); font-family: var(--mono); }
+.mcd-meta .warn { color: var(--accent); }
+.mcd-meta code { font-family: var(--mono); font-size: 11px; color: var(--text); }
+
+/* ---------- TCG grid: 10px gap, ~130px tile columns (5:7 face kept) ---------- */
+.mcd-grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+}
+
+/* ---------- tile internals (text never goes below 8.5px) ---------- */
+.mcd-body { padding: 5px 6px 6px; display: flex; flex-direction: column; gap: 4px;
+  background: linear-gradient(180deg, rgba(9, 10, 13, .06), rgba(9, 10, 13, .40) 34%); }
+.mcd-name {
+  font-size: 11.5px; font-weight: 600; line-height: 1.2; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 24px; word-break: break-word;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+}
+.mcd-desc {
+  font: 8.5px/1.3 var(--sans); color: color-mix(in srgb, var(--text) 90%, transparent);
+  text-align: center; white-space: pre-line; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  background: rgba(8, 9, 12, .55); border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 6px; padding: 3px 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
+}
+.mcd-pol {
+  font: 700 26px var(--mono); line-height: 1; color: var(--text);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.mcd-pol-name { font: 9px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.mcd-type {
+  position: absolute; top: 4px; left: 6px; font: 9px var(--mono); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .5px; max-width: 62%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.mcd-missing-flag { font: 9.5px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.mcd-price {
+  margin-top: auto; font: 10.5px var(--mono); color: var(--muted);
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline;
+}
+.mcd-price .f { color: var(--accent); font-weight: 700; }
+.mcd-price .no { color: var(--muted); opacity: .75; font-size: 10px; }
+
+/* ---------- tail ---------- */
+.mcd-more { display: flex; justify-content: center; gap: 10px; margin: 8px 0 2px; }
+.mcd-empty { padding: 22px 12px; text-align: center; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+.mcd-empty b { color: var(--text); }
+.mcd-empty code { font-family: var(--mono); color: var(--text); }
+.mcd-empty .fix {
+  margin-top: 10px; padding: 10px 12px; text-align: left; max-width: 620px; margin-left: auto;
+  margin-right: auto; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+  font-size: 12px; line-height: 1.7; color: var(--muted);
+}
+.mcd-foot { color: var(--muted); font-size: 11px; padding: 4px 14px 12px; max-width: 1500px; margin: 0 auto; line-height: 1.6; }
+@media (min-width: 1500px) { .mcd-foot { max-width: 1840px; } }
+.mcd-foot a { color: var(--muted); }
+.mcd-foot a:hover { color: var(--accent); }
+.mcd-foot code { font-family: var(--mono); }
+
+/* ---------- phones ---------- */
+@media (max-width: 560px) {
+  .mcd-bar .mcd-lbl { display: none; }                  /* labels would strand beside the search box */
+}
+@media (max-width: 460px) {
+  .mcd-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 9px; }
+  .mcd-sep { display: none; }                           /* no stray divider at a wrap point */
+}

@@ -9,143 +9,42 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://cdn.warframestat.us" crossorigin>
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/collection.css">
 <link rel="stylesheet" href="/drawer.css">
 <style>
-  /* ---- collection log page (page-specific, built on the dashboard's CSS vars) ---- */
+  /* ---- collection log page (page-specific, built on the dashboard's CSS vars) ----
+     The density layer (shell, completion card, toolbar, tabs, the item grid) lives in
+     /collection.css so it stays in one place; what stays here is what other tests pin in this
+     file (the .cl-tip hover card + its rows, the docked relic card) and what only this page
+     draws. */
   /* The nav grows with every page the dashboard gains; once the pill row is wider than the
      window it wraps inside its own box instead of pushing the whole document sideways.
      Page-local override - style.css is shared and stays untouched. */
   .mainnav { max-width: calc(100% - 36px); flex-wrap: wrap; }
   /* Cards is a Collection section now: the sub-tab row gets its own line directly under the
      pill bar and reuses the same pill styling (no new colours, no new tokens) */
-  .mainnav.subnav { display: flex; width: fit-content; margin: 2px 0 0 18px; padding: 3px; }
-  .cl-wrap { padding: 14px 18px 40px; max-width: 1400px; margin: 0 auto; }
+  .mainnav.subnav { display: flex; width: fit-content; margin: 1px 0 0 16px; padding: 2px; }
 
-  /* overall completion bar */
-  .cl-overall {
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
-    padding: 13px 16px 14px; margin-bottom: 14px;
-  }
-  .cl-ov-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .cl-ov-title { font-size: 12.5px; font-weight: 600; letter-spacing: .3px; }
-  .cl-ov-title::before { content: "◆"; color: var(--accent); font-size: 8px; margin-right: 7px; vertical-align: 2px; }
-  .cl-ov-num { font-family: var(--mono); font-size: 21px; font-weight: 700; color: var(--accent); }
-  .cl-ov-sub { color: var(--muted); font-size: 12px; font-family: var(--mono); }
-  .cl-bar {
-    position: relative; height: 10px; margin-top: 11px; border-radius: 999px; overflow: hidden;
-    background: var(--panel2); border: 1px solid var(--border);
-  }
-  .cl-bar > i {
-    display: block; height: 100%; border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
-    transition: width .35s ease;
-  }
-  .cl-ov-foot { margin-top: 9px; display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 11.5px; font-family: var(--mono); }
-  .cl-ov-foot b { color: var(--text); font-weight: 600; }
-  .cl-ov-foot .warn { color: var(--accent); }
-
-  /* search + toggle row */
-  .cl-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; }
-  .cl-search { flex: 1; min-width: 220px; padding: 9px 14px; }
-  .cl-search input { width: 100%; font-size: 14px; }
-  .cl-search .si { font-size: 16px; }
-  .cl-clear { background: none; border: none; color: var(--muted); cursor: pointer; font: 13px var(--sans); padding: 2px 4px; }
-  .cl-clear:hover { color: var(--accent); }
-  .cl-toggle { display: inline-flex; align-items: center; gap: 7px; user-select: none; }
-  .cl-toggle .box {
-    width: 15px; height: 15px; border-radius: 4px; border: 1px solid var(--border);
-    background: var(--panel2); display: inline-flex; align-items: center; justify-content: center;
-    font: 700 10px var(--mono); color: transparent;
-  }
-  .cl-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); }
-  .cl-toggle[aria-pressed="true"] .box { color: var(--accent); border-color: var(--accent-dim); }
-
-  /* category tabs (house .tabs/.tab look + counts) */
-  .cl-tabs { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-  .cl-tab-count { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-left: 5px; }
-  .cl-tab.active .cl-tab-count { color: var(--accent); }
-  .cl-tab .cl-tab-bar {
-    display: block; height: 2px; margin-top: 5px; border-radius: 2px; background: var(--border); overflow: hidden;
-  }
-  .cl-tab .cl-tab-bar > i { display: block; height: 100%; background: var(--accent); }
-
-  .cl-meta { color: var(--muted); font-size: 12px; margin: 12px 2px 12px; }
-  .cl-meta b { color: var(--text); font-family: var(--mono); }
-  .cl-meta .warn { color: var(--accent); }
-
-  /* item grid */
-  .cl-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); }
-  .cl-card {
-    position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
-    text-align: center; background: var(--panel); border: 1px solid var(--border);
-    border-radius: var(--r); padding: 10px 8px 9px; color: var(--text); font: inherit;
-    transition: border-color .18s ease, transform .15s ease, background-color .18s ease;
-  }
-  .cl-card.got { border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
-  .cl-card.got:hover { transform: translateY(-2px); border-color: var(--accent); }
-  .cl-thumb {
-    width: 68px; height: 68px; object-fit: contain; flex: 0 0 auto;
-    filter: drop-shadow(0 2px 6px color-mix(in srgb, black 45%, transparent));
-  }
-  .cl-card.miss .cl-thumb { filter: grayscale(1) brightness(.5) opacity(.42); }
-  .cl-avatar {
-    width: 68px; height: 68px; border-radius: 12px; flex: 0 0 auto;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--panel2); border: 1px solid var(--border);
-    color: var(--accent); font: 700 26px var(--mono);
-  }
-  .cl-card.miss .cl-avatar { color: var(--muted); background: color-mix(in srgb, var(--panel2) 70%, black); }
-  .cl-name {
-    font-size: 12px; line-height: 1.3; color: var(--text);
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    min-height: 31px; word-break: break-word;
-  }
-  .cl-card.miss .cl-name { color: var(--muted); }
-  .cl-flags { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
-  .cl-flag {
-    border-radius: 999px; padding: 1px 7px; font: 600 10px var(--mono);
-    border: 1px solid var(--border); color: var(--muted); background: var(--panel2);
-  }
-  .cl-flag.mastered { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
-  .cl-flag.owned { color: #4ade80; border-color: color-mix(in srgb, #4ade80 45%, transparent); background: color-mix(in srgb, #4ade80 12%, var(--panel2)); }
-  .cl-flag.mr { color: var(--muted); }
-  .cl-floor {
-    display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
-    font: 600 11.5px var(--mono); color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
-    border: 1px solid var(--accent-dim); border-radius: 999px; padding: 2px 9px;
-  }
-  .cl-floor:hover { color: var(--text); border-color: var(--accent); }
-  .cl-floor .k { color: var(--muted); font-weight: 500; }
-  .cl-noprice { font: 10.5px var(--mono); color: var(--muted); }
-  .cl-empty { padding: 40px 12px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.8; }
-  .cl-empty b { color: var(--text); }
-  .cl-empty code { font-family: var(--mono); color: var(--accent); }
-  .cl-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1400px; margin: 0 auto; }
-  .cl-foot a { color: var(--muted); }
-  .cl-foot a:hover { color: var(--accent); }
-  @media (max-width: 420px) {
-    .cl-grid { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
-    .cl-ov-num { font-size: 18px; }
-  }
+  /* The completion card, the search/toggle row, the category tab strip, the one-line meta and
+     the item grid (tiles, flags, price pill) are condensed in /collection.css. */
 
   /* ---------- how-to-obtain hover card (Jay: "hover over for information on where to get it,
      and drop chance. and mission") ---------- */
   .cl-tip {
     position: fixed; z-index: 92; max-width: 540px; min-width: 260px; max-height: 62vh;
-    overflow: auto; padding: 9px 11px 10px; border: 1px solid var(--border);
+    overflow: auto; padding: 8px 10px 9px; border: 1px solid var(--border);
     border-radius: var(--r); background: var(--panel2); color: var(--text);
     box-shadow: 0 14px 36px rgba(0, 0, 0, .5); opacity: 0; transform: translateY(3px);
     pointer-events: none; transition: opacity .12s ease, transform .12s ease;
-    font-size: 11.5px; line-height: 1.45;
+    font-size: 11px; line-height: 1.4;
   }
   .cl-tip.on { opacity: 1; transform: none; }
-  .clt-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-  .clt-name { font-weight: 650; font-size: 12.5px; }
+  .clt-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+  .clt-name { font-weight: 650; font-size: 12px; }
   .clt-state { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
   .clt-row {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline;
-    padding: 3.5px 0; border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    padding: 2.5px 0; border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
   }
   .clt-part {
     color: var(--accent); font-family: var(--mono); font-size: 10.5px; margin-right: 7px;
@@ -202,9 +101,10 @@
     .cl-tip.docked { position: static; max-height: 220px; }
   }
   /* on a wide screen the Relics view takes the room the docked card + the 7-column table need
-     (the item grid and every other view keep the 1400px cap) */
+     (collection.css gives the whole page that cap from 1500px; this rule keeps the Relics
+     view's own guarantee even if the shell's cap ever moves) */
   @media (min-width: 1500px) { .cl-wrap:has(#relicView:not(.hidden)) { max-width: 1680px; } }
-  .cl-relpills { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; }
+  .cl-relpills { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; }
   .cl-relpill { padding: 4px 12px; }
   .cl-relpill b {
     margin-left: 6px; font-family: var(--mono); font-weight: 600; color: var(--muted);
@@ -216,7 +116,9 @@
   .cl-controls.rel #missBtn, .cl-controls.rel #priceBtn { display: none; }
   /* the table box fills what the overall card + toolbar leave, and never shrinks past a usable box */
   .cl-relwrap { max-height: max(320px, calc(100vh - 420px)); }
-  .cl-reltab tbody td { padding: 4px 10px; font-size: 12px; }
+  /* one relic per 23px line (was 26): padding 3px 9px at 11.5px/1.35 keeps the same seven
+     columns and the same honest counts - only the air between the rows goes */
+  .cl-reltab tbody td { padding: 3px 9px; font-size: 11.5px; line-height: 1.35; }
   .cl-reltab tbody tr:hover { background: var(--hover); }
   .cl-rstate { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
   .cl-rstate.drop { color: var(--accent); }        /* dropping now: the one state that can be farmed */

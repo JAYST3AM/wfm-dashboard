@@ -27,3 +27,7 @@ static/icons/src/
 # the one-click app build output (built by tools/build_app.py; ships via Releases, not git)
 dist/
 build/
+
+# chat relay local state (wrangler scratch)
+chat-relay/.wrangler/
+chat-relay/node_modules/

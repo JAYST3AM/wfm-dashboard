@@ -675,6 +675,89 @@ def sync_log_write(keep=50):
         pass
 
 
+# ------------------------------------------------------------------ chat (home dock)
+# Jay (2026-09-27): *"add a chat that snaps to the right of the home page. look into getting it so
+# other people can chat with their profiles active."* The store is local and always works with no
+# relay and no keys; when `chat_relay_url` is set the client also posts to that relay, which is what
+# lets other people's dashboards share the room. The profile stamp comes from the local save -
+# what is displayed is what gets sent, nothing invented.
+CHAT_CAP = 300
+CHAT_POST_GAP = 1.5
+_chat_last = [0.0]
+
+
+def chat_rows():
+    rows = jload(os.path.join(DATA, 'chat.json')) or []
+    return rows if isinstance(rows, list) else []
+
+
+def chat_me():
+    """Name + rank shown on your own messages (local save; '' when unknown)."""
+    pl = jload(os.path.join(DATA, 'player.json')) or {}
+    mr = jload(os.path.join(DATA, 'mastery.json')) or {}
+    rank = None
+    if isinstance(mr.get('mr'), dict):
+        rank = mr['mr'].get('rank')
+    elif isinstance(mr.get('mr'), int):
+        rank = mr['mr']
+    name = str(pl.get('alias') or '')
+    if name.startswith('signin'):                      # the save reader's error text, never a name
+        name = ''
+    return {'name': name[:24], 'mr': rank if isinstance(rank, int) else None,
+            'platform': str(pl.get('platform') or '')[:12]}
+
+
+def chat_relay_url():
+    try:
+        return str((_dashcfg.read() if _dashcfg else {}).get('chat_relay_url') or '').strip()
+    except Exception:
+        return ''
+
+
+def chat_payload():
+    rows = chat_rows()
+    return {'rows': rows[-120:], 'count': len(rows), 'cap': CHAT_CAP,
+            'relay': chat_relay_url(), 'me': chat_me()}
+
+
+def chat_post(who, text):
+    """Append one message. -> (http_status, payload). Local store first, always."""
+    text = ' '.join(str(text or '').split())
+    if not text:
+        return 400, {'ok': False, 'error': 'empty message'}
+    now = time.time()
+    if now - _chat_last[0] < CHAT_POST_GAP:
+        return 429, {'ok': False, 'error': 'one message at a time'}
+    _chat_last[0] = now
+    stamp = {}
+    if isinstance(who, dict):
+        for k, cap in (('name', 24), ('platform', 12), ('clan', 24)):
+            v = who.get(k)
+            if v is not None and str(v).strip():
+                stamp[k] = ' '.join(str(v).split())[:cap]
+        mr = who.get('mr')
+        if isinstance(mr, bool):
+            mr = None
+        if isinstance(mr, int) or (isinstance(mr, str) and mr.strip().isdigit()):
+            stamp['mr'] = int(mr)
+    rid = None
+    if isinstance(who, dict):                          # the relay's own id, so a relayed message has
+        rid = who.get('id')                            # one identity locally and in the room
+    if isinstance(rid, int) and rid > 0:
+        row = {'id': rid, 'ts': int(now), 'who': stamp, 'text': text[:500]}
+    else:
+        row = {'id': int(now * 1000), 'ts': int(now), 'who': stamp, 'text': text[:500]}
+    rows = chat_rows() + [row]
+    try:
+        tmp = os.path.join(DATA, 'chat.json.tmp')
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(rows[-CHAT_CAP:], f, indent=1, ensure_ascii=False)
+        os.replace(tmp, os.path.join(DATA, 'chat.json'))
+    except Exception as e:                             # never 500 the UI over a log write
+        return 500, {'ok': False, 'error': 'store: ' + str(e)[:60]}
+    return 200, {'ok': True, 'row': row, 'count': min(len(rows), CHAT_CAP)}
+
+
 def sync_payload():
     """GET /api/sync - the loop's own state (the UI reads this, it never guesses)."""
     s = SYNC
@@ -736,6 +819,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/gamenews': return self._send(200, gamenews_payload())
         if p == '/api/config': return self._send(200, dashcfg_payload())
         if p == '/api/sync': return self._send(200, sync_payload())
+        if p == '/api/chat': return self._send(200, chat_payload())
         if p == '/api/trader/cfg': return self._send(200, cfg_payload())
         if p == '/api/profiles': return self._send(200, profiles_payload())
         if p.startswith('/api/feature/'):
@@ -751,6 +835,11 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urlparse(self.path).path
+        if p == '/api/chat':
+            ln = int(self.headers.get('Content-Length') or 0)
+            b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
+            code, out = chat_post(b.get('who'), b.get('text'))
+            return self._send(code, out)
         if p == '/api/refresh':
             try:
                 r = subprocess.run([sys.executable, os.path.join(ROOT, 'scripts', 'refresh.py')],

@@ -200,10 +200,11 @@ function buildControl(meta, sch, src, id) {
 }
 
 /* one labelled control row: name | control | value (+ unit), with the note under it.
-   `i-host` keeps a long label free to wrap (icons.css only pins nowrap on plain hosts). */
+   `i-host` keeps a long label free to wrap (icons.css only pins nowrap on plain hosts).
+   A pick row (`pick-row`) puts label + value on line one and the pills across the card width. */
 function fieldRow(meta, src) {
   const sch = schemaRow(src, meta.key);
-  const wrap = el('div', 'cfgrow');
+  const wrap = el('div', 'cfgrow' + (meta.pick ? ' pick-row' : ''));
   const id = 'set-' + meta.key;
   const label = el('label', 'm-name i-host', meta.label || (sch && sch.help) || meta.key);
   if (meta.icon) label.setAttribute('data-icon', meta.icon);

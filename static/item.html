@@ -9,34 +9,48 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
 <style>
-  /* ---- item price page (page-specific, built on the dashboard's CSS vars) ---- */
-  .ip-wrap { padding: 14px 18px 40px; max-width: 1180px; margin: 0 auto; }
-  .ip-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 8px 2px 3px; display: flex; align-items: center; gap: 9px; }
+  /* ---- item price page (page-specific, built on the dashboard's CSS vars) ----
+     Density (Jay 2026-09-27): same cards, same rows, same graph - only the air between them goes,
+     and the wide screen is used sideways: the graph takes column one while your trades and the
+     book stack in column two from 1200px (the Trade view's band). One column below that. */
+  .ip-wrap { padding: 10px 18px 24px; max-width: 1520px; margin: 0 auto; }
+  .ip-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 6px 2px 2px; display: flex; align-items: center; gap: 9px; }
   .ip-h1 img { width: 26px; height: 26px; border-radius: 4px; background: var(--panel2); }
-  .ip-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 16px; }
+  .ip-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 8px; }
   .ip-lead b { color: var(--text); }
-  .ip-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+  .ip-wrap .card-head { padding: 6px 12px 0; gap: 8px; flex-wrap: wrap; }
+  .ip-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 12px; align-items: start; }
+  .ip-grid > .card { margin-bottom: 0; animation: wfm-rise .26s cubic-bezier(.22, .61, .36, 1) both; }
+  /* >=1200px: the graph and the book share row one; the trades table (five columns) keeps the
+     full width on row two so no cell is clipped. Below 1200px every card is full width. */
+  @media (min-width: 1200px) {
+    .ip-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+    #ipChartCard { grid-column: 1; grid-row: 1; }
+    #ipStatsCard { grid-column: 2; grid-row: 1; }
+    #ipTradesCard { grid-column: 1 / -1; grid-row: 2; }
+  }
+  .ip-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; }
   .ip-chip { border: 1px solid var(--border); background: var(--panel2); border-radius: 999px; padding: 3px 10px; font-size: 11px; color: var(--muted); }
   .ip-chip b { color: var(--text); font-weight: 700; }
   .ip-chip.hi { border-color: var(--accent-dim); color: var(--accent); }
-  .ip-chart { position: relative; height: 320px; padding: 6px 10px 0; }
+  /* the chart canvas is sized from the wrapper's clientWidth, so the wrapper carries no
+     horizontal padding (10px of the canvas was clipped on the right before) */
+  .ip-chart { position: relative; height: 320px; padding: 6px 0 0; }
   .ip-chart canvas { display: block; }
   #ipTip { position: absolute; transform: translate(-50%, -100%); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; font-size: 11.5px; line-height: 1.45; pointer-events: none; white-space: nowrap; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
   #ipTip.hidden { display: none; }
-  .ip-views { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 16px 0; }
-  .ip-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 16px 14px; color: var(--muted); font-size: 11px; }
+  .ip-views { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 12px 0; }
+  .ip-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 5px 12px 9px; color: var(--muted); font-size: 11px; }
   .ip-foot .sp { margin-left: auto; }
-  .ip-cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
-  @media (max-width: 1000px) { .ip-cols { grid-template-columns: minmax(0, 1fr); } }
   .ip-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .ip-table th { text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; padding: 7px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  .ip-table td { padding: 6px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); }
+  .ip-table th { text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; padding: 5px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .ip-table td { padding: 3px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); }
   .ip-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .ip-table tr:last-child td { border-bottom: 0; }
-  .ip-note { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 10px 16px 14px; }
-  .ip-pick { padding: 10px 16px 16px; }
-  .ip-pick input { width: 100%; max-width: 420px; background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 11px; font: 13px var(--sans); }
-  .ip-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0 0; }
+  .ip-note { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 6px 12px 8px; }
+  .ip-pick { padding: 8px 12px 10px; }
+  .ip-pick input { width: 100%; max-width: 420px; background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 11px; font: 13px var(--sans); }
+  .ip-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 0 0; }
   .ip-list a { border: 1px solid var(--border); background: var(--panel2); color: var(--text); border-radius: 999px; padding: 4px 11px; font-size: 12px; text-decoration: none; }
   .ip-list a:hover { border-color: var(--accent); }
   .ip-kind { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); max-width: 260px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
@@ -82,24 +96,25 @@
     </div>
   </section>
 
-  <section class="card hidden" id="ipChartCard">
-    <div class="card-head">
-      <h2 class="card-title" data-icon="clock-counter-clockwise">Price history</h2>
-      <span class="dim" id="ipCadence">hourly snapshots</span>
-    </div>
-    <div class="ip-views chartviews" id="ipViews"></div>
-    <div class="ip-chart"><canvas id="ipChart"></canvas><div id="ipTip" class="hidden"></div></div>
-    <div class="ip-foot">
-      <span id="ipMeta">no points yet</span>
-      <span class="sp" id="ipHint"></span>
-    </div>
-  </section>
+  <div class="ip-grid">
+    <section class="card hidden" id="ipChartCard">
+      <div class="card-head">
+        <h2 class="card-title" data-icon="clock-counter-clockwise">Price history</h2>
+        <span class="dim" id="ipCadence">hourly snapshots</span>
+      </div>
+      <div class="ip-views chartviews" id="ipViews"></div>
+      <div class="ip-chart"><canvas id="ipChart"></canvas><div id="ipTip" class="hidden"></div></div>
+      <div class="ip-foot">
+        <span id="ipMeta">no points yet</span>
+        <span class="sp" id="ipHint"></span>
+      </div>
+    </section>
 
-  <div class="ip-cols">
     <section class="card hidden" id="ipTradesCard">
       <div class="card-head"><h2 class="card-title" data-icon="handshake">Your trades</h2><span class="dim" id="ipTradesCount"></span></div>
       <div id="ipTrades"></div>
     </section>
+
     <section class="card hidden" id="ipStatsCard">
       <div class="card-head"><h2 class="card-title" data-icon="table">Snapshot &amp; book</h2><span class="dim">local snapshot</span></div>
       <div class="ip-chips" id="ipChips"></div>

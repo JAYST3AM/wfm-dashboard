@@ -9,71 +9,98 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
 <style>
-  /* ---- settings page (page-specific, built on the dashboard's CSS vars) ---- */
-  .st-wrap { padding: 14px 18px 40px; max-width: 1000px; margin: 0 auto; }
-  .st-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 8px 2px 3px; }
-  .st-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 16px; max-width: 760px; }
+  /* ---- settings page (page-specific, built on the dashboard's CSS vars) ----
+     Density (Jay 2026-09-27): same six cards, same rows, same controls - only the air
+     between them goes, and the wide screen is used sideways: the cards sit in two balanced
+     stacks from 1500px (the Trade view's band), and every control row runs on the Trade
+     view's row budget (<=28px where a row is a plain line, ~32px where it carries an
+     input). No label, badge, hint, unit or button is removed. */
+  .st-wrap { padding: 10px 18px 24px; max-width: 1220px; margin: 0 auto; }
+  .st-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 6px 2px 2px; }
+  .st-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 10px; max-width: 760px; }
   .st-lead b { color: var(--text); }
   .card-head h2.card-title { margin: 0; }
-  /* label | control | value+unit (the old 60px value column clipped unit words; 150px keeps
-     'Every 15 minutes' on one line) */
-  .cfgrow { grid-template-columns: minmax(190px, 1.5fr) minmax(150px, 1fr) 150px; }
-  .cfgrow .st-unit { color: var(--muted); font-size: 11px; }
-  .cfgrow .m-name { cursor: pointer; }
-  /* auto sync picker: six preset pills (same recipe as the range + materials pickers) */
+
+  /* the two card stacks: plain blocks (DOM order, one column) until 1500px, then a 2-col grid */
+  .st-band { display: block; }
+  .st-col { min-width: 0; }
+  .st-col > .card { margin-bottom: 10px; animation: wfm-rise .26s cubic-bezier(.22, .61, .36, 1) both; }
+  @media (min-width: 1500px) {
+    .st-band { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 12px; align-items: start; }
+  }
+
+  /* card chrome + control rows: the Trade view's dense recipe */
+  .st-band .card-head { padding: 6px 12px 0; gap: 8px; flex-wrap: wrap; }
+  .st-band .card-head .actions { gap: 6px; }
+  .st-band .card-head .btn, .st-band .st-advhead .btn { padding: 4px 11px; font-size: 11.5px; }
+  .st-band .picks { padding: 4px 12px 8px; }
+  .st-band .st-nam { min-width: 150px; padding: 5px 9px; font-size: 12px; }
+  /* label | control | value+unit (the 150px value column keeps 'Every 15 minutes' on one line) */
+  .st-band .cfgrow { grid-template-columns: minmax(190px, 1.5fr) minmax(140px, 1fr) 150px; gap: 2px 10px; padding: 4px 2px; font-size: 12px; line-height: 1.35; }
+  .st-band .cfgrow .cfg-val { font-size: 12px; }
+  .st-band .cfgrow .st-unit { color: var(--muted); font-size: 10.5px; }
+  .st-band .cfgrow .m-name { cursor: pointer; }
+  .st-band .cfgrow input[type=number], .st-band .cfgrow input[type=text], .st-band .cfgrow select { padding: 3px 8px; }
+  .st-band .cfgrow .cfg-help { font-size: 11px; margin-top: -1px; }
+  .st-band .cfgrow .st-badge { margin-left: 0; padding: 0 8px; font-size: 10px; }
+  /* auto sync picker: label + value on line one, the six preset pills on their own full-width line
+     (a half-width column is too narrow for six pills beside a label, so they get the card width) */
+  .st-band .cfgrow.pick-row { grid-template-columns: minmax(150px, 1fr) auto; }
+  .st-band .cfgrow.pick-row > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .st-band .cfgrow.pick-row > .cfg-val { grid-column: 2; grid-row: 1; }
   .st-segwrap { display: inline-block; }
   .st-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
   .st-seg button {
     background: none; color: var(--muted); cursor: pointer;
-    border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
-    font: 500 11.5px var(--sans); min-height: 24px;
+    border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px;
+    font: 500 11.5px var(--sans); min-height: 22px;
   }
   .st-seg button:hover { color: var(--text); background: var(--panel2); }
   .st-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .st-seg button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-  .st-pill { display: inline-block; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+  .st-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
   .st-pill.dry { color: var(--accent); border-color: var(--accent-dim); }
   .st-pill.live { color: var(--text); border-color: var(--accent); }
-  .st-badge { display: inline-block; margin-left: 6px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel2); color: var(--muted); font-size: 10.5px; white-space: nowrap; }
   .st-restart { color: var(--accent); font-weight: 600; }
   /* collapsed advanced accordion: real button, focus ring, panel is a labelled region */
   .st-advh { margin: 0; }
-  .st-advbtn { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); font: 600 13px var(--sans); letter-spacing: .2px; padding: 13px 16px; cursor: pointer; }
+  .st-advbtn { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); font: 600 13px var(--sans); letter-spacing: .2px; padding: 8px 14px; cursor: pointer; }
   .st-advbtn:hover { background: var(--hover); }
   .st-advbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .st-caret { color: var(--accent); font-size: 11px; }
   .st-advbtn .st-hint { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 11.5px; }
-  .st-advpanel { padding-bottom: 8px; }
-  .st-advhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 16px 0; }
-  .st-rawwrap { padding: 4px 16px 2px; overflow-x: auto; }
+  .st-advpanel { padding-bottom: 6px; }
+  .st-advhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 14px 0; }
+  .st-rawwrap { padding: 4px 14px 2px; overflow-x: auto; }
   .st-raw { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-  .st-raw th { text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  .st-raw td { padding: 5px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); vertical-align: top; }
+  .st-raw th { text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; padding: 5px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .st-raw td { padding: 4px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); vertical-align: top; }
   .st-raw td.k, .st-raw td.v { font-family: var(--mono); }
   .st-raw td.v { color: var(--accent); }
   .st-raw td.f, .st-raw td.by { color: var(--muted); }
   .st-raw td.by .dead { color: var(--accent); }
-  .st-foot2 { color: var(--muted); font-size: 11px; line-height: 1.7; padding: 4px 16px 0; margin: 0; }
+  .st-foot2 { color: var(--muted); font-size: 11px; line-height: 1.7; padding: 4px 14px 0; margin: 0; }
   .st-foot2 code { font-family: var(--mono); }
   .status.err { color: var(--accent); }
   /* a status line that has nothing to say takes no room (it fills in after a save) */
   .status:empty { display: none; }
   /* accounts card: profile rows + the two-step switch */
-  .st-nam { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: 12.5px var(--sans); padding: 6px 10px; min-width: 168px; }
-  .st-nam:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .st-acctrow { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
+  .st-acctrow { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
   .st-acctrow.first { border-top: none; }
   .st-acctrow .st-aname { font-weight: 600; font-family: var(--mono); font-size: 12.5px; }
   .st-acctrow .st-ameta { color: var(--muted); font-size: 11.5px; }
   .st-acctrow .st-agrow { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-  .st-acctrow .btn { padding: 4px 12px; font-size: 12px; }
-  .st-acctnote { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 0 16px 10px; }
-  .st-foot { color: var(--muted); font-size: 11px; padding: 6px 18px 30px; max-width: 1000px; margin: 0 auto; }
+  .st-band .st-acctrow .btn { padding: 3px 10px; font-size: 11.5px; }
+  .st-acctnote { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 0 12px 8px; }
+  .st-foot { color: var(--muted); font-size: 11px; padding: 4px 18px 18px; max-width: 1220px; margin: 0 auto; }
   .st-foot a { color: var(--muted); }
   .st-foot a:hover { color: var(--accent); }
   @media (max-width: 760px) {
-    .cfgrow { grid-template-columns: 1fr; }
-    .cfgrow .cfg-val { text-align: left; }
+    .st-band .cfgrow { grid-template-columns: 1fr; }
+    .st-band .cfgrow .cfg-val { text-align: left; }
+    .st-band .cfgrow.pick-row { grid-template-columns: 1fr; }
+    .st-band .cfgrow.pick-row > span:nth-child(2) { grid-row: auto; }
+    .st-band .cfgrow.pick-row > .cfg-val { grid-column: 1; grid-row: auto; }
   }
 </style>
   <link rel="stylesheet" href="/icons.css">
@@ -114,86 +141,92 @@
     Trading rules and refresh timing.
   </p>
 
-  <section class="card" aria-labelledby="h-verbose">
-    <div class="card-head">
-      <h2 class="card-title" id="h-verbose" data-icon="sliders-horizontal">Advanced</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-verbose" data-icon="check">Save</button></div>
-    </div>
-    <div class="picks" id="list-verbose"></div>
-    <p class="status" id="status-verbose" role="status" aria-live="polite"></p>
-  </section>
+  <div class="st-band">
+    <div class="st-col">
+      <section class="card" aria-labelledby="h-verbose">
+        <div class="card-head">
+          <h2 class="card-title" id="h-verbose" data-icon="sliders-horizontal">Advanced</h2>
+          <div class="actions"><button class="btn primary" id="btnSave-verbose" data-icon="check">Save</button></div>
+        </div>
+        <div class="picks" id="list-verbose"></div>
+        <p class="status" id="status-verbose" role="status" aria-live="polite"></p>
+      </section>
 
-  <section class="card" aria-labelledby="h-trading">
-    <div class="card-head">
-      <h2 class="card-title" id="h-trading" data-icon="shield-check">Trading</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-trading" data-icon="check">Save</button></div>
-    </div>
-    <div class="picks" id="list-trading"></div>
-    <p class="status" id="status-trading" role="status" aria-live="polite"></p>
-  </section>
+      <section class="card" aria-labelledby="h-trading">
+        <div class="card-head">
+          <h2 class="card-title" id="h-trading" data-icon="shield-check">Trading</h2>
+          <div class="actions"><button class="btn primary" id="btnSave-trading" data-icon="check">Save</button></div>
+        </div>
+        <div class="picks" id="list-trading"></div>
+        <p class="status" id="status-trading" role="status" aria-live="polite"></p>
+      </section>
 
-  <section class="card" aria-labelledby="h-appearance">
-    <div class="card-head">
-      <h2 class="card-title" id="h-appearance" data-icon="palette">Appearance</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-appearance" data-icon="check">Save</button></div>
+      <section class="card" aria-labelledby="h-appearance">
+        <div class="card-head">
+          <h2 class="card-title" id="h-appearance" data-icon="palette">Appearance</h2>
+          <div class="actions"><button class="btn primary" id="btnSave-appearance" data-icon="check">Save</button></div>
+        </div>
+        <div class="picks" id="list-appearance"></div>
+        <p class="status" id="status-appearance" role="status" aria-live="polite"></p>
+      </section>
     </div>
-    <div class="picks" id="list-appearance"></div>
-    <p class="status" id="status-appearance" role="status" aria-live="polite"></p>
-  </section>
 
-  <section class="card" aria-labelledby="h-updates">
-    <div class="card-head">
-      <h2 class="card-title" id="h-updates" data-icon="arrows-clockwise">Updates</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-updates" data-icon="check">Save</button></div>
-    </div>
-    <div class="picks" id="list-updates"></div>
-    <p class="status" id="status-updates" role="status" aria-live="polite"></p>
-  </section>
+    <div class="st-col">
+      <section class="card" aria-labelledby="h-updates">
+        <div class="card-head">
+          <h2 class="card-title" id="h-updates" data-icon="arrows-clockwise">Updates</h2>
+          <div class="actions"><button class="btn primary" id="btnSave-updates" data-icon="check">Save</button></div>
+        </div>
+        <div class="picks" id="list-updates"></div>
+        <p class="status" id="status-updates" role="status" aria-live="polite"></p>
+      </section>
 
-  <section class="card" aria-labelledby="h-accounts">
-    <div class="card-head">
-      <h2 class="card-title" id="h-accounts" data-icon="user">Accounts</h2>
-      <div class="actions">
-        <input id="acctName" class="st-nam" type="text" maxlength="40" placeholder="new profile name" aria-label="New profile name">
-        <button class="btn" id="acctCreate">Create profile</button>
-      </div>
-    </div>
-    <div id="list-accounts"></div>
-    <pre class="rawout" id="acctPlan" hidden></pre>
-    <p class="status" id="status-accounts" role="status" aria-live="polite"></p>
-  </section>
+      <section class="card" aria-labelledby="h-accounts">
+        <div class="card-head">
+          <h2 class="card-title" id="h-accounts" data-icon="user">Accounts</h2>
+          <div class="actions">
+            <input id="acctName" class="st-nam" type="text" maxlength="40" placeholder="new profile name" aria-label="New profile name">
+            <button class="btn" id="acctCreate">Create profile</button>
+          </div>
+        </div>
+        <div id="list-accounts"></div>
+        <pre class="rawout" id="acctPlan" hidden></pre>
+        <p class="status" id="status-accounts" role="status" aria-live="polite"></p>
+      </section>
 
-  <section class="card">
-    <h2 class="st-advh">
-      <button type="button" class="st-advbtn" id="advBtn" aria-expanded="false" aria-controls="advPanel">
-        <span class="st-caret" aria-hidden="true">&#9656;</span> Advanced settings
-        <span class="st-hint">raw keys, files and scripts</span>
-      </button>
-    </h2>
-    <div id="advPanel" class="st-advpanel" role="region" aria-labelledby="advBtn" hidden>
-      <div class="st-advhead">
-        <span class="subhead" data-icon="hard-drives">Server</span>
-        <button class="btn primary" id="btnSave-advanced" data-icon="check">Save</button>
-      </div>
-      <div class="picks" id="list-advanced"></div>
-      <p class="status" id="status-advanced" role="status" aria-live="polite"></p>
-      <div class="subhead" data-icon="floppy-disk">Raw config keys</div>
-      <div class="st-rawwrap">
-        <table class="st-raw">
-          <thead>
-            <tr>
-              <th scope="col">Key</th>
-              <th scope="col">Value</th>
-              <th scope="col">File</th>
-              <th scope="col">Read by</th>
-            </tr>
-          </thead>
-          <tbody id="rawRows"></tbody>
-        </table>
-      </div>
-      <p class="st-foot2" id="advErr"></p>
+      <section class="card">
+        <h2 class="st-advh">
+          <button type="button" class="st-advbtn" id="advBtn" aria-expanded="false" aria-controls="advPanel">
+            <span class="st-caret" aria-hidden="true">&#9656;</span> Advanced settings
+            <span class="st-hint">raw keys, files and scripts</span>
+          </button>
+        </h2>
+        <div id="advPanel" class="st-advpanel" role="region" aria-labelledby="advBtn" hidden>
+          <div class="st-advhead">
+            <span class="subhead" data-icon="hard-drives">Server</span>
+            <button class="btn primary" id="btnSave-advanced" data-icon="check">Save</button>
+          </div>
+          <div class="picks" id="list-advanced"></div>
+          <p class="status" id="status-advanced" role="status" aria-live="polite"></p>
+          <div class="subhead" data-icon="floppy-disk">Raw config keys</div>
+          <div class="st-rawwrap">
+            <table class="st-raw">
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Value</th>
+                  <th scope="col">File</th>
+                  <th scope="col">Read by</th>
+                </tr>
+              </thead>
+              <tbody id="rawRows"></tbody>
+            </table>
+          </div>
+          <p class="st-foot2" id="advErr"></p>
+        </div>
+      </section>
     </div>
-  </section>
+  </div>
 </main>
 
 <footer class="st-foot"><a href="/">◀ Back to the dashboard</a></footer>

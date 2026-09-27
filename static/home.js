@@ -594,3 +594,23 @@
   setTimeout(() => { syncNewsHeight(); watchNews(); }, 700);
   setInterval(syncNewsHeight, 30000);
 })();
+
+/* ---------------------------------------------------------------- chat dock (right of HOME)
+   Loads static/chat.js + static/chat.css once, only on the page that already runs the HOME
+   renderer. The chat owns its own DOM and placement (see chat.js), so this is the whole
+   integration: no edit to app.js or index.html is needed. */
+(function () {
+  if (document.getElementById('chatDock')) return;
+  if (!document.querySelector('link[href="/chat.css"]')) {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = '/chat.css';
+    document.head.appendChild(l);
+  }
+  if (!document.querySelector('script[src="/chat.js"]')) {
+    const s = document.createElement('script');
+    s.src = '/chat.js';
+    s.defer = true;
+    document.head.appendChild(s);
+  }
+})();

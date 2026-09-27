@@ -116,6 +116,14 @@ SPEC = [
          help='Seconds between AlecaFrame save checks (5..600; lower = fresher inventory).',
          note='Seconds between AlecaFrame save checks (scripts/watch_save.py): the watcher '
               'refreshes owned.json when the game rewrites the save. 5..600; 20 = every 20 s.'),
+    dict(key='chat_relay_url', type='text', min=None, max=200, default='', choices=None,
+         step=None,
+         consumed_by='server.py /api/chat (relay URL) + static/chat.js (posts and pulls the room)',
+         help='Shared chat room for the HOME chat dock. Empty = this PC only.',
+         note='Shared chat room: the base URL of a relay (see chat-relay/ - one Cloudflare Worker '
+              '+ Durable Object, free tier). Empty = the chat stays on this PC. With it set, your '
+              'messages go to that room with the name and rank from your local save, and everyone '
+              'in the room shows up in the dock.'),
 ]
 SPEC_KEYS = [row['key'] for row in SPEC]
 DEFAULTS = {row['key']: row['default'] for row in SPEC}

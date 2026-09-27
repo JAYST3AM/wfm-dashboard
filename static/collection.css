@@ -1,0 +1,133 @@
+/* collection.css - the Collection page's density layer (Jay, 2026-09-27): *"more page needs to be
+   condensed, all pages should be condensed really."*
+   The same recipe the Trade view already uses in style.css: the wide screen is finally used
+   sideways (more tiles per row instead of one narrow column), rows and tiles lose the air
+   between them, and the chrome stops reserving space it never uses. Nothing here removes an
+   item, a filter, a tab, a count or a button - only the air between them.
+   Budgets: one relic-table row <= 28px, one tile <= 136px.
+   Loaded right after style.css and before the page's own <style> block, which keeps the rules
+   other tests pin in collection.html (the .cl-tip hover card, its .clt-* rows, and the docked
+   relic card with its 360/300/stacked split). */
+
+/* ------------------------------------------------------------------ page shell
+   The 1680px cap the Relics view already had on wide screens now covers the whole page, so the
+   item grid can actually spend the room: 12 tiles per row at 1920 instead of 8 inside a 1400px
+   column. Below 1500px nothing changes about the cap - the window is narrower than it anyway. */
+.cl-wrap { padding: 10px 16px 26px; max-width: 1400px; margin: 0 auto; }
+@media (min-width: 1500px) { .cl-wrap { max-width: 1680px; } }
+.cl-foot { padding: 5px 16px 20px; max-width: 1400px; margin: 0 auto; }
+@media (min-width: 1500px) { .cl-foot { max-width: 1680px; } }
+.cl-foot a { color: var(--muted); }
+.cl-foot a:hover { color: var(--accent); }
+
+/* ------------------------------------------------------------------ completion card
+   One row of numbers, a slimmer bar, the same four counts (111 -> ~81px). */
+.cl-overall {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 9px 14px 10px; margin-bottom: 10px;
+}
+.cl-ov-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cl-ov-title { font-size: 12px; font-weight: 600; letter-spacing: .3px; }
+.cl-ov-title::before { content: "◆"; color: var(--accent); font-size: 8px; margin-right: 7px; vertical-align: 2px; }
+.cl-ov-num { font-family: var(--mono); font-size: 19px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.cl-ov-sub { color: var(--muted); font-size: 11.5px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cl-bar {
+  position: relative; height: 8px; margin-top: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--panel2); border: 1px solid var(--border);
+}
+.cl-bar > i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  transition: width .35s ease;
+}
+.cl-ov-foot { margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 11px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cl-ov-foot b { color: var(--text); font-weight: 600; }
+.cl-ov-foot .warn { color: var(--accent); }
+
+/* ------------------------------------------------------------------ search + toggle row */
+.cl-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 2px 0 8px; }
+.cl-search { flex: 1; min-width: 200px; padding: 7px 12px; }
+.cl-search input { width: 100%; font-size: 14px; }
+.cl-search .si { font-size: 15px; }
+.cl-clear { background: none; border: none; color: var(--muted); cursor: pointer; font: 13px var(--sans); padding: 2px 4px; }
+.cl-clear:hover { color: var(--accent); }
+.cl-toggle { display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+.cl-toggle .box {
+  width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--panel2); display: inline-flex; align-items: center; justify-content: center;
+  font: 700 10px var(--mono); color: transparent;
+}
+.cl-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); }
+.cl-toggle[aria-pressed="true"] .box { color: var(--accent); border-color: var(--accent-dim); }
+/* one button size down from the house .btn, the same move the Trade view made for its card heads */
+.cl-controls .btn { padding: 4px 12px; font-size: 11.5px; }
+
+/* ------------------------------------------------------------------ category tabs
+   Sixteen tabs over fourteen categories wrap to two rows either way; the rows themselves get
+   tighter (6px of padding and a 3px gap to the count bar, 89 -> ~73px for the strip). */
+.cl-tabs { border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.cl-tabs .tab { padding: 4px 11px; font-size: 12px; }
+.cl-tab-count { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.cl-tab.active .cl-tab-count { color: var(--accent); }
+.cl-tab .cl-tab-bar {
+  display: block; height: 2px; margin-top: 3px; border-radius: 2px; background: var(--border); overflow: hidden;
+}
+.cl-tab .cl-tab-bar > i { display: block; height: 100%; background: var(--accent); }
+
+/* ------------------------------------------------------------------ one-line meta */
+.cl-meta { color: var(--muted); font-size: 11.5px; margin: 5px 2px 8px; font-variant-numeric: tabular-nums; }
+.cl-meta b { color: var(--text); font-family: var(--mono); }
+.cl-meta .warn { color: var(--accent); }
+
+/* ------------------------------------------------------------------ item grid
+   12 tiles per row at 1920 (was 8), 11 at 1440 (was 8 in a 1400px column), tighter tiles:
+   52px art, one 2-line clamped name, the same flags and the same price pill. */
+.cl-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
+@media (min-width: 1200px) { .cl-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+.cl-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  text-align: center; background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 6px; color: var(--text); font: inherit;
+  transition: border-color .18s ease, transform .15s ease, background-color .18s ease;
+}
+.cl-card.got { border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
+.cl-card.got:hover { transform: translateY(-2px); border-color: var(--accent); }
+.cl-thumb {
+  width: 48px; height: 48px; object-fit: contain; flex: 0 0 auto;
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, black 45%, transparent));
+}
+.cl-card.miss .cl-thumb { filter: grayscale(1) brightness(.5) opacity(.42); }
+.cl-avatar {
+  width: 48px; height: 48px; border-radius: 10px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--accent); font: 700 21px var(--mono);
+}
+.cl-card.miss .cl-avatar { color: var(--muted); background: color-mix(in srgb, var(--panel2) 70%, black); }
+.cl-name {
+  font-size: 11.5px; line-height: 1.25; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 29px; word-break: break-word;
+}
+.cl-card.miss .cl-name { color: var(--muted); }
+.cl-flags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.cl-flag {
+  border-radius: 999px; padding: 1px 6px; font: 600 9.5px var(--mono);
+  border: 1px solid var(--border); color: var(--muted); background: var(--panel2);
+}
+.cl-flag.mastered { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+.cl-flag.owned { color: #4ade80; border-color: color-mix(in srgb, #4ade80 45%, transparent); background: color-mix(in srgb, #4ade80 12%, var(--panel2)); }
+.cl-flag.mr { color: var(--muted); }
+.cl-floor {
+  display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
+  font: 600 10.5px var(--mono); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
+  border: 1px solid var(--accent-dim); border-radius: 999px; padding: 1px 8px;
+}
+.cl-floor:hover { color: var(--text); border-color: var(--accent); }
+.cl-floor .k { color: var(--muted); font-weight: 500; }
+.cl-noprice { font: 10px var(--mono); color: var(--muted); }
+.cl-empty { padding: 26px 12px; text-align: center; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+.cl-empty b { color: var(--text); }
+.cl-empty code { font-family: var(--mono); color: var(--accent); }
+@media (max-width: 420px) { .cl-ov-num { font-size: 18px; } }
