@@ -18,13 +18,19 @@
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 6px 12px 4px; display: flex; flex-direction: column; gap: 0;
 }
+/* The rail fills the column ("chat can go all the way down") but the chat itself stays at the
+   top of it: the list takes its content height and the composer follows right under, so a short
+   conversation is not stranded 800px down the rail (Jay: "chat is too far down"). Once the list
+   has more messages than room, flex-shrink makes it the scroller and the composer lands on the
+   bottom edge, which is the usual chat behaviour. */
+#chatDock .chat-rows { flex: 0 1 auto; }
 #chatDock .chatrow {
   display: flex; gap: 6px; align-items: baseline; padding: 4px 2px; font-size: 12px;
   line-height: 1.35; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 #chatDock .chatrow:first-child { border-top: 0; }
 #chatDock .chat-who {
-  flex: 0 0 auto; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 0 0 auto; max-width: 54%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: var(--mono); font-size: 11px; color: var(--accent);
 }
 #chatDock .chatrow.mine .chat-who { color: var(--text); font-weight: 600; }
@@ -62,5 +68,5 @@
 @media (max-width: 540px) {
   #chatDock { max-height: 260px; }
   #chatDock .chat-rows { max-height: 168px; }
-  #chatDock .chat-who { max-width: 36%; }
+  #chatDock .chat-who { max-width: 46%; }
 }

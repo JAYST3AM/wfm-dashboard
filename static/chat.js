@@ -155,7 +155,7 @@
       row.appendChild(at);
       list.appendChild(row);
     });
-    if (atBottom) list.scrollTop = list.scrollHeight;
+    if (atBottom || !list.dataset.init) { list.dataset.init = '1'; list.scrollTop = list.scrollHeight; }
   }
 
   function status(text, kind) {

@@ -189,3 +189,14 @@ def test_the_rail_runs_to_the_bottom_of_the_viewport():
         'the header grows after load (sync status, wrapped chips) so fit() re-runs'
     assert "window.addEventListener('resize'" in js
     assert "min-height: 0; overflow-y: auto; overscroll-behavior: contain" in css, 'the list must scroll, not the page'
+
+
+def test_the_conversation_sits_above_the_composer():
+    """Jay: "chat is too far down" - a lone message sat at the top of a tall rail with 80-90% of
+    the body empty beneath it, pushing the composer a screen away. The list anchors its first row
+    to the bottom with margin-top: auto (not justify-content, which breaks scrolling)."""
+    css = read('static/chat.css')
+    assert '#chatDock .chat-rows { flex: 0 1 auto; }' in css, 'the list takes content height, the composer follows it'
+    assert 'margin-top: auto' not in css and 'justify-content: flex-end' not in css
+    js = read('static/chat.js')
+    assert "if (atBottom || !list.dataset.init) { list.dataset.init = '1'; list.scrollTop = list.scrollHeight; }" in js
