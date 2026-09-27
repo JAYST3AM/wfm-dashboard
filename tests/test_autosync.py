@@ -22,7 +22,7 @@ def read(rel):
 
 def blank(mod):
     mod.SYNC.update({'seconds': 0, 'last_sync': None, 'last_ok': None, 'last_ms': None,
-                     'next_at': None, 'running': False, 'error': None})
+                     'next_at': None, 'for_secs': None, 'running': False, 'error': None})
 
 
 def cfg(seconds, mod, missing=False):
@@ -146,6 +146,47 @@ def test_changing_the_cadence_off_stops_the_next_run(server_mod, monkeypatch):
     cfg(0, server_mod)
     assert server_mod.sync_tick(now=2000) == 'off'
     assert calls == [] and server_mod.SYNC['next_at'] is None
+
+
+def test_shortening_the_cadence_does_not_wait_out_the_old_one(server_mod, monkeypatch):
+    """1 hour -> 5 minutes must take effect now, not in an hour (found live, 2026-09-27)."""
+    blank(server_mod)
+    cfg(3600, server_mod)
+    calls = []
+    monkeypatch.setattr(server_mod.subprocess, 'run', fake_run(calls))
+    assert server_mod.sync_tick(now=1000) == 'waiting'          # arms a 1-hour wait
+    assert server_mod.SYNC['next_at'] == 4600
+    cfg(300, server_mod)                                        # the knob moves down
+    assert server_mod.sync_tick(now=1010) == 'waiting'
+    assert server_mod.SYNC['next_at'] == 1310, 're-timed from now, not from the old 4600'
+    assert calls == []
+    assert server_mod.sync_tick(now=1310) == 'ran'              # and it fires on the new cadence
+
+
+def test_a_shortened_cadence_re_times_from_the_last_run(server_mod, monkeypatch):
+    blank(server_mod)
+    cfg(3600, server_mod)
+    monkeypatch.setattr(server_mod.subprocess, 'run', fake_run([]))
+    monkeypatch.setattr(server_mod.time, 'time', lambda: 5000)
+    server_mod.sync_tick(now=1000)
+    assert server_mod.sync_tick(now=5000) == 'ran'              # the hourly run lands at 5000
+    assert server_mod.SYNC['next_at'] == 8600
+    cfg(300, server_mod)
+    assert server_mod.sync_tick(now=5010) == 'waiting'          # due at last run + 5 minutes
+    assert server_mod.SYNC['next_at'] == 5300
+    assert server_mod.sync_tick(now=5300) == 'ran'
+
+
+def test_lengthening_the_cadence_pushes_the_next_run_out(server_mod, monkeypatch):
+    blank(server_mod)
+    cfg(300, server_mod)
+    monkeypatch.setattr(server_mod.subprocess, 'run', fake_run([]))
+    monkeypatch.setattr(server_mod.time, 'time', lambda: 7000)
+    server_mod.sync_tick(now=1000)
+    server_mod.sync_tick(now=1300)                              # runs, last_sync = 7000
+    cfg(3600, server_mod)
+    assert server_mod.sync_tick(now=7100) == 'waiting'
+    assert server_mod.SYNC['next_at'] == 7000 + 3600
 
 
 # ------------------------------------------------------------------ wiring pins

@@ -589,7 +589,7 @@ def summary_payload():
 # a ~2 minute network job, not a 5-minute one - the Refresh button still runs the full pass.
 SYNC_STEPS = [('refresh.py', []), ('invdiff.py', []), ('progress.py', ['--once'])]
 SYNC = {'seconds': 0, 'last_sync': None, 'last_ok': None, 'last_ms': None,
-        'next_at': None, 'running': False, 'error': None}
+        'next_at': None, 'for_secs': None, 'running': False, 'error': None}
 
 
 def sync_config_seconds(default=900):
@@ -628,11 +628,16 @@ def sync_tick(now=None):
     now = time.time() if now is None else now
     secs = SYNC['seconds'] = sync_config_seconds()
     if not secs:
-        SYNC['next_at'] = None
+        SYNC['next_at'], SYNC['for_secs'] = None, None
         return 'off'
     if SYNC['next_at'] is None:
-        SYNC['next_at'] = now + secs
+        SYNC['next_at'], SYNC['for_secs'] = now + secs, secs
         return 'waiting'
+    if SYNC['for_secs'] != secs:
+        # the knob moved: re-time from the last run instead of waiting out the old cadence, so
+        # switching 1 hour -> 5 minutes takes effect now rather than in an hour
+        base = SYNC['last_sync'] or now
+        SYNC['next_at'], SYNC['for_secs'] = base + secs, secs
     if now < SYNC['next_at']:
         return 'waiting'
     SYNC['running'], SYNC['error'] = True, None
