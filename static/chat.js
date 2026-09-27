@@ -165,6 +165,18 @@
     s.className = 'chip ' + (kind === 'live' ? 'act-show' : (kind === 'err' ? 'act-offline' : ''));
   }
 
+  /* The rail runs from its own top to the bottom of the viewport (Jay: "chat can go all the way
+     down"). CSS cannot know the header height, so it is measured here and re-measured on resize.
+     Under 1200px the dock is a normal block under the cards and the CSS cap takes over again. */
+  function fit() {
+    var dock = document.getElementById('chatDock');
+    if (!dock) return;
+    if (window.innerWidth < 1200) { dock.style.height = ''; return; }
+    var top = dock.getBoundingClientRect().top;
+    if (top < 0) top = 10;                     /* already stuck to the top of the viewport */
+    dock.style.height = Math.max(280, Math.round(window.innerHeight - top - 12)) + 'px';
+  }
+
   /* ---------------------------------------------------------------- sync */
 
   function pullLocal() {
@@ -235,15 +247,29 @@
     if (!view) return;
     if (view.hidden) return;                      /* HOME only: no polling while another view is up */
     if (!build()) return;
+    fit();
     pullLocal().then(pullRelay);
   }
 
   function boot() {
     if (!build()) return;
+    fit();
     tick();
     if (timer) clearInterval(timer);
     timer = setInterval(tick, POLL);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+    /* the header grows when the sync status lands and when the chips wrap (measured: 23px at
+       1600w), so the rail is re-measured a few times while the page settles */
+    [0, 400, 1200, 3000].forEach(function (ms) { setTimeout(fit, ms); });
+    window.addEventListener('load', fit);
+    if (!window.wfmChatFitResize) {
+      window.wfmChatFitResize = true;
+      var t = null;
+      window.addEventListener('resize', function () {
+        clearTimeout(t);
+        t = setTimeout(fit, 150);
+      });
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

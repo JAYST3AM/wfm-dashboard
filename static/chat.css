@@ -15,7 +15,7 @@
 #chatDock { margin-bottom: 10px; display: flex; flex-direction: column; min-width: 0; }
 #chatDock .card-head { flex: 0 0 auto; }
 #chatDock .chat-rows {
-  flex: 1 1 auto; min-height: 140px; overflow-y: auto; overscroll-behavior: contain;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 6px 12px 4px; display: flex; flex-direction: column; gap: 0;
 }
 #chatDock .chatrow {
@@ -43,7 +43,9 @@
 
 @media (min-width: 1200px) {
   #view-home.chat-docked { grid-template-columns: minmax(0, 1fr) 300px; }
-  #chatDock { position: sticky; top: 10px; max-height: calc(100vh - 240px); }
+  /* height is measured by chat.js (fit()): the rail runs from its own top down to the bottom of
+     the viewport, so the message list fills it and the input sits on the bottom edge */
+  #chatDock { position: sticky; top: 10px; }
 }
 
 @media (min-width: 1500px) {

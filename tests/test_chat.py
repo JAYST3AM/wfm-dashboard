@@ -171,3 +171,21 @@ def test_the_dock_layout_matches_the_house_breakpoints():
     assert '(min-width: 1500px)' in css and '(min-width: 1200px)' in css and '(max-width: 540px)' in css
     assert 'position: sticky' in css
     assert 'var(--mono)' in css and 'tabular-nums' in css, 'matches the app palette + numerals'
+
+
+def test_the_rail_runs_to_the_bottom_of_the_viewport():
+    """Jay: "the chat isn't going down to the bottom of the screen its only taking the top bit" /
+    "chat can go all the way down". A max-height alone left the dock at content height, so the dock
+    carries no cap and chat.js measures its own top and fills to the bottom edge (verified at
+    1920/1600/1536/1440/1366/1280: 12px below every viewport, list fills, input on the bottom
+    edge; under 1200px it is a normal block again)."""
+    css = read('static/chat.css')
+    js = read('static/chat.js')
+    assert 'max-height: calc(100vh - 240px)' not in css, 'the old cap is gone'
+    assert "s.style.height" not in css
+    assert 'function fit()' in js and "dock.style.height = Math.max(280" in js
+    assert 'window.innerWidth < 1200' in js, 'stacked layout clears the measured height'
+    assert '[0, 400, 1200, 3000].forEach(function (ms) { setTimeout(fit, ms); })' in js, \
+        'the header grows after load (sync status, wrapped chips) so fit() re-runs'
+    assert "window.addEventListener('resize'" in js
+    assert "min-height: 0; overflow-y: auto; overscroll-behavior: contain" in css, 'the list must scroll, not the page'
