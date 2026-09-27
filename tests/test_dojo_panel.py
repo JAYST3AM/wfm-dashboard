@@ -271,13 +271,13 @@ def visible_strings(src):
 def test_dojo_card_copy_is_short_and_its_one_explainer_is_wrapped():
     block = panels_block()
     for s in visible_strings(block):
-        assert len(s) <= 100, s
-    # the only sentence lives behind the Advanced switch, wrapped in .explain
+        assert len(s.split()) <= 8, s          # copy diet: labels and values only
+        assert len(s) <= 90, s
+    # the one explainer sits behind the Advanced switch, wrapped in .explain
     note = block.split('id="dojoNote"', 1)[1]
-    assert note.startswith(' class="dojo-note dim small explain">'
-                           'Short counts what is still missing after your owned materials.</div>')
+    assert note.startswith(' class="dojo-note dim small explain">Short: still missing</div>')
     bare = re.sub(r'<\w+[^>]*class="[^"]*explain[^"]*"[^>]*>[^<]*</\w+>', '', block)
-    for m in re.finditer(r'>([^<>]{61,})<', bare):
+    for m in re.finditer(r'>([^<>]{41,})<', bare):
         raise AssertionError('long copy outside .explain: ' + m.group(1)[:80])
 
 

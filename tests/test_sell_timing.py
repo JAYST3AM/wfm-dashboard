@@ -140,17 +140,17 @@ def test_decide_requires_a_top_hour_and_real_sample(stt):
     windows = [{'dow': 0, 'hour': 2, 'sales': 6, 'plat': 60}]
 
     verdict, reason, slot = stt.decide(datetime(2026, 9, 21, 2, 30, tzinfo=tz), hours, windows)
-    assert verdict == 'SELL_NOW' and 'top-3 sale hour (6 sales, 60p in sample)' in reason
+    assert verdict == 'SELL_NOW' and 'top-3 hour: ' in reason and '6 sales, 60p' in reason
     assert (slot['dow'], slot['hour']) == (0, 2)                  # next week's slot
     assert set(slot) == {'dow', 'hour', 'label'}
 
     verdict, reason, _ = stt.decide(datetime(2026, 9, 21, 9, 30, tzinfo=tz), hours, windows)
-    assert verdict == 'HOLD' and 'has 4 sales in sample' in reason    # top hour, but thin
+    assert verdict == 'HOLD' and reason.startswith('top 02:00')        # top hour, but thin
     assert stt.decide(datetime(2026, 9, 21, 9, 30, tzinfo=tz), hours, windows, min_sales=4)[0] == 'SELL_NOW'
 
     verdict, reason, slot = stt.decide(datetime(2026, 9, 21, 15, 0, tzinfo=tz), hours, windows)
-    assert verdict == 'HOLD' and 'has 0 sales in sample' in reason
-    assert 'top hours 02:00, 09:00' in reason                     # zero-sample hours never pad the list
+    assert verdict == 'HOLD' and 'next' in reason
+    assert 'top 02:00, 09:00' in reason                           # zero-sample hours never pad the list
     assert slot['label'].startswith('Mon 02:00')
     assert stt.decide(datetime(2026, 9, 21, 9, 30, tzinfo=tz), hours, windows, top_n=1)[0] == 'HOLD'
     assert stt.decide(datetime(2026, 9, 21, 2, 30, tzinfo=tz), hours, windows, top_n=1)[0] == 'SELL_NOW'
@@ -229,7 +229,7 @@ def test_main_writes_the_contract(stt, tmp_path):
     assert all(set(w) == {'dow', 'hour', 'sales', 'plat'} for w in doc['best_windows'])
     assert [(w['dow'], w['hour']) for w in doc['best_windows']] == [(0, 2), (1, 9)]
     assert doc['verdict'] == 'SELL_NOW'
-    assert 'top-3 sale hour (6 sales, 90p in sample)' in doc['verdict_reason']
+    assert 'top-3 hour: ' in doc['verdict_reason'] and '6 sales, 90p' in doc['verdict_reason']
     assert set(doc['next_window']) == {'dow', 'hour', 'label'}
     assert (doc['next_window']['dow'], doc['next_window']['hour']) == (1, 9)   # Tue 09:00
     assert doc['next_window']['label'].startswith('Tue 09:00 (in ')
@@ -240,15 +240,15 @@ def test_main_writes_the_contract(stt, tmp_path):
     assert kinds['prime_part'] == {'sales': 5, 'plat': 50,
                                    'best_hours': [{'hour': 2, 'sales': 5, 'plat': 50}]}
     assert kinds['prime_bp']['best_hours'] == [{'hour': 9, 'sales': 1, 'plat': 120}]
-    assert kinds['prime_bp']['note'] == 'thin sample (1 sale) - hours are a hint only'
+    assert kinds['prime_bp']['note'] == 'thin sample (1 sale)'
     assert kinds['other']['sales'] == 1                            # Galvanized Chamber, no tags
     assert 'note' not in kinds['prime_part']
 
     sample = doc['sample']
     assert (sample['sales_total'], sample['active_days'], sample['span_days']) == (7, 2, 1.3)
     assert (sample['first_sale'], sample['last_sale']) == ('2026-09-21', '2026-09-22')
-    assert '7 sales over 2 active day(s) in a 1.3d window' in sample['note']
-    assert 'thin sample - treat windows as hints, not rules' in sample['note']
+    assert '7 sales / 2 days / 1.3d window' in sample['note']
+    assert 'thin sample - hints only' in sample['note']
     assert 'no sample for relic/arcane/prime_set' in sample['note']
 
 
@@ -281,13 +281,13 @@ def test_thin_sample_is_labelled_not_dressed_up(stt, tmp_path):
     doc = read_json(tmp_path / 'data' / 'sell_timing.json')
     sample = doc['sample']
     assert (sample['sales_total'], sample['active_days'], sample['span_days']) == (2, 1, 0.0)
-    assert 'thin sample - treat windows as hints, not rules' in sample['note']
-    assert '1/24 hours and 1/7 weekdays have sample' in sample['note']
+    assert 'thin sample - hints only' in sample['note']
+    assert '1/24 hours, 1/7 weekdays sampled' in sample['note']
     assert list(doc['by_kind']) == ['arcane', 'relic']
     for kind in ('arcane', 'relic'):
-        assert doc['by_kind'][kind]['note'] == 'thin sample (1 sale) - hours are a hint only'
+        assert doc['by_kind'][kind]['note'] == 'thin sample (1 sale)'
     assert doc['verdict'] == 'HOLD'               # 2 sales is nowhere near the 5-sale bar
-    assert 'has 2 sales in sample' in doc['verdict_reason']
+    assert 'top 02:00' in doc['verdict_reason']
 
 
 def test_cli_top_and_min_sales_flags_and_iso_now(stt, tmp_path):
@@ -306,7 +306,7 @@ def test_cli_top_and_min_sales_flags_and_iso_now(stt, tmp_path):
 
     assert run(stt, tmp_path, '--now', '2026-09-21T02:30', '--top', '1') == 0
     doc = read_json(tmp_path / 'data' / 'sell_timing.json')
-    assert doc['verdict'] == 'HOLD' and 'top hours 09:00;' in doc['verdict_reason']
+    assert doc['verdict'] == 'HOLD' and 'top 09:00' in doc['verdict_reason']
 
 
 def test_trade_log_dict_wrapper_is_tolerated(stt, tmp_path):

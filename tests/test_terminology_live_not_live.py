@@ -47,31 +47,40 @@ def test_no_dry_run_wording_in_the_pages():
         assert not BAD.search(html), name
 
 
-def test_header_and_trader_card_say_live_not_live():
+def test_live_wording_survives_the_retired_trader_cards():
+    """2026-09-27: the Trade 'Engine status' card was retired with the other internals, so the
+    wording rule now stands on the surfaces that still show the posting state."""
     js = read('static/app.js')
-    assert "'· posting ' + (set.dry_run === false ? 'Live' : 'Not live')" in js
-    assert "'Live<span class=\"explain\"> - orders can post</span>'" in js
-    assert "'Not live<span class=\"explain\"> - nothing is posted to warframe.market</span>'" in js
+    assert 'renderEngine' not in js and "line('Posting mode'" not in js, 'retired cards stay retired'
+    assert 'killMeta' in js, 'the kill-switch card is still on the Trade view'
+    assert "dry ? 'Not live' : 'Live'" in read('static/settings.js'), 'settings still states the gate'
+    assert 'Not live' in read('static/home.js'), 'home still says it plainly'
 
 
-def test_engine_plan_modes_are_mapped_for_display():
-    """Plans still store mode:'dry-run' (data), so the UI translates it instead of renaming data."""
+def test_no_raw_plan_mode_can_reach_the_ui():
+    """Plans still store mode:'dry-run' (data). The flipper-internals card was the only surface
+    that printed a mode, so neither the renderer nor the mapper may come back without a decision."""
     js = read('static/app.js')
-    assert 'function modeText(m)' in js
-    assert "/dry/i.test(String(m)) ? 'Not live'" in js
-    assert 'modeText(P.mode)' in js
+    assert 'function renderFlipper' not in js
+    assert 'function modeText' not in js and 'modeText(' not in js
+    assert 'flipPlanList' not in js
+    for s in visible_strings(js):
+        assert not re.search(r'dry[ -]?run', s, re.I), s
 
 
 def test_settings_card_shows_not_live():
+    """2026-09-27 copy diet: the posting row is the status pill alone (label + status). The
+    wording pinned is still the visible 'Not live'; the explainer that sat under it is gone and
+    must not come back."""
     js = read('static/settings.js')
     assert "dry ? 'Not live' : 'Live'" in js
-    assert "dry ? 'not live' : 'live'" in js
-    assert "'Not live - nothing is posted until the engine config says otherwise.'" in js
+    assert 'nothing is posted until' not in js
+    assert 'not editable here' not in js
 
 
 def test_home_card_shows_not_live():
     js = read('static/home.js')
-    assert "'Not live - listings are planned here, nothing is sent out.'" in js
+    assert "'Not live - plan only'" in js          # copy diet 2026-09-27: one short phrase, no sentence
 
 
 def test_guardrail_help_uses_the_new_wording():

@@ -57,13 +57,17 @@ def test_css_hides_explanations_until_the_switch_is_on():
     assert 'html[data-adv="on"] .explain { display: revert !important; }' in css
 
 
-def test_trade_card_explanations_are_behind_the_switch():
+def test_explanations_stay_behind_the_switch_where_they_remain():
+    """2026-09-27: the trader internals (engine status / detector / flipper / raw output) were
+    retired, taking the Trade card's posting note with them. The switch still governs every
+    explanation that is left - the kill-switch footnote, the settings intro and the row hints."""
     js = read('static/app.js')
-    posting = re.search(r"line\('Posting mode'.*?\)\s*\+", js, re.S)
-    assert posting, 'the posting-mode row must exist'
-    assert 'Live<span class="explain"> - orders can post</span>' in posting.group(0)
-    assert 'Not live<span class="explain"> - nothing is posted to warframe.market</span>' in posting.group(0)
-    assert 'class="dim small explain"' in js, 'the kill-switch footnote is an explanation'
+    assert "line('Posting mode'" not in js, 'the retired posting row must not come back'
+    assert 'class="dim small explain"' in js, 'the kill-switch footnote is still an explanation'
+    assert 'Advanced trading' not in read('static/index.html'), 'the accordion is retired'
+    settings = read('static/settings.js')
+    assert "el('div', 'cfg-help' + (meta.hint ? ' explain' : ''))" in settings, 'row hints'
+    assert '<p class="st-lead explain">' in read('static/settings.html'), 'the page intro'
 
 
 def test_settings_group_flips_it_live():

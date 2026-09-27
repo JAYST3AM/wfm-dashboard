@@ -15,7 +15,6 @@
   .st-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 16px; max-width: 760px; }
   .st-lead b { color: var(--text); }
   .card-head h2.card-title { margin: 0; }
-  .st-sub { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 8px 16px 0; margin: 0; }
   /* label | control | value+unit (the old 60px value column clipped unit words) */
   .cfgrow { grid-template-columns: minmax(190px, 1.5fr) minmax(150px, 1fr) 118px; }
   .cfgrow .st-unit { color: var(--muted); font-size: 11px; }
@@ -45,6 +44,8 @@
   .st-foot2 { color: var(--muted); font-size: 11px; line-height: 1.7; padding: 4px 16px 0; margin: 0; }
   .st-foot2 code { font-family: var(--mono); }
   .status.err { color: var(--accent); }
+  /* a status line that has nothing to say takes no room (it fills in after a save) */
+  .status:empty { display: none; }
   /* accounts card: profile rows + the two-step switch */
   .st-nam { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: 12.5px var(--sans); padding: 6px 10px; min-width: 168px; }
   .st-nam:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
@@ -63,14 +64,16 @@
     .cfgrow .cfg-val { text-align: left; }
   }
 </style>
+  <link rel="stylesheet" href="/icons.css">
+  <script src="/icons.js" defer></script>
 </head>
 <body>
 <header>
   <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">settings</span></div>
   <div class="chips" id="chips"></div>
   <div class="actions">
-    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true">♪</button>
-    <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel">◐ Theme</button>
+    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true" data-icon="speaker-high"></button>
+    <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel" data-icon="palette">Theme</button>
     <a class="btn" href="/">◀ Dashboard</a>
   </div>
   <div id="themePanel" class="theme-panel hidden">
@@ -80,12 +83,13 @@
 </header>
 
 <nav class="mainnav" id="mainnav" aria-label="Primary">
-  <a href="/#home" class="navpill" data-v="home">Home</a>
-  <a href="/#inventory" class="navpill" data-v="inventory">Inventory</a>
-  <a href="/#trade" class="navpill" data-v="trade">Trade</a>
-  <a href="/collection.html" class="navpill" data-v="collection">Collection</a>
-  <a href="/#more" class="navpill active" data-v="more" aria-current="page">More</a>
-  <a href="/#player" class="navpill" data-v="player">Player</a>
+  <a href="/#home" class="navpill" data-v="home" data-icon="house">Home</a>
+  <a href="/#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
+  <a href="/#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
+  <a href="/collection.html" class="navpill" data-v="collection" data-icon="squares-four">Collection</a>
+  <a href="/#mastery" class="navpill" data-v="mastery" data-icon="trophy">Mastery</a>
+  <a href="/#player" class="navpill" data-v="player" data-icon="user">Player</a>
+  <a href="/#more" class="navpill active" data-v="more" data-icon="dots-three-circle" aria-current="page">More</a>
 </nav>
 <nav class="mainnav subnav" aria-label="More sections">
   <a href="/#more" class="navpill" data-v="more">More</a>
@@ -93,16 +97,15 @@
 </nav>
 
 <main class="st-wrap">
-  <h1 class="st-h1">Settings</h1>
+  <h1 class="st-h1" data-icon="gear-six">Settings</h1>
   <p class="st-lead explain">
-    Trading rules and refresh timing. Every value is validated before it is written — a
-    <b>refused value changes nothing</b>.
+    Trading rules and refresh timing.
   </p>
 
   <section class="card" aria-labelledby="h-verbose">
     <div class="card-head">
-      <h2 class="card-title" id="h-verbose">Advanced</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-verbose">Save</button></div>
+      <h2 class="card-title" id="h-verbose" data-icon="sliders-horizontal">Advanced</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-verbose" data-icon="check">Save</button></div>
     </div>
     <div class="picks" id="list-verbose"></div>
     <p class="status" id="status-verbose" role="status" aria-live="polite"></p>
@@ -110,47 +113,39 @@
 
   <section class="card" aria-labelledby="h-trading">
     <div class="card-head">
-      <h2 class="card-title" id="h-trading">Trading</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-trading">Save trading settings</button></div>
+      <h2 class="card-title" id="h-trading" data-icon="shield-check">Trading</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-trading" data-icon="check">Save</button></div>
     </div>
-    <p class="st-sub explain">What the trader may do — listings, prices, buy budget and how often it checks.</p>
     <div class="picks" id="list-trading"></div>
     <p class="status" id="status-trading" role="status" aria-live="polite"></p>
   </section>
 
   <section class="card" aria-labelledby="h-appearance">
     <div class="card-head">
-      <h2 class="card-title" id="h-appearance">Appearance</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-appearance">Save appearance settings</button></div>
+      <h2 class="card-title" id="h-appearance" data-icon="palette">Appearance</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-appearance" data-icon="check">Save</button></div>
     </div>
-    <p class="st-sub explain">Theme, units and how much the dashboard shows.</p>
     <div class="picks" id="list-appearance"></div>
     <p class="status" id="status-appearance" role="status" aria-live="polite"></p>
   </section>
 
   <section class="card" aria-labelledby="h-updates">
     <div class="card-head">
-      <h2 class="card-title" id="h-updates">Updates</h2>
-      <div class="actions"><button class="btn primary" id="btnSave-updates">Save update settings</button></div>
+      <h2 class="card-title" id="h-updates" data-icon="arrows-clockwise">Updates</h2>
+      <div class="actions"><button class="btn primary" id="btnSave-updates" data-icon="check">Save</button></div>
     </div>
-    <p class="st-sub explain">How often things refresh on their own.</p>
     <div class="picks" id="list-updates"></div>
     <p class="status" id="status-updates" role="status" aria-live="polite"></p>
   </section>
 
   <section class="card" aria-labelledby="h-accounts">
     <div class="card-head">
-      <h2 class="card-title" id="h-accounts">Accounts</h2>
+      <h2 class="card-title" id="h-accounts" data-icon="user">Accounts</h2>
       <div class="actions">
         <input id="acctName" class="st-nam" type="text" maxlength="40" placeholder="new profile name" aria-label="New profile name">
         <button class="btn" id="acctCreate">Create profile</button>
       </div>
     </div>
-    <p class="st-sub">
-      One data profile per Warframe account. Switching saves the current account into its own profile,
-      takes a safety zip, then restores the chosen profile into the live data — nothing is ever deleted.
-      The warframe.market login (<code>secrets.json</code>) is shared and is never swapped.
-    </p>
     <div id="list-accounts"></div>
     <pre class="rawout" id="acctPlan" hidden></pre>
     <p class="status" id="status-accounts" role="status" aria-live="polite"></p>
@@ -164,17 +159,13 @@
       </button>
     </h2>
     <div id="advPanel" class="st-advpanel" role="region" aria-labelledby="advBtn" hidden>
-      <p class="st-sub">
-        Implementation details — the key names, files and scripts the app actually reads and writes.
-        Nothing here is needed for normal use.
-      </p>
       <div class="st-advhead">
-        <span class="subhead">Server</span>
-        <button class="btn primary" id="btnSave-advanced">Save server settings</button>
+        <span class="subhead" data-icon="hard-drives">Server</span>
+        <button class="btn primary" id="btnSave-advanced" data-icon="check">Save</button>
       </div>
       <div class="picks" id="list-advanced"></div>
       <p class="status" id="status-advanced" role="status" aria-live="polite"></p>
-      <div class="subhead">Raw config keys</div>
+      <div class="subhead" data-icon="floppy-disk">Raw config keys</div>
       <div class="st-rawwrap">
         <table class="st-raw">
           <thead>
@@ -188,15 +179,6 @@
           <tbody id="rawRows"></tbody>
         </table>
       </div>
-      <p class="st-foot2">
-        Files: <code>data/config.json</code> (written by <code>scripts/config.py</code>) and
-        <code>scripts/trader/settings.json</code> (written by <code>scripts/trader/settings.py</code>).
-        Read by <code>server.py</code>, <code>static/app.js</code>, <code>scripts/watch_save.py</code> and the trader engines.
-      </p>
-      <p class="st-foot2">
-        Raw payloads: <code>GET /api/config</code> · <code>GET /api/trader/cfg</code>.
-        The kill switch and the test alert button live on the Trade page.
-      </p>
       <p class="st-foot2" id="advErr"></p>
     </div>
   </section>

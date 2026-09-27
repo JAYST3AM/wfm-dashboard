@@ -518,7 +518,8 @@ main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .3
 /* drawer scrim fades behind the panel (the panel itself already rises) */
 .dw-scrim { animation: wfm-fade .2s ease both; }
 
-/* the header sound toggle: ♪ with a clean strike when muted */
+/* the header sound toggle: muted dims the host, and a clean strike stays the fallback mark
+   for hosts that carry a single weight (index.html swaps in i-speaker-slash instead) */
 #soundBtn.muted { opacity: .55; }
 #soundBtn.muted::before {
   content: ""; position: absolute; left: 22%; right: 22%; top: 50%; height: 1.5px;
@@ -617,6 +618,42 @@ html[data-adv="on"] .explain { display: revert !important; }
   .pc-frow { grid-template-columns: minmax(0, 1fr) 84px 70px; padding: 6px 10px; }
 }
 
+/* ---- MASTERY helper (static/app.js renderMastery*): index.html #view-mastery ----
+   Rank + gap + item-mastery total as labels and values - no MR bar, because the save cannot
+   prove a percentage (item mastery alone sits below the rank floor). The next-table keeps the
+   store's own order; the per-type bars are the safe percentages. Palette vars only. */
+.mh-gap { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mh-note { padding: 0 16px 14px; }
+.mh-row {
+  display: grid; grid-template-columns: minmax(0, 1.7fr) 104px 92px 74px 84px minmax(0, 1.1fr);
+  gap: 8px; align-items: center; padding: 6.5px 16px; font-size: 12.5px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.mh-row[data-slug] { cursor: pointer; }
+.mh-row:hover { background: var(--hover); }
+.mh-row.mh-head { border-top: 0; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; }
+.mh-row.mh-head:hover { background: none; }
+.mh-row .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.mh-head .num { font-family: var(--sans); }
+.chip.mh-st-owned { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.chip.mh-st-missing { color: var(--muted); }
+.chip.mh-st-mastered { color: var(--text); }
+.mh-cat {
+  display: grid; grid-template-columns: minmax(0, 1fr) 92px minmax(110px, 260px);
+  gap: 10px; align-items: center; padding: 6px 16px; font-size: 12.5px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.mh-cat:first-child { border-top: 0; }
+.mh-cat .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+#mhNextCard .card-head { flex-wrap: wrap; gap: 8px; }   /* the filter pills wrap at 390px */
+#mhFilters { flex-wrap: wrap; justify-content: flex-end; }
+#mhFilters b { font-family: var(--mono); font-weight: 600; }
+@media (max-width: 560px) {
+  .mh-row { grid-template-columns: minmax(0, 1fr) 74px 52px 62px; gap: 6px; padding: 6px 12px; }
+  .mh-row > span:nth-child(2), .mh-row > span:nth-child(6) { display: none; }   /* Type + Where */
+  .mh-cat { grid-template-columns: minmax(0, 1fr) 74px 68px; gap: 6px; padding: 6px 12px; }
+}
+
 /* ---- phones (<=560px): compact header, one-row nav wrap, rows that fit their card ----
    Measured before this block at 390x844: header 269px tall (the six chips stacked into a
    188px column beside the brand, then the action cluster took two more rows), nav pills 30px
@@ -654,4 +691,34 @@ html[data-adv="on"] .explain { display: revert !important; }
   .h-cols .newsrow .n-title { white-space: normal; }   /* headlines read fully on a phone */
   .h-cols .h-l2, .h-cols .h-l3 { white-space: normal; }  /* the why/how lines wrap, never clip */
 }
+
+/* ============ Phosphor icons (static/icons.js + icons.css) ============
+   One icon per host, colour always from currentColor. The quiet places - card titles, empty
+   states - read --muted so an icon is never louder than the label beside it. Nothing here
+   changes a box, a padding or a font size: icons.css already makes .i flex: 0 0 auto, and
+   every icon rides on its label's font size. */
+
+/* card titles: the icon replaces the accent diamond on titles that carry one */
+.card-title[data-icon]::before { content: none; }
+.card-title .i { color: var(--muted); }
+.card-title > .i { margin-right: 6px; }
+
+/* header controls: the flex row owns the icon-to-label gap (never .i-before plus a gap) */
+header .btn, header a.btn { gap: 6px; }
+header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
+
+/* the sound toggle: -high while audible, -slash while muted (sfx.js toggles .muted).
+   The swap only engages when the host carries both weights, so a page that keeps one weight
+   (or just the glyph) keeps the CSS strike below it. */
+#soundBtn > [data-icon="speaker-slash"] { display: none; }
+#soundBtn.muted:has(> [data-icon="speaker-slash"]) > [data-icon="speaker-high"] { display: none; }
+#soundBtn.muted:has(> [data-icon="speaker-slash"]) > [data-icon="speaker-slash"] { display: inline-flex; }
+#soundBtn:has(> [data-icon="speaker-slash"]).muted::before { display: none; }  /* the slash icon carries it */
+
+/* empty / idle states: one quiet 18px icon above the line */
+.empty-icon { display: block; margin: 0 auto 7px; color: var(--muted); opacity: .8; }
+
+/* "view all recommendations" expander: the caret flips while the list is open */
+.h-more > .i { transition: transform .18s ease; }
+.h-more[aria-expanded="true"] > .i { transform: rotate(180deg); }
 

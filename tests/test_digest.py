@@ -95,7 +95,7 @@ TRADER_PLAN = {'generated': NOW - 600, 'dry_run': True, 'live_orders': 0,
                          'est_total': 141}],
                'held_list': [['Esher Devar', 'below min price (1p < 3p)']]}
 SELL_TIMING = {'generated': NOW - 300, 'verdict': 'HOLD',
-               'verdict_reason': '23:00 AEST has 5 sales in sample; next window Mon 02:00 (in 2.1d)',
+               'verdict_reason': 'top 23:00 · next Mon 02:00',
                'next_window': {'dow': 0, 'hour': 2, 'label': 'Mon 02:00 (in 2.1d)'},
                'sample': {'sales_total': 122, 'active_days': 17, 'span_days': 455.7}}
 
@@ -264,7 +264,7 @@ def test_plan_summary_and_timing_verdict(dg, root):
     assert plan[2].startswith('1 rows held back - e.g. Esher Devar')
 
     timing = by_id(doc)['timing']['lines']
-    assert timing[0].startswith('HOLD - 23:00 AEST has 5 sales in sample')
+    assert timing[0].startswith('HOLD - top 23:00')
     assert timing[1] == 'next window Mon 02:00 (in 2.1d) | sample 122 sales over 17 active days'
 
 

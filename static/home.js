@@ -1,4 +1,4 @@
-/* WFM Trader - HOME "what should I do today?" renderer.
+/* WFM Trader - HOME renderer.
    Fills three containers owned by index.html: #homeToday, #homeAlerts and
    #homeRecent. They are .picks bodies inside page-owned cards, so this file adds
    rows only; it also unhides #alertsCard while there is something to show and
@@ -8,24 +8,33 @@
    duplicate rows, stale responses from an older call are discarded).
 
    What it answers:
-     #homeToday  - what to do first (sell actions, then keep/ducat/relic groups)
+     #homeToday  - what the day has actually done (/api/feature/progress: platinum,
+                   credits, items added/removed, trades, sessions, materials gained,
+                   the week roll-up) followed by the newest few sessions, one line each
      #homeAlerts - real problems only (quiet if there are none)
      #homeRecent - last few trade events + the latest session summary
 
    Plain browser JS, no libraries, no build step. DOM is built with
    createElement/textContent (never innerHTML with data) and colours come from
    the palette vars in style.css, so all themes work. Field names follow the
-   local API payloads (/api/feature/advisor, /api/trader, /api/trades,
-   /api/feature/{sessions,baro,killswitch,hygiene}). */
+   local API payloads (/api/feature/progress, /api/trader, /api/trades,
+   /api/feature/{sessions,baro,killswitch,hygiene}).
+
+   Honesty rule for the progress store: null means "not known", never zero. Those
+   values render '-' and the matching note from the store's notes[] becomes the
+   row's hover text, so the card never invents a number.
+
+   Icon rule: every render rebuilds its rows from scratch, so a host carrying
+   data-icon is never re-texted after the sprite has injected its <svg> (textContent
+   would wipe it). New nodes are picked up by icons.js' own observer. */
 'use strict';
 (function () {
-  const TOP_SELL = 5;           /* sell actions shown straight away */
-  const REST_SELL = 30;         /* extra rows behind the expander */
-  const GROUP_ROWS = 2;         /* rows per secondary group */
+  const SESSIONS_SHOWN = 5;     /* newest sessions listed in the Today card */
+  const MATERIALS_SHOWN = 3;    /* material names shown at once */
   const RECENT_EVENTS = 5;      /* trade events in the recent card */
   const BARO_ALERT_HOURS = 48;  /* only treat a visit as news when this close */
+  const UNKNOWN = '-';          /* rendered when the progress store has no reading */
 
-  let openAll = false;          /* expander state; survives re-renders */
   let seq = 0;                  /* guards overlapping refreshes */
 
   /* ---------- tiny DOM / format helpers ---------- */
@@ -75,120 +84,40 @@
   };
   const plural = (n, one, many) => n + ' ' + (n === 1 ? one : (many || one + 's'));
 
+  /* ---------- progress-store format helpers ----------
+     num()/signed() keep "not known" distinct from zero: anything missing, blank or
+     unparseable comes back as null and the caller renders '-'. fnum() is the same
+     but keeps the fraction (durations arrive as 41.26 hours / 96.5 minutes). */
+  const num = (n) => (n === null || n === undefined || n === '' || isNaN(n)) ? null : Math.round(Number(n));
+  const fnum = (n) => (n === null || n === undefined || n === '' || isNaN(n)) ? null : Number(n);
+  const signed = (n, unit) => {
+    const v = num(n);
+    return v === null ? null : (v < 0 ? '\u2212' : '+') + Math.abs(v).toLocaleString() + (unit || '');
+  };
+  const trend = (n) => (n > 0 ? 'upl' : n < 0 ? 'downl' : '');
+  /* the store explains its own gaps: the note mentioning `re` becomes the hover text */
+  const noteFor = (notes, re, fallback) => (notes.find((n) => re.test(n)) || fallback || '');
+  const hm = (ts) => { const d = new Date(ts * 1000); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+  const wdhm = (ts) => new Date(ts * 1000).toLocaleDateString([], { weekday: 'short' }) + ' ' + hm(ts);
+  const rangeTxt = (a, b) => {
+    if (!a || !b) return '';
+    return localDate(new Date(a * 1000)) === localDate(new Date(b * 1000))
+      ? wdhm(a) + ' \u2192 ' + hm(b)          /* same day: the weekday is not repeated */
+      : wdhm(a) + ' \u2192 ' + wdhm(b);
+  };
+  const matText = (arr) => (arr || []).filter((m) => m && m.name && num(m.delta))
+    .slice(0, MATERIALS_SHOWN)
+    .map((m) => clip(m.name, 24) + ' ' + signed(m.delta, '')).join(' \u00b7 ');
+
   /* ---------- data helpers ---------- */
   const jok = (x) => (x && !x.error) ? x : null;   /* API answers can carry {error} */
   const get = (url) => fetch(url, { headers: { 'Accept': 'application/json' } })
     .then((r) => (r && r.ok ? r.json() : null))
     .catch(() => null);
 
-  const rowsOf = (adv) => {
-    const out = [];
-    if (!adv || !adv.items) return out;
-    const m = adv.items;
-    for (const k in m) if (Object.prototype.hasOwnProperty.call(m, k) && m[k]) out.push(m[k]);
-    return out;
-  };
-  const byScore = (a, b) => (b.score || 0) - (a.score || 0)
-    || String(a.name || '').localeCompare(String(b.name || ''));
-  const of = (rs, rec) => rs.filter((r) => r.recommendation === rec);
-  const demandText = (b) => b === 'spike' ? 'demand rising'
-    : b === 'fade' ? 'demand fading'
-      : b === 'steady' ? 'demand steady' : '';
-
-  const qtyOf = (r) => r.recommended_quantity || 0;
-  const priceOf = (r) => (r.recommended_price === null || r.recommended_price === undefined)
-    ? null : Math.round(r.recommended_price);
-
-  const actText = (r) => {
-    const q = qtyOf(r), p = priceOf(r);
-    switch (r.recommendation) {
-      case 'list': return 'List ' + (q || 1) + (p === null ? '' : ' \u00d7 ' + p + 'p');
-      case 'burn_ducats': return 'Burn ' + (q || 1) + ' for ducats';
-      case 'open_relic': return 'Open ' + plural(q || 1, 'relic');
-      case 'finish_set': return 'Finish the set';
-      case 'assemble_set': return 'Assemble the set';
-      case 'keep': return 'Keep it';
-      case 'already_listed': return 'Already listed';
-      default: return 'Hold';
-    }
-  };
-
-  /* Layer 2 - what you actually have. Equipped copies never count as sellable,
-     so the API's sellable number is used as-is. */
-  const ownLine = (r) => {
-    const bits = [];
-    if (r.sellable) bits.push('You have ' + r.sellable + ' safe to sell');
-    if (r.owned !== null && r.owned !== undefined && r.owned !== r.sellable) bits.push(r.owned + ' owned');
-    if (r.equipped) bits.push(r.equipped + ' equipped');
-    if (r.reserved) bits.push(r.reserved + ' kept back');
-    if (r.lane_rank !== null && r.lane_rank !== undefined) bits.push('rank ' + r.lane_rank);
-    return bits.join(' \u00b7 ');
-  };
-
-  /* Condensed form for the narrow column (Jay: "condensed ... too much realestate"): counts and
-     rank only; the full sentence lives in the row's hover text. */
-  const ownLineShort = (r) => {
-    const bits = [];
-    if (r.sellable) bits.push(r.sellable + ' safe');
-    if (r.owned !== null && r.owned !== undefined && r.owned !== r.sellable) bits.push(r.owned + ' owned');
-    if (r.equipped) bits.push(r.equipped + ' equipped');
-    if (r.reserved) bits.push(r.reserved + ' kept back');
-    if (r.lane_rank !== null && r.lane_rank !== undefined) bits.push('rank ' + r.lane_rank);
-    return bits.join(' \u00b7 ');
-  };
-
-  const whyLineShort = (r) => {
-    const bits = [];
-    if (r.best_sell_window) bits.push('window ' + r.best_sell_window);
-    if (r.vol48) bits.push(r.vol48 + ' sold / 48h');
-    return bits.join(' \u00b7 ');
-  };
-
-  /* Layer 2 - a short "why". Boilerplate price/liquidity/lane lines are skipped
-     in favour of the first reason that says something about this item, and any
-     bit that would repeat one already shown is dropped. */
-  const BOILER = /^(current market price|you sell |you historically sell|liquidity |no obvious baro|\d+ stays in the)/i;
-  const whyLine = (r) => {
-    const bits = [];
-    const rs = (r.reasons || []).filter((s) => typeof s === 'string' && s.trim());
-    const has = (re) => bits.some((b) => re.test(b));
-    const pick = rs.find((s) => !BOILER.test(s));
-    if (pick) bits.push(clip(pick, 92));
-    const d = demandText(r.demand_badge);
-    if (d && !has(/demand/i)) bits.push(d);
-    const note = (r.notes || []).filter((s) => typeof s === 'string' && s.trim())[0];
-    if (note) {
-      const key = clip(note, 24);
-      if (!bits.some((b) => b.indexOf(key) >= 0)) bits.push(clip(note, 70));
-    }
-    if (r.best_sell_window && !bits.some((b) => b.indexOf(r.best_sell_window) >= 0)) bits.push('best window ' + r.best_sell_window);
-    if (r.vol48 && !has(/48h/i)) bits.push('Sales / 48h: ' + r.vol48);
-    if (!bits.length && rs[0]) bits.push(clip(rs[0], 92));
-    return bits.join(' \u00b7 ');
-  };
-
-  /* Layer 3 - full detail on hover. */
-  const tipText = (r) => {
-    const parts = [];
-    if (r.text) parts.push(String(r.text).trim());
-    const rs = (r.reasons || []).filter((s) => typeof s === 'string' && s.trim());
-    if (rs.length) parts.push('\u2014 ' + rs.join('\n\u2014 '));
-    return clip(parts.join('\n\n'), 900);
-  };
-
-  /* set jobs have nothing sellable on their own, so the why line explains the
-     job: the keeping reason if there is one, else the plain plan from the row text. */
-  const setWhy = (r) => {
-    const rs = (r.reasons || []).filter((s) => typeof s === 'string' && s.trim());
-    const pick = rs.find((s) => /craft|complete/i.test(s));
-    if (pick) return clip(pick, 92);
-    const rec = String(r.text || '').split('\n').map((s) => s.trim())
-      .find((s) => /^recommendation:/i.test(s));
-    if (rec) return clip(rec.replace(/^recommendation:\s*/i, ''), 110);
-    return clip(rs[0] || 'Whole sets sell for more than loose parts', 92);
-  };
-
-  /* ---------- navigation (drawer agent may own wfmOpenItem) ---------- */
+  /* ---------- navigation (drawer agent owns wfmOpenItem) ----------
+     The drawer contract stays wired for rows that name a tradeable; the Today card's
+     progress rows are counts, so nothing calls it right now. */
   const openItem = (slug) => {
     if (!slug) return;
     if (typeof window.wfmOpenItem === 'function') {
@@ -222,101 +151,130 @@
     if (n && !String(n.textContent || '').trim()) n.textContent = text || '';
   };
 
-  const itemRow = (r, opts) => {
-    const o = opts || {};
-    const slug = r.item || o.slug || '';
-    const row = el('div', 'h-row h-click' + (o.sm ? ' h-sm' : ''));
-    row.setAttribute('role', 'button');
-    row.setAttribute('tabindex', '0');
-    if (slug) row.setAttribute('data-slug', slug);
-    const tip = [tipText(r), ownLine(r), whyLine(r)].filter(Boolean).join('\n\n');
-    if (tip) row.setAttribute('title', tip);
+  /* One label and one short value per row. The value column is max-content, so it must
+     stay short - anything long, or the reason a value is unknown, goes on the hover text.
+     `value` is a string, or a list of pieces; each piece is a string, or a [text, class]
+     pair so a signed number can carry upl/downl (hence the extra nesting for one piece). */
+  const statRow = (body, label, value, tip) => {
+    const row = el('div', 'h-row');
+    if (tip) row.setAttribute('title', clip(tip, 220));
     const l1 = add(row, 'div', 'h-l1');
-    const nm = add(l1, 'span', 'h-name', r.name || slug || 'Item');
-    nm.title = r.name || slug || 'Item';   /* long names ellipsize - the full one stays readable */
-    add(l1, 'span', 'h-act', o.act || actText(r));
-    /* one condensed meta line (counts + window + sales) - the row stays two lines tall and the
-       untouched sentences stay in the hover text */
-    const l2 = [ownLineShort(r), whyLineShort(r)].filter(Boolean).join(' · ');
-    if (l2) add(row, 'div', 'h-l2', l2);
-    if (o.why) add(row, 'div', 'h-l3', o.why);
-    row.addEventListener('click', () => openItem(slug));
-    row.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') { ev.preventDefault(); openItem(slug); }
+    add(l1, 'span', 'h-name', label);
+    const cell = add(l1, 'span', 'h-act');
+    const parts = Array.isArray(value) ? value : [[value, '']];
+    parts.forEach((pc) => {
+      if (pc === null || pc === undefined) return;
+      const txt = Array.isArray(pc) ? pc[0] : pc;
+      const cls = Array.isArray(pc) ? pc[1] : '';
+      if (txt === null || txt === undefined || txt === '') return;
+      cell.appendChild(cls ? el('span', cls, String(txt)) : document.createTextNode(String(txt)));
     });
+    body.appendChild(row);
+    return row;
+  };
+  /* second, dimmer line of the same row - it ellipsizes, so a long list cannot overflow */
+  const subRow = (row, text) => {
+    if (text) add(row, 'div', 'h-l2', clip(text, 96));
     return row;
   };
 
-  /* ---------- A. today ---------- */
-  const renderToday = (host, adv) => {
+  /* One line per session: when it ran, what the store called it, how long it lasted.
+     The full start stamp is the only hover detail - the cells already carry the rest. */
+  const sessionRow = (s) => {
+    const row = el('div', 'h-ev');
+    const sm = fnum(s.minutes);
+    if (s.start_ts) row.setAttribute('title', when(s.start_ts));
+    const badge = el('span', s.current ? 'badge' : null);
+    if (s.current) badge.appendChild(el('span', 'upl', 'live'));
+    row.appendChild(badge);
+    add(row, 'span', 'h-l2', clip(rangeTxt(s.start_ts, s.end_ts) || when(s.start_ts), 26));
+    add(row, 'span', 'h-l3', clip(s.headline || '', 60));
+    add(row, 'span', 'h-num', sm ? dur(sm) : '');
+    return row;
+  };
+
+  /* ---------- A. today : the progress tracker (scripts/progress.py) ---------- */
+  const renderToday = (host, p) => {
     clear(host);
     const body = block(host, 'Today');
-    const rs = rowsOf(adv);
-    if (!rs.length) {
-      add(body, 'div', 'h-l3', 'Still working out what to sell - refresh in a moment.');
+    if (!p || typeof p !== 'object') {            /* store missing or unreachable */
+      add(body, 'div', 'h-l3', 'Not available yet');
       return;
     }
-    const sells = of(rs, 'list').sort(byScore);
-    const ducats = of(rs, 'burn_ducats').sort(byScore);
-    const relics = of(rs, 'open_relic').sort(byScore);
-    const sets = of(rs, 'finish_set').concat(of(rs, 'assemble_set')).sort(byScore);
-    const earmarked = of(rs, 'keep')
-      .filter((r) => (r.reasons || []).some((s) => typeof s === 'string' && /craft|complete/i.test(s)))
-      .sort(byScore);
-    const keepRows = sets.length ? sets : earmarked;
-    const total = sells.length + ducats.length + relics.length + sets.length;
+    const notes = (Array.isArray(p.notes) ? p.notes : []).filter((n) => typeof n === 'string');
+    const t = p.today || {};
+    const tr = t.trades || {};
+    const ss = t.sessions || {};
+    const st = p.streaks || {};
+    if (p.updated) setMeta('todayMeta', '\u00b7 updated ' + clip(dayLabel(t.date || localDate()) + ' ' + hm(p.updated), 24));
 
-    setMeta('todayMeta', adv && adv.generated ? '\u00b7 updated ' + clip(adv.generated, 24) : '');
+    /* platinum and credits: the signed change for today */
+    const pv = num(t.plat_delta);
+    statRow(body, 'Platinum', pv === null ? UNKNOWN : [[signed(pv, 'p'), trend(pv)]],
+      pv === null ? noteFor(notes, /plat/i, 'No reading today')
+        : 'from ' + (plat(t.plat_start) || UNKNOWN) + ' to ' + (plat(t.plat_now) || UNKNOWN));
+    const cv = num(t.credits_delta);
+    statRow(body, 'Credits', cv === null ? UNKNOWN : [[signed(cv, ''), trend(cv)]],
+      cv === null ? noteFor(notes, /credits/i, 'No reading today') : '');
 
-    const potential = sells.reduce((s, r) => s + qtyOf(r) * (r.recommended_price || 0), 0);
-    const lead = add(body, 'div', 'h-lead');
-    if (total) {
-      add(lead, 'span', null, total + ' worth doing');
-      if (potential > 0) {
-        add(lead, 'span', 'h-pot-x', ' \u00b7 ');
-        add(lead, 'span', 'h-pot-n', plat(potential) + ' potential');
-      }
-    } else {
-      add(lead, 'span', null, 'Nothing needs doing right now');
+    /* items: null until the day has an inventory snapshot of its own */
+    const ia = num(t.items_added), ir = num(t.items_removed);
+    const items = (ia === null && ir === null) ? null
+      : (ia === null ? UNKNOWN : (ia > 0 ? '+' : '') + ia.toLocaleString()) + ' / '
+        + (ir === null ? UNKNOWN : (ir > 0 ? '\u2212' : '') + ir.toLocaleString());
+    const itotal = num(t.items_total);
+    statRow(body, 'Items added / removed', items || UNKNOWN,
+      (ia === null && ir === null)
+        ? noteFor(notes, /items_added|inventory snapshot/i, 'No snapshot today')
+        : (itotal === null ? '' : itotal.toLocaleString() + ' items tracked'));
+
+    /* trades: the count, with the platinum that moved when there was any */
+    const tc = num(tr.count);
+    const tin = num(tr.plat_in), tout = num(tr.plat_out);
+    const trow = statRow(body, 'Trades', tc === null ? UNKNOWN : String(tc),
+      tc ? plural(num(tr.sales) || 0, 'sale') + ' \u00b7 ' + plural(num(tr.purchases) || 0, 'purchase')
+        : noteFor(notes, /trade_log/i, 'No trades today'));
+    if (tc && (tin || tout)) {
+      const bits = [];
+      if (tin) bits.push('in ' + tin.toLocaleString() + 'p');
+      if (tout) bits.push('out ' + tout.toLocaleString() + 'p');
+      subRow(trow, bits.join(' \u00b7 '));
     }
-    const bits = [];
-    if (sells.length) bits.push(sells.length + ' sell');
-    if (ducats.length) bits.push(ducats.length + ' ducats');
-    if (relics.length) bits.push(relics.length + ' relics');
-    if (sets.length) bits.push(sets.length + ' sets');
-    if (bits.length) add(body, 'div', 'h-lead2', bits.join(' \u00b7 '));
 
-    sells.slice(0, TOP_SELL).forEach((r) => body.appendChild(itemRow(r)));
+    /* sessions: how many, how long, and whether one is still running */
+    const sc = num(ss.count);
+    const smin = fnum(ss.minutes);
+    const srow = statRow(body, 'Sessions',
+      sc === null ? UNKNOWN : [String(sc), ss.current ? ' \u00b7 ' : null, ss.current ? ['live', 'upl'] : null],
+      sc ? '' : 'No session today');
+    if (sc && smin) subRow(srow, dur(smin) + ' in game');
 
-    const group = (title, arr, mk) => {
-      if (!arr.length) return;
-      add(body, 'div', 'h-group-head', title);
-      arr.slice(0, GROUP_ROWS).forEach((r) => body.appendChild(mk(r)));
-    };
-    group('Keep - sets worth finishing', keepRows, (r) => itemRow(r, { sm: true, why: setWhy(r) }));
-    group('Ducats - low value, burn them', ducats, (r) => itemRow(r, { sm: true }));
-    group('Relics to open', relics, (r) => itemRow(r, { sm: true }));
+    /* materials gained: names + deltas on the detail line, the total as the value */
+    const mats = (Array.isArray(t.materials_gained) ? t.materials_gained : [])
+      .filter((m) => m && m.name && num(m.delta));
+    const mtot = num(t.material_delta_total);
+    const mrow = statRow(body, 'Materials',
+      mats.length ? (mtot !== null ? signed(mtot, '') : String(mats.length)) : UNKNOWN,
+      noteFor(notes, /materials/i, 'No sample yet'));
+    subRow(mrow, matText(mats));
 
-    const rest = sells.slice(TOP_SELL, TOP_SELL + REST_SELL);
-    if (rest.length) {
-      const wrap = add(body, 'div', 'h-morewrap');
-      const btn = el('button', 'h-more');
-      btn.type = 'button';
-      btn.setAttribute('aria-expanded', openAll ? 'true' : 'false');
-      btn.textContent = openAll ? 'Hide extra recommendations' : 'View all recommendations';
-      const panel = add(wrap, 'div', 'h-morelist');
-      panel.hidden = !openAll;
-      add(panel, 'div', 'h-lead2',
-        'Next ' + rest.length + ' of ' + sells.length + ' - biggest earners first.');
-      rest.forEach((r) => panel.appendChild(itemRow(r, { sm: true })));
-      btn.addEventListener('click', () => {
-        openAll = !openAll;
-        panel.hidden = !openAll;
-        btn.textContent = openAll ? 'Hide extra recommendations' : 'View all recommendations';
-        btn.setAttribute('aria-expanded', openAll ? 'true' : 'false');
-      });
-      wrap.appendChild(btn);
-    }
+    /* the week roll-up from streaks{} (hours arrive fractional: 41.26) */
+    const wp = num(st.plat_this_week), wt = num(st.trades_this_week), wh = fnum(st.hours_this_week);
+    const wrow = statRow(body, 'This week', wp === null ? UNKNOWN : [[signed(wp, 'p'), trend(wp)]],
+      wp === null ? 'No week totals yet'
+        : plural(num(st.days_active) || 0, 'day') + ' active'
+          + (st.last_active_date ? ' \u00b7 last ' + dayLabel(st.last_active_date) : ''));
+    const wsub = [];
+    if (wt !== null) wsub.push(plural(wt, 'trade'));
+    if (wh !== null) wsub.push(dur(wh * 60) + ' in game');
+    subRow(wrow, wsub.join(' \u00b7 '));
+
+    /* the newest sessions, one line each (the store sends up to 30, newest first) */
+    const list = (Array.isArray(p.sessions) ? p.sessions : []).filter((s) => s && s.start_ts && s.end_ts);
+    const head = add(body, 'div', 'h-group-head', 'Sessions');
+    head.setAttribute('data-icon', 'clock');
+    if (!list.length) add(body, 'div', 'h-l3', 'No sessions yet');
+    list.slice(0, SESSIONS_SHOWN).forEach((s) => body.appendChild(sessionRow(s)));
   };
 
   /* ---------- B. alerts ---------- */
@@ -329,7 +287,7 @@
       out.push({
         kind: 'warn',
         t: 'Posting is paused',
-        d: clip(ks.note || 'The kill switch is on - nothing will be listed until it is cleared.', 140)
+        d: clip(ks.note || 'Kill switch on', 60)
       });
     }
 
@@ -339,7 +297,7 @@
       out.push({
         kind: 'warn',
         t: 'Could not sign in to the market site',
-        d: 'Listings wait until the next sign-in works. ' + clip(plan.account.replace(/^signin failed:?\s*/i, ''), 110)
+        d: clip('Sign-in failed ' + plan.account.replace(/^signin failed:?\s*/i, ''), 80)
       });
     }
 
@@ -356,7 +314,7 @@
       out.push({
         kind: 'warn',
         t: plural(cut.length, 'listing needs', 'listings need') + ' attention',
-        d: clip('Someone is listing lower than you. ' + ex, 150)
+        d: clip('Below your price: ' + ex, 150)
       });
     }
 
@@ -381,22 +339,20 @@
         out.push({
           kind: 'info',
           t: bits.join(' \u00b7 '),
-          d: live ? 'They go back up when you next play.' : 'Nothing is posted to the market yet - this is only a plan.'
+          d: live ? '' : 'Not live - plan only'
         });
       }
     }
     if (count.refresh) {
       out.push({
         kind: 'info',
-        t: plural(count.refresh, 'listing has', 'listings have') + ' not moved in ' + staleDays + ' days',
-        d: 'A fresh price gets them seen again.'
+        t: plural(count.refresh, 'listing has', 'listings have') + ' not moved in ' + staleDays + ' days'
       });
     }
     if (count.show) {
       out.push({
         kind: 'info',
-        t: plural(count.show, 'listing can', 'listings can') + ' go back up',
-        d: 'Your last session finished - they can be shown again.'
+        t: plural(count.show, 'listing can', 'listings can') + ' go back up'
       });
     }
 
@@ -407,7 +363,7 @@
       out.push({
         kind: 'info',
         t: 'Nothing is posted automatically',
-        d: 'Not live - listings are planned here, nothing is sent out.'
+        d: 'Not live - plan only'
       });
     }
 
@@ -534,20 +490,20 @@
     const recent = document.getElementById('homeRecent');
     if (!today && !alerts && !recent) return null;
     return Promise.all([
-      get('/api/feature/advisor'),
       get('/api/trader'),
       get('/api/trades'),
       get('/api/feature/sessions'),
+      get('/api/feature/progress'),
       get('/api/feature/baro'),
       get('/api/feature/killswitch'),
       get('/api/feature/hygiene')
     ]).then((r) => {
       if (mine !== seq) return;   /* a newer refresh already answered */
       const d = {
-        advisor: jok(r[0]), trader: jok(r[1]), trades: jok(r[2]), sessions: jok(r[3]),
+        trader: jok(r[0]), trades: jok(r[1]), sessions: jok(r[2]), progress: jok(r[3]),
         baro: jok(r[4]), killswitch: jok(r[5]), hygiene: jok(r[6])
       };
-      if (today) renderToday(today, d.advisor);
+      if (today) renderToday(today, d.progress);
       if (alerts) renderAlerts(alerts, d);
       if (recent) renderRecent(recent, d);
       setTimeout(syncNewsHeight, 60);

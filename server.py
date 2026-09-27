@@ -177,6 +177,9 @@ FEATURES = {
     'advisor': 'sell_advisor.json', 'itemhist': 'item_history.json',
     'materials': 'materials.json',
     'player': 'player.json',
+    'relics_panel': 'relics_panel.json',     # Collection > Relics (where from + what's inside)
+    'mastery': 'mastery.json',               # Mastery Helper (MR + what to master next)
+    'progress': 'progress.json',             # Today / sessions tracker
 }
 
 

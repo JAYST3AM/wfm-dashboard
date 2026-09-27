@@ -1,9 +1,19 @@
 /* collection.js - Warframe collection log (no frameworks, no external libs)
    Data: data/collection_log.json written by scripts/collection_log.py, served as
          /collection_log.json (static copy), /api/feature/collection or /data/collection_log.json.
+         Plus data/relics_panel.json written by scripts/relics_panel.py and served as
+         /relics_panel.json - the relic store behind the 14th tab.
    Renders ONE category tab at a time (the log can hold ~800 items - only the active tab is
    built into the DOM), with an overall completion bar, search and missing/buyable filters.
    All injected strings are escaped/created as text nodes; no innerHTML with data. */
+/* Icons: static/icons.js turns every data-icon host into an inline <svg> from the self-hosted
+   Phosphor sprite (no CDN, no build step). This file references data-icon="tag" (a missing
+   tile's price mark), data-icon="tray" (empty state, and the Relics tab), data-icon="caret-down"
+   (the relic table's active sort column), data-icon="arrow-square-out" (the card's wiki line),
+   data-icon="check-circle-fill" / "circle-notch" (the card's state mark) and - on a relic card -
+   data-icon="drop-fill" / "lock" / "question" for a dropping / vaulted / placeholder relic; the
+   category tab names are in TAB_ICONS below. All names are pinned in tools/build_icons.py, so
+   `python tools/build_icons.py --check` verifies them. */
 'use strict';
 (function () {
   var SOURCES = ['/collection_log.json', '/api/feature/collection', '/data/collection_log.json'];
@@ -11,8 +21,37 @@
   // Lookup page is discontinued, so '/#search?q=<name>' is the single item destination.
   var SEARCH = '/#search?q=';
   var RUN_CMD = 'python scripts/collection_log.py';
+  // The relic store (data/relics_panel.json, written by scripts/relics_panel.py) - every relic in
+  // the game with its drop lines, its six rewards per refinement and the account's own counts.
+  var RELIC_SRC = '/relics_panel.json';
+  var REL_REFS = ['Intact', 'Exceptional', 'Flawless', 'Radiant'];
+  var REF_1 = { Intact: 'I', Exceptional: 'E', Flawless: 'F', Radiant: 'R' };
+  var TIER_ORDER = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem', 'Vanguard', 'Void'];
+  var REL_LINES = 6;                       // drop lanes the hover card lists before 'showing x of y'
+  var REL_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'drop', label: 'Dropping now' },
+    { key: 'owned', label: 'Owned' },
+    { key: 'vaulted', label: 'Vaulted' }
+  ];
+  /* Columns in render order. key '' is a value/picture column, not a sort key - the same
+     convention style.css already gives `thead th:not([data-k])` (default cursor, no sorting). */
+  var REL_COLS = [
+    { key: 'name', label: 'Relic' },
+    { key: 'tier', label: 'Tier' },
+    { key: '', label: 'State' },
+    { key: 'owned', label: 'Owned' },
+    { key: '', label: 'Best reward' },
+    { key: 'ev', label: 'EV', cls: 'num' },
+    { key: '', label: 'Where' }
+  ];
 
-  var state = { doc: null, cat: 0, q: '', missingOnly: false, buyable: false, src: '' };
+  var state = {
+    doc: null, cat: 0, q: '', missingOnly: false, buyable: false, src: '',
+    /* the Relics tab: one store (state.relics, fetched once and cached), its own view/filter/sort */
+    relics: null, relErr: false, relCounts: null,
+    view: 'items', relFilter: 'all', relSort: 'name', relDir: 1
+  };
 
   // ---------- helpers ----------
   function el(tag, cls, text) {
@@ -82,6 +121,7 @@
     // global search for the item (name is URL-encoded into the '/#search?q=' route).
     var a = el('a', 'cl-floor');
     a.href = SEARCH + encodeURIComponent(it.name);
+    a.setAttribute('data-icon', 'tag');   // the price mark on a missing tile
     a.appendChild(el('span', null, '▲ ' + fmtInt(it.floor) + 'p'));
     a.appendChild(el('span', 'k', it.floor_kind === 'item' ? '' : ' ' + it.floor_kind));
     a.title = 'Lowest sell order in the local snapshot' +
@@ -116,33 +156,102 @@
   }
 
   // ---------- tabs ----------
+  /* One Phosphor mark per category (static/icons.js renders the <svg> from the name; every
+     name here is pinned in tools/build_icons.py and listed for its --check pass below).
+     Repeats are deliberate: the label carries the meaning, the icon only groups the tab by
+     kind of gear - guns, blades, arch gear, drive/amp gear.
+       data-icon="user"        Warframes
+       data-icon="crosshair"   Primary / Secondary / Sentinel Weapons / Arch-Gun
+       data-icon="sword"       Melee / Arch-Melee
+       data-icon="robot"       Sentinels          data-icon="bug"       Companions
+       data-icon="rocket"      Archwing           data-icon="cube"      Other
+       data-icon="lightning"   K-Drives / Amps
+     The 14th tab (Relics) is not a collection_log category - it is the relic store, with the same
+     markup, count and bar treatment: data-icon="tray" */
+  var TAB_ICONS = {
+    'Warframes': 'user', 'Primary': 'crosshair', 'Secondary': 'crosshair', 'Melee': 'sword',
+    'Sentinels': 'robot', 'Sentinel Weapons': 'crosshair', 'Companions': 'bug',
+    'Archwing': 'rocket', 'Arch-Gun': 'crosshair', 'Arch-Melee': 'sword',
+    'K-Drives': 'lightning', 'Amps': 'lightning', 'Other': 'cube'
+  };
+
+  function tabShell(on, mark, label, countText, barPct, title) {
+    var t = el('button', 'tab cl-tab' + (on ? ' active' : ''));
+    t.type = 'button';
+    t.setAttribute('role', 'tab');
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (mark) {
+      var ic = el('span', 'cl-tab-ico');           // .cl-tab-ico is hidden under 900px
+      ic.setAttribute('data-icon', mark);
+      t.appendChild(ic);
+    }
+    t.appendChild(document.createTextNode(label));
+    t.appendChild(el('span', 'cl-tab-count', countText));
+    var bar = el('span', 'cl-tab-bar');
+    var fill = el('i');
+    fill.style.width = Number(barPct || 0).toFixed(1) + '%';
+    bar.appendChild(fill);
+    t.appendChild(bar);
+    t.title = title;
+    return t;
+  }
+
   function buildTabs() {
     var tabs = document.getElementById('tabs');
     tabs.textContent = '';
     state.doc.categories.forEach(function (cat, i) {
-      var t = el('button', 'tab cl-tab' + (i === state.cat ? ' active' : ''));
-      t.type = 'button';
-      t.setAttribute('role', 'tab');
-      t.setAttribute('aria-selected', i === state.cat ? 'true' : 'false');
-      t.appendChild(document.createTextNode(cat.name));
-      t.appendChild(el('span', 'cl-tab-count', cat.obtained + '/' + cat.total));
-      var bar = el('span', 'cl-tab-bar');
-      var fill = el('i');
-      fill.style.width = (cat.total ? (100 * cat.obtained / cat.total) : 0).toFixed(1) + '%';
-      bar.appendChild(fill);
-      t.appendChild(bar);
-      t.title = cat.name + ': ' + cat.obtained + ' of ' + cat.total + ' collected (' +
-        pctText(cat.pct) + ')';
+      var on = state.view !== 'relics' && i === state.cat;
+      var t = tabShell(on, TAB_ICONS[cat.name], cat.name, cat.obtained + '/' + cat.total,
+        cat.total ? (100 * cat.obtained / cat.total) : 0,
+        cat.name + ': ' + cat.obtained + ' of ' + cat.total + ' collected (' +
+        pctText(cat.pct) + ')');
       t.addEventListener('click', function () { selectCategory(i); });
       tabs.appendChild(t);
     });
+    /* One more tab after the categories: the relic store. Its count is the store's own
+       owned_distinct / count; before the store lands (or when it 404s) the count reads a dash
+       rather than a number nobody measured. */
+    var st = state.relCounts;
+    var rt = tabShell(state.view === 'relics', 'tray', 'Relics',
+      st ? st.owned + '/' + st.all : '—',
+      st && st.all ? (100 * st.owned / st.all) : 0,
+      st ? 'Relics: ' + st.owned + ' of ' + st.all + ' owned (' +
+        pctText(100 * st.owned / st.all) + ')' : 'Relics: store not loaded');
+    rt.addEventListener('click', selectRelics);
+    tabs.appendChild(rt);
   }
 
   function selectCategory(i) {
-    if (i === state.cat) return;
+    if (i === state.cat && state.view === 'items') return;
+    state.view = 'items';
     state.cat = i;
     buildTabs();
+    showRelicView(false);
     render();
+  }
+
+  function selectRelics() {
+    if (state.view === 'relics') return;
+    state.view = 'relics';
+    buildTabs();
+    showRelicView(true);
+    renderRelics();
+  }
+
+  /* Whichever view the two toolbars currently point at. The search box, the clear button and the
+     tile filters all re-render through here, so #q filters relic names too. */
+  function renderActive() {
+    if (state.view === 'relics') { renderRelics(); return; }
+    render();
+  }
+
+  function showRelicView(on) {
+    document.getElementById('relicView').classList.toggle('hidden', !on);
+    document.getElementById('grid').classList.toggle('hidden', on);
+    if (on) document.getElementById('empty').classList.add('hidden');
+    var controls = document.querySelector('.cl-controls');
+    if (controls) controls.classList.toggle('rel', on);   // the tile filters hide in the relic view
+    if (on) dockTip(); else undockTip();                  // the card lives in the table view, or floats
   }
 
   // ---------- filter + render ----------
@@ -163,6 +272,14 @@
       out.push(it);
     });
     return out;
+  }
+
+  /* One muted mark above whatever the empty state says (no matches, empty filter, or no log at
+     all) - data-icon="tray", sized by .cl-empty-ico in the page style block. */
+  function emptyIcon() {
+    var d = el('div', 'cl-empty-ico');
+    d.setAttribute('data-icon', 'tray');
+    return d;
   }
 
   function render() {
@@ -198,20 +315,324 @@
 
     if (!shown.length) {
       empty.textContent = '';
-      var head = el('b', null, state.q
-        ? 'Nothing in ' + cat.name + ' matches “' + state.q.trim() + '”.'
-        : (state.missingOnly || state.buyable
-           ? 'Nothing left to show in ' + cat.name + ' - the filters are empty.'
-           : 'Nothing to show in ' + cat.name + '.'));
-      empty.appendChild(head);
-      var sub = el('div', null, state.buyable
-        ? '“Buyable” only lists missing items that have a floor price in this PC’s local WFM snapshot.'
-        : 'Clear the search or turn off the toggle to see the whole category.');
-      empty.appendChild(sub);
+      empty.appendChild(emptyIcon());
+      empty.appendChild(el('b', null, 'Nothing found in ' + cat.name));
       empty.classList.remove('hidden');
     } else {
       empty.classList.add('hidden');
     }
+  }
+
+  // ---------- relic view (data/relics_panel.json) ----------
+  /* Every relic in the game, where it comes from and what it contains - as ONE dense, sortable
+     table rather than 805 tiles of the same handful of relic images. The store is fetched once
+     (loadRelics) and cached on state.relics; the tab count, the filter pills and the table all
+     read that one payload, so nothing here refetches.
+     Honesty rules: a vaulted relic never shows a drop location, a placeholder shows its own store
+     note, and a refinement with no rewards says so instead of rendering a blank block. */
+  function relKind(r) { return (r && r.obtain && r.obtain.kind) || 'unknown'; }
+
+  function stateWord(r) {
+    var k = relKind(r);
+    return k === 'drop' ? 'dropping' : (k === 'vaulted' ? 'vaulted' : 'unknown');
+  }
+
+  function tierRank(t) {
+    var i = TIER_ORDER.indexOf(String(t));
+    return i === -1 ? TIER_ORDER.length : i;
+  }
+
+  /* 'A2' sorts before 'A10': compare digit runs as numbers, everything else as text. */
+  function natCmp(a, b) {
+    var ra = String(a).match(/\d+|\D+/g) || [];
+    var rb = String(b).match(/\d+|\D+/g) || [];
+    for (var i = 0; i < Math.max(ra.length, rb.length); i++) {
+      if (ra[i] == null) return -1;
+      if (rb[i] == null) return 1;
+      var na = /^\d+$/.test(ra[i]), nb = /^\d+$/.test(rb[i]);
+      if (na && nb) {
+        if (Number(ra[i]) !== Number(rb[i])) return Number(ra[i]) - Number(rb[i]);
+      } else if (ra[i] !== rb[i]) {
+        return ra[i] < rb[i] ? -1 : 1;
+      }
+    }
+    return 0;
+  }
+
+  /* Best owned refinement for the account: most copies wins, the store order breaks a tie,
+     null when every refinement is at zero. */
+  function bestRef(r) {
+    var own = r.owned || {}, pick = null, best = 0;
+    REL_REFS.forEach(function (ref) {
+      var n = Number(own[ref]) || 0;
+      if (n > best) { best = n; pick = ref; }
+    });
+    return pick;
+  }
+
+  /* EV column: the owned refinement's own EV when the store has one, else the Intact value, else
+     nothing at all - never a guessed number. Returns {ref, ev} or null. */
+  function relicEv(r) {
+    var ev = r.ev || {};
+    var ref = bestRef(r);
+    if (ref && ev[ref] && ev[ref].ev != null) return { ref: ref, ev: ev[ref] };
+    if (ev.Intact && ev.Intact.ev != null) return { ref: 'Intact', ev: ev.Intact };
+    return null;
+  }
+
+  function num1(v) {
+    var n = Number(v);
+    return isFinite(n) ? (n % 1 === 0 ? String(n) : n.toFixed(1)) : '—';
+  }
+
+  /* 'I3 R1' - copies per refinement, initials only, empty when the account owns none. */
+  function ownedText(r) {
+    var own = r.owned || {}, bits = [];
+    REL_REFS.forEach(function (ref) {
+      var n = Number(own[ref]) || 0;
+      if (n > 0) bits.push(REF_1[ref] + n);
+    });
+    return bits.join(' ');
+  }
+
+  /* The four pill counts, counted off the store (the store's own 'farmable' number also counts
+     the six placeholder entries, so the tab never prints it as 'dropping now'). */
+  function relCounts() {
+    var out = { all: 0, drop: 0, owned: 0, vaulted: 0 };
+    var rows = state.relics ? state.relics.relics : [];
+    rows.forEach(function (r) {
+      out.all++;
+      var k = relKind(r);
+      if (k === 'drop') out.drop++;
+      if (k === 'vaulted') out.vaulted++;
+      if (Number(r.owned_total) > 0) out.owned++;
+    });
+    return out;
+  }
+
+  function relVisible() {
+    var rows = state.relics ? state.relics.relics : [];
+    var q = state.q.trim().toLowerCase();
+    var f = state.relFilter;
+    return rows.filter(function (r) {
+      if (f === 'drop' && relKind(r) !== 'drop') return false;
+      if (f === 'owned' && !(Number(r.owned_total) > 0)) return false;
+      if (f === 'vaulted' && relKind(r) !== 'vaulted') return false;
+      return matches(r, q);          // the tile search's own case-insensitive name/slug match
+    });
+  }
+
+  /* Tier, then A2 before A10 - the fallback ordering for every sort key. */
+  function cmpName(a, b) {
+    var r = tierRank(a.tier) - tierRank(b.tier);
+    return r || natCmp(a.name, b.name);
+  }
+
+  /* Sort keys taught in the headers: name (tier, then A2 before A10), tier, owned copies, EV.
+     A relic with no EV sinks to the bottom in either direction - it is not a zero. */
+  function relSort(a, b) {
+    var key = state.relSort, dir = state.relDir, r = 0;
+    if (key === 'ev') {
+      var va = relicEv(a), vb = relicEv(b);
+      if (!va && !vb) r = 0;
+      else if (!va) return 1;
+      else if (!vb) return -1;
+      else r = Number(va.ev.ev) - Number(vb.ev.ev);
+      if (r) return r * dir;
+    } else if (key === 'owned') {
+      r = (Number(a.owned_total) || 0) - (Number(b.owned_total) || 0);
+      if (r) return r * dir;
+    } else if (key === 'tier') {
+      r = tierRank(a.tier) - tierRank(b.tier);
+      if (r) return r * dir;
+    } else {
+      r = cmpName(a, b);
+      if (r) return r * dir;
+    }
+    return cmpName(a, b);
+  }
+
+  function relCell(cls, text) {
+    var td = el('td', cls || null);
+    if (text != null) td.appendChild(document.createTextNode(text));
+    return td;
+  }
+
+  /* One relic row: name, tier, state, owned copies, best reward, EV, first drop location. The
+     detail (every drop lane, the six rewards, the market snapshot) rides in the hover card so a
+     row stays one dense line. */
+  function relRow(r) {
+    var kind = relKind(r);
+    var tr = el('tr', 'cl-relrow');
+    tr._rel = r;
+
+    var name = relCell('name cl-rname', r.name);
+    name.title = r.name;
+    tr.appendChild(name);
+
+    var tier = el('td');
+    tier.appendChild(el('span', 'cat', r.tier || '—'));
+    tr.appendChild(tier);
+
+    var st = el('td');
+    st.appendChild(el('span', 'cl-rstate ' + kind, stateWord(r)));
+    tr.appendChild(st);
+
+    var owned = relCell('cl-rownd');
+    var ot = ownedText(r);
+    if (ot) owned.appendChild(document.createTextNode(ot));
+    else owned.appendChild(el('span', 'cl-rnone', '—'));
+    if (Number(r.owned_total) > 0) owned.title = fmtInt(r.owned_total) + ' copies owned';
+    tr.appendChild(owned);
+
+    var best = relCell('cl-rbest');
+    var br = r.best_reward;
+    if (br) {
+      var bn = el('span', 'cl-rbitem', br.item);
+      bn.title = br.item;
+      best.appendChild(bn);
+      best.appendChild(el('span', 'cl-rrare', br.rarity + ' · ' + pctText(br.chance_radiant)));
+    } else {
+      best.appendChild(el('span', 'cl-rnone', '—'));
+    }
+    tr.appendChild(best);
+
+    var ev = relCell('num');
+    var pick = relicEv(r);
+    if (pick) {
+      ev.appendChild(document.createTextNode(num1(pick.ev.ev)));
+      var mark = el('span', 'cl-rref', REF_1[pick.ref]);
+      mark.title = pick.ref + ' EV' + (pick.ev.verdict ? ' · ' + pick.ev.verdict : '');
+      ev.appendChild(mark);
+    } else {
+      ev.appendChild(el('span', 'cl-rnone', '—'));
+    }
+    tr.appendChild(ev);
+
+    var where = relCell('cl-rwhere');
+    if (kind === 'drop') {
+      var line = (r.obtain.lines || [])[0];
+      var lbl = (line && line.label) || '—';
+      var w = el('span', 'cl-rwheretxt', lbl);
+      w.title = (line && line.detail) ? lbl + ' · ' + line.detail : lbl;
+      where.appendChild(w);
+    } else {
+      /* no drop location exists for anything but a dropping relic: say which of the two it is
+         rather than calling a placeholder vaulted */
+      where.appendChild(el('span', 'cl-rnone', kind === 'vaulted' ? 'vaulted' : 'unknown'));
+    }
+    tr.appendChild(where);
+    return tr;
+  }
+
+  function syncRelHead() {
+    var ths = document.getElementById('relHead').getElementsByTagName('th');
+    for (var i = 0; i < ths.length; i++) {
+      var th = ths[i];
+      var k = th.getAttribute('data-k') || '';
+      var on = !!k && k === state.relSort;
+      th.classList.toggle('sorted', on);
+      var mark = th.getElementsByClassName('cl-rsort')[0];
+      if (mark) {
+        mark.classList.toggle('on', on);
+        mark.classList.toggle('asc', on && state.relDir > 0);
+      }
+      if (on) th.setAttribute('aria-sort', state.relDir > 0 ? 'ascending' : 'descending');
+      else th.removeAttribute('aria-sort');
+    }
+  }
+
+  /* The thead is built once (the sort mark lives in it) and thereafter only re-marked. */
+  function buildRelHead() {
+    var head = document.getElementById('relHead');
+    if (head.childNodes.length) { syncRelHead(); return; }
+    var tr = el('tr');
+    REL_COLS.forEach(function (col) {
+      var th = el('th', col.cls || null);
+      th.setAttribute('scope', 'col');
+      th.appendChild(document.createTextNode(col.label));
+      if (col.key) {
+        th.setAttribute('data-k', col.key);   // style.css keeps th:not([data-k]) on the default cursor
+        var mark = el('span', 'cl-rsort');    // the active column shows the caret, asc flips it
+        mark.setAttribute('data-icon', 'caret-down');
+        th.appendChild(mark);
+        th.addEventListener('click', function () {
+          if (state.relSort === col.key) state.relDir = -state.relDir;
+          else { state.relSort = col.key; state.relDir = 1; }
+          renderRelics();
+        });
+      }
+      tr.appendChild(th);
+    });
+    head.textContent = '';
+    head.appendChild(tr);
+    syncRelHead();
+  }
+
+  function renderRelPills(counts) {
+    var box = document.getElementById('relPills');
+    box.textContent = '';
+    if (!state.relics) return;
+    REL_FILTERS.forEach(function (f) {
+      var b = el('button', 'btn cl-relpill');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', state.relFilter === f.key ? 'true' : 'false');
+      b.appendChild(document.createTextNode(f.label));
+      b.appendChild(el('b', null, fmtInt(counts[f.key])));
+      b.addEventListener('click', function () {
+        if (state.relFilter === f.key) return;
+        state.relFilter = f.key;
+        renderRelics();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  /* The one short line the tab view carries when the store is missing or nothing matches -
+     the page's own empty-state look, never a blank table. */
+  function relNote(text) {
+    var note = document.getElementById('relNote');
+    note.textContent = '';
+    if (!text) { note.classList.add('hidden'); return; }
+    note.appendChild(emptyIcon());
+    note.appendChild(el('b', null, text));
+    note.classList.remove('hidden');
+  }
+
+  function renderRelics() {
+    var meta = document.getElementById('meta');
+    var body = document.getElementById('relBody');
+    var counts = state.relCounts || { all: 0, drop: 0, owned: 0, vaulted: 0 };
+
+    if (!state.relics) {
+      document.getElementById('relPills').textContent = '';
+      document.getElementById('relHead').textContent = '';
+      body.textContent = '';
+      meta.textContent = '';
+      relNote(state.relErr ? 'relic store not built' : 'loading relic store…');
+      return;
+    }
+
+    renderRelPills(counts);
+    buildRelHead();
+
+    var rows = relVisible();
+    rows.sort(relSort);
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (r) { frag.appendChild(relRow(r)); });
+    body.textContent = '';
+    body.appendChild(frag);
+    relNote(rows.length ? '' : (state.q.trim() || state.relFilter !== 'all'
+      ? 'no relics match' : 'relic store is empty'));
+
+    meta.textContent = '';
+    meta.appendChild(el('b', null, 'Relics'));
+    meta.appendChild(document.createTextNode(' · ' + counts.owned + '/' + counts.all + ' owned (' +
+      pctText(counts.all ? 100 * counts.owned / counts.all : 0) + ')'));
+    meta.appendChild(document.createTextNode(' · ' + counts.drop + ' dropping now'));
+    meta.appendChild(document.createTextNode(' · showing ' + rows.length +
+      (rows.length === 1 ? ' relic' : ' relics')));
+    if (state.q || state.relFilter !== 'all') meta.appendChild(document.createTextNode(' (filtered)'));
   }
 
   // ---------- header / overall ----------
@@ -306,11 +727,11 @@
     document.getElementById('ovCount').textContent = 'no collection log loaded';
     meta.textContent = 'Could not load the collection log' + (err ? ' (' + err + ')' : '') + '.';
     empty.textContent = '';
+    empty.appendChild(emptyIcon());
     empty.appendChild(el('b', null, 'No collection_log.json available.'));
     var line = el('div');
     line.appendChild(document.createTextNode('Build it with '));
     line.appendChild(el('code', null, RUN_CMD));
-    line.appendChild(document.createTextNode(' - that writes data/collection_log.json and a static copy this page can fetch.'));
     empty.appendChild(line);
     empty.classList.remove('hidden');
     document.getElementById('tabs').textContent = '';
@@ -322,6 +743,29 @@
     paintSource();
     buildTabs();
     render();
+  }
+
+  /* The relic store: one fetch for the whole tab (805 relics, ~2.9 MB) cached on state.relics -
+     the tab count, the pills, the table and every hover card read that one payload. A 404 / a
+     half-written store leaves state.relErr set and the tab shows one short line instead; the log
+     tabs are untouched either way. */
+  function loadRelics() {
+    fetch(RELIC_SRC, { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error(RELIC_SRC + ' ' + r.status);
+      return r.json();
+    }).then(function (json) {
+      if (!json || !Array.isArray(json.relics) || !json.relics.length) {
+        throw new Error(RELIC_SRC + ': not a relic store');
+      }
+      state.relics = json;
+      state.relCounts = relCounts();
+      if (state.doc) buildTabs();                 // the tab count is the store's owned_distinct/count
+      if (state.view === 'relics') renderRelics();
+    }).catch(function () {
+      state.relErr = true;
+      if (state.doc) buildTabs();
+      if (state.view === 'relics') renderRelics();
+    });
   }
 
   // ---------- wiring ----------
@@ -359,6 +803,34 @@
     return TIP;
   }
 
+  /* The Relics view docks that same card in its own left column (#relDock): sticky, out of the
+     pointer's way, and never over the table. The tile grid keeps the floating card. */
+  function tipDocked() { return !!TIP && TIP.classList.contains('docked'); }
+
+  function tipPlaceholder() {
+    var tip = tipEl();
+    tip.textContent = '';
+    tip.appendChild(el('div', 'clt-note', 'Hover a relic'));
+    tip._rel = null; tip._chips = null; tip._list = null; tip._foot = null; tip._for = null;
+  }
+
+  function dockTip() {
+    var dock = document.getElementById('relDock');
+    if (!dock) return;
+    var tip = tipEl();
+    if (tip.parentNode !== dock) dock.appendChild(tip);
+    tip.classList.add('docked');
+    if (!tip._rel) tipPlaceholder();       // nothing hovered yet: one short line, no prose
+  }
+
+  function undockTip() {
+    if (!TIP) return;
+    TIP.classList.remove('docked');
+    TIP.classList.remove('on');
+    if (TIP.parentNode !== document.body) document.body.appendChild(TIP);
+    TIP._rel = null; TIP._chips = null; TIP._list = null; TIP._foot = null; TIP._for = null;
+  }
+
   function tipRow(line) {
     var row = el('div', 'clt-row');
     row.setAttribute('data-k', line.k || '');
@@ -381,9 +853,14 @@
     var tip = tipEl();
     var it = tile._cl;
     tip.textContent = '';
+    var got = isCollected(it);
     var head = el('div', 'clt-head');
     head.appendChild(el('span', 'clt-name', it.name));
-    head.appendChild(el('span', 'clt-state', isCollected(it) ? 'collected' : 'missing'));
+    /* the state mark reads the same word as before - collected gets the filled tick, missing
+       the open ring (data-icon="check-circle-fill" / data-icon="circle-notch") */
+    var state = el('span', 'clt-state' + (got ? ' clt-got' : ''), got ? 'collected' : 'missing');
+    state.setAttribute('data-icon', got ? 'check-circle-fill' : 'circle-notch');
+    head.appendChild(state);
     tip.appendChild(head);
     var o = it.obtain || null;
     var lines = (o && o.lines) || [];
@@ -396,15 +873,138 @@
           ' drop lanes'));
       }
     } else {
-      tip.appendChild(el('div', 'clt-note',
-        'No drop-table record for this item - it comes from a quest, vendor or event.'));
+      tip.appendChild(el('div', 'clt-note', 'No drop-table record'));
     }
     if (o && o.note) tip.appendChild(el('div', 'clt-note', o.note));
     if (o && o.wiki) {
-      tip.appendChild(el('div', 'clt-wiki', o.wiki.replace('https://', '')));
+      var wk = el('div', 'clt-wiki', o.wiki.replace('https://', ''));
+      wk.setAttribute('data-icon', 'arrow-square-out');   // leaves the page for the wiki
+      tip.appendChild(wk);
     }
     tip._for = tile;
     return tip;
+  }
+
+  /* ---------- the relic card (one row of the Relics table) ----------
+     Same .cl-tip shell as the tiles, three blocks: where it comes from (the store's own obtain
+     lines, or its note when there is no drop location), what it contains (the six rewards of ONE
+     refinement, switched from the already-loaded store) and the relic's market snapshot when the
+     store carries one. Nothing here refetches. Unlike the tile card it is docked in #relDock
+     (left column, sticky) while the Relics view is open - see dockTip(). */
+  var REL_REF = 'Intact';                  // the refinement the open card lists
+
+  function relRefDefault(r) { return bestRef(r) || 'Intact'; }
+
+  function fillRelicTip(row) {
+    var tip = tipEl();
+    var r = row._rel;
+    var kind = relKind(r);
+    tip.textContent = '';
+    REL_REF = relRefDefault(r);
+
+    var head = el('div', 'clt-head');
+    head.appendChild(el('span', 'clt-name', r.name));
+    /* state mark: the drop for a relic that is dropping, the lock for a vaulted one, a question
+       for a store placeholder (data-icon="drop-fill" / "lock" / "question") */
+    var mark = el('span', 'clt-state' + (kind === 'drop' ? ' clt-drop' : ''), stateWord(r));
+    mark.setAttribute('data-icon', kind === 'drop' ? 'drop-fill' : (kind === 'vaulted' ? 'lock' : 'question'));
+    head.appendChild(mark);
+    tip.appendChild(head);
+
+    tip.appendChild(el('div', 'clt-sect', 'Where to get it'));
+    var o = r.obtain || {};
+    var lines = o.lines || [];
+    if (kind === 'drop' && lines.length) {
+      var body = el('div', 'clt-body');
+      lines.slice(0, REL_LINES).forEach(function (l) {
+        body.appendChild(tipRow({ k: 'mission', label: l.label, detail: l.detail }));
+      });
+      tip.appendChild(body);
+      if (lines.length > REL_LINES) {
+        tip.appendChild(el('div', 'clt-more', 'showing ' + REL_LINES + ' of ' + lines.length +
+          ' drop lanes'));
+      }
+    } else {
+      /* vaulted + placeholder relics carry the store's own note - never a location invented here.
+         When the note only repeats the header's state word, say the thing the state means. */
+      var note = o.note || 'no drop location in the store';
+      if (kind === 'vaulted' && note.toLowerCase() === stateWord(r)) note = 'no active drop';
+      tip.appendChild(el('div', 'clt-note', note));
+    }
+
+    tip.appendChild(el('div', 'clt-sect', 'What it contains'));
+    var refs = el('div', 'clt-refs');
+    var chips = [];
+    REL_REFS.forEach(function (ref) {
+      var b = el('button', 'clt-ref', ref);
+      b.type = 'button';
+      b.title = ref + ' · ' + fmtInt((r.owned || {})[ref]) + ' owned';
+      b.addEventListener('click', function () {
+        if (REL_REF === ref) return;
+        REL_REF = ref;
+        paintRelTip(tip);
+      });
+      chips.push(b);
+      refs.appendChild(b);
+    });
+    tip.appendChild(refs);
+    var list = el('div', 'clt-body');
+    tip.appendChild(list);
+    var foot = el('div', 'clt-foot');
+    tip.appendChild(foot);
+
+    tip._rel = r;
+    tip._chips = chips;
+    tip._list = list;
+    tip._foot = foot;
+    paintRelTip(tip);
+    tip._for = row;
+    return tip;
+  }
+
+  /* The reward list + the market line, rebuilt in place when the refinement switches. */
+  function paintRelTip(tip) {
+    var r = tip._rel;
+    var rows = (r.rewards || {})[REL_REF] || [];
+    tip._list.textContent = '';
+    if (rows.length) {
+      rows.forEach(function (rw) {
+        tip._list.appendChild(tipRow({
+          k: 'relic', label: rw.item, detail: rw.rarity + ' · ' + pctText(rw.chance)
+        }));
+      });
+    } else {
+      tip._list.appendChild(el('div', 'clt-note', 'no rewards for ' + REL_REF));
+    }
+    tip._chips.forEach(function (b, i) {
+      b.setAttribute('aria-pressed', REL_REFS[i] === REL_REF ? 'true' : 'false');
+    });
+    tip._foot.textContent = '';
+    var m = r.market;
+    if (!m) return;                        // no snapshot for this relic: no line, not a zero
+    var rowEl = el('div', 'clt-row');
+    rowEl.setAttribute('data-k', 'market');
+    var main = el('span', 'clt-main');
+    main.appendChild(el('span', 'clt-part', 'market'));
+    main.appendChild(el('span', 'clt-src', 'wts ' + num1(m.wts) + ' · wtb ' + num1(m.wtb) +
+      ' · median ' + num1(m.median) + 'p'));
+    rowEl.appendChild(main);
+    var asOf = el('span', 'clt-chance', 'as of ' + String(m.as_of || '').slice(0, 10));
+    rowEl.appendChild(asOf);
+    tip._foot.appendChild(rowEl);
+  }
+
+  /* Rows of the relic table feed the docked card in place: hovering a row refills the card, and
+     leaving the table changes nothing - there is nothing to place and nothing to hide. */
+  function wireRelicTip() {
+    var table = document.getElementById('relTable');
+    if (!table) return;
+    table.addEventListener('mouseover', function (e) {
+      var tr = (e.target && e.target.closest) ? e.target.closest('tr') : null;
+      if (!tr || !tr._rel) return;
+      if (TIP && TIP._for === tr) return;            // same row: the card already shows it
+      fillRelicTip(tr).classList.add('on');
+    });
   }
 
   /* Beside the tile, never on top of it: right if it fits, else left, else above/below. */
@@ -435,9 +1035,11 @@
     HIDE_TIMER = setTimeout(function () { tip.classList.remove('on'); }, 160);
   }
 
+  /* The tile grid's card: filled from the hovered tile and placed beside it. Re-hovering the
+     same tile keeps the open card. The Relics table does not use this path - its card is docked. */
   function showTip(tile) {
     if (HIDE_TIMER) { clearTimeout(HIDE_TIMER); HIDE_TIMER = null; }
-    var tip = (tipEl()._for === tile) ? tipEl() : fillTip(tile);
+    var tip = (TIP && TIP._for === tile) ? TIP : fillTip(tile);
     tip.classList.add('on');
     placeTip(tile, tip);
   }
@@ -455,14 +1057,15 @@
         if (!t) return;
         var to = e.relatedTarget;
         if (to && to.closest && to.closest('.cl-card') === t) return;   // still inside the tile
+        if (to && to.closest && to.closest('.cl-tip')) return;          // the card's own controls
         hideTip();
       });
       grid.addEventListener('focusin', function (e) { var t = tileOf(e.target); if (t) showTip(t); });
       grid.addEventListener('focusout', function () { hideTip(); });
     }
-    document.addEventListener('scroll', function () { hideTip(true); }, true);
-    window.addEventListener('resize', function () { hideTip(true); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(true); });
+    document.addEventListener('scroll', function () { if (!tipDocked()) hideTip(true); }, true);
+    window.addEventListener('resize', function () { if (!tipDocked()) hideTip(true); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tipDocked()) hideTip(true); });
   }
 
   /* #themePanel lives inside <header> now (the dashboard's pattern), so scrolling can no
@@ -492,29 +1095,31 @@
     btn.addEventListener('click', function () {
       state[key] = !state[key];
       btn.setAttribute('aria-pressed', state[key] ? 'true' : 'false');
-      render();
+      renderActive();
     });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     var q = document.getElementById('q');
-    q.addEventListener('input', function () { state.q = q.value; render(); });
+    q.addEventListener('input', function () { state.q = q.value; renderActive(); });
     document.getElementById('clearBtn').addEventListener('click', function () {
-      q.value = ''; state.q = ''; render(); q.focus();
+      q.value = ''; state.q = ''; renderActive(); q.focus();
     });
     toggleBtn('missBtn', 'missingOnly');
     toggleBtn('priceBtn', 'buyable');
     wireThemePanel();
     wireDrawer();
     wireObtainTip();
+    wireRelicTip();
 
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); return; }
       if (e.key === 'Escape' && document.activeElement === q) {
-        q.value = ''; state.q = ''; render(); q.blur();
+        q.value = ''; state.q = ''; renderActive(); q.blur();
       }
     });
 
     trySource(0);
+    loadRelics();
   });
 })();

@@ -33,9 +33,29 @@
   }
   function show(id, on) { var n = $(id); if (n) n.classList.toggle('hidden', !on); }
 
+  /* ---------- icons (Phosphor sprite via data-icon) ---------- */
+  /* the catalogue category names the mark: mods/arcanes/relics keep the collection-page wording,
+     everything that is a manufactured piece (prime part / blueprint / set / misc) is a package */
+  var CAT_ICON = {
+    mod: 'stack', arcane: 'diamond', relic: 'tray',
+    prime_part: 'package', prime_bp: 'package', prime_set: 'package', other: 'package',
+  };
+  function catIcon(cat) { return CAT_ICON[String(cat || '').toLowerCase()] || 'package'; }
+  /* textContent writes drop an already-rendered icon child; ask icons.js for it again once the
+     sprite has landed (rendering before that only marks the host as done) */
+  function reIcon(node) {
+    if (!node || !window.wfmIcons || !window.wfmIcons.render) return;
+    node.removeAttribute('data-icon-done');
+    if (window.wfmIcons.ready) window.wfmIcons.ready().then(function () {
+      window.wfmIcons.render(node.parentNode || document);
+    });
+  }
+
   function chips(list, mount) {
     mount.innerHTML = list.map(function (c) {
-      return '<span class="ip-chip' + (c.hi ? ' hi' : '') + '" title="' + esc(c.tip || '') + '">' + c.label + '</span>';
+      return '<span class="ip-chip' + (c.hi ? ' hi' : '') + '"' +
+        (c.icon ? ' data-icon="' + c.icon + '" data-icon-size="12"' : '') +
+        ' title="' + esc(c.tip || '') + '">' + c.label + '</span>';
     }).join('');
   }
 
@@ -59,7 +79,9 @@
     /* only a full URL is safe to load here - the catalogue also carries relative
        warframe.market image paths that this local server does not serve */
     var icon = row && row.icon && /^https?:/i.test(row.icon) ? row.icon : '';
-    t.innerHTML = (icon ? '<img src="' + esc(icon) + '" alt="">' : '') + '<span>' + esc(name) + '</span>';
+    t.innerHTML = (icon ? '<img src="' + esc(icon) + '" alt="">' : '') +
+      '<span class="i-only-host" data-icon="' + catIcon(row && row.cat) + '" data-icon-size="16" aria-hidden="true"></span>' +
+      '<span>' + esc(name) + '</span>';
     document.title = 'WFM Trader · ' + name;
     var a = adv || {};
     var bits = [
@@ -67,7 +89,7 @@
       isNum(a.recommended_price) ? 'list at <b>' + plat(a.recommended_price) + '</b>' : null,
       SLUG ? 'slug <b>' + esc(SLUG) + '</b>' : null,
     ].filter(Boolean);
-    $('ipLead').innerHTML = bits.length ? bits.join(' · ') : 'Local snapshot and price history for this item.';
+    $('ipLead').innerHTML = bits.length ? bits.join(' · ') : 'No item selected';
   }
 
   /* ---------- cards ---------- */
@@ -79,12 +101,12 @@
       { label: 'Owned <b>' + fmt(row ? row.count : null) + '</b>', tip: 'copies in your last inventory snapshot' },
       { label: 'Equipped <b>' + fmt(eq) + '</b>', tip: 'copies slotted in a loadout - never listed' },
       { label: 'Safe <b>' + fmt(safe) + '</b>', hi: safe > 0, tip: 'copies that can actually be listed' },
-      { label: 'Sell <b>' + plat(row && row.lane_rank != null ? row.lane_ask : (row ? row.wts : null)) + '</b>', hi: true,
+      { label: 'Sell <b>' + plat(row && row.lane_rank != null ? row.lane_ask : (row ? row.wts : null)) + '</b>', hi: true, icon: 'hand-coins',
         tip: row && row.lane_rank != null ? 'lowest ask at your rank ' + row.lane_rank : 'lowest ask, any rank' },
-      { label: 'Buy <b>' + plat(row && row.lane_rank != null ? row.lane_bid : (row ? row.wtb : null)) + '</b>', tip: 'top buy order' },
-      { label: 'Median 48h <b>' + plat(row ? row.median : null) + '</b>', tip: 'median of the last two days of sell orders' },
+      { label: 'Buy <b>' + plat(row && row.lane_rank != null ? row.lane_bid : (row ? row.wtb : null)) + '</b>', icon: 'shopping-cart', tip: 'top buy order' },
+      { label: 'Median 48h <b>' + plat(row ? row.median : null) + '</b>', icon: 'tag' },
       { label: 'Vol 48h <b>' + fmt(row ? row.vol48 : null) + '</b>', tip: 'orders seen in the last 48h' },
-      { label: 'Ducats <b>' + fmt(row ? row.ducats : null) + '</b>', tip: 'ducat value when sold to a relay trader' },
+      { label: 'Ducats <b>' + fmt(row ? row.ducats : null) + '</b>', icon: 'coins', tip: 'ducat value when sold to a relay trader' },
     ].filter(function (c) { return c.label.indexOf('undefined') === -1; });
     chips(list, $('ipChips'));
   }
@@ -92,18 +114,19 @@
   function renderStats() {
     var r = row || {}, a = adv || {};
     var rows = [
-      { k: 'Sell price (snapshot)', v: plat(r.lane_rank != null ? r.lane_ask : r.wts), why: r.lane_rank != null ? 'rank ' + r.lane_rank + ' lane' : 'any rank' },
-      { k: 'Buy price (snapshot)', v: plat(r.lane_rank != null ? r.lane_bid : r.wtb), why: 'top bid' },
+      { k: 'Sell price (snapshot)', v: plat(r.lane_rank != null ? r.lane_ask : r.wts), icon: 'hand-coins',
+        why: r.lane_rank != null ? 'rank ' + r.lane_rank + ' lane' : 'any rank' },
+      { k: 'Buy price (snapshot)', v: plat(r.lane_rank != null ? r.lane_bid : r.wtb), icon: 'shopping-cart', why: 'top bid' },
       { k: 'Spread', v: plat(r.spread), why: 'sell - buy' },
-      { k: 'Median 48h', v: plat(r.median), why: '48h median' },
-      { k: 'Average 48h', v: plat(r.avg48), why: '48h average' },
+      { k: 'Median 48h', v: plat(r.median), icon: 'tag', why: '48h median' },
+      { k: 'Average 48h', v: plat(r.avg48), icon: 'tag', why: '48h average' },
       { k: 'Volume 48h', v: fmt(r.vol48), why: '48h' },
-      { k: 'Your value', v: plat(r.value), why: 'safe × price' },
+      { k: 'Your value', v: plat(r.value), icon: 'coins', why: 'safe × price' },
       { k: 'Advisor', v: a.recommendation ? String(a.recommendation).replace(/_/g, ' ') : '—',
         why: (a.reasons || []).slice(0, 2).join('; ') || 'no advice', wrap: true },
     ];
     $('ipStats').innerHTML = '<table class="ip-table"><tbody>' + rows.map(function (x) {
-      return '<tr><td>' + esc(x.k) + '</td><td class="num"><b>' + esc(x.v) + '</b></td>' +
+      return '<tr><td' + (x.icon ? ' data-icon="' + x.icon + '"' : '') + '>' + esc(x.k) + '</td><td class="num"><b>' + esc(x.v) + '</b></td>' +
         '<td class="ip-kind' + (x.wrap ? ' wrap' : '') + '" title="' + esc(x.why) + '">' + esc(x.why) + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
@@ -185,7 +208,8 @@
       range: '7d', style: 'area', palette: 'accent', height: 320,
     });
     chart.buildControls($('ipViews'));
-    $('ipChartCard').querySelector('.card-title').textContent = 'Price history';
+    var historyTitle = $('ipChartCard').querySelector('.card-title');
+    if (historyTitle) { historyTitle.textContent = 'Price history'; reIcon(historyTitle); }
 
     return Promise.all([
       get('/api/items').catch(function () { return { items: [] }; }),

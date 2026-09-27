@@ -1,7 +1,7 @@
 """Five-section IA (2026-09-26 redesign): source-level contracts for the new shell.
 
 The site is static, so these are text-level checks on the shipped files:
-  * the primary nav is Home / Inventory / Trade / Collection / More;
+  * the primary nav is Home / Inventory / Trade / Collection / Mastery / Player / More;
   * the old five views collapse into four in-page sections + one sub-page nav;
   * the legacy 9-pill hashes still resolve (history/trader -> trade, market -> more);
   * /lookup.html is a redirect stub and the item detail lives in the shared drawer;
@@ -25,11 +25,13 @@ def test_index_has_the_five_section_nav():
     html = read('index.html')
     nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
     for href, label in (('#home', 'Home'), ('#inventory', 'Inventory'), ('#trade', 'Trade'),
-                        ('/collection.html', 'Collection'), ('#player', 'Player'), ('#more', 'More')):
+                        ('/collection.html', 'Collection'), ('#mastery', 'Mastery'),
+                        ('#player', 'Player'), ('#more', 'More')):
         assert 'href="%s"' % href in nav, href
         assert '>%s</a>' % label in nav, label
-    assert nav.count('class="navpill') == 6
-    assert nav.index('/collection.html') < nav.index('#player') < nav.index('#more')   # Player sits between
+    assert nav.count('class="navpill') == 7
+    # Mastery sits between the Collection sub-page and Player: nav.index('/collection.html') < nav.index('#mastery') < nav.index('#player') < nav.index('#more')
+    assert nav.index('/collection.html') < nav.index('#mastery') < nav.index('#player') < nav.index('#more')
 
 
 def test_index_has_four_view_sections_and_real_trade_tabs():

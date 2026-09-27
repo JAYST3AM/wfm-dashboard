@@ -46,27 +46,47 @@ def test_home_grid_is_two_columns_and_collapses_on_small_screens():
     assert '.h-col {' in css
 
 
-# ------------------------------------------------------------------ condensed rows
+# ------------------------------------------------------------------ the Today card
+# 2026-09-27: the Today card turned into the progress tracker (scripts/progress.py), so these
+# pin its label+value rows and the sessions list instead of the advisor rows it replaced.
 
-def test_today_rows_are_two_lines_with_detail_on_hover():
+def test_today_rows_are_label_and_value_with_detail_on_hover():
     js = read('static/home.js')
-    assert 'const l2 = [ownLineShort(r), whyLineShort(r)].filter(Boolean).join' in js
-    assert "const tip = [tipText(r), ownLine(r), whyLine(r)].filter(Boolean).join('\\n\\n')" in js
-    assert 'ownLineShort' in js and 'whyLineShort' in js
-    assert 'window ' in js and ' sold / 48h' in js
+    assert "const l1 = add(row, 'div', 'h-l1')" in js
+    assert "add(l1, 'span', 'h-name', label)" in js
+    assert "const cell = add(l1, 'span', 'h-act')" in js
+    assert "if (tip) row.setAttribute('title', clip(tip, 220))" in js
 
 
-def test_today_headline_is_one_line_plus_a_breakdown():
+def test_today_tracks_the_progress_store_and_never_invents_a_number():
     js = read('static/home.js')
-    assert "add(lead, 'span', 'h-pot-n', plat(potential) + ' potential')" in js
-    assert "bits.push(sells.length + ' sell')" in js
-    assert "' to burn for ducats'" not in js          # the long labels are gone
-    assert 'Potential platinum: ' not in js
+    assert "get('/api/feature/progress')" in js
+    assert 'renderToday(today, d.progress)' in js
+    assert "const UNKNOWN = '-'" in js                     # a null reading renders '-', not 0
+    for field in ('plat_delta', 'credits_delta', 'items_added', 'items_removed',
+                  'materials_gained', 'plat_this_week', 'trades_this_week', 'hours_this_week'):
+        assert field in js, field
+    assert 'noteFor(notes' in js                           # the store's own reason in the title=
 
 
-def test_fewer_straight_away_recommendations():
+def test_today_lists_five_sessions_on_one_line_each():
     js = read('static/home.js')
-    assert 'const TOP_SELL = 5;' in js
+    assert 'const SESSIONS_SHOWN = 5;' in js
+    assert 'const sessionRow = (s) =>' in js
+    assert "s.current ? ['live', 'upl'] : null" in js      # live marker for a running session
+    assert 'rangeTxt(s.start_ts, s.end_ts)' in js          # short date/time range
+    assert "add(row, 'span', 'h-num', sm ? dur(sm) : '')" in js
+
+
+def test_today_stays_condensed():
+    js = read('static/home.js')
+    assert 'const MATERIALS_SHOWN = 3;' in js
+    assert 'const SESSIONS_SHOWN = 5;' in js
+
+
+def test_today_degrades_when_the_progress_store_is_missing():
+    js = read('static/home.js')
+    assert "'Not available yet'" in js
 
 
 def test_news_card_is_four_rows():

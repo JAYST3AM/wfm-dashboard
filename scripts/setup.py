@@ -36,6 +36,9 @@ CORE_STEPS = [
 PAGE_STEPS = [
     ('collection_log.py',),             # Collection page (WFCD catalogue, one-time fetch)
     ('icon_cache.py',),                 # Collection icons -> static/colimg (resumable)
+    ('relics_panel.py',),               # Collection > Relics (where from + what's inside)
+    ('mastery.py',),                    # Mastery Helper (MR + what to master next)
+    ('progress.py',),                   # Today / sessions tracker
     ('mod_cards.py',),                  # Cards page (WFCD mod catalogue, one-time fetch)
     ('invdiff.py',),                    # Inventory changes
     ('price_history.py',),              # price snapshots -> Movers

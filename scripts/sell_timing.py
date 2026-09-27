@@ -257,13 +257,12 @@ def decide(now, hours, windows, top_n=TOP_HOURS, min_sales=MIN_HOUR_SALES):
     top_txt = ', '.join('%02d:00' % r['hour'] for r in top) or 'none'
     if any(r['hour'] == now.hour for r in top) and current['sales'] >= min_sales:
         verdict = 'SELL_NOW'
-        reason = ('%s is a top-%d sale hour (%s, %sp in sample) - list everything now'
-                  % (now_txt, top_n, plural(current['sales']), current['plat']))
+        reason = ('top-%d hour: %s (%s, %sp)'
+                  % (top_n, now_txt, plural(current['sales']), current['plat']))
     else:
         verdict = 'HOLD'
-        reason = ('%s has %s in sample; top hours %s; next window %s'
-                  % (now_txt, plural(current['sales']), top_txt,
-                     slot['label'] if slot else 'unknown'))
+        reason = ('top %s \u00b7 next %s'
+                  % (top_txt, slot['label'] if slot else 'unknown'))
     return verdict, reason, slot
 
 
@@ -276,7 +275,7 @@ def kind_rows(kind_hours, min_sales=MIN_KIND_SALES):
         row = {'sales': total, 'plat': round(sum(r['plat'] for r in hour_list), 2),
                'best_hours': [r for r in rank_hours(hour_list) if r['sales'] > 0][:KIND_TOP_HOURS]}
         if total < min_sales:
-            row['note'] = 'thin sample (%s) - hours are a hint only' % plural(total)
+            row['note'] = 'thin sample (%s)' % plural(total)
         rows.append((kind, row))
     rows.sort(key=lambda kv: (-kv[1]['sales'], kv[0]))
     return dict(rows)
@@ -286,11 +285,10 @@ def sample_block(events, hours, weekdays, span_days, dates, kind_hours):
     live_hours = sum(1 for r in hours if r['sales'])
     live_dows = sum(1 for r in weekdays if r['sales'])
     missing = [k for k in WATCH_KINDS if k not in kind_hours]
-    parts = ['%d sales over %d active day(s) in a %sd window' % (len(events), len(dates), span_days),
-             '%d/24 hours and %d/7 weekdays have sample, so 1-2 sale cells are noise'
-             % (live_hours, live_dows)]
+    parts = ['%d sales / %d days / %.1fd window' % (len(events), len(dates), span_days),
+             '%d/24 hours, %d/7 weekdays sampled' % (live_hours, live_dows)]
     if len(events) < THIN_SAMPLE:
-        parts.append('thin sample - treat windows as hints, not rules')
+        parts.append('thin sample - hints only')
     if missing:
         parts.append('no sample for ' + '/'.join(missing))
     return {'sales_total': len(events), 'span_days': span_days, 'active_days': len(dates),
@@ -360,16 +358,16 @@ def selftest():
 
     verdict, reason, slot = decide(datetime(2026, 9, 21, 2, 15, tzinfo=tz), rows, windows)
     check('verdict in a fat top hour', verdict, 'SELL_NOW')
-    if 'top-3 sale hour (5 sales, 50p in sample)' not in reason:
+    if 'top-3 hour: ' not in reason or '5 sales, 50p' not in reason:
         raise AssertionError('SELL_NOW reason missing the numbers: %s' % reason)
     verdict, reason, slot = decide(datetime(2026, 9, 22, 20, 30, tzinfo=tz), rows, windows)
     check('verdict in a thin top hour', verdict, 'HOLD')
-    if 'top hours 02:00, 09:00, 20:00' not in reason:
+    if 'top 02:00, 09:00, 20:00' not in reason:
         raise AssertionError('HOLD reason missing top hours: %s' % reason)
     check('HOLD next window rolls past the current slot', (slot['dow'], slot['hour']), (0, 2))
     check('next window label', slot['label'], 'Mon 02:00 (in 5.2d)')
     check('zero-sample hours stay out of the top list',
-          decide(datetime(2026, 9, 23, 5, 0, tzinfo=tz), rows, windows)[1].split('top hours ')[1]
+          decide(datetime(2026, 9, 23, 5, 0, tzinfo=tz), rows, windows)[1].split('top ')[1]
           .startswith('02:00, 09:00, 20:00'), True)
     check('next window from a fresh day', next_slot(windows, datetime(2026, 9, 22, 10, 0, tzinfo=tz))['label'],
           'Tue 20:00 (in 10h)')

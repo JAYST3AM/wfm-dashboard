@@ -10,18 +10,20 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/drawer.css">
 <link rel="stylesheet" href="/home.css">
+  <link rel="stylesheet" href="/icons.css">
+  <script src="/icons.js" defer></script>
 </head>
 <body>
 <header>
   <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">local</span></div>
   <div class="chips" id="chips"></div>
   <div class="actions">
-    <div class="search"><span class="si">⌕</span><input id="search" type="text" placeholder="Search any item…" autocomplete="off" aria-label="Search all items" aria-expanded="false" aria-controls="searchDrop"><div id="searchDrop" class="sdrop hidden" role="listbox" aria-label="Search results"></div></div>
-    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true">♪</button>
-    <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel">◐ Theme</button>
-    <a class="btn" id="settingsBtn" href="/settings.html" title="Trading rules, appearance, updates, accounts">⚙ Settings</a>
-    <button id="refresh" class="btn primary">Refresh</button>
-    <button id="btnExportPng" class="btn" title="Save top recommendations as a PNG">PNG</button>
+    <div class="search"><span class="si" data-icon="magnifying-glass"></span><input id="search" type="text" placeholder="Search any item…" autocomplete="off" aria-label="Search all items" aria-expanded="false" aria-controls="searchDrop"><div id="searchDrop" class="sdrop hidden" role="listbox" aria-label="Search results"></div></div>
+    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true"><span data-icon="speaker-high"></span><span data-icon="speaker-slash"></span></button>
+    <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel" data-icon="palette">Theme</button>
+    <a class="btn" id="settingsBtn" href="/settings.html" title="Trading rules, appearance, updates, accounts" data-icon="gear-six">Settings</a>
+    <button id="refresh" class="btn primary" data-icon="arrows-clockwise">Refresh</button>
+    <button id="btnExportPng" class="btn" title="Save top recommendations as a PNG" data-icon="download-simple">PNG</button>
   </div>
   <div id="themePanel" class="theme-panel hidden">
     <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
@@ -30,12 +32,13 @@
 </header>
 
 <nav class="mainnav" id="mainnav" aria-label="Primary">
-  <a href="#home" class="navpill" data-v="home">Home</a>
-  <a href="#inventory" class="navpill" data-v="inventory">Inventory</a>
-  <a href="#trade" class="navpill" data-v="trade">Trade</a>
-  <a href="/collection.html" class="navpill" data-v="collection">Collection</a>
-  <a href="#player" class="navpill" data-v="player">Player</a>
-  <a href="#more" class="navpill" data-v="more">More</a>
+  <a href="#home" class="navpill" data-v="home" data-icon="house">Home</a>
+  <a href="#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
+  <a href="#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
+  <a href="/collection.html" class="navpill" data-v="collection" data-icon="squares-four">Collection</a>
+  <a href="#mastery" class="navpill" data-v="mastery" data-icon="trophy">Mastery</a>
+  <a href="#player" class="navpill" data-v="player" data-icon="user">Player</a>
+  <a href="#more" class="navpill" data-v="more" data-icon="dots-three-circle">More</a>
 </nav>
 
 <main>
@@ -45,7 +48,7 @@
     <div class="kpis" id="kpis"></div>
     <div class="card" id="chartCard">
       <div class="card-head">
-        <div class="card-title">Platinum balance</div>
+        <div class="card-title" data-icon="chart-line">Platinum balance</div>
         <div class="ranges" id="ranges">
           <button data-r="24h">24h</button>
           <button data-r="7d">7d</button>
@@ -57,23 +60,23 @@
       <div id="chartMeta" class="status"></div>
     </div>
     <div class="card hidden" id="alertsCard">
-      <div class="card-head"><div class="card-title">Needs attention</div></div>
+      <div class="card-head"><div class="card-title" data-icon="bell">Needs attention</div></div>
       <div id="homeAlerts" class="picks"></div>
     </div>
     <div class="h-cols">
       <div class="h-col">
         <div class="card" id="newsCard">
-          <div class="card-head"><div class="card-title">Game updates <span class="dim small" id="newsMeta"></span></div></div>
+          <div class="card-head"><div class="card-title" data-icon="newspaper">Game updates <span class="dim small" id="newsMeta"></span></div></div>
           <div id="newsList" class="picks"></div>
         </div>
         <div class="card" id="todayCard">
-          <div class="card-head"><div class="card-title">Today <span class="dim small" id="todayMeta"></span></div></div>
-          <div id="homeToday" class="picks"><div class="empty">Loading recommendations…</div></div>
+          <div class="card-head"><div class="card-title" data-icon="calendar-blank">Today <span class="dim small" id="todayMeta"></span></div></div>
+          <div id="homeToday" class="picks"><div class="empty"><span class="empty-icon" data-icon="circle-notch" data-icon-size="18"></span>Loading…</div></div>
         </div>
       </div>
       <div class="h-col">
         <div class="card" id="recentCard">
-          <div class="card-head"><div class="card-title">Recent activity <span class="dim small" id="recentMeta"></span></div></div>
+          <div class="card-head"><div class="card-title" data-icon="clock-counter-clockwise">Recent activity <span class="dim small" id="recentMeta"></span></div></div>
           <div id="homeRecent" class="picks"></div>
         </div>
       </div>
@@ -86,26 +89,26 @@
     <div class="tablebar">
       <div id="totals" class="totals"></div>
       <input id="invQ" class="invq" type="text" placeholder="Filter inventory…" autocomplete="off" aria-label="Filter your inventory">
-      <button class="btn" id="btnCols" aria-pressed="false" title="Category, ducats, buyer offering, profit gap, sales / 48h, typical price, reserved">All columns</button>
+      <button class="btn" id="btnCols" aria-pressed="false" title="Show or hide optional columns" data-icon="columns">All columns</button>
     </div>
     <div class="tablewrap">
       <table id="tbl">
-        <caption class="dim small">Your owned tradeables. Click a row for the full item view.</caption>
+        <caption class="dim small">Owned items - click for details</caption>
         <thead>
           <tr>
             <th data-k="name" scope="col">Item</th>
             <th data-k="count" class="num" scope="col">Qty</th>
             <th data-k="equipped" class="num" scope="col" title="Copies slotted in a build - never listed">Equipped</th>
-            <th data-k="safe" class="num" scope="col" title="Copies safe to sell (owned minus equipped, reserved and collection holds)">Safe to sell</th>
-            <th data-k="wts" class="num" scope="col" title="Cheapest listing at your copy's rank (undercut by 1p when listing)">Sell price</th>
-            <th class="spark" scope="col" title="Ask price trend, last 48 samples (green rising, red falling)">Trend</th>
+            <th data-k="safe" class="num" scope="col" title="Owned minus equipped and reserved">Safe to sell</th>
+            <th data-k="wts" class="num" scope="col" title="Cheapest listing at your rank">Sell price</th>
+            <th class="spark" scope="col" title="Ask trend, last 48 samples">Trend</th>
             <th data-k="value" class="num" scope="col" title="Safe to sell × sell price">Value</th>
             <th data-k="cat" class="num hide-a" scope="col">Category</th>
             <th data-k="ducats" class="num hide-a" scope="col">Ducats</th>
-            <th data-k="wtb" class="num hide-a" scope="col" title="Top buy order at your copy's rank (quick-sell target)">Buyer offering</th>
+            <th data-k="wtb" class="num hide-a" scope="col" title="Top buy order at your rank">Buyer offering</th>
             <th data-k="spread" class="num hide-a" scope="col" title="Buyer offering minus sell price">Profit gap</th>
             <th data-k="vol48" class="num hide-a" scope="col" title="Completed sales in the last 48 hours">Sales / 48h</th>
-            <th data-k="median" class="num hide-a" scope="col" title="Typical completed sale price over 48h (all ranks - context only)">Typical price</th>
+            <th data-k="median" class="num hide-a" scope="col" title="48h median sale, all ranks">Typical price</th>
             <th data-k="reserved" class="num hide-a" scope="col" title="Held for collection, sets or crafting">Reserved</th>
           </tr>
         </thead>
@@ -116,14 +119,14 @@
     <div class="invpanels">
       <div class="card" id="matCard">
         <div class="card-head mat-head">
-          <div class="card-title">Materials <span class="dim small" id="matMeta" title="distinct materials owned"></span></div>
+          <div class="card-title" data-icon="package">Materials <span class="dim small" id="matMeta" title="distinct materials owned"></span></div>
           <div class="mat-tools">
             <input id="matQ" class="invq" type="text" placeholder="Search materials…" autocomplete="off" aria-label="Search materials">
             <div class="matview" id="matView" role="group" aria-label="Materials view">
               <button data-m="personal" aria-pressed="true">Personal</button>
               <button data-m="dojo" aria-pressed="false">Dojo</button>
             </div>
-            <button class="btn" id="matSort" title="Toggle sort by count or name">Sort: Count</button>
+            <button class="btn" id="matSort" title="Toggle sort by count or name" data-icon="arrows-left-right">Sort: Count</button>
           </div>
         </div>
         <div class="tablewrap matwrap">
@@ -142,7 +145,7 @@
       </div>
       <div class="card" id="dojoCard">
         <div class="card-head mat-head">
-          <div class="card-title" id="dojoTitle">Clan Dojo <span class="dim small" id="dojoMeta"></span></div>
+          <div class="card-title" id="dojoTitle" data-icon="castle-turret">Clan Dojo <span class="dim small" id="dojoMeta"></span></div>
           <div class="mat-tools">
             <div class="matview" id="dojoTier" role="group" aria-label="Clan tier">
               <button data-t="ghost" title="Ghost clan cost column" aria-pressed="true">Ghost</button>
@@ -166,16 +169,16 @@
             <tbody id="dojoRows"></tbody>
           </table>
         </div>
-        <div id="dojoNote" class="dojo-note dim small explain">Short counts what is still missing after your owned materials.</div>
+        <div id="dojoNote" class="dojo-note dim small explain">Short: still missing</div>
         <details class="acc sub" id="dojoRooms">
           <summary>Rooms <span class="dim small" id="dojoRoomsMeta"></span></summary>
           <div id="dojoRoomsList"></div>
         </details>
-        <div class="dojo-src"><a class="movedlink" id="dojoSrc" href="https://wiki.warframe.com" target="_blank" rel="noopener">wiki.warframe.com</a></div>
+        <div class="dojo-src"><a class="movedlink" id="dojoSrc" href="https://wiki.warframe.com" target="_blank" rel="noopener" data-icon="arrow-square-out">wiki.warframe.com</a></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><div class="card-title">Inventory changes <span class="dim small" id="diffMeta"></span></div></div>
+      <div class="card-head"><div class="card-title" data-icon="clock-counter-clockwise">Inventory changes <span class="dim small" id="diffMeta"></span></div></div>
       <div class="picks" id="diffList"></div>
     </div>
   </section>
@@ -191,10 +194,10 @@
     <div id="tp-sell" class="tpanel" role="tabpanel" aria-labelledby="tt-sell">
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Recommended listings <span class="dim small" id="planMeta"></span></div>
+          <div class="card-title" data-icon="hand-coins">Recommended listings <span class="dim small" id="planMeta"></span></div>
           <div class="actions">
-            <button class="btn" id="btnPlan">Rebuild recommendations</button>
-            <button class="btn" id="btnCycle">Check the market now</button>
+            <button class="btn" id="btnPlan" data-icon="list">Rebuild recommendations</button>
+            <button class="btn" id="btnCycle" data-icon="arrows-clockwise">Check the market now</button>
           </div>
         </div>
         <div class="picks" id="planList"></div>
@@ -205,29 +208,29 @@
       </div>
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Listings needing attention <span class="dim small" id="attnMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnWatch">Check now</button></div>
+          <div class="card-title" data-icon="bell">Listings needing attention <span class="dim small" id="attnMeta"></span></div>
+          <div class="actions"><button class="btn" id="btnWatch" data-icon="arrows-clockwise">Check now</button></div>
         </div>
         <div class="picks" id="attnList"></div>
         <details class="acc sub" id="hygieneAcc">
           <summary>Listings that haven't moved <span class="dim small" id="hygieneMeta"></span></summary>
-          <div class="actions pad-b"><button class="btn" id="btnHygiene">Rebuild plan</button></div>
+          <div class="actions pad-b"><button class="btn" id="btnHygiene" data-icon="list">Rebuild plan</button></div>
           <div class="picks" id="hygieneList"></div>
         </details>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Trade limit <span class="dim small" id="limMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="hourglass">Trade limit <span class="dim small" id="limMeta"></span></div></div>
         <div class="picks" id="limList"></div>
       </div>
     </div>
 
     <div id="tp-buy" class="tpanel hidden" role="tabpanel" aria-labelledby="tt-buy">
       <div class="card">
-        <div class="card-head"><div class="card-title">Flip opportunities <span class="dim small" id="flipsMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="shopping-cart">Flip opportunities <span class="dim small" id="flipsMeta"></span></div></div>
         <div id="flipsList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Wishlist - what you're hunting <span class="dim small" id="wishMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="star">Wishlist - what you're hunting <span class="dim small" id="wishMeta"></span></div></div>
         <div class="picks" id="wishList"></div>
       </div>
     </div>
@@ -236,7 +239,7 @@
       <div class="kpis" id="histKpis"></div>
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Trade history <span class="dim small" id="histMeta"></span></div>
+          <div class="card-title" data-icon="clock-counter-clockwise">Trade history <span class="dim small" id="histMeta"></span></div>
           <div class="ranges" id="hFilters">
             <button data-f="all" class="active">All</button>
             <button data-f="sale">Sales</button>
@@ -247,53 +250,33 @@
         <div class="picks" id="tradeLog"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Sessions <span class="dim small" id="sessMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="timer">Sessions <span class="dim small" id="sessMeta"></span></div></div>
         <div class="picks" id="sessList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Best time to sell <span class="dim small" id="timingMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="clock">Best time to sell <span class="dim small" id="timingMeta"></span></div></div>
         <div class="picks" id="timingList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Platinum ledger - in-game spend <span class="dim small" id="ledgerMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="receipt">Platinum ledger - in-game spend <span class="dim small" id="ledgerMeta"></span></div></div>
         <div class="picks" id="ledgerList"></div>
       </div>
     </div>
 
-    <details class="acc" id="advGroup">
-      <summary>Advanced trading - engines, raw output, safety <span class="dim small" id="advMeta"></span></summary>
-      <div class="card">
-        <div class="card-head"><div class="card-title">Engine status <span class="dim small" id="engMeta"></span></div></div>
-        <div class="picks" id="engList"></div>
-      </div>
+    <!-- the trader internals (engine status, detector log, flipper plan, raw output) retired
+         2026-09-27: the default surface stays action-first. Safety and the live controls stay
+         visible below, never buried in an accordion. -->
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Detector - market scanner <span class="dim small" id="detMeta"></span></div>
-        </div>
-        <div class="picks" id="detList"></div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">Run queue - best buyers <span class="dim small" id="runqMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnRunq">Refresh queue</button></div>
+          <div class="card-title" data-icon="list-dashes">Run queue - best buyers <span class="dim small" id="runqMeta"></span></div>
+          <div class="actions"><button class="btn" id="btnRunq" data-icon="arrows-clockwise">Refresh queue</button></div>
         </div>
         <div class="picks" id="runqList"></div>
       </div>
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Flipper internals <span class="dim small" id="flipPlanMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnFlip">Rebuild (live floors)</button></div>
-        </div>
-        <div class="picks" id="flipPlanList"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title">Raw outputs - last action <span class="dim small" id="rawMeta"></span></div></div>
-        <pre class="rawout" id="rawOut">No action run yet this session.</pre>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">Kill switch <span class="dim small" id="killMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnKill">Arm kill switch</button></div>
+          <div class="card-title" data-icon="warning">Kill switch <span class="dim small" id="killMeta"></span></div>
+          <div class="actions"><button class="btn" id="btnKill" data-icon="warning">Arm kill switch</button></div>
         </div>
         <div class="picks">
           <input id="killNote" class="noteinput" type="text" placeholder="Optional note (why)" aria-label="Kill switch note">
@@ -302,42 +285,62 @@
       </div>
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Notifications - Discord / webhook <span class="dim small" id="notifyMeta"></span></div>
-          <div class="actions"><button class="btn" id="btnNotify">Send test ping</button></div>
+          <div class="card-title" data-icon="megaphone">Notifications - Discord / webhook <span class="dim small" id="notifyMeta"></span></div>
+          <div class="actions"><button class="btn" id="btnNotify" data-icon="bell">Send test ping</button></div>
         </div>
         <div class="picks" id="notifyList"></div>
       </div>
-    </details>
   </section>
 
   <!-- PLAYER - profile snapshot: mastery, clan, syndicates, intrinsics, focus, market -->
   <section id="view-player" class="hidden">
     <div class="card">
-      <div class="card-head"><div class="card-title">Player <span class="dim small" id="pcMeta"></span></div></div>
+      <div class="card-head"><div class="card-title" data-icon="user">Player <span class="dim small" id="pcMeta"></span></div></div>
       <div id="pcHead" class="pc-id"></div>
       <div class="kpis" id="pcStats"></div>
       <div class="subhead" title="top 5 items by experience">Most XP</div>
       <div class="picks" id="pcTop"></div>
     </div>
     <div class="card">
-      <div class="card-head"><div class="card-title">Clan</div></div>
+      <div class="card-head"><div class="card-title" data-icon="users">Clan</div></div>
       <div class="picks" id="pcClan"></div>
     </div>
     <div class="card">
-      <div class="card-head"><div class="card-title">Syndicates <span class="dim small" id="pcSynMeta"></span></div></div>
+      <div class="card-head"><div class="card-title" data-icon="shield-check">Syndicates <span class="dim small" id="pcSynMeta"></span></div></div>
       <div id="pcSyn"></div>
     </div>
     <div class="card">
-      <div class="card-head"><div class="card-title">Intrinsics</div></div>
+      <div class="card-head"><div class="card-title" data-icon="rocket">Intrinsics</div></div>
       <div id="pcInt" class="pc-cols"></div>
     </div>
     <div class="card">
-      <div class="card-head"><div class="card-title">Focus <span class="dim small" id="pcFocusMeta"></span></div></div>
+      <div class="card-head"><div class="card-title" data-icon="atom">Focus <span class="dim small" id="pcFocusMeta"></span></div></div>
       <div id="pcFocus"></div>
     </div>
     <div class="card">
-      <div class="card-head"><div class="card-title">Market</div></div>
+      <div class="card-head"><div class="card-title" data-icon="tag">Market</div></div>
       <div class="picks" id="pcMarket"></div>
+    </div>
+  </section>
+
+  <!-- MASTERY - what to master next, what it costs, how far the next rank is -->
+  <section id="view-mastery" class="hidden">
+    <div class="card" id="mhCard">
+      <div class="card-head"><div class="card-title" data-icon="trophy">Mastery Helper <span class="dim small" id="mhMeta"></span></div></div>
+      <div id="mhHead"></div>
+      <div class="kpis" id="mhStats"></div>
+    </div>
+    <div class="card" id="mhNextCard">
+      <div class="card-head">
+        <div class="card-title" data-icon="target">Do this next <span class="dim small" id="mhNextMeta"></span></div>
+        <div class="ranges" id="mhFilters" role="group" aria-label="Mastery filters"></div>
+      </div>
+      <div id="mhNext"></div>
+      <div id="mhCap" class="mat-cap dim small"></div>
+    </div>
+    <div class="card" id="mhCatsCard">
+      <div class="card-head"><div class="card-title" data-icon="chart-bar">Progress by type <span class="dim small" id="mhCatsMeta"></span></div></div>
+      <div id="mhCats"></div>
     </div>
   </section>
 
@@ -346,15 +349,15 @@
     <details class="acc" open>
       <summary>Make platinum <span class="dim small">deals, movers, demand trends</span></summary>
       <div class="card">
-        <div class="card-head"><div class="card-title">Deals <span class="dim small" id="dealsMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="percent">Deals <span class="dim small" id="dealsMeta"></span></div></div>
         <div id="dealsList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Movers - price swings <span class="dim small" id="moversMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="trend-up">Movers - price swings <span class="dim small" id="moversMeta"></span></div></div>
         <div class="picks" id="moversList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Demand trends <span class="dim small" id="trendsMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="chart-line">Demand trends <span class="dim small" id="trendsMeta"></span></div></div>
         <div class="picks" id="trendsList"></div>
       </div>
     </details>
@@ -362,23 +365,23 @@
     <details class="acc">
       <summary>Item decisions <span class="dim small">ducats, crafting, relics, sets</span></summary>
       <div class="card">
-        <div class="card-head"><div class="card-title">Ducats - sell or burn <span class="dim small" id="ducatsMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="coins">Ducats - sell or burn <span class="dim small" id="ducatsMeta"></span></div></div>
         <div class="picks" id="ducatsList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Craft or buy <span class="dim small" id="craftMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="hammer">Craft or buy <span class="dim small" id="craftMeta"></span></div></div>
         <div id="craftList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Relic expected value <span class="dim small" id="relicsMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="cube">Relic expected value <span class="dim small" id="relicsMeta"></span></div></div>
         <div id="relicsList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Set completion <span class="dim small" id="setsMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="stack">Set completion <span class="dim small" id="setsMeta"></span></div></div>
         <div id="setsList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Almost complete <span class="dim small" id="nudgesMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="plus-circle">Almost complete <span class="dim small" id="nudgesMeta"></span></div></div>
         <div class="picks" id="nudgesList"></div>
       </div>
     </details>
@@ -386,7 +389,7 @@
     <details class="acc">
       <summary>Tracking <span class="dim small">watchlist price bands</span></summary>
       <div class="card">
-        <div class="card-head"><div class="card-title">Watchlist - bands &amp; alerts <span class="dim small" id="wlMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="eye">Watchlist - bands &amp; alerts <span class="dim small" id="wlMeta"></span></div></div>
         <div class="picks" id="wlList"></div>
       </div>
     </details>
@@ -394,21 +397,21 @@
     <details class="acc">
       <summary>Special markets <span class="dim small">rivens, Baro, patch meta</span></summary>
       <div class="card">
-        <div class="card-head"><div class="card-title">Riven bands <span class="dim small" id="rivensMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="flask">Riven bands <span class="dim small" id="rivensMeta"></span></div></div>
         <div id="rivensList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Baro Ki'Teer <span class="dim small" id="baroMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="storefront">Baro Ki'Teer <span class="dim small" id="baroMeta"></span></div></div>
         <div class="picks" id="baroList"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">Post-patch meta <span class="dim small" id="metaMeta"></span></div></div>
+        <div class="card-head"><div class="card-title" data-icon="broadcast">Post-patch meta <span class="dim small" id="metaMeta"></span></div></div>
         <div class="picks" id="metaList"></div>
       </div>
     </details>
 
     <div class="card">
-      <div class="card-head"><div class="card-title">Setup</div></div>
+      <div class="card-head"><div class="card-title" data-icon="gear">Setup</div></div>
       <div class="picks">
         <a class="movedlink" href="/settings.html">Settings - trading rules, appearance, updates →</a>
         <a class="movedlink" href="/collection.html">Collection &amp; cards →</a>

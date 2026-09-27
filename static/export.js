@@ -149,7 +149,7 @@ window.WFMExportPicks = (function () {
     ctx.textAlign = 'left'; ctx.font = mono(13, 600); ctx.fillStyle = c.accent;
     ctx.fillText(FOOTER, L, FOOT);
     ctx.textAlign = 'right'; ctx.font = mono(12); ctx.fillStyle = c.muted;
-    ctx.fillText('prices in platinum (p) · list at = cheapest listing − 1p', R, FOOT);
+    ctx.fillText('prices in platinum (p)', R, FOOT);
   }
 
   function draw(list) {

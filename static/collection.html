@@ -165,7 +165,106 @@
   .clt-note { margin-top: 7px; color: var(--muted); font-size: 11px; }
   .clt-wiki { margin-top: 6px; color: var(--muted); font-size: 10.5px; font-family: var(--mono); }
   .clt-more { margin-top: 5px; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+
+  /* ---------- Phosphor icons (icons.js renders every [data-icon] host) ----------
+     Icons ride on currentColor and 1em, so an icon can only take the size of the label it sits
+     in and can never change a row's metrics. The rules below are the spacing the hosts cannot
+     give themselves, plus the two sizes the icon-only hosts need. */
+  .cl-tab-ico { margin-right: 5px; }                  /* tab label follows the icon */
+  .cl-ov-ico { color: var(--accent); font-size: 15px; }   /* trophy beside the percentage */
+  .cl-floor .i-before { margin-right: 0; }            /* the pill's own flex gap spaces it */
+  .cl-empty-ico {
+    display: block; font-size: 30px; line-height: 1; color: var(--muted);
+    opacity: .5; margin: 0 0 8px;
+  }
+  .clt-state.clt-got .i { color: var(--accent); }     /* collected tick in the card head */
+
+  /* ---------- Relics tab: one dense, sortable table over /relics_panel.json ----------
+     Not tiles: 805 relics share a handful of images and would read as noise. The table reuses the
+     dashboard's .tablewrap / table look (sticky head, sideways scroll inside its own box), so the
+     page never scrolls horizontally because of it. */
+  #grid.hidden { display: none; }                  /* .cl-grid sets display: grid, .hidden alone loses */
+  .cl-relview.hidden { display: none; }
+  /* The relic detail card is DOCKED in its own left column (sticky, so it stays in view while the
+     table scrolls) - it never follows the pointer and never covers a row. The split is
+     viewport-driven: >=1500px gives the card 360px, 1200-1499px 300px, and below 1200px the card
+     stacks above the table as a plain block. No JS measures anything. */
+  .cl-relsplit { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 12px; }
+  .cl-reldock { position: relative; min-width: 0; }
+  .cl-relmain { min-width: 0; }
+  .cl-tip.docked {
+    position: sticky; top: 10px; z-index: 1; width: 100%; min-width: 0; max-width: none;
+    max-height: calc(100vh - 240px); opacity: 1; transform: none;
+  }
+  @media (max-width: 1499px) { .cl-relsplit { grid-template-columns: 300px minmax(0, 1fr); } }
+  @media (max-width: 1199px) {
+    .cl-relsplit { grid-template-columns: minmax(0, 1fr); }
+    .cl-tip.docked { position: static; max-height: 220px; }
+  }
+  /* on a wide screen the Relics view takes the room the docked card + the 7-column table need
+     (the item grid and every other view keep the 1400px cap) */
+  @media (min-width: 1500px) { .cl-wrap:has(#relicView:not(.hidden)) { max-width: 1680px; } }
+  .cl-relpills { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; }
+  .cl-relpill { padding: 4px 12px; }
+  .cl-relpill b {
+    margin-left: 6px; font-family: var(--mono); font-weight: 600; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .cl-relpill[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); }
+  .cl-relpill[aria-pressed="true"] b { color: var(--accent); }
+  /* the tile filters mean nothing to a relic table: the pill row replaces them while it is open */
+  .cl-controls.rel #missBtn, .cl-controls.rel #priceBtn { display: none; }
+  /* the table box fills what the overall card + toolbar leave, and never shrinks past a usable box */
+  .cl-relwrap { max-height: max(320px, calc(100vh - 420px)); }
+  .cl-reltab tbody td { padding: 4px 10px; font-size: 12px; }
+  .cl-reltab tbody tr:hover { background: var(--hover); }
+  .cl-rstate { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+  .cl-rstate.drop { color: var(--accent); }        /* dropping now: the one state that can be farmed */
+  .cl-rownd, .cl-rrare, .cl-rref, .cl-rnone { font-family: var(--mono); font-size: 10.5px; }
+  .cl-rownd { color: var(--text); }
+  .cl-rrare { color: var(--muted); margin-left: 7px; }
+  .cl-rref { color: var(--accent-dim); margin-left: 5px; }
+  .cl-rnone { color: var(--muted); }
+  .cl-rbest, .cl-rwhere { overflow: hidden; }
+  /* a long drop label or reward name is clipped, not wrapped: `nowrap` on a table cell beats a
+     max-width, so the cap has to sit on an inner inline-block. The full text rides in the title
+     (and in the hover card). */
+  td.cl-rwhere { width: 320px; }
+  .cl-rwheretxt, .cl-rbitem {
+    display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    vertical-align: bottom;
+  }
+  .cl-rwheretxt { max-width: 320px; }
+  .cl-rbitem { max-width: 260px; }
+  th .cl-rsort { margin-left: 6px; font-size: 10px; opacity: 0; }   /* only the active column marks */
+  th.sorted .cl-rsort, th:hover .cl-rsort { opacity: .8; }
+  th .cl-rsort.asc .i { transform: rotate(180deg); }                /* asc flips the caret up */
+
+  /* card blocks the relic card adds: two section labels, the refinement switcher, the market line.
+     The card stays pointer-transparent wherever it sits - only the refinement chips take the
+     pointer - so even docked beside the table it can never swallow a hover or a click meant for a
+     row. In the Relics view the card is docked in #relDock (sticky left column); the tile grid
+     keeps the same card floating beside the hovered tile. */
+  .clt-sect {
+    margin: 8px 0 3px; color: var(--muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: .6px;
+  }
+  .clt-refs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .clt-ref {
+    pointer-events: auto; font: 10.5px var(--mono); color: var(--muted); background: var(--panel2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; cursor: pointer;
+  }
+  .clt-ref:hover { color: var(--text); border-color: var(--accent-dim); }
+  .clt-ref[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); }
+  .clt-foot { margin-top: 5px; }
+  .clt-state.clt-drop .i { color: var(--accent); }  /* a relic that is dropping now */
+
+  /* 14 tabs carrying an icon each get busy on a narrow screen: the strip keeps its icons only
+     where there is room (>=900px); below that the tabs render exactly as they did before. */
+  @media (max-width: 899px) { .cl-tab-ico { display: none; } }
 </style>
+  <link rel="stylesheet" href="/icons.css">
+  <script src="/icons.js" defer></script>
 </head>
 <body>
 <header>
@@ -183,12 +282,13 @@
 </header>
 
 <nav class="mainnav" id="mainnav" aria-label="Primary">
-  <a href="/#home" class="navpill" data-v="home">Home</a>
-  <a href="/#inventory" class="navpill" data-v="inventory">Inventory</a>
-  <a href="/#trade" class="navpill" data-v="trade">Trade</a>
-  <a href="/collection.html" class="navpill active" data-v="collection" aria-current="page">Collection</a>
-  <a href="/#more" class="navpill" data-v="more">More</a>
-  <a href="/#player" class="navpill" data-v="player">Player</a>
+  <a href="/#home" class="navpill" data-v="home" data-icon="house">Home</a>
+  <a href="/#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
+  <a href="/#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
+  <a href="/collection.html" class="navpill active" data-v="collection" data-icon="squares-four" aria-current="page">Collection</a>
+  <a href="/#mastery" class="navpill" data-v="mastery" data-icon="trophy">Mastery</a>
+  <a href="/#player" class="navpill" data-v="player" data-icon="user">Player</a>
+  <a href="/#more" class="navpill" data-v="more" data-icon="dots-three-circle">More</a>
 </nav>
 
 <nav class="mainnav subnav" aria-label="Collection sections">
@@ -200,6 +300,7 @@
   <div class="cl-overall" id="overall">
     <div class="cl-ov-head">
       <span class="cl-ov-title">Collection progress</span>
+      <span class="cl-ov-ico" data-icon="trophy"></span>
       <span class="cl-ov-num" id="ovPct">—</span>
       <span class="cl-ov-sub" id="ovCount">loading…</span>
     </div>
@@ -209,15 +310,15 @@
 
   <div class="cl-controls">
     <div class="search cl-search">
-      <span class="si">⌕</span>
-      <input id="q" type="text" placeholder="Search this category…" title="Search by item name or slug (e.g. prime, braton)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search collection items">
-      <button class="cl-clear hidden" id="clearBtn" type="button" title="Clear search" aria-label="Clear search">✕</button>
+      <span class="si" data-icon="magnifying-glass"></span>
+      <input id="q" type="text" placeholder="Search this category…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search collection items">
+      <button class="cl-clear hidden" id="clearBtn" type="button" data-icon="x" title="Clear search" aria-label="Clear search"></button>
     </div>
     <button class="btn cl-toggle" id="missBtn" type="button" aria-pressed="false" title="Show only what is still missing">
-      <span class="box">✓</span> Missing only
+      <span class="cl-ico" data-icon="funnel"></span><span class="box">✓</span> Missing only
     </button>
-    <button class="btn cl-toggle" id="priceBtn" type="button" aria-pressed="false" title="Show only missing items with a known floor price">
-      <span class="box">✓</span> Buyable
+    <button class="btn cl-toggle" id="priceBtn" type="button" aria-pressed="false">
+      <span class="cl-ico" data-icon="tag"></span><span class="box">✓</span> Buyable
     </button>
   </div>
 
@@ -225,6 +326,26 @@
   <div class="cl-meta" id="meta">Loading collection log…</div>
   <div class="cl-grid" id="grid" role="list" aria-label="Catalog items"></div>
   <div class="cl-empty hidden" id="empty"></div>
+
+  <!-- Relics: one dense sortable table over /relics_panel.json plus the relic detail card, docked
+       in the left column (#relDock, sticky) so it never follows the pointer or covers a row.
+       collection.js fetches the store once (it also feeds the tab count and the pill counts);
+       nothing in this block refetches. -->
+  <section class="cl-relview hidden" id="relicView" aria-label="Relics">
+    <div class="cl-relpills" id="relPills" role="group" aria-label="Relic filters"></div>
+    <div class="cl-relsplit">
+      <aside class="cl-reldock" id="relDock" aria-label="Relic detail"></aside>
+      <div class="cl-relmain">
+        <div class="tablewrap cl-relwrap">
+          <table class="cl-reltab" id="relTable">
+            <thead id="relHead"></thead>
+            <tbody id="relBody"></tbody>
+          </table>
+        </div>
+        <div class="cl-empty hidden" id="relNote"></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="cl-foot">

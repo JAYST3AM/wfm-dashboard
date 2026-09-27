@@ -27,11 +27,16 @@ def test_every_page_carries_the_full_nav(page):
     html = read(page)
     assert 'id="mainnav"' in html
     nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
-    assert nav.count('class="navpill') == 6                       # Home/Inventory/Trade/Collection/Player/More
+    # 6 pills, or 7 once the Mastery pill (#mastery) is on the page: index.html shipped it first,
+    # collection/cards/settings are synced separately - the band keeps both states valid.
+    assert 6 <= nav.count('class="navpill') <= 7
     for frag in ('#home', '#inventory', '#trade', '#more'):        # bare hash on the SPA, /#… elsewhere
         assert re.search(r'href="(?:/)?%s"' % re.escape(frag), nav), (page, frag)
     assert 'href="/collection.html"' in nav
     assert nav.count('navpill active') <= 1                       # one section in focus, max
+    if nav.count('class="navpill') == 7:                          # the extra pill is Mastery
+        assert re.search(r'href="(?:/)?#mastery" class="navpill" data-v="mastery"[^>]*>Mastery</a>',
+                         nav), 'the 7th pill is the Mastery one (index #mastery, sub-pages /#mastery)'
 
 
 def test_settings_sits_under_more_with_its_own_subnav():

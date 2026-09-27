@@ -32,6 +32,9 @@ EXCLUDE_PATHS = {
     'secrets.json',                       # the user's warframe.market login
     'scripts/trader',                     # the private trader engines: never in a release
     'static/collection_log.json',         # regenerated from the local save (personal progress)
+    'static/relics_panel.json',           # ditto: relic ownership is account state
+    'static/mastery.json',                # ditto: mastery queue is account state
+    'static/progress.json',               # ditto: session/progress history is account state
     'static/colimg',                      # cached item icons: setup.py fetches them on first run
     'static/hi',                          # locally generated hi-res set
     'tools/preview_frames',               # dev-only preview frames

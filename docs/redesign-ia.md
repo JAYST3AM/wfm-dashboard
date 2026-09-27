@@ -8,10 +8,10 @@ feature is deleted or made unreachable; only the default surface changes.
 
 | Pill | Target | Contents |
 |---|---|---|
-| **Home** | `/#home` | "What should I do today?" actions (advisor-driven), platinum summary, alerts, recent activity, platinum chart, game updates |
+| **Home** | `/#home` | "What have I done today" (progress tracker: plat/credits/items/trades/sessions/week), platinum summary, alerts, recent activity, platinum chart, game updates |
 | **Inventory** | `/#inventory` | Owned items, simple default columns, one shared item drawer |
 | **Trade** | `/#trade` | Tabs: Sell · Buy · History · Advanced (collapsed) |
-| **Collection** | `/collection.html` | Progress, sets, relics; sub-tab **Cards** (`/cards.html`) |
+| **Collection** | `/collection.html` | Progress, sets, **Relics** tab, **Mastery** pill (`/#mastery`); sub-tab **Cards** (`/cards.html`) |
 | **More** | `/#more` | Market tools in intent groups, Settings, links |
 
 Lookup stops being a destination: the header search is the universal item lookup and opens the
@@ -19,11 +19,11 @@ shared drawer on any page. `/lookup.html` becomes a redirect stub to `/#search` 
 
 ## 2. Feature placement (audit: 90 surfaces, 18 unreachable risks — all placed)
 
-**Home** — Today block (advisor `recommendation='list'`, score-sorted, `List Y × Zp` dominant,
-"Potential platinum" total, expandable to 30 rows), keep/set + ducats + open-relic one-liners,
-alerts (listings needing attention, Baro, kill switch, Not live), recent trades + session,
-existing KPI row + platinum chart + game updates. *Removed: the old "Top sell picks" card
-(superseded by Today).*
+**Home** — Today block (the progress tracker from `progress.json`: platinum/credits change,
+items added, trades, sessions + live marker, week totals, newest sessions), alerts (listings
+needing attention, Baro, kill switch, Not live), existing KPI row + platinum chart + recent
+activity + game updates. *Removed: the old "Top sell picks" card, and 2026-09-27 the advisor
+rows (they live in Trade > Sell) and the text-heavy explanations (labels and values only).*
 
 **Inventory** — category tabs, totals, table with default columns `Item · Qty · Equipped ·
 Safe to sell · Sell price · Value`; an "All columns" toggle reveals `Category · Ducats ·
@@ -111,5 +111,7 @@ flagged: keep cards.html standalone so only nav tests re-point) · `settings.*` 
 
 Full test suite green; every primary nav destination loads; item search resolves owned and
 unowned items into the drawer; ranked-mod pricing still shows lane data; advisor
-recommendations still render on Home; light + dark themes pass; ≤430px viewport usable;
+advisor recommendations still render on Trade > Sell (Home's Today block is the progress
+tracker since 2026-09-27); every visible string is ≤ 8 words (`tests/test_copy_diet.py`);
+light + dark themes pass; ≤430px viewport usable;
 no backend feature unreachable (compare against the §2 placement table).

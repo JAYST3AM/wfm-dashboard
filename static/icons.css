@@ -1,0 +1,21 @@
+/* Icons (Phosphor sprite, see icons.js). Sizing rides on the font size, so an icon inside a
+   13px label is 13px; pass data-icon-size="18" on the host when a specific pixel size is wanted. */
+.i {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.145em;
+  flex: 0 0 auto;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* icon followed by a text label: a little breathing room, never a full space */
+.i-before { margin-right: .45em; }
+
+/* the fetched sprite itself is inert */
+.i-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* icon-only affordances: let the host's own flex centring place it, and keep the tap target */
+[data-icon]:not(.i-host) { white-space: nowrap; }
+[data-icon].i-only-host { display: inline-flex; align-items: center; justify-content: center; }

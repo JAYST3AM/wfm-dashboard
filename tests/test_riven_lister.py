@@ -165,7 +165,7 @@ def test_prices_are_band_floor_minus_undercut(rl):
     got = {s: (o['price'], o['floor']) for s, o in by_slug(doc).items()}
     assert got == {'melee_riven_mod_(veiled)': (6, 8.0), 'kitgun_riven_mod_(veiled)': (3, 2.0)}
     assert hold_of(doc, 'Rifle Riven Mod (Veiled)')['reason'] == 'all copies in use (equipped)'
-    assert by_slug(doc)['melee_riven_mod_(veiled)']['note'] == 'floor 8p -2 undercut (+2 in use)'
+    assert by_slug(doc)['melee_riven_mod_(veiled)']['note'] == 'floor 8p -2 undercut · 2 in use'
 
 
 def test_floor_below_min_price_clamps_to_min(rl):
@@ -184,7 +184,7 @@ def test_equipped_copies_are_subtracted(rl):
     doc = plan(rl)
     melee = by_slug(doc)['melee_riven_mod_(veiled)']
     assert melee['qty'] == 8
-    assert melee['note'] == 'floor 8p -1 undercut (+2 in use)'
+    assert melee['note'] == 'floor 8p -1 undercut · 2 in use'
     assert rl.in_use_counts(INUSE)[0]['melee_riven_mod_(veiled)'] == 2
     assert rl.in_use_counts({'items': [{'item_id': 'x', 'rank': 1}]}) == ({}, True)
 

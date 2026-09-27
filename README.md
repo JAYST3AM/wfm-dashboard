@@ -99,9 +99,9 @@ Screenshots below show a real account with the account handle blurred.
 ### Home — `/`
 
 KPI tiles (platinum now with 24h/7d deltas, trades left, inventory value, credits), **Today** —
-the smart sell advisor's ranked "do this next" list (sell / finish a set / burn for ducats / open
-relics) with expected platinum — a **needs attention** card when something moved, the platinum
-chart, recent activity and the game-updates feed. The header **search** covers your inventory and
+the progress tracker: platinum and credits change, items added, trades, sessions (live marker)
+and the week's totals, with the last few sessions listed — a **needs attention** card when
+something moved, the platinum chart, recent activity and the game-updates feed. The header **search** covers your inventory and
 the whole item catalogue and opens the shared item drawer.
 
 ![Dashboard](assets/shot_home.png)
@@ -120,19 +120,25 @@ the item drawer; the inventory-change list tracks what the game added or removed
 rows ("not recommended right now") and listings needing attention (undercut + stale). **Buy** —
 flip opportunities ranked by margin × liquidity, and the wishlist budget planner. **History** —
 your own trade log (warframe.market has no public trade-history API, so the dashboard keeps the
-record as you trade), sessions, sell timing and the platinum ledger. **Advanced trading**
-(collapsed) holds engine status, the detector feed, run queue, flipper internals, hygiene, the
-raw output of the last action you ran, the **Safety** kill switch and notifications.
+record as you trade), sessions, sell timing and the platinum ledger. Below the tabs: the run
+queue, the **Safety** kill switch and notifications.
 
 ![Trader](assets/shot_trader.png)
 
 ### Collection — `/collection.html` (Cards sub-tab `/cards.html`)
 
 **Collection** is "what has this account collected vs everything obtainable", with per-category
-progress. **Cards** renders every mod as a trading card — owned, missing, dupes and quotes, with
-full-art faces and a 3D inspect view.
+progress, and a **Relics** tab listing every relic in the game — where it drops, what it contains
+(reward table per refinement), its EV and your own copies. **Cards** renders every mod as a
+trading card — owned, missing, dupes and quotes, with full-art faces and a 3D inspect view.
 
 ![Cards](assets/shot_cards.png)
+
+### Mastery — `/#mastery`
+
+The Mastery Helper: your rank and the gap to the next, a ranked **do this next** queue (owned
+first, then ready to build, then missing — with craft cost and where to get it) and progress by
+item type. The item total is what the game save knows about, so it sits under the in-game bar.
 
 ### More — `/#more`
 
@@ -203,6 +209,9 @@ it is Not live)
 - `sets.py` — prime-set completion analyzer.
 - `relic_ev.py` — expected platinum from opening a relic vs selling it as-is.
 - `ducats.py` — sell a prime part for platinum, or burn it into ducats?
+- `relics_panel.py` — every relic: drop locations, reward tables per refinement, ownership, EV.
+- `mastery.py` — the mastery helper: rank gap + what to master next (XP values from the wiki).
+- `progress.py` — today / sessions tracker: platinum, credits, trades, items, materials.
 - `rivens.py` — veiled-riven price bands + owned-riven valuation.
 - `wishlist.py` — wishlist + budget planner.
 - `watchlist.py` — "tell me when this item is cheap / expensive" alert feed.
@@ -265,6 +274,8 @@ it on Python 3.11 (`.github/workflows/tests.yml`).
   `app.js`, one `style.css`, one `theme.js` (30 palettes), one `chart.js`, the shared item drawer
   (`drawer.js` / `drawer.css`) and the Home renderer (`home.js` / `home.css`). `lookup_items.json`
   is the offline item catalogue the drawer falls back to.
+- The icons are [Phosphor](https://phosphoricons.com) (MIT), vendored into `static/icons/`
+  as one self-hosted sprite — no CDN, no build step; `tools/build_icons.py --check` keeps them resolving.
 - `scripts/` — the engines above; `tests/` — the public suite; `data/` — everything the app writes
   (gitignored); `secrets.json` — your warframe.market login (gitignored).
 - `setup.bat` / `refresh.bat` / `supervise.bat` — Windows entry points: one-time install, quick

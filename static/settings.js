@@ -7,68 +7,57 @@
 
 /* ---------- honesty map (checked against the code, not just the schema text) ---------- */
 const NOT_READ = 'not read by the app yet';
-const NOT_READ_LONG = 'Saved, but no part of the app reads it yet.';
 /* keys with no reader anywhere in the app: a saved value changes nothing */
 const DEAD_KEYS = { theme: 1, currency_display: 1, gifs: 1, max_active_listings: 1 };
-/* the schema understates this one: the flip planner does read it as a fallback budget */
 const READ_BY = {
-  buy_budget_cap_platinum: 'flip planner — fallback spend budget (the schema text understates this)',
+  buy_budget_cap_platinum: 'flip planner',
 };
 
-/* ---------- groups: display copy only; the raw key is what gets posted ---------- */
+/* ---------- groups: display copy only; the raw key is what gets posted ----------
+   `icon` is a Phosphor sprite name (data-icon): it marks what the row or section means, and
+   rides on the label host, so the label text, the field name and the save payload are untouched.
+   Copy diet (Jay, 2026-09-27): labels and values only. A hint survives only where it adds a
+   fact the label does not have, and never as a sentence. */
 const GROUPS = [
   {
     id: 'verbose', title: 'Advanced', src: 'dash',
     rows: [
-      { key: 'advanced', label: 'Advanced', apply: 1,
-        hint: 'Show the extra explanations and hints. Off keeps pages to labels and values.' },
+      { key: 'advanced', label: 'Advanced', apply: 1, icon: 'sliders-horizontal' },
     ],
   },
   {
     id: 'trading', title: 'Trading', src: 'trader',
     rows: [
-      { key: 'dry_run', label: 'Posting mode', status: 1 },
-      { key: 'max_new_listings_per_day', label: 'Maximum listings per day', unit: 'listings/day',
-        hint: 'The engine caps this at 20 — the control can only lower it, never raise it.' },
-      { key: 'max_active_listings', label: 'Maximum active sell orders', unit: 'orders', badge: NOT_READ,
-        hint: 'Ceiling on live sell orders before the lister stops adding more.' },
-      { key: 'undercut_platinum', label: 'Undercut the lowest listing by', unit: 'platinum',
-        hint: 'Listings sit this far under the lane floor.' },
-      { key: 'min_price_pct_of_median', label: 'Refuse prices under this share of the 48h median', unit: '%',
-        hint: 'A lane priced below this share of the item median is skipped.' },
-      { key: 'min_price_platinum', label: 'Minimum sale price', unit: 'platinum',
-        hint: 'Never list or reprice below this.' },
-      { key: 'buy_budget_cap_platinum', label: 'Maximum platinum spent buying', unit: 'platinum',
-        hint: 'Per buy action. 0 turns buying off.' },
-      { key: 'poll_seconds', label: 'Check prices every', unit: 'seconds',
-        hint: 'How often the watcher and detector look for changes.' },
+      { key: 'dry_run', label: 'Posting mode', status: 1, icon: 'lock' },
+      { key: 'max_new_listings_per_day', label: 'Maximum listings per day', unit: 'listings/day', icon: 'calendar-blank',
+        hint: 'max 20' },
+      { key: 'max_active_listings', label: 'Maximum active sell orders', unit: 'orders', badge: NOT_READ, icon: 'list' },
+      { key: 'undercut_platinum', label: 'Undercut the lowest listing by', unit: 'platinum', icon: 'arrow-down' },
+      { key: 'min_price_pct_of_median', label: 'Minimum price vs 48h median', unit: '%', icon: 'percent' },
+      { key: 'min_price_platinum', label: 'Minimum sale price', unit: 'platinum', icon: 'tag' },
+      { key: 'buy_budget_cap_platinum', label: 'Maximum platinum spent buying', unit: 'platinum', icon: 'shopping-cart',
+        hint: '0 turns buying off' },
+      { key: 'poll_seconds', label: 'Check prices every', unit: 'seconds', icon: 'clock' },
     ],
   },
   {
     id: 'appearance', title: 'Appearance', src: 'dash',
     rows: [
-      { note: 'Theme — chosen with the ◐ Theme button in the header (top right). Your pick is remembered '
-        + 'in this browser. A stored default is not applied by the app yet.' },
-      { key: 'currency_display', label: 'Platinum suffix', badge: NOT_READ,
-        hint: 'How platinum amounts are written across the dashboard.',
+      { note: 'remembered per browser', icon: 'palette' },
+      { key: 'currency_display', label: 'Platinum suffix', badge: NOT_READ, icon: 'currency-circle-dollar',
         choices: { p: '100p', plat: '100 plat', none: '100' } },
-      { key: 'gifs', label: 'Celebration animations', badge: NOT_READ,
-        hint: 'Animated extras in the dashboard UI.' },
-      { key: 'deals_shown', label: 'Deal rows shown', unit: 'rows',
-        hint: 'Most rows the Market deals list returns.' },
-      { key: 'sessions_shown', label: 'Sessions listed', unit: 'rows',
-        hint: 'Most rows the trade-sessions list returns.' },
+      { key: 'gifs', label: 'Celebration animations', badge: NOT_READ, icon: 'sparkle' },
+      { key: 'deals_shown', label: 'Deal rows shown', unit: 'rows', icon: 'rows' },
+      { key: 'sessions_shown', label: 'Sessions listed', unit: 'rows', icon: 'table' },
     ],
   },
   {
     id: 'updates', title: 'Updates', src: 'dash',
     rows: [
-      { key: 'auto_refresh_seconds', label: 'Auto-refresh the dashboard every', unit: 'seconds',
-        hint: 'How often the open dashboard pulls fresh data.' },
-      { key: 'watch_save_seconds', label: 'Check for a new game save every', unit: 'seconds',
-        hint: 'Lower is fresher — the watch reads the game save on this cadence.' },
-      { key: 'gamenews_cache_seconds', label: 'Refresh game news every', unit: 'minutes', factor: 60,
-        hint: 'How long cached news may be reused before it is fetched again.' },
+      { key: 'auto_refresh_seconds', label: 'Auto-refresh the dashboard every', unit: 'seconds', icon: 'arrows-clockwise' },
+      { key: 'watch_save_seconds', label: 'Check for a new game save every', unit: 'seconds', icon: 'floppy-disk',
+        hint: 'lower is fresher' },
+      { key: 'gamenews_cache_seconds', label: 'Refresh game news every', unit: 'minutes', factor: 60, icon: 'newspaper' },
     ],
   },
 ];
@@ -77,11 +66,11 @@ const GROUPS = [
 const ADV_GROUP = {
   id: 'advanced', title: 'Advanced settings', src: 'dash',
   rows: [
-    { key: 'host', label: 'Bind address', restart: 1,
-      hint: 'Which interface the dashboard listens on. The WFM_HOST environment variable overrides it.',
+    { key: 'host', label: 'Bind address', restart: 1, icon: 'desktop',
+      hint: 'WFM_HOST overrides it',
       choices: { '127.0.0.1': 'This PC only (127.0.0.1)', '0.0.0.0': 'Also on the LAN (0.0.0.0)' } },
-    { key: 'port', label: 'Dashboard port', restart: 1,
-      hint: 'The TCP port the dashboard binds. The WFM_PORT environment variable overrides it.' },
+    { key: 'port', label: 'Dashboard port', restart: 1, icon: 'plug',
+      hint: 'WFM_PORT overrides it' },
   ],
 };
 const SAVE_GROUPS = GROUPS.concat([ADV_GROUP]);
@@ -102,6 +91,15 @@ function el(tag, cls, text) {
 }
 const shownValue = ctl => ctl.type === 'checkbox' ? (ctl.checked ? 'on' : 'off') : ctl.value;
 const fmtValue = v => typeof v === 'boolean' ? (v ? 'true' : 'false') : String(v);
+/* a textContent write drops an already-rendered icon child: ask icons.js to put it back, once the
+   sprite has landed (an earlier render would only mark the host as done and never draw it) */
+function reIcon(node) {
+  if (!node || !window.wfmIcons || !window.wfmIcons.render) return;
+  node.removeAttribute('data-icon-done');
+  if (window.wfmIcons.ready) window.wfmIcons.ready().then(() => {
+    window.wfmIcons.render(node.parentNode || document);
+  });
+}
 function setStatus(node, msg, bad) {
   if (!node) return;
   node.textContent = msg;
@@ -146,12 +144,14 @@ function buildControl(meta, sch, src, id) {
   return ctl;
 }
 
-/* one labelled control row: name | control | value (+ unit), with the note under it */
+/* one labelled control row: name | control | value (+ unit), with the note under it.
+   `i-host` keeps a long label free to wrap (icons.css only pins nowrap on plain hosts). */
 function fieldRow(meta, src) {
   const sch = schemaRow(src, meta.key);
   const wrap = el('div', 'cfgrow');
   const id = 'set-' + meta.key;
-  const label = el('label', 'm-name', meta.label || (sch && sch.help) || meta.key);
+  const label = el('label', 'm-name i-host', meta.label || (sch && sch.help) || meta.key);
+  if (meta.icon) label.setAttribute('data-icon', meta.icon);
   label.htmlFor = id;
   wrap.appendChild(label);
 
@@ -170,7 +170,7 @@ function fieldRow(meta, src) {
   if (meta.hint) help.appendChild(el('span', null, meta.hint + ' '));
   if (meta.badge) help.appendChild(el('span', 'st-badge', meta.badge));
   if (meta.restart) help.appendChild(el('b', 'st-restart', 'restart required'));
-  wrap.appendChild(help);
+  if (help.childNodes.length) wrap.appendChild(help);
 
   if (ctl) {
     const show = () => { live.textContent = shownValue(ctl); };
@@ -190,22 +190,23 @@ function statusRow(meta, src) {
   const cur = valuesOf(src)[meta.key];
   const dry = cur !== undefined ? !!cur : !!(sch && sch.default);
   const wrap = el('div', 'cfgrow');
-  wrap.appendChild(el('span', 'm-name', meta.label || meta.key));
+  const name = el('span', 'm-name', meta.label || meta.key);
+  if (meta.icon) name.setAttribute('data-icon', meta.icon);
+  wrap.appendChild(name);
   const cell = el('span');
   cell.appendChild(el('span', 'st-pill ' + (dry ? 'dry' : 'live'), dry ? 'Not live' : 'Live'));
   wrap.appendChild(cell);
-  wrap.appendChild(el('span', 'cfg-val', dry ? 'not live' : 'live'));
-  wrap.appendChild(el('div', 'cfg-help explain', dry
-    ? 'Not live - nothing is posted until the engine config says otherwise.'
-    : 'Live — the engine config allows posting; not editable here.'));
   return wrap;
 }
 
-function noteRow(text) {
+/* the theme row: label + one value, nothing else */
+function noteRow(text, icon) {
   const wrap = el('div', 'cfgrow');
-  wrap.appendChild(el('span', 'm-name', 'Theme'));
-  wrap.appendChild(el('span', 'dim', '◐ Theme button in the header'));
-  wrap.appendChild(el('div', 'cfg-help explain', text));
+  const name = el('span', 'm-name', 'Theme');
+  if (icon) name.setAttribute('data-icon', icon);
+  wrap.appendChild(name);
+  wrap.appendChild(el('span'));                       // no control on this row
+  wrap.appendChild(el('span', 'cfg-val dim', text));
   return wrap;
 }
 
@@ -215,11 +216,11 @@ function renderGroup(g) {
   if (!box) return;
   box.textContent = '';
   if (!schemaOf(g.src).length) {
-    box.appendChild(el('div', 'pad dim', 'These settings could not be read from the engine.'));
+    box.appendChild(el('div', 'pad dim', 'Engine settings unavailable'));
     return;
   }
   g.rows.forEach(meta => {
-    if (meta.note) box.appendChild(noteRow(meta.note));
+    if (meta.note) box.appendChild(noteRow(meta.note, meta.icon));
     else if (meta.status) box.appendChild(statusRow(meta, g.src));
     else box.appendChild(fieldRow(meta, g.src));
   });
@@ -236,7 +237,7 @@ function renderRaw() {
     if (!sch.length) return;
     sch.forEach(r => rows.push({ key: r.key, value: r.key in vals ? vals[r.key] : r.default, file: file, by: READ_BY[r.key] || r.consumed_by || '' }));
     Object.keys(vals).filter(k => !sch.some(r => r.key === k)).forEach(k => {
-      rows.push({ key: k, value: vals[k], file: file, by: 'unknown key — kept by the engine, not described by the schema' });
+      rows.push({ key: k, value: vals[k], file: file, by: 'unknown key' });
     });
   });
   rows.forEach(r => {
@@ -245,7 +246,7 @@ function renderRaw() {
     tr.appendChild(el('td', 'v', fmtValue(r.value)));
     tr.appendChild(el('td', 'f', r.file));
     const by = el('td', 'by');
-    if (DEAD_KEYS[r.key]) by.appendChild(el('span', 'dead', NOT_READ_LONG));
+    if (DEAD_KEYS[r.key]) by.appendChild(el('span', 'dead', NOT_READ));
     else by.textContent = r.by;
     tr.appendChild(by);
     tbody.appendChild(tr);
@@ -301,7 +302,7 @@ async function saveGroup(g) {
       setStatus(status, 'No changes to save.');
     }
     await loadAll();
-  } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+  } finally { if (btn) { btn.disabled = false; btn.textContent = label; reIcon(btn); } }
 }
 
 /* ---------- accounts: one data profile per Warframe account (scripts/profiles.py) ---------- */
@@ -341,18 +342,14 @@ function renderAccounts() {
   const input = document.getElementById('acctName');
   if (input) input.placeholder = det.name ? ('auto: ' + det.name) : 'new profile name';
   if (det.name) {
-    const state = ACCT.current === det.name ? 'this is the current profile'
-      : (detProf ? 'profile exists \u2014 switch to it to use this account'
-                 : 'no profile for it yet \u2014 create one');
-    box.appendChild(acctNote('Detected account: ' + det.name + ' \u2014 from ' + (det.source || 'AlecaFrame')
-      + ' (' + state + ').'));
+    const state = ACCT.current === det.name ? 'current' : (detProf ? 'profile exists' : 'no profile yet');
+    box.appendChild(acctNote('Detected ' + det.name + ' \u00b7 ' + (det.source || 'AlecaFrame') + ' \u00b7 ' + state));
   } else {
-    box.appendChild(acctNote('No account name detected (' + (det.reason || 'AlecaFrame not found')
-      + ') \u2014 type a name to create a profile.'));
+    box.appendChild(acctNote('No account detected (' + (det.reason || 'AlecaFrame not found') + ')'));
   }
 
   if (!list.length) {
-    box.appendChild(acctNote('No profiles yet \u2014 Create profile (empty name = the AlecaFrame account).'));
+    box.appendChild(acctNote('No profiles yet'));
     return;
   }
   list.forEach(p => {
@@ -378,7 +375,7 @@ function renderPlanActions(name) {
   if (acctApply) { acctApply.remove(); acctApply = null; }
   if (!name || !pre || !pre.parentNode) return;
   acctApply = el('div', 'st-acctrow');
-  acctApply.appendChild(el('span', 'st-ameta', 'Apply = run the plan for real (safety zip first, nothing deleted).'));
+  acctApply.appendChild(el('span', 'st-ameta', 'safety zip first, nothing deleted'));
   const g = el('div', 'st-agrow');
   const b = el('button', 'btn', 'Apply switch to ' + name);
   b.type = 'button';
@@ -401,10 +398,10 @@ async function switchProfile(name, apply) {
     if (plan) { plan.hidden = !out; plan.textContent = out; }
     if (res.ok) {
       if (apply) {
-        setStatus(status, 'Switched to \u201c' + name + '\u201d. Restart the server (stop.bat, then start.bat) so every page reads the new account.');
+        setStatus(status, 'Switched to “' + name + '” · restart the server');
         renderPlanActions(null);
       } else {
-        setStatus(status, 'Not live \u2014 nothing changed. Review the plan above, then apply.');
+        setStatus(status, 'Plan only · nothing changed');
         renderPlanActions(name);
       }
     } else {
@@ -422,10 +419,10 @@ async function createProfile() {
   const name = ((input && input.value) || '').trim();
   const det = (ACCT && ACCT.detected) || {};
   if (!name && !det.name) {
-    setStatus(status, 'Type a profile name first \u2014 no AlecaFrame account was detected to name it from.', true);
+    setStatus(status, 'Type a profile name first', true);
     return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = 'Creating\u2026'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   try {
     const res = await fetch('/api/profiles', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -433,9 +430,7 @@ async function createProfile() {
     }).then(r => r.json());
     const made = (((res.stdout || '') + (res.stderr || '')).match(/profile '([^']+)' created/) || [])[1];
     if (res.ok) {
-      setStatus(status, 'Profile \u201c' + (made || name || det.name || 'account') + '\u201d created \u2014 '
-        + (name ? 'named as typed.' : 'named after the account AlecaFrame is linked to.')
-        + ' Live data untouched.');
+      setStatus(status, 'Profile “' + (made || name || det.name || 'account') + '” created');
       if (input) input.value = '';
     } else {
       setStatus(status, 'Refused: ' + (((res.stdout || '') + (res.stderr || '')).trim() || res.error || 'unknown'), true);

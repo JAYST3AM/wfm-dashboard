@@ -14,6 +14,16 @@ static/collection_log.json
 # scripts/icon_cache.py) - derived data, never commit
 static/colimg/
 
+# generated stores that carry HIS account state (built by the scripts under scripts/ on install):
+# relics_panel.py -> relic ownership + drop info, mastery.py -> mastery queue, progress.py -> sessions
+static/relics_panel.json
+static/mastery.json
+static/progress.json
+
+# fetched icon sources: the sprite (static/icons/phosphor.svg) is the shipped artifact;
+# tools/build_icons.py --fetch can re-download these from the pinned name list
+static/icons/src/
+
 # the one-click app build output (built by tools/build_app.py; ships via Releases, not git)
 dist/
 build/

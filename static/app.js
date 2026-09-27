@@ -10,15 +10,12 @@ function buildThemeGrid() { wfmBuildThemeGrid(); }
 
 /* ---------- data ---------- */
 let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADER = null, GAMENEWS = null, FEAT = {};
-let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', dojoTier: 'ghost', player: null, cfg: null };
+let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', dojoTier: 'ghost', player: null, cfg: null, mastery: null, mhFilter: 'all' };
 /* global item search cache - declared up here because the hash router can call into
    the search before the rest of the file has run (classic script, no module scope) */
-/* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. Engine
-   plans still carry mode: 'dry-run' in their JSON, so mode strings are mapped for display. */
-function modeText(m) {
-  if (!m) return '';
-  return /dry/i.test(String(m)) ? 'Not live' : String(m);
-}
+/* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. The one
+   surface that printed a plan's raw mode was the flipper-internals card, retired 2026-09-27, so
+   the mapper went with it: nothing renders a mode string any more (see tests/test_terminology). */
 
 let CATALOG = null, CATALOG_LOADING = null;
 
@@ -29,6 +26,8 @@ const CATS = [
 const CAT_LABEL = Object.fromEntries(CATS);
 
 const fmt = n => (n === null || n === undefined) ? '—' : n.toLocaleString();
+/* empty / idle states: one quiet 18px icon above the line (styling: .empty-icon in style.css) */
+const EMPTY_ICON = '<span class="empty-icon" data-icon="tray" data-icon-size="18"></span>';
 const ago = ts => {
   if (!ts) return '—';
   const s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
@@ -48,16 +47,16 @@ function renderChips() {
     <span class="chip">MR <b>${s.mr ?? '—'}</b></span>
     <span class="chip warn">Trades <b>${s.trades ?? '—'}</b>/day left</span>
     <span class="chip">Credits <b>${(s.credits ?? 0).toLocaleString()}</b></span>
-    <span class="chip">Synced <b>${ago(s.lastdata_mtime)}</b></span>
+    <span class="chip">Synced <b data-icon="check-circle-fill" data-icon-size="12">${ago(s.lastdata_mtime)}</b></span>
     <span class="chip" title="owned rows with a live sell price / owned rows · ${unquoted} no live quote">Priced <b>${s.priced ?? 0}/${s.items ?? 0}</b></span>
     <span class="chip">Est. value <b>${(s.total_value ?? 0).toLocaleString()}p</b></span>`;
 }
 
 /* ---------- views ---------- */
-const VIEWS = ['home', 'inventory', 'trade', 'player', 'more'];
+const VIEWS = ['home', 'inventory', 'trade', 'mastery', 'player', 'more'];
 /* legacy hashes from the 9-pill era still resolve: #history/#trader -> trade, #market -> more */
 const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', more: 'more',
-  player: 'player', history: 'trade', trader: 'trade', market: 'more' };
+  player: 'player', mastery: 'mastery', history: 'trade', trader: 'trade', market: 'more' };
 
 function showView(v) {
   if (!VIEWS.includes(v)) v = 'home';
@@ -69,6 +68,7 @@ function showView(v) {
     el2.classList.toggle('active', el2.dataset.v === v));
   if (window.PlatChart) PlatChart.redraw();
   if (v === 'player') renderPlayerPage();
+  if (v === 'mastery') renderMasteryPage();
   if (v === 'home' && window.wfmRenderHome) wfmRenderHome();
 }
 
@@ -109,7 +109,7 @@ function renderFirstRun() {
   el.classList.toggle('hidden', !empty);
   if (!empty) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <div class="card-head"><div class="card-title">First run - no data yet</div></div>
+    <div class="card-head"><div class="card-title" data-icon="tray">First run - no data yet</div></div>
     <div class="picks">
       <div class="picks-note"><b>Windows:</b> double-click <code>setup.bat</code> in the project folder.
         It installs the one dependency, reads your AlecaFrame inventory and fetches prices
@@ -118,7 +118,7 @@ function renderFirstRun() {
         <code>python scripts/setup.py</code>.</div>
       <div class="picks-note"><b>Needs:</b> Warframe + <a class="movedlink" href="https://alecaframe.com" target="_blank" rel="noopener">AlecaFrame</a>
         installed and synced once (open the game after installing it).</div>
-      <div class="picks-note dim">Once setup finishes, press <b>Refresh</b> in the header — this banner disappears when data lands.</div>
+      <div class="picks-note dim">Press <b>Refresh</b> after setup.</div>
     </div>`;
 }
 
@@ -221,7 +221,7 @@ function renderPicks() {
 function renderChartMeta() {
   const ph = PLAT || {};
   const el = document.getElementById('chartMeta');
-  if (!ph.n) { el.textContent = 'Collector runs every 15 min — first point lands within a few minutes.'; return; }
+  if (!ph.n) { el.textContent = 'Collector: every 15 min'; return; }
   const since = new Date(ph.first_ts * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
   el.textContent = `${ph.n} snapshots since ${since} · collector runs every 15 min`;
 }
@@ -274,7 +274,7 @@ function renderHistory() {
     </div>`;
   }).join('');
   document.getElementById('tradeLog').innerHTML = evs.length ? head + rows :
-    `<div class="empty">Nothing here yet — fills automatically once the trader runs.</div>`;
+    `<div class="empty">${EMPTY_ICON}Nothing here yet — fills automatically once the trader runs.</div>`;
 }
 
 /* ---------- game updates ---------- */
@@ -293,19 +293,15 @@ function renderNews() {
         <a class="n-title" href="${it.url}" target="_blank" rel="noopener" title="${(it.excerpt || '').replace(/"/g, '&quot;')}">${it.title}</a>
         <span class="n-src dim">${it.source}</span>
       </div>`).join('')
-    : `<div class="empty">No updates fetched yet.</div>`;
+    : `<div class="empty">${EMPTY_ICON}No updates fetched yet.</div>`;
 }
 
 /* ---------- trader ---------- */
 function renderTrader() {
   const t = TRADER || {};
-  const plan = t.plan || {}, stt = t.state || {}, set = t.settings || {}, q = t.queue || [];
+  const plan = t.plan || {}, stt = t.state || {}, set = t.settings || {};
   const rows = plan.plan || [];
-  const plannedValue = rows.reduce((a, r) => a + (r.est_total || 0), 0);
   const held = plan.held_list || [];
-  const ordersN = stt.orders ? Object.keys(stt.orders).length : (plan.live_orders || 0);
-  /* the trader KPI row is retired - those facts now live in Advanced > Engine status
-     (renderEngine below) so the default Trade surface stays action-first */
   document.getElementById('planMeta').textContent = plan.generated
     ? `· built ${ago(plan.generated)}${plan.mr != null ? ' · MR ' + plan.mr : ''}` : '';
   const head = `<div class="prow plan-head"><span>#</span><span>Item</span><span class="p-qty">Qty</span><span class="p-price">List at</span><span class="p-est">Est</span><span class="p-note">Notes</span></div>`;
@@ -319,17 +315,11 @@ function renderTrader() {
         <span class="p-est">${(r.est_total || 0).toLocaleString()}p</span>
         <span class="p-note" title="${escHtml(r.note || r.subtype || '')}">${r.note || (r.subtype || '')}${advNote(r.slug)}</span>
       </div>`).join('')
-    : `<div class="empty">No plan yet — hit "Rebuild plan".</div>`;
+    : `<div class="empty">${EMPTY_ICON}No plan yet — hit "Rebuild plan".</div>`;
   document.getElementById('heldMeta').textContent = held.length ? `· ${held.length}` : '';
   document.getElementById('heldList').innerHTML = held.length
     ? held.map(h => `<div class="heldline"><span class="l-name" title="${escHtml(h[0])}">${h[0]}</span><span class="dim">${h[1]}</span></div>`).join('')
-    : `<div class="empty">Nothing held back.</div>`;
-  const det = [];
-  if (stt.ts) det.push(`last cycle ${ago(stt.ts)} · account ${stt.account || '—'} · tracked orders ${ordersN} · events last cycle ${stt.last_cycle_events ?? 0}`);
-  for (const x of q.slice(-10)) det.push(`relist queued: ${x.name} x${x.sold} @ ${x.price}p (${x.status})`);
-  if (!stt.ts && !q.length) det.push('Detector has not run yet — hit "Run detector".');
-  document.getElementById('detList').innerHTML = det.map(x => `<div class="heldline dim">${x}</div>`).join('');
-  document.getElementById('detMeta').textContent = stt.ts ? `· watching ${ordersN} orders` : '';
+    : `<div class="empty">${EMPTY_ICON}Nothing held back.</div>`;
   const w = t.undercuts || {};
   document.getElementById('attnMeta').textContent = w.generated
     ? `· checked ${ago(w.generated)}` : '';
@@ -345,32 +335,9 @@ function renderTrader() {
   document.getElementById('attnList').innerHTML = attn.length
     ? attn.join('')
     : (w.generated
-        ? `<div class="empty">Nothing needs attention right now.</div>`
-        : `<div class="empty">Not checked yet - hit "Check now".</div>`);
-  renderRunQueue(); renderFlipper(); renderHygiene(); renderNotify(); renderEngine();
-}
-
-/* Advanced > Engine status: the facts the old trader KPI row used to show */
-function renderEngine() {
-  const t = TRADER || {}, stt = t.state || {}, set = t.settings || {}, plan = t.plan || {};
-  const el = document.getElementById('engList');
-  if (!el) return;
-  const ordersN = stt.orders ? Object.keys(stt.orders).length : (plan.live_orders || 0);
-  const plannedValue = (plan.plan || []).reduce((a, r) => a + (r.est_total || 0), 0);
-  const K = FEAT.killswitch || {};
-  const m = document.getElementById('engMeta');
-  if (m) m.textContent = '· posting ' + (set.dry_run === false ? 'Live' : 'Not live') + (K.active ? ' · kill switch engaged' : '');
-  const line = (k, v) => `<div class="mrow"><span class="m-name dim">${k}</span><span class="num">${v}</span></div>`;
-  el.innerHTML =
-    line('Posting mode', set.dry_run === false
-      ? 'Live<span class="explain"> - orders can post</span>'
-      : 'Not live<span class="explain"> - nothing is posted to warframe.market</span>') +
-    line('Trades left today', stt.trades_left ?? '—') +
-    line('Live orders', ordersN) +
-    line('Platinum balance', stt.plat != null ? stt.plat.toLocaleString() + 'p' : '—') +
-    line('Planned listings', plan.planned ?? (plan.plan || []).length) +
-    line('Plan value', plannedValue.toLocaleString() + 'p') +
-    line('Last market check', stt.ts ? ago(stt.ts) : 'not yet');
+        ? `<div class="empty">${EMPTY_ICON}Nothing needs attention right now.</div>`
+        : `<div class="empty">${EMPTY_ICON}Not checked yet - hit "Check now".</div>`);
+  renderRunQueue(); renderHygiene(); renderNotify();
 }
 
 /* ---------- round-3 renderers ---------- */
@@ -387,28 +354,8 @@ function renderRunQueue() {
   el.innerHTML = rows.map(q => `<div class="runrow">
       <span class="m-name" title="${escHtml(q.why || '')}">${escHtml(q.name)} <span class="dim">x${q.qty} @ ${q.my_price}p</span></span>
       <span class="num"><span class="chip act-${q.buyer_status}">${q.buyer_status}</span> ${escHtml(q.buyer)} · ${q.buy_price}p</span>
-      <span class="runwhisper" title="copy-paste whisper">${escHtml(q.whisper)}</span>
+      <span class="runwhisper" title="copy-paste whisper" data-icon="copy">${escHtml(q.whisper)}</span>
     </div>`).join('');
-}
-
-function renderFlipper() {
-  const P = FEAT.flipper || {}, b = P.budget || {}, c = P.counts || {};
-  const m = document.getElementById('flipPlanMeta');
-  if (!m) return;
-  m.textContent = b.buy_budget_p !== undefined
-    ? `· ${(P.orders || []).length} buy orders · spend ${b.planned_spend_p}p of ${b.buy_budget_p}p · ${c.skipped ?? (P.skipped || []).length} skipped · ${modeText(P.mode)}`
-    : '';
-  const el = document.getElementById('flipPlanList');
-  const rows = P.orders || [];
-  if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/trader/flipper.py</div>'; return; }
-  const line = o => `<div class="mrow">
-      <span class="m-name" title="${escHtml(o.slug)} · ${escHtml(o.why || '')}">${escHtml(o.name || pretty(o.slug))} <span class="chip kind-${o.kind}">${o.kind}</span> <span class="dim small">${o.sales_day}/day</span></span>
-      <span class="num upl">buy ${o.buy_at}p <span class="dim">→</span> ${o.relist_at}p <span class="dim">+${o.profit_each}p (${o.roi_pct}%)</span></span>
-    </div>`;
-  let html = `<div class="subhead">Plan only — nothing posted</div>` + rows.map(line).join('');
-  const sk = (P.skipped || []).slice(0, 5);
-  if (sk.length) html += `<div class="subhead">Skipped</div>` + sk.map(s2 => `<div class="mrow"><span class="m-name">${escHtml(pretty(s2.slug))}</span><span class="num dim small">${escHtml(s2.reason)}</span></div>`).join('');
-  el.innerHTML = html;
 }
 
 function renderHygiene() {
@@ -787,6 +734,7 @@ function renderDojo() {
   if (a && D.source) {
     a.textContent = D.source;
     a.href = /^https?:/i.test(D.source) ? D.source : 'https://' + D.source;
+    iconRepaint(a);
   }
 }
 
@@ -863,7 +811,7 @@ function renderDucats() {
     return `<div class="mrow"><span class="m-name" title="${escHtml(r.slug)}">${escHtml(r.name)} <span class="dim">×${r.count}</span></span><span class="num">${num}</span></div>`;
   };
   el.innerHTML =
-    `<div class="subhead">Burn into ducats — plat would earn less than Baro value</div>` +
+    `<div class="subhead">Burn for ducats</div>` +
     rows.filter(r => r.verdict === 'BURN').slice(0, 8).map(r => line(r, 'burn')).join('') +
     `<div class="subhead">Sell for plat</div>` +
     rows.filter(r => r.verdict === 'SELL').slice(0, 8).map(r => line(r, 'sell')).join('');
@@ -1057,14 +1005,15 @@ function renderKill() {
   const el = document.getElementById('killList');
   const btn = document.getElementById('btnKill');
   btn.textContent = K.active ? 'Disarm' : 'Arm kill switch';
+  iconRepaint(btn);
   document.getElementById('killMeta').textContent = K.active ? '· ENGAGED' : '· disarmed';
   const ts = K.ts ? new Date(K.ts * 1000).toLocaleString([], { hour12: false }) : '';
   el.innerHTML = `<div class="limrow">
     <span class="lim-big ${K.active ? 'kill-on' : ''}">${K.active ? 'ARMED' : 'OFF'}</span>
-    <span class="dim">kill switch ${K.active ? 'engaged — every engine refuses to run' : 'disarmed — engines may run'}${K.note ? ' · ' + escHtml(K.note) : ''}${ts ? ' · ' + ts : ''}</span>
+    <span class="dim">kill switch ${K.active ? 'engaged' : 'disarmed'}${K.note ? ' · ' + escHtml(K.note) : ''}${ts ? ' · ' + ts : ''}</span>
   </div>
   <div class="limrow"><input id="killNote" class="noteinput" placeholder="note (why / what)" maxlength="200">
-    <span class="dim small explain">All engines are not live — posting is held until it ships.</span></div>`;
+    <span class="dim small explain">Not live</span></div>`;
 }
 
 /* ---------- player page (#player): data/player.json ---------- */
@@ -1161,7 +1110,7 @@ function renderPlayerClan(P) {
   } else if (cfg) {
     rows.push(`<div class="mrow"><label class="m-name dim" for="pcClanName">Clan name</label><span class="num pc-inrow">` +
       `<input id="pcClanName" class="noteinput" type="text" maxlength="32" placeholder="—" aria-label="Clan name">` +
-      `<button class="btn" id="pcClanSave">Save</button></span></div>`);
+      `<button class="btn" id="pcClanSave" data-icon="check">Save</button></span></div>`);
   } else {
     rows.push(`<div class="mrow"><span class="m-name dim">Clan name</span><span class="num dim">—</span></div>`);
   }
@@ -1287,6 +1236,146 @@ async function loadTrader() {
 }
 /* ---------- /player page ---------- */
 
+/* ---------- mastery helper (#mastery): data/mastery.json ---------- */
+/* What to master next, what it costs, how far the next rank is. The store ships already ranked
+   (owned-not-mastered first, then craftable cheapest first, MR-gated last), so next[] renders
+   in the store's own order - never re-sorted. The rank bar is NOT renderable as a percentage:
+   the save's item-derived mastery sits below the MR 22 cumulative floor (1,210,000) because
+   star chart / junction / Intrinsics mastery is not in the save file - mr.pct (0.0) is a floor,
+   not the truth - so the header prints the rank, the gap and a tooltip, and no bar. */
+const MH_NOTE = 'items only';
+const MH_NOTE_TITLE = 'save data: items only, no star chart';
+const MH_ROWS = 60;
+const MH_FILTERS = [
+  ['all', 'All', () => true],
+  ['craft', 'Ready to build', r => !!(r.build && r.build.verdict === 'CRAFT'
+                                       && !(r.build.missing_parts || []).length)],
+  ['owned', 'Owned, not mastered', r => r.state === 'owned'],
+  ['missing', 'Missing', r => r.state === 'missing'],
+];
+let MASTERY_REQ = null;
+
+/* one fetch, cached on state (like loadPlayer) - opening the view again never refetches */
+function loadMastery() {
+  if (state.mastery) return Promise.resolve(state.mastery);
+  if (!MASTERY_REQ) {
+    MASTERY_REQ = fetch('/api/feature/mastery').then(r => r.json())
+      .then(j => (j && typeof j === 'object' && !Array.isArray(j)) ? j : {})
+      .catch(() => ({}));
+  }
+  return MASTERY_REQ.then(j => { state.mastery = j; return j; });
+}
+
+function renderMasteryPage() {
+  loadMastery().then(M => {
+    const ok = !!(M.mr && M.summary && Array.isArray(M.next));
+    ['mhNextCard', 'mhCatsCard'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', !ok);
+    });
+    renderMasteryHead(M, ok);
+    if (ok) { renderMasteryNext(M); renderMasteryCats(M); }
+  });
+}
+
+function renderMasteryHead(M, ok) {
+  const head = document.getElementById('mhHead');
+  if (!head) return;
+  const meta = document.getElementById('mhMeta'), stats = document.getElementById('mhStats');
+  if (!ok) {
+    head.innerHTML = `<div class="empty">${EMPTY_ICON}No mastery data yet — run scripts/mastery.py</div>`;
+    if (stats) stats.innerHTML = '';
+    if (meta) { meta.textContent = ''; meta.title = ''; }
+    return;
+  }
+  const mr = M.mr || {}, s = M.summary || {};
+  if (meta) {
+    meta.textContent = M.updated ? '· synced ' + ago(M.updated) : '';
+    meta.title = 'live save XP + the collection log + craft verdicts';
+  }
+  head.innerHTML =
+    `<div class="pc-id">` +
+      `<span class="pc-alias">Mastery ${pnum(mr.rank)}</span>` +
+      `<span class="mh-gap" title="XP still needed for the next rank">to ${pnum(mr.next_rank)}: ${pnum(mr.xp_for_next)} XP</span>` +
+      `<span class="pc-mr"><span class="pc-mr-l">Item mastery</span><span class="pc-mr-v">${pnum(mr.xp_total)}</span></span>` +
+    `</div>` +
+    `<div class="mh-note dim small" title="${escHtml(MH_NOTE_TITLE)}">${escHtml(MH_NOTE)}</div>`;
+  if (stats) stats.innerHTML =
+    `<div class="kpi" title="mastered of the tracked masterable items"><div class="k-label">Mastered</div><div class="k-val">${pnum(s.mastered)}<span class="dim"> / ${pnum(s.tracked)}</span></div></div>` +
+    `<div class="kpi"><div class="k-label">Buildable now</div><div class="k-val">${pnum(s.buildable_now)}</div></div>` +
+    `<div class="kpi"><div class="k-label">Owned, not mastered</div><div class="k-val">${pnum(s.owned_unmastered)}</div></div>` +
+    `<div class="kpi"><div class="k-label">Missing</div><div class="k-val">${pnum(s.missing)}</div></div>`;
+}
+
+function mhCatNames(M) {
+  const map = {};
+  (M.categories || []).forEach(c => { map[c.key] = c.name || c.key; });
+  return map;
+}
+
+function renderMasteryNext(M) {
+  const el = document.getElementById('mhNext');
+  if (!el) return;
+  const all = Array.isArray(M.next) ? M.next : [];
+  const cats = mhCatNames(M);
+  const pick = MH_FILTERS.filter(f => f[0] === state.mhFilter)[0] || MH_FILTERS[0];
+  const rows = all.filter(pick[2]);
+  const shown = rows.slice(0, MH_ROWS);
+  const filters = document.getElementById('mhFilters');
+  if (filters) filters.innerHTML = MH_FILTERS.map(([k, label, test]) =>
+    `<button data-f="${k}" aria-pressed="${k === pick[0]}"${k === pick[0] ? ' class="active"' : ''}>` +
+    `${label} <b>${all.filter(test).length}</b></button>`).join('');
+  const meta = document.getElementById('mhNextMeta');
+  if (meta) meta.textContent = all.length ? '· ' + all.length : '';
+  const cap = document.getElementById('mhCap');
+  if (cap) cap.textContent = rows.length ? `showing ${shown.length} of ${rows.length}` : '';
+  const head = `<div class="mh-row mh-head"><span>Name</span><span>Type</span><span>State</span>` +
+    `<span class="num">XP</span><span class="num">Cost</span><span>Where</span></div>`;
+  el.innerHTML = shown.length ? head + shown.map(r => {
+    const b = r.build || null, ob = r.obtain || null;
+    const priced = b && b.cost !== null && b.cost !== undefined;
+    return `<div class="mh-row" data-slug="${escHtml(r.slug)}" title="Click for the full item view">
+      <span class="d-name" title="${escHtml(r.name)}">${escHtml(r.name)}</span>
+      <span class="dim">${escHtml(cats[r.category] || pretty(r.category))}</span>
+      <span><span class="chip mh-st-${escHtml(r.state || 'missing')}">${escHtml(r.state || '—')}</span></span>
+      <span class="num">${fmt(r.xp_value)}</span>
+      <span class="num">${priced ? fmt(b.cost) + 'p' : '<span class="dim">—</span>'}</span>
+      <span class="d-name dim" title="${escHtml(ob ? (ob.text || ob.short || '') : '')}">${escHtml(ob ? (ob.short || ob.text || '—') : '—')}</span>
+    </div>`;
+  }).join('') : `<div class="empty">${EMPTY_ICON}Nothing in this filter.</div>`;
+}
+
+function renderMasteryCats(M) {
+  const el = document.getElementById('mhCats');
+  if (!el) return;
+  const cats = Array.isArray(M.categories) ? M.categories : [];
+  const meta = document.getElementById('mhCatsMeta');
+  if (meta) meta.textContent = cats.length ? '· ' + cats.length + ' types' : '';
+  el.innerHTML = cats.length ? cats.map(c => {
+    const pct = Number(c.pct) || 0;
+    return `<div class="mh-cat">
+      <span class="d-name" title="${escHtml(c.name || c.key)}">${escHtml(c.name || c.key)}</span>
+      <span class="num">${pnum(c.mastered)}/${pnum(c.total)}</span>
+      <span class="pc-bar" title="${pct}% of this type mastered"><i style="width:${pct}%"></i></span>
+    </div>`;
+  }).join('') : `<div class="empty">${EMPTY_ICON}No types yet.</div>`;
+}
+
+/* filters re-render the 60-row window from the cached payload; a row opens the shared drawer */
+const mhFilterRow = document.getElementById('mhFilters');
+if (mhFilterRow) mhFilterRow.addEventListener('click', e => {
+  const b = e.target.closest('button[data-f]');
+  if (!b) return;
+  state.mhFilter = b.dataset.f;
+  renderMasteryNext(state.mastery || {});
+});
+const mhNextList = document.getElementById('mhNext');
+if (mhNextList) mhNextList.addEventListener('click', e => {
+  const row = e.target.closest('.mh-row[data-slug]');
+  if (row && row.dataset.slug && window.wfmOpenItem) wfmOpenItem(row.dataset.slug);
+});
+/* ---------- /mastery helper ---------- */
+
 /* ---------- init ---------- */
 const savedTheme = localStorage.getItem('wfm.theme');
 buildThemeGrid();
@@ -1313,25 +1402,32 @@ document.querySelectorAll('#hFilters button').forEach(b => b.addEventListener('c
 async function traderAction(id, path, busy) {
   const b = document.getElementById(id);
   const old = b.textContent;
-  b.disabled = true; b.textContent = busy;
+  b.disabled = true; b.textContent = busy; iconRepaint(b);
   try {
     const r = await fetch(path, { method: 'POST' });
-    const out = await r.text();
-    const el = document.getElementById('rawOut');
-    if (el) el.textContent = new Date().toLocaleTimeString() + ' · ' + path + ' (HTTP ' + r.status + ')\n' + out.slice(0, 4000);
+    await r.text();
     await load();
   }
-  finally { b.disabled = false; b.textContent = old; }
+  finally { b.disabled = false; b.textContent = old; iconRepaint(b); }
 }
 /* bind only when the control exists - the redesigned views move some buttons around */
 function bind(id, fn) {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', fn);
 }
+/* Assigning textContent drops a host's data-icon glyph, and icons.js only ever draws a host
+   once - re-arm it and let the library paint the icon again (the swap and the repaint are the
+   same task, so nothing flickers). Called after every dynamic label change. */
+function iconRepaint(el) {
+  const I = window.wfmIcons;
+  if (!el || !el.getAttribute || !el.getAttribute('data-icon') || !I) return;
+  el.removeAttribute('data-icon-done');
+  const draw = () => I.render(document);
+  if (I.ready) I.ready().then(draw); else draw();
+}
 bind('btnPlan', () => traderAction('btnPlan', '/api/trader/plan', 'Building…'));
 bind('btnCycle', () => traderAction('btnCycle', '/api/trader/cycle', 'Running…'));
 bind('btnWatch', () => traderAction('btnWatch', '/api/trader/watch', 'Checking…'));
-bind('btnFlip', () => traderAction('btnFlip', '/api/trader/flip', 'Checking floors…'));
 bind('btnRunq', () => traderAction('btnRunq', '/api/trader/runqueue', 'Scanning buyers…'));
 bind('btnHygiene', () => traderAction('btnHygiene', '/api/trader/hygiene', 'Planning…'));
 bind('btnNotify', () => traderAction('btnNotify', '/api/trader/notify', 'Sending…'));
@@ -1447,6 +1543,7 @@ const matSort = document.getElementById('matSort');
 if (matSort) matSort.addEventListener('click', () => {
   state.matSort = state.matSort === 'count' ? 'name' : 'count';
   matSort.textContent = 'Sort: ' + (state.matSort === 'count' ? 'Count' : 'Name');
+  iconRepaint(matSort);
   renderMaterials();
 });
 /* clan dojo card: the tier switch the wiki lists its cost tables by (ghost..moon) */
@@ -1510,6 +1607,7 @@ if (btnCols) btnCols.addEventListener('click', () => {
   const on = document.body.classList.toggle('show-a');
   btnCols.setAttribute('aria-pressed', String(on));
   btnCols.textContent = on ? 'Fewer columns' : 'All columns';
+  iconRepaint(btnCols);
 });
 document.querySelectorAll('thead th').forEach(th => th.addEventListener('click', () => {
   const k = th.dataset.k;
@@ -1527,13 +1625,13 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { tPanel.classList.add('hidden'); tSync(); } });
 
 document.getElementById('refresh').addEventListener('click', async e => {
-  const b = e.target; b.disabled = true; b.textContent = 'Refreshing…';
+  const b = e.target; b.disabled = true; b.textContent = 'Refreshing…'; iconRepaint(b);
   try {
     const r = await fetch('/api/refresh', { method: 'POST' }).then(r => r.json());
     if (!r.ok) { if (window.sfx) sfx.play('warn'); alert('Refresh failed: ' + (r.stderr || r.error || 'unknown')); }
     else if (window.sfx) sfx.play('done');
     await load();
-  } finally { b.disabled = false; b.textContent = 'Refresh'; }
+  } finally { b.disabled = false; b.textContent = 'Refresh'; iconRepaint(b); }
 });
 
 load();

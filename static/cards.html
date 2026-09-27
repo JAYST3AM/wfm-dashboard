@@ -417,21 +417,7 @@
   .mcd-foot a:hover { color: var(--accent); }
   .mcd-foot code { font-family: var(--mono); }
 
-  /* ---- grades legend ("Grades — why?": the rules behind the card art) ---- */
-  .mcd-grades {
-    margin: 10px 0 2px; padding: 11px 13px; max-width: 780px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
-    font-size: 12px; line-height: 1.75; color: var(--muted);
-  }
-  .mcd-grades .g-head { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
-  .mcd-grades .g-head .dim { font-weight: 400; color: var(--muted); }
-  .mcd-grades b { color: var(--text); font-weight: 600; }
-  .mcd-grades .g-row { margin-top: 3px; overflow-wrap: anywhere; }
-  @media (max-width: 460px) {
-    .mcd-grades { max-width: none; padding: 10px 11px; }   /* full-width + wrapped on phones */
-  }
-
-  /* grade reason line on the back of every card */
+  /* the back of a card carries the card's own facts only */
   .mcd-grade { font: 10.5px var(--mono); color: var(--muted); line-height: 1.6; }
   .mcd-grade b { color: var(--text); font-weight: 600; }
 
@@ -446,14 +432,16 @@
     .mcd-bar .mcd-lbl { display: none; }                  /* labels would strand beside the search box */
   }
 </style>
+  <link rel="stylesheet" href="/icons.css">
+  <script src="/icons.js" defer></script>
 </head>
 <body>
 <header>
   <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">mod cards</span></div>
   <div class="chips" id="chips"></div>
   <div class="actions">
-    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true">♪</button>
-    <button id="themeBtn" class="btn icon" title="Change theme" aria-controls="themePanel" aria-expanded="false">◐ Theme</button>
+    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true" data-icon="speaker-high"></button>
+    <button id="themeBtn" class="btn icon" title="Change theme" aria-controls="themePanel" aria-expanded="false" data-icon="palette">Theme</button>
     <a class="btn" href="/">◀ Dashboard</a>
   </div>
   <div id="themePanel" class="theme-panel hidden">
@@ -463,12 +451,13 @@
 </header>
 
 <nav class="mainnav" id="mainnav" aria-label="Primary">
-  <a href="/#home" class="navpill" data-v="home">Home</a>
-  <a href="/#inventory" class="navpill" data-v="inventory">Inventory</a>
-  <a href="/#trade" class="navpill" data-v="trade">Trade</a>
-  <a href="/collection.html" class="navpill active" data-v="collection" aria-current="page">Collection</a>
-  <a href="/#more" class="navpill" data-v="more">More</a>
-  <a href="/#player" class="navpill" data-v="player">Player</a>
+  <a href="/#home" class="navpill" data-v="home" data-icon="house">Home</a>
+  <a href="/#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
+  <a href="/#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
+  <a href="/collection.html" class="navpill active" data-v="collection" data-icon="squares-four" aria-current="page">Collection</a>
+  <a href="/#mastery" class="navpill" data-v="mastery" data-icon="trophy">Mastery</a>
+  <a href="/#player" class="navpill" data-v="player" data-icon="user">Player</a>
+  <a href="/#more" class="navpill" data-v="more" data-icon="dots-three-circle">More</a>
 </nav>
 
 <nav class="mainnav subnav" aria-label="Collection sections">
@@ -479,16 +468,16 @@
 <main class="mcd-wrap">
   <div class="mcd-bar">
     <div class="search mcd-search">
-      <span class="si">⌕</span>
-      <input id="q" type="text" placeholder="Search mods… (e.g. primed continuity, serration, riven)"
+      <span class="si i-only-host" data-icon="magnifying-glass" aria-hidden="true"></span>
+      <input id="q" type="text" placeholder="Search mods…"
              autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search mods">
-      <button class="mcd-clear hidden" id="clearBtn" type="button" title="Clear search" aria-label="Clear search">✕</button>
+      <button class="mcd-clear hidden" id="clearBtn" type="button" title="Clear search" aria-label="Clear search" data-icon="x"></button>
     </div>
-    <label class="mcd-lbl" for="typeSel">Type</label>
+    <label class="mcd-lbl" for="typeSel" data-icon="funnel">Type</label>
     <select class="mcd-select" id="typeSel" aria-label="Filter by mod type">
       <option value="">All types</option>
     </select>
-    <label class="mcd-lbl" for="sortSel">Sort</label>
+    <label class="mcd-lbl" for="sortSel" data-icon="arrows-left-right">Sort</label>
     <select class="mcd-select" id="sortSel" aria-label="Sort cards">
       <option value="owned">Owned first (rarity, name)</option>
       <option value="name">Name (A–Z)</option>
@@ -509,13 +498,8 @@
     <button class="mcd-btn active" type="button" data-state="missing" aria-pressed="true">Missing</button>
     <button class="mcd-btn" type="button" data-state="dupes" aria-pressed="false">Dupes ×N</button>
     <span class="mcd-sep"></span>
-    <button class="mcd-btn" type="button" id="resetBtn">Reset filters</button>
-    <span class="mcd-sep"></span>
-    <button class="mcd-btn" type="button" id="gradeBtn" aria-expanded="false" aria-controls="gradeLegend"
-            title="What the border, the foil sweep, the rank pips and the condition badge mean">Grades — why?</button>
+    <button class="mcd-btn" type="button" id="resetBtn" data-icon="arrows-clockwise">Reset filters</button>
   </div>
-
-  <div class="mcd-grades hidden" id="gradeLegend" role="region" aria-label="How the cards are graded"></div>
 
   <div class="mcd-meta" id="meta">Loading mod cards…</div>
   <div class="mcd-grid" id="grid" role="list" aria-label="Mod cards"></div>
@@ -525,7 +509,6 @@
 
 <footer class="mcd-foot">
   <span id="srcLine">Cards built by <code>scripts/mod_cards.py</code> → <code>data/mod_cards.json</code></span> ·
-  images: none (polarity glyph + rarity border are pure CSS) ·
   <a href="/#search">item search</a> · <a href="/">back to dashboard</a>
 </footer>
 

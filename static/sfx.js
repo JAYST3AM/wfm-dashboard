@@ -72,7 +72,9 @@
     try { RECIPES[name](); return true; } catch (e) { return false; }
   }
 
-  var SEL = 'button, .btn, .navpill, .chip, .tab, summary, [role="button"], .theme-item, .movedlink';
+  /* every clickable the pages use - one delegated listener covers them all */
+  var SEL = ['button', '.btn', '.navpill', '.chip', '.tab', 'summary',
+             '[role="button"]', '.theme-item', '.movedlink'].join(', ');
 
   function voiceFor(el) {
     var want = el.getAttribute ? el.getAttribute('data-sfx') : null;

@@ -137,7 +137,6 @@
       buildTypeOptions();
       buildRarityButtons();
       buildChips();
-      buildGrades();
       document.getElementById('srcLine').appendChild(document.createTextNode(
         ' · loaded ' + state.all.length + ' cards from ' + res.url +
         (state.generated ? ' (built ' + state.generated + ')' : '')));
@@ -190,7 +189,6 @@
           buildTypeOptions();
           buildRarityButtons();
           buildChips();
-          buildGrades();
           box.classList.add('hidden');
           render();
           probeArt();
@@ -212,8 +210,9 @@
   }
 
   // ---------- chips + filters ----------
-  function chip(label, value, warn) {
+  function chip(label, value, warn, icon) {
     var c = el('span', 'chip' + (warn ? ' warn' : ''));
+    if (icon) { c.setAttribute('data-icon', icon); c.setAttribute('data-icon-size', '12'); }
     c.appendChild(document.createTextNode(label + ' '));
     c.appendChild(el('b', null, String(value)));
     return c;
@@ -228,7 +227,7 @@
     chips.appendChild(chip('owned', s.owned != null ? s.owned : counts.owned));
     chips.appendChild(chip('missing', s.missing != null ? s.missing : counts.missing));
     chips.appendChild(chip('dupes', s.dupes != null ? s.dupes : counts.dupes, counts.extra > 0));
-    chips.appendChild(chip('quoted', quoteCount(), quoteCount() === 0));
+    chips.appendChild(chip('quoted', quoteCount(), quoteCount() === 0, 'tag'));
   }
 
   function countOwned() {
@@ -247,10 +246,7 @@
     return n;
   }
 
-  // ---------- grades legend (why a card looks the way it does) ----------
-  var RARITY_ORDER = ['Common', 'Uncommon', 'Rare', 'Legendary'];
-
-  // ---------- condition (TCG-style, derived from the best copy's rank ratio) ----------
+  // ---------- condition (derived from the best copy's rank ratio) ----------
   // 1:1 = ranked all the way up = Mint; a single rank on a rank-10 mod (1:10) = Poor.
   var CONDITIONS = [
     { key: 'mint',   label: 'Mint',       min: 0.995, range: 'ranked 1:1 (full)' },
@@ -276,10 +272,9 @@
 
   function conditionChip(cond) {
     var chip = el('span', 'mcd-cond cond-' + cond.key, cond.label);
-    chip.title = 'Condition ' + cond.label + ' — best owned copy is rank ' + cond.rank +
-      (cond.max > 0 ? '/' + cond.max : '') + ' (' +
-      (cond.max > 0 ? Math.round(cond.ratio * 100) + '% of max rank' : 'no rank scale') +
-      '). TCG-style: rank ratio = wear.';
+    chip.title = cond.max > 0
+      ? 'rank ' + cond.rank + '/' + cond.max + ' · ' + Math.round(cond.ratio * 100) + '% ranked'
+      : 'no rank scale';
     return chip;
   }
 
@@ -298,51 +293,6 @@
       line.appendChild(document.createTextNode(' (' + cond.rank + (cond.max > 0 ? '/' + cond.max : '') + ')'));
     }
     return line;
-  }
-
-  function gradeCounts() {
-    var by = Object.create(null), order = [], foil = 0, none = 0;
-    var condCount = Object.create(null), condTotal = 0;
-    state.all.forEach(function (card) {
-      if (card.rarity) {
-        if (!(card.rarity in by)) { by[card.rarity] = 0; order.push(card.rarity); }
-        by[card.rarity]++;
-      } else { none++; }
-      if (isFoil(card)) foil++;
-      var cond = conditionOf(card);
-      if (cond) { condCount[cond.key] = (condCount[cond.key] || 0) + 1; condTotal++; }
-    });
-    order.sort(function (a, b) {
-      var ia = RARITY_ORDER.indexOf(a), ib = RARITY_ORDER.indexOf(b);
-      return (ia === -1 ? RARITY_ORDER.length : ia) - (ib === -1 ? RARITY_ORDER.length : ib) || a.localeCompare(b);
-    });
-    return { by: by, order: order, foil: foil, none: none, cond: condCount, condTotal: condTotal };
-  }
-
-  function gradeRow(panel, label, text) {
-    var row = el('div', 'g-row');
-    row.appendChild(el('b', null, label));
-    row.appendChild(document.createTextNode(text));
-    panel.appendChild(row);
-  }
-
-  // counts always come from the loaded cards array - never hardcoded
-  function buildGrades() {
-    var panel = document.getElementById('gradeLegend');
-    if (!panel) return;
-    panel.textContent = '';
-    var g = gradeCounts();
-    var head = el('div', 'g-head', 'How the cards are graded');
-    head.appendChild(el('span', 'dim', ' · counted from the ' + state.all.length + ' mods loaded'));
-    panel.appendChild(head);
-    gradeRow(panel, 'Border', " = the mod's in-game rarity field from the WFCD game catalog — " +
-      (g.order.length ? g.order.map(function (k) { return k + ' ' + g.by[k]; }).join(' · ') : 'no rarity values in this build'));
-    gradeRow(panel, 'Foil metallic sweep', ' = Prime (is_prime) or Legendary rarity — ' + g.foil + (g.foil === 1 ? ' card' : ' cards'));
-    gradeRow(panel, 'Neutral border', ' = no rarity in the game data — ' + g.none + (g.none === 1 ? ' card' : ' cards'));
-    gradeRow(panel, 'Dimmed', ' = not owned · pips = best copy’s rank · ×N = copies · floor/median = live WFM prices');
-    gradeRow(panel, 'Condition', ' = wear grade from the best copy’s rank ratio (fully ranked = Mint). ' +
-      CONDITIONS.map(function (c) { return c.label + ' ' + (g.cond[c.key] || 0); }).join(' · ') +
-      ' · cards with no copy: ' + (state.all.length - g.condTotal));
   }
 
   function buildRarityButtons() {
@@ -651,16 +601,19 @@
   // ---------- inspect view: big card (drag to tilt in 3D), flip, info card ----------
   var ins = null;
 
-  function insButton(cls, label, fn) {
+  function insButton(cls, label, fn, icon) {
     var b = el('button', 'mcd-btn ' + cls, label);
+    if (icon) b.setAttribute('data-icon', icon);
     b.type = 'button';
     b.addEventListener('click', fn);
     return b;
   }
 
-  function insRow(label, value) {
+  function insRow(label, value, icon) {
     var r = el('div', 'ins-row');
-    r.appendChild(el('span', 'ins-lbl', label));
+    var l = el('span', 'ins-lbl', label);
+    if (icon) l.setAttribute('data-icon', icon);
+    r.appendChild(l);
     r.appendChild(el('span', 'ins-val', value));
     ins.info.appendChild(r);
   }
@@ -849,23 +802,25 @@
     // "sell floor" is usually a rank-0 listing and misprices a ranked copy).
     if (card.lane_rank != null) {
       insRow('↓ Lowest ask · R' + card.lane_rank,
-        card.lane_ask != null ? fmt(card.lane_ask) + 'p' : 'nothing at this rank');
+        card.lane_ask != null ? fmt(card.lane_ask) + 'p' : 'nothing at this rank', 'tag');
       insRow('↑ Top bid · R' + card.lane_rank,
-        card.lane_bid != null ? fmt(card.lane_bid) + 'p' : 'nothing at this rank');
+        card.lane_bid != null ? fmt(card.lane_bid) + 'p' : 'nothing at this rank', 'tag');
     } else {
-      insRow('↓ Lowest ask', card.floor != null ? fmt(card.floor) + 'p' : 'no listings');
+      insRow('↓ Lowest ask', card.floor != null ? fmt(card.floor) + 'p' : 'no listings', 'tag');
     }
-    insRow('Median (48h · all ranks)', card.median != null ? fmt(card.median) + 'p' : '—');
+    insRow('Median (48h · all ranks)', card.median != null ? fmt(card.median) + 'p' : '—', 'tag');
     insRow('Slug', card.slug);
 
     // bar
     I.bar.textContent = '';
-    I.bar.appendChild(insButton('ins-flip', '↻ Flip card', function () { big.classList.toggle('flipped'); }));
-    I.bar.appendChild(insButton('ins-reset', '⟲ Reset view', function () {
+    I.bar.appendChild(insButton('ins-flip', 'Flip card', function () { big.classList.toggle('flipped'); },
+      'arrows-clockwise'));
+    I.bar.appendChild(insButton('ins-reset', 'Reset view', function () {
       I.tx = 0; I.ty = 0; I.zoom = 1.85;   // loop eases back to neutral
       I.holder.style.setProperty('--ins-scale', '1.85');
-    }));
-    var mkt = el('a', 'mcd-btn ins-market', 'warframe.market ↗');
+    }, 'arrows-clockwise'));
+    var mkt = el('a', 'mcd-btn ins-market', 'warframe.market');
+    mkt.setAttribute('data-icon', 'arrow-square-out');
     mkt.href = MARKET + encodeURIComponent(card.slug);
     mkt.target = '_blank';
     mkt.rel = 'noopener';
@@ -894,8 +849,6 @@
     if (!state.filtered.length) {
       empty.textContent = '';
       empty.appendChild(el('b', null, 'No card matches those filters.'));
-      empty.appendChild(el('div', null, 'Widen the rarity/type/state filters, or try a shorter search term — ' +
-        'search covers mod names and slugs (e.g. “primed”, “umbra”, “riven”).'));
       empty.classList.remove('hidden');
       more.classList.add('hidden');
     } else {
@@ -937,6 +890,12 @@
     if (state.q) filters.push('“' + state.q + '”');
 
     meta.textContent = '';
+    /* group mark: this grid is the mod-card set (the dashboard marks its own groups the same way) */
+    var mark = el('span', 'i-only-host i-before');
+    mark.setAttribute('data-icon', 'stack');
+    mark.setAttribute('data-icon-size', '14');
+    mark.setAttribute('aria-hidden', 'true');
+    meta.appendChild(mark);
     meta.appendChild(el('span', null, 'Showing '));
     meta.appendChild(el('b', null, state.shown + ' / ' + state.filtered.length));
     meta.appendChild(el('span', null, ' of ' + state.all.length + ' mods'));
@@ -1060,14 +1019,6 @@
       });
       buildRarityButtons();
       render();
-    });
-    document.getElementById('gradeBtn').addEventListener('click', function () {
-      var btn = document.getElementById('gradeBtn');
-      var panel = document.getElementById('gradeLegend');
-      panel.classList.toggle('hidden');
-      var open = !panel.classList.contains('hidden');
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      btn.classList.toggle('active', open);
     });
     document.getElementById('moreBtn').addEventListener('click', function () {
       state.shown = Math.min(state.filtered.length, state.shown + BATCH);

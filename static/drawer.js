@@ -4,9 +4,9 @@
      window.wfmOpenItem.close()          close it programmatically
      window.wfmOpenItem.preload([keys])  warm the data caches without opening anything
    Layers: 1 = recommended action (big), 2 = your copies + the four market tiles,
-   3 = collapsed sections (Market details, Collection & sets, Advanced).
+   3 = collapsed sections (Where to get it, Market details, Collection & sets).
    Plain words on the surface; precise trader terms (lowest ask, top bid, lane, median,
-   48h volume) live only in title tooltips or the Advanced section.
+   48h volume) live only in title tooltips.
    A ranked copy is always priced from its own rank lane (lane_ask / lane_bid) - never
    from the any-rank quote (wts / wtb). Equipped copies are never sellable.
    Data is fetched lazily on first open, cached in memory, one fetch per endpoint:
@@ -17,6 +17,8 @@
 (function () {
   var MARKET = 'https://warframe.market/items/';
   var CDN = 'https://warframe.market/static/assets/';
+  /* item info is the wiki's job, prices are the market's - the wiki link is the primary one */
+  var WIKI_SEARCH = 'https://wiki.warframe.com/w/Special:Search?search=';
   var HI_DIR = '/hi/';
   var MAX_WHY = 2;                                  // reason lines shown under the action headline
   var NAME_ID = 'wfmDrawerName';                    // panel aria-labelledby target
@@ -166,10 +168,10 @@
 
   /* ================= DOM (created once, reused) ================= */
   var root = null, panel = null, bodyBox = null, imgSlot = null, nameEl = null, slugEl = null,
-      chipsEl = null, closeBtn = null, marketLink = null, zoomEl = null, zoomSlot = null,
+      chipsEl = null, closeBtn = null, wikiLink = null, marketLink = null, zoomEl = null, zoomSlot = null,
       zoomCap = null, zoomOpenerEl = null;
   var state = { open: false, opener: null, zoom: false, item: null, token: 0,
-                prevOverflow: '', locked: false, sec: { market: false, collection: false, adv: false } };
+                prevOverflow: '', locked: false, sec: { market: false, collection: false } };
 
   function build() {
     if (root) return;
@@ -210,9 +212,15 @@
     panel.appendChild(bodyBox);
 
     var foot = el('footer', 'dw-foot');
-    marketLink = el('a', 'btn primary dw-market', 'Open on warframe.market \u2197');
+    wikiLink = el('a', 'btn primary dw-wiki', 'Wiki \u2197');
+    wikiLink.target = '_blank';
+    wikiLink.rel = 'noopener noreferrer';
+    wikiLink.title = 'Item info, acquisition and usage on wiki.warframe.com';
+    foot.appendChild(wikiLink);
+    marketLink = el('a', 'btn dw-market', 'Market prices \u2197');
     marketLink.target = '_blank';
     marketLink.rel = 'noopener noreferrer';
+    marketLink.title = 'The live listing book on warframe.market';
     foot.appendChild(marketLink);
     var closeBtn2 = el('button', 'btn', 'Close');
     closeBtn2.type = 'button';
@@ -430,16 +438,6 @@
     return d;
   }
 
-  var ADV_TIP = {
-    list: 'smart sell advisor: list the sellable copies now',
-    burn_ducats: 'smart sell advisor: dissolve the surplus copies for ducats',
-    open_relic: 'smart sell advisor: open the relic instead of selling it',
-    assemble_set: 'smart sell advisor: assemble the complete set and sell it as one trade',
-    finish_set: 'smart sell advisor: one or two parts short - finish the set, then sell it as one trade',
-    already_listed: 'smart sell advisor: your copies are on the market already',
-    keep: 'smart sell advisor: keep every copy (sets, crafting or one stays in the collection)',
-    hold: 'smart sell advisor: nothing sellable left after reservations'
-  };
   function actionHead(rec, qty, price) {
     var q = qty ? String(qty) + ' \u00d7' : '';
     var p = price != null ? fmtInt(price) + 'p' : '';
@@ -470,7 +468,6 @@
     var head = null, why = [];
     if (!it) {
       head = 'Not in the local snapshot';
-      why = ['Nothing found for this key — check the spelling.'];
       box.className = 'dw-act dw-act-unknown';
     } else if (owned && adv && adv.recommendation) {
       var rec = adv.recommendation;
@@ -480,14 +477,10 @@
       if (rec === 'burn_ducats' && !qty) head = 'Burn the surplus for ducats';
       head = head || actionHead(rec, qty, price) || 'Hold - nothing safe to sell';
       why = (adv.reasons || []).slice(0, MAX_WHY);
-      var tip = ADV_TIP[rec];
-      if (tip) box.title = tip; else box.removeAttribute('title');
     } else if (owned) {
       head = 'You own ' + copies(it.count) + ' - no advisor call';
-      why = ['The numbers below come from the local market snapshot; the advisor has no row for this item.'];
     } else {
       head = 'Not owned - market only';
-      why = ['Not in your inventory snapshot — everything below is market data.'];
     }
     var hEl = el('div', 'dw-act-line');
     hEl.appendChild(document.createTextNode(head));
@@ -514,24 +507,14 @@
     var reserved = num(adv && adv.reserved);
     var safe = num(adv && adv.sellable);
     wrap.appendChild(stat('Owned', String(it.count || 0), it.count === 1 ? 'copy' : 'copies',
-      it.count > 0 ? 'dw-hi' : 'dw-zero',
-      it.countFromAdvisor
-        ? 'copies the advisor found (the inventory snapshot had no stack for this item)'
-        : 'copies in the last inventory snapshot taken on this PC'));
+      it.count > 0 ? 'dw-hi' : 'dw-zero'));
     wrap.appendChild(stat('Equipped', String(equipped), equipped === 1 ? 'copy' : 'copies',
-      equipped > 0 ? '' : 'dw-zero',
-      'copies slotted in a loadout - equipped copies are never sellable'));
+      equipped > 0 ? '' : 'dw-zero'));
     wrap.appendChild(stat('Reserved', reserved == null ? '-' : String(reserved),
       reserved === 1 ? 'copy' : 'copies',
-      reserved == null ? 'dw-zero' : (reserved > 0 ? '' : 'dw-zero'),
-      reserved == null
-        ? 'reserved copies are unknown right now (advisor data unavailable)'
-        : 'copies kept back for sets, crafting or a build - reserved copies are never listed'));
+      reserved == null ? 'dw-zero' : (reserved > 0 ? '' : 'dw-zero')));
     wrap.appendChild(stat('Safe to sell', safe == null ? '-' : String(safe), safe === 1 ? 'copy' : 'copies',
-      safe == null ? 'dw-zero' : (safe > 0 ? 'dw-hi' : 'dw-zero'),
-      safe == null
-        ? 'unknown right now (advisor data unavailable) - equipped copies are always excluded'
-        : 'copies left once equipped and reserved copies are taken out - these are the ones you can list'));
+      safe == null ? 'dw-zero' : (safe > 0 ? 'dw-hi' : 'dw-zero')));
     return wrap;
   }
 
@@ -547,8 +530,7 @@
     else sellSub = hasLanes ? 'no R' + it.own_rank + ' listings' : 'no rank data';
     wrap.appendChild(tile(ranked ? 'Sell price (your rank)' : 'Sell price', fmt(ask), isNum(ask) ? 'plat' : '',
       sellSub, isNum(ask) ? 'dw-hi' : 'dw-zero',
-      ranked ? 'lowest ask at rank ' + it.own_rank + ' - list 1p under it'
-        : 'lowest ask, any rank'));
+      ranked ? 'lowest ask at rank ' + it.own_rank : 'lowest ask, any rank'));
 
     var bidSub = isNum(bid) ? 'quick-sell'
       : (ranked && !hasLanes ? 'no rank data' : 'no bids');
@@ -558,12 +540,11 @@
 
     wrap.appendChild(tile('Typical price', fmt(it.median), isNum(it.median) ? 'plat' : '',
       '48h \u00b7 all ranks', isNum(it.median) ? '' : 'dw-zero',
-      '48h median, all ranks - context only, not your rank'));
+      '48h median, all ranks'));
 
     wrap.appendChild(tile('Sales / 48h', fmtInt(it.vol48), isNum(it.vol48) ? 'trades' : '',
       isNum(it.vol48) && Number(it.vol48) === 0 ? 'none' : '48h \u00b7 all ranks',
-      isNum(it.vol48) && Number(it.vol48) > 0 ? '' : 'dw-zero',
-      'trades completed in the last 48 hours, all ranks'));
+      isNum(it.vol48) && Number(it.vol48) > 0 ? '' : 'dw-zero'));
     return wrap;
   }
 
@@ -637,7 +618,6 @@
 
   function renderMarketDetails(it, rep) {
     var wrap = el('div');
-    line(wrap, 'dw-note', 'Order book by rank - the cheapest sell order and the top buy order at each rank.');
     var lanes = it.lanes;
     var ranks = lanes ? Object.keys(lanes).map(Number).filter(function (n) { return isFinite(n); }) : [];
     ranks.sort(function (a, b) { return a - b; });
@@ -647,12 +627,9 @@
     }
     var maxR = it.max_rank != null ? it.max_rank : (ranks.length ? ranks[ranks.length - 1] : null);
     if (!ranks.length) {
-      line(wrap, 'dw-note', 'No per-rank order book in the local snapshot for this item.');
+      line(wrap, 'dw-note', 'No rank data');
     } else {
       var head = el('div', 'dw-lane dw-lane-head');
-      head.title = 'ask = cheapest sell order at that rank (you buy from it, or list just under) \u00b7 ' +
-        'bid = top buy order at that rank (you quick-sell to it, or bid just over). ' +
-        'Ranks with no live orders are skipped.';
       head.appendChild(el('span', 'dw-lane-rk', 'Rank'));
       head.appendChild(el('span', 'dw-lane-ask', 'Cheapest sell order'));
       head.appendChild(el('span', 'dw-lane-bid', 'Top buy order'));
@@ -664,8 +641,7 @@
         row.appendChild(el('span', 'dw-lane-rk', 'R' + rk + (maxR != null ? '/' + maxR : '')));
         if (mine) row.appendChild(el('span', 'dw-lane-you', 'your copy'));
         var a = el('span', 'dw-lane-ask', isNum(cell.ask) ? 'asks from ' + fmt(cell.ask) + 'p' : 'no asks');
-        a.title = 'cheapest sell order at rank ' + rk +
-          (isNum(cell.n_ask) ? ' (' + fmtInt(cell.n_ask) + ' listings)' : '') + ' - buy from it, or list just under';
+        if (isNum(cell.n_ask)) a.title = fmtInt(cell.n_ask) + ' listings';
         row.appendChild(a);
         var range = null;
         if (isNum(cell.bid)) {
@@ -673,8 +649,7 @@
             ? fmt(cell.bid_low) + '-' + fmt(cell.bid) + 'p' : fmt(cell.bid) + 'p';
         }
         var b = el('span', 'dw-lane-bid', range != null ? 'bids ' + range : 'no bids');
-        b.title = 'buy orders at rank ' + rk +
-          (isNum(cell.n_bid) ? ' (' + fmtInt(cell.n_bid) + ' bids)' : '') + ' - sell to the top bid, or bid just over';
+        if (isNum(cell.n_bid)) b.title = fmtInt(cell.n_bid) + ' bids';
         row.appendChild(b);
         if (mine) {
           if (isNum(cell.ask)) {
@@ -694,14 +669,14 @@
     var rr = repRow(rep, it.slug);
     if (rr) {
       var bits = [];
-      if (isNum(rr.mn48) && isNum(rr.mx48)) bits.push('48h sales ranged ' + fmt(rr.mn48) + '-' + fmt(rr.mx48) + 'p');
+      if (isNum(rr.mn48) && isNum(rr.mx48)) bits.push('48h range ' + fmt(rr.mn48) + '-' + fmt(rr.mx48) + 'p');
       if (isNum(rr.n_sell)) bits.push(fmtInt(rr.n_sell) + ' live sell orders');
       if (isNum(rr.n_buy)) bits.push(fmtInt(rr.n_buy) + ' live buy orders');
       if (isNum(rr.est_days)) {
         var d = Number(rr.est_days);
-        bits.push(d < 1 ? 'sells in under a day at this demand' : 'roughly ' + (d >= 10 ? Math.round(d) : +d.toFixed(1)) + ' days of supply at this demand');
+        bits.push(d < 1 ? 'sells in under a day' : (d >= 10 ? Math.round(d) : +d.toFixed(1)) + ' days of supply');
       }
-      if (bits.length) line(wrap, 'dw-note', bits.join(' \u00b7 ') + '.');
+      if (bits.length) line(wrap, 'dw-note', bits.join(' \u00b7 '));
     }
     return wrap;
   }
@@ -716,25 +691,25 @@
       var collected = !!(row.owned || row.mastered);
       line(wrap, null, 'Collection log: ' + (collected ? 'collected' : 'not collected') +
         (cat ? ' (' + cat + ')' : '') +
-        (row.mastered ? ' \u00b7 mastered' : (row.owned ? ' \u00b7 owned in the save' : '')) +
-        (isNum(row.mastery_req) && Number(row.mastery_req) > 0 ? ' \u00b7 mastery rank ' + fmtInt(row.mastery_req) + ' required' : '') + '.');
+        (row.mastered ? ' \u00b7 mastered' : (row.owned ? ' \u00b7 owned' : '')) +
+        (isNum(row.mastery_req) && Number(row.mastery_req) > 0 ? ' \u00b7 MR ' + fmtInt(row.mastery_req) : ''));
       if (isNum(row.floor)) {
-        line(wrap, 'dw-note', 'Lowest sell order in the local snapshot: ' + fmt(row.floor) + 'p' +
-          (row.floor_kind ? ' (' + label(row.floor_kind) + ')' : '') + '.');
+        line(wrap, 'dw-note', 'Lowest sell order: ' + fmt(row.floor) + 'p' +
+          (row.floor_kind ? ' (' + label(row.floor_kind) + ')' : ''));
       }
     } else if (col) {
       found = true;
-      line(wrap, null, 'Collection log: this item is not tracked there (the log covers masterable items).');
+      line(wrap, null, 'Collection log: not tracked');
     }
     var setLines = setsLines(it, sets);
     setLines.forEach(function (s) { wrap.appendChild(s); found = found || !!s; });
     if (sets && sets.summary) {
       var sm = sets.summary;
       line(wrap, 'dw-note', 'Set tracker: ' + fmtInt(sm.sets_total) + ' sets \u00b7 ' + fmtInt(sm.complete) + ' complete \u00b7 ' +
-        fmtInt(sm.near_1_missing) + ' one part away.');
+        fmtInt(sm.near_1_missing) + ' one part away');
       found = true;
     }
-    if (!found) line(wrap, 'dw-note', 'Collection and set data are unavailable right now.');
+    if (!found) line(wrap, 'dw-note', 'Collection and set data unavailable');
     return wrap;
   }
   function colRow(col, slug, name) {
@@ -748,7 +723,8 @@
         if (looseKey(r.slug) === target || (targetName && looseKey(r.name) === targetName)) {
           return { name: r.name, slug: r.slug, icon: r.icon || null, cat: cat.name || '',
                    owned: !!r.owned, mastered: !!r.mastered,
-                   mastery_req: r.mastery_req, floor: r.floor, floor_kind: r.floor_kind };
+                   mastery_req: r.mastery_req, floor: r.floor, floor_kind: r.floor_kind,
+                   obtain: r.obtain || null };
         }
       }
     }
@@ -787,8 +763,8 @@
         }).filter(Boolean) : [];
         out.push(el('div', null, 'Set ' + (t.name || it.name) + ': ' + (t.parts || '?') + ' parts \u00b7 ' +
           (SET_ACTION[t.action] || label(t.action)) +
-          (isNum(t.set_value) ? ' \u00b7 set value about ' + fmtInt(t.set_value) + 'p' : '') + '.'));
-        if (need.length) out.push(el('div', 'dw-note', 'Still missing: ' + need.join(', ') + '.'));
+          (isNum(t.set_value) ? ' \u00b7 set value about ' + fmtInt(t.set_value) + 'p' : '')));
+        if (need.length) out.push(el('div', 'dw-note', 'Still missing: ' + need.join(', ')));
         break;
       }
     }
@@ -796,59 +772,36 @@
     for (var j = 0; j < cop.length; j++) {
       if (cop[j] && cop[j].part === it.slug) {
         out.push(el('div', null, 'Part of ' + setName(cop[j].set, sets) + ' - quoted at ' + fmt(cop[j].wts) + 'p' +
-          (isNum(cop[j].vol48) ? ' \u00b7 ' + fmtInt(cop[j].vol48) + ' sold in 48h' : '') + '.'));
+          (isNum(cop[j].vol48) ? ' \u00b7 ' + fmtInt(cop[j].vol48) + ' sold in 48h' : '')));
         break;
       }
     }
     return out;
   }
 
-  function renderAdvanced(it, adv) {
-    var table = el('table', 'dw-raw');
-    var tb = el('tbody');
-    function row(k, v) {
-      var tr = el('tr');
-      tr.appendChild(el('th', null, k));
-      tr.appendChild(el('td', null, v == null || v === '' ? '-' : String(v)));
-      tb.appendChild(tr);
-    }
-    row('slug', it.slug);
-    row('cat', label(it.cat));
-    row('tags', it.sections ? it.sections.split(',').map(label).join(', ') : '');
-    row('own_rank', it.own_rank);
-    row('lane_rank', it.lane_rank);
-    row('lane_ask', it.lane_ask);
-    row('lane_bid', it.lane_bid);
-    row('max_rank', it.max_rank);
-    row('wts', it.wts);
-    row('wtb', it.wtb);
-    row('median', it.median == null ? null : +Number(it.median).toFixed(2));
-    row('avg48', it.avg48 == null ? null : +Number(it.avg48).toFixed(2));
-    row('vol48', it.vol48);
-    row('count', it.count);
-    row('equipped', it.equipped);
-    row('ducats', it.ducats);
-    row('value', it.value);
-    row('spread', it.spread);
-    row('lanes', it.lanes ? Object.keys(it.lanes).length + ' rank rows' : '');
-    if (adv) {
-      row('advisor.recommendation', adv.recommendation);
-      row('advisor.recommended_quantity', adv.recommended_quantity);
-      row('advisor.recommended_price', adv.recommended_price);
-      row('advisor.reserved', adv.reserved);
-      row('advisor.sellable', adv.sellable);
-      row('advisor.liquidity', adv.liquidity);
-      row('advisor.best_sell_window', adv.best_sell_window);
-      row('advisor.score', adv.score);
-      row('advisor.reasons', (adv.reasons || []).join(' \u00b7 '));
-    }
-    table.appendChild(tb);
+  /* Where to get it - the basic inventory info, straight from the local wiki index that
+     scripts/obtain_index.py builds (the wiki Acquisition section, or the update it came in).
+     Never market data: the market link is only ever about prices. */
+  function renderObtain(it, col) {
     var wrap = el('div');
-    wrap.appendChild(el('div', 'dw-note',
-      'Raw fields from the local warframe.market snapshot (and the advisor row when present). ' +
-      'ask = cheapest sell order \u00b7 bid = top buy order \u00b7 lane_* = the rank you own \u00b7 ' +
-      'median and vol48 cover every rank.'));
-    wrap.appendChild(table);
+    var row = colRow(col, it.slug, it.name);
+    var ob = row && row.obtain;
+    if (!ob) {
+      line(wrap, 'dw-note', 'No acquisition data');
+      return wrap;
+    }
+    if (ob.short) line(wrap, null, ob.short);
+    var lines = ob.lines || [];
+    lines.slice(0, 8).forEach(function (l) {
+      var d = el('div', 'dw-note');
+      d.textContent = (l.part ? l.part + ' \u00b7 ' : '') + (l.label || '') +
+        (l.detail ? ' \u00b7 ' + l.detail : '');
+      wrap.appendChild(d);
+    });
+    if (lines.length > 8) {
+      line(wrap, 'dw-note', '+' + (lines.length - 8) + ' more');
+    }
+    if (ob.note) line(wrap, 'dw-note', ob.note);
     return wrap;
   }
 
@@ -878,17 +831,13 @@
     if (it) zoomable(art0, it, null);
     else art0.setAttribute('aria-hidden', 'true');
     marketLink.href = MARKET + encodeURIComponent((it && it.slug) || slugify(key));
+    wikiLink.href = WIKI_SEARCH + encodeURIComponent(name) + '&go=Go';
   }
 
-  function renderMinimal(key) {
+  function renderMinimal() {
     var box = el('div');
-    if (idx.degraded) {
-      line(box, 'dw-note', 'The item catalogue or the local price snapshot could not be loaded from this server.');
-      line(box, 'dw-note', 'Reload the page and try again - the drawer needs /api/items and /lookup_items.json.');
-      return box;
-    }
-    line(box, 'dw-note', 'No market or inventory record for \u201c' + String(key) + '\u201d in the local snapshot.');
-    line(box, 'dw-note', 'The link below opens it on warframe.market, where the full listing book lives.');
+    if (idx.degraded) { line(box, 'dw-note', 'Item data unavailable'); return box; }
+    line(box, 'dw-note', 'Check the spelling');
     return box;
   }
 
@@ -911,7 +860,6 @@
     link.className = 'dw-page-link';
     link.href = '/item.html?slug=' + encodeURIComponent(it.slug || '');
     link.textContent = 'Price page ▸';
-    link.title = 'Full price history, your trades and the order book for this item';
     head.appendChild(link);
     box.appendChild(head);
 
@@ -934,7 +882,7 @@
         var spanTxt = span <= 0 ? '' : (span >= 86400 ? Math.round(span / 8640) / 10 + ' days' : Math.max(1, Math.round(span / 3600)) + 'h');
         foot.textContent = n
           ? n + ' points' + (spanTxt ? ' · ' + spanTxt : '') + (j.last ? ' · newest ' + new Date(j.last * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
-          : 'no snapshots for this item yet';
+          : 'no snapshots yet';
       });
     } else {
       foot.textContent = 'graph unavailable';
@@ -945,6 +893,9 @@
   function renderAll(key, data) {
     var it = data.item;
     setHeader(it, key);
+    var wikiRow = colRow(data.collection, (it && it.slug) || key, (it && it.name) || titleCase(key));
+    var wikiUrl = wikiRow && wikiRow.obtain && wikiRow.obtain.wiki;
+    if (wikiUrl) wikiLink.href = wikiUrl;               // exact page from the local obtain index
     clear(bodyBox);
     try {
       if (!it) {
@@ -961,18 +912,18 @@
         bodyBox.appendChild(renderEstimate(it));
         if (it.slug) bodyBox.appendChild(renderPriceGraph(it));
       } else {
-        line(bodyBox, 'dw-note', 'No price snapshot for this item — see what is known below.');
+        line(bodyBox, 'dw-note', 'No price snapshot');
       }
       var secs = el('div');
-      var m = section('market', 'Market details', 'the full per-rank order book plus live order counts');
+      var w = section('obtain', 'Where to get it', 'sourced from the warframe wiki');
+      w.body.appendChild(renderObtain(it, data.collection));
+      var m = section('market', 'Market details');
       m.body.appendChild(renderMarketDetails(it, data.report));
       var c = section('collection', 'Collection & sets', 'collection-log status and which set this item feeds');
       c.body.appendChild(renderCollection(it, data.collection, data.sets));
-      var a = section('adv', 'Advanced', 'raw snapshot fields, trader terms included');
-      a.body.appendChild(renderAdvanced(it, data.advisor));
+      secs.appendChild(w.box);
       secs.appendChild(m.box);
       secs.appendChild(c.box);
-      secs.appendChild(a.box);
       bodyBox.appendChild(secs);
     } catch (err) {
       clear(bodyBox);
