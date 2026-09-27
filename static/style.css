@@ -389,7 +389,7 @@ thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort 
 .cfgrow .cfg-restart { color: var(--accent); font-weight: 600; }
 .cfgrow .cfg-val { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .cfgrow.locked { opacity: .65; }
-.movedlink { display: block; padding: 2px 1px; font-size: 12px; color: var(--muted); text-decoration: none; }
+.movedlink { display: block; padding: 2px 1px; font-size: 12px; color: var(--muted); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent); text-underline-offset: 2px; }
 .movedlink:hover { color: var(--accent); }
 
 /* ============ redesign 2026-09-26: sub-nav, trade tabs, disclosures, search ============ */
@@ -548,6 +548,8 @@ main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .3
 html[data-adv="on"] .explain { display: revert !important; }
 
 /* ---- inventory panels: materials + clan dojo (app.js renderMaterials / renderDojo) ----
+/* the tier chips sit clear of the rule under them */
+.invpanels .card-head { padding-bottom: 10px; }
    Two cards in one row inside the inventory view; under 1040px they stack. Rows keep the
    inventory table's condensed density, and both tables scroll inside their own .tablewrap
    so the 14-column inventory table above is untouched. */
@@ -566,6 +568,9 @@ html[data-adv="on"] .explain { display: revert !important; }
 .matview button:hover { color: var(--text); background: var(--panel2); }
 .matview button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .invpanels .tablewrap { max-height: 420px; }
+/* the rooms breakdown is chrome, not another table row */
+#dojoCard details.acc { border-top: 1px solid var(--border); background: var(--panel2); }
+#dojoCard details.acc > summary { padding: 9px 10px; font-weight: 600; }
 .invpanels .dojowrap { max-height: 320px; }
 .mat-row td, .dojo-row td { padding: 3.5px 10px; font-size: 12px; }
 .dojobadge {
@@ -1006,7 +1011,19 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--muted) 45%, transparent);
-  border-radius: 8px; border: 3px solid transparent; background-clip: content-box;
+  background: color-mix(in srgb, var(--muted) 75%, transparent);
+  border-radius: 8px; border: 2px solid transparent; background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 85%, transparent); background-clip: content-box; }
+
+/* no arrow buttons (they rendered as detached chevrons), a visible track so the bar reads as a
+   scroller, and a stable gutter so the numeric columns never jump when a bar appears */
+::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+::-webkit-scrollbar-track { background: color-mix(in srgb, var(--border) 30%, transparent); border-radius: 8px; }
+.tablewrap { scrollbar-gutter: stable; }
+/* .scrolly is set by app.js only when the table really has more rows below: the soft bottom edge
+   says "scroll for more" instead of looking like a sliced row */
+.tablewrap.scrolly {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);
+}

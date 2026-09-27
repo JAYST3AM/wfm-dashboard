@@ -352,3 +352,20 @@ def test_the_tier_label_never_invents_a_column(server_mod, data_dir):
     js = read('app.js')
     assert "if (!TT || tiers.indexOf(state.dojoTier) < 0) return 'ghost clan';" in js
     assert "const on = known ? state.dojoTier : 'ghost';" in js
+
+
+def test_the_dojo_scroller_looks_like_one():
+    """Jay 2026-09-27: "this looks weird fix this" - the dojo table's scrollbar rendered as a
+    faint line with detached arrow chevrons and the last visible row looked sliced. The source
+    pins: no arrow buttons, a visible track, a stable gutter, and a soft bottom edge that app.js
+    only applies when the table really has more rows below."""
+    css = read('style.css')
+    assert '::-webkit-scrollbar-button { display: none; height: 0; width: 0; }' in css
+    assert '::-webkit-scrollbar-track { background: color-mix(in srgb, var(--border) 30%, transparent);' in css
+    assert '.tablewrap { scrollbar-gutter: stable; }' in css
+    assert '.tablewrap.scrolly {' in css and 'mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);' in css
+    assert '.invpanels .card-head { padding-bottom: 10px; }' in css
+    js = read('app.js')
+    assert "function markScrollers()" in js
+    assert "el.classList.toggle('scrolly', el.scrollHeight > el.clientHeight + 2);" in js
+    assert 'markScrollers();' in js.split('renderMaterials(); renderDojo();')[1][:40]

@@ -730,6 +730,13 @@ function renderMaterials() {
   if (cap) cap.textContent = rows.length > MAT_CAP ? `showing ${MAT_CAP} of ${rows.length}` : '';
 }
 
+/* the in-card table scrollers only wear the soft bottom edge when there is more below it */
+function markScrollers() {
+  document.querySelectorAll('.tablewrap').forEach(function (el) {
+    el.classList.toggle('scrolly', el.scrollHeight > el.clientHeight + 2);
+  });
+}
+
 function renderDojo() {
   const D = (state.materials || {}).dojo || null;
   const head = document.getElementById('dojoTitle'), meta = document.getElementById('dojoMeta');
@@ -801,9 +808,11 @@ async function load() {
       .catch(() => { state.materials = null; })]));
   paintDojoTier();
   renderChips(); renderTabs(); renderTable(); renderMaterials(); renderDojo();
+  markScrollers();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
   renderFirstRun();
   if (window.wfmRenderHome) wfmRenderHome();
+  window.addEventListener('resize', function () { window.clearTimeout(window.__wfmScrollerT); window.__wfmScrollerT = window.setTimeout(markScrollers, 180); });
   renderMarket(); renderLimits(); renderSessions(); renderDiff(); renderKill(); renderTiming(); renderPlatLedger(); loadAutoRefresh();
   PlatChart.setData(ph.points || []);
   document.getElementById('status').textContent = s.lastdata_mtime
