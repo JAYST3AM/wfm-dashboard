@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/icons.css">
   <script src="/icons.js" defer></script>
 </head>
-<body>
+<body class="shell-fit">
 <header>
   <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">local</span></div>
   <div class="chips" id="chips"></div>
@@ -117,6 +117,7 @@
       </table>
     </div>
     <div id="status" class="status"></div>
+    <div class="inv-lower">
     <div class="invpanels">
       <div class="card" id="matCard">
         <div class="card-head mat-head">
@@ -181,6 +182,7 @@
     <div class="card">
       <div class="card-head"><div class="card-title" data-icon="clock-counter-clockwise">Inventory changes <span class="dim small" id="diffMeta"></span></div></div>
       <div class="picks" id="diffList"></div>
+    </div>
     </div>
   </section>
 
@@ -300,6 +302,8 @@
 
   <!-- PLAYER - profile snapshot: mastery, clan, syndicates, intrinsics, focus, market -->
   <section id="view-player" class="hidden">
+    <div class="p-cols">
+    <div class="p-col p-col-a">
     <div class="card">
       <div class="card-head"><div class="card-title" data-icon="user">Player <span class="dim small" id="pcMeta"></span></div></div>
       <div id="pcHead" class="pc-id"></div>
@@ -311,10 +315,14 @@
       <div class="card-head"><div class="card-title" data-icon="users">Clan</div></div>
       <div class="picks" id="pcClan"></div>
     </div>
+    </div>
+    <div class="p-col p-col-b">
     <div class="card">
       <div class="card-head"><div class="card-title" data-icon="shield-check">Syndicates <span class="dim small" id="pcSynMeta"></span></div></div>
       <div id="pcSyn"></div>
     </div>
+    </div>
+    <div class="p-col p-col-c">
     <div class="card">
       <div class="card-head"><div class="card-title" data-icon="rocket">Intrinsics</div></div>
       <div id="pcInt" class="pc-cols"></div>
@@ -326,6 +334,8 @@
     <div class="card">
       <div class="card-head"><div class="card-title" data-icon="tag">Market</div></div>
       <div class="picks" id="pcMarket"></div>
+    </div>
+    </div>
     </div>
   </section>
 

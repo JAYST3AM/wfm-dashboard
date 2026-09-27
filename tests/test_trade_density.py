@@ -52,8 +52,8 @@ def test_kill_switch_run_queue_and_notifications_stay_plain_cards():
 
 def test_plan_held_and_run_queue_rows_are_in_the_dense_budget():
     css = read('static/style.css')
-    assert '#view-trade .prow { padding: 4px 2px; font-size: 12px; line-height: 1.35; }' in css
-    assert '#view-trade .heldline { padding: 3px 2px; font-size: 11.5px; line-height: 1.35; gap: 8px; }' in css
+    assert '#view-trade .prow { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }' in css
+    assert '#view-trade .heldline { padding: 6px 5px; font-size: 12px; line-height: 1.45; gap: 10px; }' in css
     # one line per run-queue row (item+price, buyer, whisper); the phones block reflows it
     assert '.runrow { grid-template-columns: minmax(0, 1.15fr) max-content minmax(0, 1fr);' in css
     assert '.runwhisper { grid-column: auto; font-size: 11px; line-height: 1.35; }' in css
@@ -71,7 +71,7 @@ def test_the_notes_column_is_capped_and_the_plan_keeps_six_columns():
 
 def test_card_heads_wrap_so_a_narrow_column_never_clips_a_button():
     css = read('static/style.css')
-    head = css.split('#view-trade .card-head { padding: 6px 12px 0; gap: 8px;', 1)[1].split('}', 1)[0]
+    head = css.split('#view-trade .card-head { padding: 10px 14px 6px; gap: 10px;', 1)[1].split('}', 1)[0]
     assert 'flex-wrap: wrap' in head
 
 

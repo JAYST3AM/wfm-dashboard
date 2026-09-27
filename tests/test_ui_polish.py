@@ -194,4 +194,4 @@ def test_numeric_cells_stay_right_aligned_with_tabular_numerals():
 def test_header_controls_share_one_height_and_cards_one_inset():
     css = read('style.css')
     assert 'header .btn, header a.btn { min-height: 32px;' in css
-    assert '.picks { padding: 8px 16px 12px; }' in css        # the same 16px inset as .card-head
+    assert '.picks { padding: 10px 16px 14px; }' in css        # the same 16px inset as .card-head

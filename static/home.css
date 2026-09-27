@@ -108,3 +108,71 @@
 @media (max-width: 560px) {
   header .actions { flex-wrap: wrap; justify-content: flex-end; }
 }
+
+/* ============ HOME: fit the window beside the chat rail (Jay 2026-09-27) ============
+   "everything needs to fit on this screen, no matter the resolution for the user".
+   The chat rail is chat.css's own column and is left alone; the cards take the left column and
+   fill the viewport top to bottom - KPI strip, then the chart beside Needs attention, then news /
+   What to do next / Recent activity three across, each list scrolling inside its own card so the
+   card head (title, meta) and the card footer (the expander) stay put. The dense rows below are
+   the trade recipe (<= 28px a row, was 31-34). Under 1200px the page scrolls as it always did. */
+@media (min-width: 1200px) {
+  body.shell-fit #view-home.chat-docked {
+    height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch;
+  }
+  /* The rail measures itself from its own top to the window bottom (chat.js fit()) and is allowed
+     to use all of it: the status line below is transparent and its text stays on the left, so the
+     rail runs the full height of the screen (Jay: chat can go all the way down). */
+  body.shell-fit #view-home.chat-docked > #chatDock { max-height: none; }
+  /* room for the floating status line under the cards */
+  body.shell-fit #view-home.chat-docked #homeMain { padding-bottom: 28px; }
+  body.shell-fit #view-home #homeMain {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto minmax(170px, 1fr); gap: 12px; min-height: 0;
+  }
+  body.shell-fit #homeMain > #firstRun, body.shell-fit #homeMain > .kpis { grid-column: 1 / -1; }
+  body.shell-fit #homeMain > #chartCard { grid-column: span 2; }
+  body.shell-fit #homeMain > #alertsCard { grid-column: span 1; }
+  /* with no alerts to show the chart takes the whole band */
+  body.shell-fit #homeMain:not(:has(#alertsCard:not(.hidden))) > #chartCard { grid-column: 1 / -1; }
+  body.shell-fit #homeMain > .h-cols {
+    grid-column: 1 / -1; min-height: 0; gap: 12px; align-items: stretch;
+    grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
+  }
+  body.shell-fit .h-cols > .h-col { display: contents; }
+  body.shell-fit #chartCard, body.shell-fit #alertsCard, body.shell-fit #newsCard,
+  body.shell-fit #todayCard, body.shell-fit #recentCard {
+    display: flex; flex-direction: column; min-height: 0; margin-bottom: 0;
+  }
+  body.shell-fit #alertsCard > .picks, body.shell-fit #newsCard > .picks,
+  body.shell-fit #todayCard > .picks, body.shell-fit #recentCard > .picks {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+
+  /* ---- the dense rows ---- */
+  #view-home .kpis { padding: 6px 0 12px; gap: 12px; }
+  #view-home .kpi { padding: 9px 13px; }
+  #view-home .k-val { font-size: 16px; margin-top: 1px; }
+  #view-home .k-label { font-size: 10px; }
+  #view-home .chartwrap { height: clamp(120px, 15vh, 200px); margin: 10px 12px 6px; }
+  #view-home #chartMeta { padding: 8px 14px 4px; font-size: 12px; }
+  #view-home .card > .status { padding: 6px 14px; }
+  #view-home .h-lead { font-size: 13.5px; padding: 4px 2px 0; }
+  #view-home .h-lead2 { font-size: 11px; padding: 3px 2px 8px; }
+  #view-home .h-pot { padding: 3px 2px 8px; }
+  #view-home .h-row { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }
+  /* the three cards are narrower here: a long item name wraps instead of being cut short */
+  body.shell-fit #view-home .h-name, body.shell-fit #view-home .h-l2 {
+    white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+  }
+  #view-home .h-l2 { font-size: 11px; line-height: 1.4; }
+  #view-home .h-l3 { font-size: 10.5px; line-height: 1.4; }
+  #view-home .h-group-head { padding: 9px 2px 3px; font-size: 10px; }
+  #view-home .h-alert { padding: 8px 2px 8px 15px; }
+  #view-home .h-alert::before { top: 11px; }
+  #view-home .h-alert-d { font-size: 11.5px; line-height: 1.5; margin-top: 2px; }
+  #view-home .newsrow { padding: 6px 4px; font-size: 12.5px; }
+  #view-home .h-ev { padding: 6px 4px; font-size: 12.5px; }
+  #view-home .h-sess { padding: 6px 4px; font-size: 12.5px; line-height: 1.45; }
+  #view-home .h-morewrap { padding: 8px 2px 6px; }
+}

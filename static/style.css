@@ -17,6 +17,11 @@ body, .chip, .tab, .btn, header, table, th, td, .theme-item, .search input, .tab
   transition: background-color .22s ease, border-color .22s ease, color .22s ease;
 }
 .hidden { display: none; }
+/* A hidden view is really hidden. home.css/chat.css style #view-home.chat-docked (an id + class, so
+   it outranks the bare .hidden class): without this the HOME cards stayed on screen underneath every
+   other view and every page measured ~1.5k taller than the view it was showing. Same contract as
+   showView(): exactly one main > section is visible. */
+main > section.hidden { display: none !important; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
@@ -102,11 +107,11 @@ main { padding: 10px 18px 48px; }
   box-shadow: 0 8px 28px color-mix(in srgb, black 18%, transparent);
   margin-bottom: 16px; overflow: hidden;
 }
-.card-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 0; }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; }
 .card-title { font-size: 12.5px; font-weight: 600; letter-spacing: .3px; }
 .card-title::before { content: "◆"; color: var(--accent); font-size: 8px; margin-right: 7px; vertical-align: 2px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; padding: 4px 0 14px; }
-.kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; transition: border-color .2s ease, transform .15s ease; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 6px 0 16px; }
+.kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 11px 15px; transition: border-color .2s ease, transform .15s ease; }
 .kpi:hover { border-color: var(--accent-dim); transform: translateY(-1px); }
 .k-label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 .k-val { font-family: var(--mono); font-size: 18px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
@@ -137,7 +142,7 @@ main { padding: 10px 18px 48px; }
 .tip b { font-family: var(--mono); }
 
 /* ---- sell picks ---- */
-.picks { padding: 8px 16px 12px; }
+.picks { padding: 10px 16px 14px; }
 .picks-note { font-size: 11.5px; margin: 2px 0 8px; line-height: 1.55; }
 .picks-note b { color: var(--text); font-weight: 600; }
 .pick {
@@ -734,7 +739,7 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
    from 1200px, and every stacked view stays one column below that. Row budget <= 28px. */
 
 #view-trade .card { margin-bottom: 10px; }
-#view-trade .card-head { padding: 6px 12px 0; gap: 8px; flex-wrap: wrap; }   /* a narrow 1/3 column
+#view-trade .card-head { padding: 10px 14px 6px; gap: 10px; flex-wrap: wrap; }   /* a narrow 1/3 column
    wraps the action under the title instead of pushing it out of the card (card-title carries
    nowrap via its data-icon) */
 #view-trade .card-head .actions { gap: 6px; }
@@ -761,12 +766,12 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 @media (min-width: 901px) {
   .plan-head, .prow { grid-template-columns: 22px minmax(120px, 1fr) 44px 62px 74px minmax(84px, 240px); gap: 8px; }
 }
-#view-trade .prow { padding: 4px 2px; font-size: 12px; line-height: 1.35; }
+#view-trade .prow { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }
 #view-trade .plan-head { padding: 4px 2px; font-size: 10.5px; }
 #view-trade .prow .p-note { font-size: 11px; }
 
 /* held-back / attention / hygiene lines: 23px each (was 26-30) */
-#view-trade .heldline { padding: 3px 2px; font-size: 11.5px; line-height: 1.35; gap: 8px; }
+#view-trade .heldline { padding: 6px 5px; font-size: 12px; line-height: 1.45; gap: 10px; }
 
 /* run queue: item+price, buyer, whisper on ONE 24px line (>=561px); the whisper keeps its full
    text on hover, and the phone block below puts it back on its own line */
@@ -784,4 +789,224 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 /* header auto-sync status: one dim line beside Refresh, never a block */
 #syncState { white-space: nowrap; }
 
+/* ============ fit the viewport (Jay 2026-09-27) ============
+   "everything needs to fit on this screen, no matter the resolution for the user".
+   From 1200px up the shell itself stops scrolling: header + nav + the active view + the footer
+   fill the window, and each long list scrolls inside its own card (the card head and the card
+   footer stay put). Same rows, same columns, same buttons, nothing behind a click - the dense
+   rows below only take the air out (budget <= 28px a row). Under 1200px the page keeps its
+   normal scrolling layout and the wide tables keep scrolling inside their own .tablewrap. */
 
+@media (min-width: 1200px) {
+  /* ---- the shell: one window tall, the view takes what is left ---- */
+  body.shell-fit { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  body.shell-fit > header, body.shell-fit > .mainnav, body.shell-fit > .foot { flex: 0 0 auto; }
+  body.shell-fit > main { flex: 1 1 auto; min-height: 0; padding: 8px 18px; }
+  body.shell-fit > .foot { padding: 4px 18px 8px; }
+  /* On HOME the rail owns the right column down to the window edge and the view must not be
+     clipped by the status line, so the line floats over the bottom-left instead of taking a
+     flex row. Its text starts left of the rail (right inset 384px = rail 360 + page inset). */
+  body.shell-fit:has(#view-home.chat-docked) > .foot {
+    position: fixed; left: 0; right: 384px; bottom: 0; padding: 4px 18px 8px;
+  }
+  body.shell-fit main > section:not(.hidden) {
+    height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable;
+  }
+
+  /* ---- dense card chrome in every index view (the trade recipe) ---- */
+  #view-home .card, #view-inventory .card, #view-mastery .card,
+  #view-player .card, #view-more .card { margin-bottom: 10px; }
+  #view-home .card-head, #view-inventory .card-head, #view-mastery .card-head,
+  #view-player .card-head, #view-more .card-head { padding: 8px 12px 5px; gap: 10px; flex-wrap: wrap; }
+  #view-home .picks, #view-inventory .picks, #view-mastery .picks,
+  #view-player .picks, #view-more .picks { padding: 6px 12px 10px; }
+  #view-inventory details.acc > summary, #view-more details.acc > summary { padding: 8px 12px; }
+
+  /* ================= INVENTORY: table on top, three cards filling the rest ================= */
+  body.shell-fit #view-inventory {
+    display: grid; grid-template-rows: auto auto minmax(150px, 1fr) auto minmax(150px, 0.62fr);
+  }
+  body.shell-fit #view-inventory > .tablewrap { max-height: none; min-height: 0; }
+  body.shell-fit #view-inventory #tabs { padding: 0 0 8px; }
+  body.shell-fit #view-inventory .tab { padding: 6px 14px; font-size: 12.5px; }
+  body.shell-fit #view-inventory .tablebar { padding: 0 0 8px; gap: 10px; }
+  body.shell-fit #view-inventory .totals { padding: 4px 2px; gap: 16px; font-size: 12px; }
+  body.shell-fit #view-inventory thead th { padding: 8px 10px; font-size: 11px; }
+  body.shell-fit #view-inventory > #status { padding: 6px 2px; font-size: 12px; }
+  body.shell-fit #view-inventory .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
+  body.shell-fit .inv-lower {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 0;
+  }
+  body.shell-fit .inv-lower > .invpanels { display: contents; }
+  body.shell-fit .inv-lower .card {
+    margin-bottom: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  }
+  body.shell-fit .inv-lower .card-head { flex: 0 0 auto; }
+  body.shell-fit .inv-lower .tablewrap { max-height: none; flex: 1 1 auto; min-height: 0; }
+  body.shell-fit .inv-lower #matCap, body.shell-fit .inv-lower .dojo-note,
+  body.shell-fit .inv-lower .dojo-src { flex: 0 0 auto; }
+  body.shell-fit .inv-lower #dojoRooms { flex: 0 1 auto; min-height: 0; max-height: 45%; overflow-y: auto; }
+  body.shell-fit .inv-lower #diffList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  body.shell-fit .inv-lower details.acc > summary { padding: 7px 10px; }
+
+  /* ================= MASTERY: the 61-row queue fills the left, types the right ============ */
+  body.shell-fit #view-mastery {
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(160px, 1fr); gap: 0 10px;
+  }
+  body.shell-fit #mhCard { grid-column: 1 / -1; grid-row: 1; }
+  body.shell-fit #mhNextCard { grid-column: 1; grid-row: 2; }
+  body.shell-fit #mhCatsCard { grid-column: 2; grid-row: 2; }
+  body.shell-fit #mhNextCard, body.shell-fit #mhCatsCard {
+    display: flex; flex-direction: column; min-height: 0; margin-bottom: 0; overflow: hidden;
+  }
+  body.shell-fit #mhNext, body.shell-fit #mhCats {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  body.shell-fit #mhCard .pc-id { padding: 6px 12px 2px; gap: 10px; }
+  body.shell-fit #mhCard .pc-alias { font-size: 22px; }
+  body.shell-fit #mhCard .pc-mr { padding: 5px 12px; }
+  body.shell-fit #mhCard .pc-mr-v { font-size: 20px; }
+  body.shell-fit #mhCard .mh-note { padding: 2px 12px 8px; }
+  body.shell-fit #mhCard .kpis { padding: 4px 0 8px; gap: 10px; }
+  #mhNext .mh-row { padding: 6px 12px; font-size: 12.5px; line-height: 1.45; }
+  #mhNext .mh-row.mh-head { padding: 4px 12px; }
+  #mhCats .mh-cat { padding: 6px 12px; font-size: 12.5px; line-height: 1.45; }
+  #mhCap { padding: 3px 12px 6px; }
+
+  /* ================= PLAYER: three columns, syndicates scrolls in its own card =========== */
+  body.shell-fit #view-player .p-cols {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto; gap: 0 10px; height: 100%; min-height: 0;
+  }
+  body.shell-fit #view-player .p-col { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  body.shell-fit #view-player .p-col-a, body.shell-fit #view-player .p-col-b {
+    display: flex; flex-direction: column;
+  }
+  body.shell-fit #view-player .p-col-b > .card {
+    display: flex; flex-direction: column; min-height: 0; margin-bottom: 0;
+  }
+  body.shell-fit #view-player #pcSyn { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* the Player card holds the identity + KPIs; its "Most XP" list is the part that scrolls */
+  body.shell-fit #view-player .p-col-a > .card:first-child {
+    display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto;
+  }
+  body.shell-fit #view-player .p-col-a > .card:last-child { flex: 0 0 auto; }
+  body.shell-fit #view-player #pcTop { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  body.shell-fit #view-player .p-col-c {
+    grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 10px;
+  }
+  body.shell-fit #view-player .p-col-c > .card { margin-bottom: 0; }
+  body.shell-fit #view-player .pc-syn { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
+  body.shell-fit #view-player .pc-frow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
+  body.shell-fit #view-player .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
+  body.shell-fit #view-player .pc-id { padding: 6px 12px 2px; gap: 10px; }
+  body.shell-fit #view-player .pc-alias { font-size: 24px; }
+  body.shell-fit #view-player .pc-mr { padding: 5px 12px; }
+  body.shell-fit #view-player .pc-mr-v { font-size: 20px; }
+  body.shell-fit #view-player .pc-cols { padding: 4px 10px 8px; gap: 4px 16px; }
+  body.shell-fit #view-player .kpis { padding: 2px 0 6px; gap: 8px; }
+  body.shell-fit #view-player .subhead { padding: 5px 10px 1px; }
+  body.shell-fit #view-player .movedlink { padding: 1px 1px; }
+
+  /* ================= MORE: groups are bands, every card list scrolls ===================== */
+  body.shell-fit #view-more { display: flex; flex-direction: column; }
+  body.shell-fit #view-more details.acc { flex: 0 0 auto; margin-bottom: 10px; }
+  /* A <details>' children live in the UA's anonymous content box, so the band is laid out on
+     ::details-content (Chrome 131+) - the summary stays a fixed strip above it either way. */
+  body.shell-fit #view-more details.acc[open] {
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto;
+  }
+  body.shell-fit #view-more details.acc[open]::details-content {
+    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.8fr); gap: 0 10px;
+  }
+  body.shell-fit #view-more details.acc[open] > .card {
+    min-height: 0; margin: 0 0 8px; overflow: hidden; display: flex; flex-direction: column;
+  }
+  body.shell-fit #view-more details.acc[open] > .card > div[id] {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  body.shell-fit #view-more .dealrow, body.shell-fit #view-more .srow,
+  body.shell-fit #view-more .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
+  body.shell-fit #view-more .frow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
+  body.shell-fit #view-more .limrow { padding: 6px 10px; gap: 10px; font-size: 12.5px; }
+  body.shell-fit #view-more .subhead { padding: 5px 8px 1px; }
+  body.shell-fit #view-more .movedlink { padding: 1px 1px; }
+  body.shell-fit #view-more details.acc .card { margin: 0 8px 8px; }
+
+  /* ================= TRADE: plan list fills the card, queue + ops keep their rows ======== */
+  body.shell-fit #view-trade {
+    display: grid; grid-template-rows: auto minmax(200px, 1.7fr) auto minmax(140px, 0.8fr);
+  }
+  body.shell-fit #view-trade > #tradeTabs { grid-row: 1; }
+  body.shell-fit #view-trade > .tpanel:not(.hidden) {
+    grid-row: 2; min-height: 0; display: flex; flex-direction: column;
+  }
+  body.shell-fit #view-trade > .trade-ops { grid-row: 3; }
+  body.shell-fit #view-trade > .card {
+    grid-row: 4; min-height: 0; margin-bottom: 0; display: flex; flex-direction: column;
+  }
+  body.shell-fit #view-trade #tp-sell > .card:first-child {
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  }
+  body.shell-fit #view-trade #tp-sell .trade-split { flex: 1 1 auto; min-height: 0; }
+  body.shell-fit #view-trade #planList, body.shell-fit #view-trade #heldAcc {
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  body.shell-fit #view-trade #tp-sell > .card:last-child > .picks,
+  body.shell-fit #view-trade #attnList { max-height: 22vh; overflow-y: auto; }
+  body.shell-fit #view-trade #runqList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  body.shell-fit #view-trade #flipsList, body.shell-fit #view-trade #wishList,
+  body.shell-fit #view-trade #tradeLog, body.shell-fit #view-trade #sessList,
+  body.shell-fit #view-trade #timingList, body.shell-fit #view-trade #ledgerList {
+    max-height: 40vh; overflow-y: auto;
+  }
+
+  /* ---- shrink guards: heads, toolbars, captions and notes never give up their height, so a
+     squeezed card scrolls its list instead of clipping a title, a filter or a footer line ---- */
+  body.shell-fit #view-home > *, body.shell-fit #view-inventory > *,
+  body.shell-fit #view-more > * { min-height: 0; }
+  body.shell-fit #view-home .card > .card-head, body.shell-fit #view-inventory .card > .card-head,
+  body.shell-fit #view-mastery .card > .card-head, body.shell-fit #view-player .card > .card-head,
+  body.shell-fit #view-more .card > .card-head, body.shell-fit #view-trade .card > .card-head,
+  body.shell-fit #view-inventory .tablebar, body.shell-fit #view-inventory #tabs,
+  body.shell-fit #view-inventory > #status, body.shell-fit #view-inventory .card > .status,
+  body.shell-fit #view-home .card > .status, body.shell-fit #view-mastery .card > .status,
+  body.shell-fit #view-player .card > .status, body.shell-fit #view-more .card > .status,
+  body.shell-fit #view-trade .card > .status, body.shell-fit .inv-lower #matCap,
+  body.shell-fit #mhCap, body.shell-fit #view-home .chartwrap,
+  body.shell-fit #view-more details.acc > summary, body.shell-fit .inv-lower #dojoRooms {
+    flex: 0 0 auto;
+  }
+  body.shell-fit .inv-lower .tablewrap { min-height: 56px; }
+}
+
+/* the same fit recipe on a shorter window: the bands give the lists a little more room */
+@media (min-width: 1200px) and (max-height: 820px) {
+  body.shell-fit #view-home .chartwrap { height: clamp(96px, 13vh, 150px); }
+  body.shell-fit #view-more details.acc > summary { padding: 5px 12px; }
+}
+
+/* wide windows: the same bands go three across (a 1500px column still fits a full row) */
+@media (min-width: 1500px) {
+  body.shell-fit #view-player .p-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body.shell-fit #view-player .p-col-c {
+    grid-column: auto; display: flex; flex-direction: column; overflow: hidden;
+  }
+  body.shell-fit #view-player .p-col-c > .card { margin-bottom: 10px; }
+  body.shell-fit #view-more details.acc[open]::details-content {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr);
+  }
+}
+
+/* thin, visible scrollbars: a list that scrolls inside its card has to look like it scrolls */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 50%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 8px; border: 3px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); background-clip: content-box; }
