@@ -1,14 +1,20 @@
-/* item.js — the item price page: one item, its price graph as the main view, your trades and the book.
+/* item.js — the FULL ANALYSIS page: one item, its price graph as the main view, your trades and the book.
  *
- * Opened from anywhere as /item.html?slug=<slug> (the drawer's "Price page" button, the inventory
- * trend cell). Data: /api/items (snapshot row), /api/feature/itemhist?slug=<slug> (intraday points +
+ * Stage 9: this is the deep surface the shared drawer hands off to (drawer = quick look, page =
+ * analysis). Opened as /item.html?item=<slug> — the drawer's "Open full analysis" action. The hash
+ * form #item=<slug> resolves the same way, and the older /item.html?slug=<slug> links (older
+ * bookmarks, the drawer's inline graph link) keep working. No parameter = the picker, unchanged.
+ * Data: /api/items (snapshot row), /api/feature/itemhist?slug=<slug> (intraday points +
  * your sales), /api/trades (trade log), /api/feature/advisor (recommendation). The graph refreshes
- * itself every 60s and the sweep on the server adds points hourly.
+ * itself every 60s and the sweep on the server adds points hourly. Read-only: every call is a GET.
  */
 'use strict';
 (function () {
   var qs = new URLSearchParams(location.search);
-  var SLUG = (qs.get('slug') || '').trim();
+  /* Deep link (stage 9): ?item=<slug> is the canonical form the drawer writes. #item=<slug> resolves
+     the same way, and ?slug=<slug> is the older form kept for existing links. '' -> the picker. */
+  var hashQs = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
+  var SLUG = (qs.get('item') || hashQs.get('item') || qs.get('slug') || '').trim();
   var REFRESH_MS = 60000;
   var chart = null, timer = null, row = null, series = null, trades = null, adv = null;
 
@@ -254,7 +260,7 @@
         q = (q || '').toLowerCase();
         var hits = list.filter(function (c) { return !q || String(c.name || '').toLowerCase().indexOf(q) !== -1; }).slice(0, 60);
         box.innerHTML = hits.map(function (c) {
-          return '<a href="/item.html?slug=' + encodeURIComponent(c.slug) + '">' + esc(c.name) + '</a>';
+          return '<a href="/item.html?item=' + encodeURIComponent(c.slug) + '">' + esc(c.name) + '</a>';
         }).join('') || '<span class="dim">no matches</span>';
       }
       paint('');

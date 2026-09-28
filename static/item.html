@@ -15,6 +15,10 @@
      and the wide screen is used sideways: the graph takes column one while your trades and the
      book stack in column two from 1200px (the Trade view's band). One column below that. */
   .ip-wrap { padding: 10px 18px 24px; max-width: 1520px; margin: 0 auto; }
+  /* stage 9: the page states what it is - this surface is the analysis, the shared drawer is the
+     quick look (and the drawer's one action lands here) */
+  .ip-role { font-size: 10.5px; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin: 2px 2px 0; }
+  .ip-role b { color: var(--accent); font-weight: 700; }
   .ip-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 6px 2px 2px; display: flex; align-items: center; gap: 9px; }
   .ip-h1 img { width: 26px; height: 26px; border-radius: 4px; background: var(--panel2); }
   .ip-lead { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 2px 8px; }
@@ -69,6 +73,7 @@
 
 <main class="ip-wrap">
   <h1 class="ip-h1" id="ipTitle">Item price</h1>
+  <p class="ip-role" id="ipRole"><b>Full analysis</b> · quick look in the drawer</p>
   <p class="ip-lead" id="ipLead">No item selected</p>
 
   <section class="card hidden" id="ipPickCard">

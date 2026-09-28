@@ -3,6 +3,9 @@
      window.wfmOpenItem(key[, opener])   key = item slug or name, case/space-insensitive
      window.wfmOpenItem.close()          close it programmatically
      window.wfmOpenItem.preload([keys])  warm the data caches without opening anything
+   Role (stage 9): this is the QUICK LOOK. It carries exactly one action into the full analysis
+   page (item.html) for the same item - the footer's 'Open full analysis' link, deep-linking
+   /item.html?item=<slug> (that page also accepts #item=<slug> and the older ?slug= form).
    Layers: 1 = recommended action (big), 2 = your copies + the four market tiles,
    3 = collapsed sections (Where to get it, Market details, Collection & sets).
    Plain words on the surface; precise trader terms (lowest ask, top bid, lane, median,
@@ -17,9 +20,11 @@
 (function () {
   var MARKET = 'https://warframe.market/items/';
   var CDN = 'https://warframe.market/static/assets/';
-  /* item info is the wiki's job, prices are the market's - the wiki link is the primary one */
+  /* the analysis page is the primary next step out of this drawer; item info belongs to the wiki
+     and prices to the market, so those two stay external references, never the loudest control */
   var WIKI_SEARCH = 'https://wiki.warframe.com/w/Special:Search?search=';
   var HI_DIR = '/hi/';
+  var ANALYSIS_URL = '/item.html?item=';           // the full analysis page (item.js reads 'item')
   var MAX_WHY = 2;                                  // reason lines shown under the action headline
   var NAME_ID = 'wfmDrawerName';                    // panel aria-labelledby target
   var BAD_URL = /[\x00-\x1f\x7f"'<>\\\s]/;
@@ -168,8 +173,8 @@
 
   /* ================= DOM (created once, reused) ================= */
   var root = null, panel = null, bodyBox = null, imgSlot = null, nameEl = null, slugEl = null,
-      chipsEl = null, closeBtn = null, wikiLink = null, marketLink = null, zoomEl = null, zoomSlot = null,
-      zoomCap = null, zoomOpenerEl = null;
+      chipsEl = null, closeBtn = null, wikiLink = null, marketLink = null, fullLink = null,
+      zoomEl = null, zoomSlot = null, zoomCap = null, zoomOpenerEl = null;
   var state = { open: false, opener: null, zoom: false, item: null, token: 0,
                 prevOverflow: '', locked: false, sec: { market: false, collection: false } };
 
@@ -212,7 +217,13 @@
     panel.appendChild(bodyBox);
 
     var foot = el('footer', 'dw-foot');
-    wikiLink = el('a', 'btn primary dw-wiki', 'Wiki \u2197');
+    /* the drawer's role, stated where the one path out of it sits (stage 9: quick look -> analysis) */
+    foot.appendChild(el('span', 'dw-role', 'Quick look'));
+    fullLink = el('a', 'btn primary dw-full', 'Open full analysis \u2197');
+    fullLink.title = 'Price history, your trades and the book';
+    fullLink.setAttribute('data-dw', 'full');
+    foot.appendChild(fullLink);
+    wikiLink = el('a', 'btn dw-wiki', 'Wiki \u2197');
     wikiLink.target = '_blank';
     wikiLink.rel = 'noopener noreferrer';
     wikiLink.title = 'Item info, acquisition and usage on wiki.warframe.com';
@@ -830,6 +841,11 @@
     imgSlot.appendChild(art0);
     if (it) zoomable(art0, it, null);
     else art0.setAttribute('aria-hidden', 'true');
+    /* one control, one destination: the deep link carries THIS item's slug; no slug (an unknown
+       key with no local record) means there is no analysis page to open, so the action steps aside */
+    var openSlug = (it && it.slug) ? String(it.slug) : '';
+    fullLink.href = ANALYSIS_URL + encodeURIComponent(openSlug);
+    fullLink.classList.toggle('dw-hidden', !openSlug);
     marketLink.href = MARKET + encodeURIComponent((it && it.slug) || slugify(key));
     wikiLink.href = WIKI_SEARCH + encodeURIComponent(name) + '&go=Go';
   }
