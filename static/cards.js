@@ -125,23 +125,22 @@
         .then(function (r) { return r.ok ? r.json() : {}; })
         .then(function (map) { state.cardart = map || {}; render(); })
         .catch(function () { /* no full-art on disk — standard fronts */ });
-      // local hi-res set (static/hi/index.json: wiki art upscaled 4x on this PC) — when a
-      // slug is in it the card uses that file and never touches the WFM CDN for art
+      // local hi-res set (static/hi/index.json: wiki art upscaled 4x on this PC) — the only art
+      // the grid loads; a slug that is not in it gets the letter tile (never a remote request)
       fetch('hi/index.json', { cache: 'no-cache' })
         .then(function (r) { return r.ok ? r.json() : {}; })
-        .then(function (j) {
-          state.hi = (j && j.items) || {};
-          if (Object.keys(state.hi).length) { artState = 'probing'; render(); probeArt(); }
-        })
-        .catch(function () { /* no hi set — CDN icons as before */ });
+        .then(function (j) { state.hi = (j && j.items) || {}; render(); })
+        .catch(function () { /* no hi set — every card paints its letter tile */ });
       buildTypeOptions();
       buildRarityButtons();
       buildChips();
-      document.getElementById('srcLine').appendChild(document.createTextNode(
-        ' · loaded ' + state.all.length + ' cards from ' + res.url +
-        (state.generated ? ' (built ' + state.generated + ')' : '')));
+      var srcEl = document.getElementById('srcLine');
+      srcEl.appendChild(document.createTextNode(' · ' + state.all.length + ' cards'));
+      if (state.generated) {
+        srcEl.appendChild(document.createTextNode(' · built ' + String(state.generated).slice(0, 10)));
+      }
+      srcEl.title = 'Loaded from ' + res.url + (state.generated ? ' · built ' + state.generated : '');
       render();
-      probeArt();
     }).catch(function (err) {
       showLoadError(err);
     });
@@ -149,26 +148,19 @@
 
   function showLoadError(err) {
     var meta = document.getElementById('meta');
-    meta.textContent = '';
+    meta.textContent = 'No cards build loaded.';
     var tried = (err && err.tried) ? err.tried : [String((err && err.message) || err)];
     var box = document.getElementById('empty');
     box.textContent = '';
-    box.appendChild(el('b', null, 'The mod cards build could not be loaded.'));
-    box.appendChild(el('div', null, 'Tried: ' + tried.join(' · ')));
 
     var fix = el('div', 'fix');
-    fix.appendChild(el('div', null, 'Build the cards, then serve the file:'));
-    var steps = el('div');
-    steps.appendChild(el('code', null, 'python scripts/mod_cards.py'));
-    steps.appendChild(el('div', null, 'then either expose '));
-    steps.appendChild(el('code', null, 'data/mod_cards.json'));
-    steps.appendChild(el('div', null, ' (e.g. /api/feature/cards in server.py, or serve the repo root) '));
-    steps.appendChild(el('div', null, 'or pick the file below.'));
-    fix.appendChild(steps);
+    fix.appendChild(el('div', null, 'Run scripts/mod_cards.py, then reload.'));
+    fix.appendChild(el('div', null, 'Or pick a mod_cards.json below.'));
 
     var input = el('input');
     input.type = 'file';
     input.accept = '.json,application/json';
+    input.setAttribute('aria-label', 'Pick a mod_cards.json build');
     input.addEventListener('change', function () {
       var file = input.files && input.files[0];
       if (!file) return;
@@ -191,15 +183,16 @@
           buildChips();
           box.classList.add('hidden');
           render();
-          probeArt();
         } catch (e) {
-          alert('That file is not a mod_cards.json build: ' + e.message);
+          alert('Not a mod_cards.json build: ' + e.message);
         }
       };
       reader.readAsText(file);
     });
     fix.appendChild(input);
     box.appendChild(fix);
+    // the failed sources stay one hover away instead of filling the page
+    box.title = 'Tried: ' + tried.join(' · ');
     box.classList.remove('hidden');
     var chips = document.getElementById('chips');
     chips.textContent = '';
@@ -210,9 +203,10 @@
   }
 
   // ---------- chips + filters ----------
-  function chip(label, value, warn, icon) {
+  function chip(label, value, warn, icon, title) {
     var c = el('span', 'chip' + (warn ? ' warn' : ''));
     if (icon) { c.setAttribute('data-icon', icon); c.setAttribute('data-icon-size', '12'); }
+    if (title) c.title = title;
     c.appendChild(document.createTextNode(label + ' '));
     c.appendChild(el('b', null, String(value)));
     return c;
@@ -223,11 +217,16 @@
     chips.textContent = '';
     var s = state.summary || {};
     var counts = countOwned();
-    chips.appendChild(chip('cards', s.cards != null ? s.cards : state.all.length));
-    chips.appendChild(chip('owned', s.owned != null ? s.owned : counts.owned));
-    chips.appendChild(chip('missing', s.missing != null ? s.missing : counts.missing));
-    chips.appendChild(chip('dupes', s.dupes != null ? s.dupes : counts.dupes, counts.extra > 0));
-    chips.appendChild(chip('quoted', quoteCount(), quoteCount() === 0, 'tag'));
+    chips.appendChild(chip('cards', s.cards != null ? s.cards : state.all.length, false, null,
+      'cards in the catalogue'));
+    chips.appendChild(chip('owned', s.owned != null ? s.owned : counts.owned, false, null,
+      'mods you own at least one copy of'));
+    chips.appendChild(chip('missing', s.missing != null ? s.missing : counts.missing, false, null,
+      'mods you do not own'));
+    chips.appendChild(chip('dupes', s.dupes != null ? s.dupes : counts.dupes, counts.extra > 0, null,
+      'mods owned more than once'));
+    chips.appendChild(chip('quoted', quoteCount(), quoteCount() === 0, 'tag',
+      'cards with a local price quote'));
   }
 
   function countOwned() {
@@ -313,6 +312,9 @@
       var bucket = state.summary && state.summary.rarities ? state.summary.rarities[key] : null;
       if (bucket) {
         btn.appendChild(el('span', 'mcd-rank', ' ' + bucket.owned + '/' + bucket.total));
+        btn.title = bucket.owned + ' owned of ' + bucket.total;
+      } else if (key === '') {
+        btn.title = 'every rarity';
       }
       btn.addEventListener('click', function () {
         state.rarity = (state.rarity === key) ? '' : key;
@@ -394,19 +396,15 @@
     return out;
   }
 
-  // ---------- icons ----------
-  /* Card art lives on the warframe.market CDN, which refuses cross-origin embeds (HTTP 403 with
-     Cross-Origin-Resource-Policy: same-origin -> ERR_BLOCKED_BY_RESPONSE) from some networks.
-     Probe once per page load: cards paint instantly with their CSS art (polarity glyph + rarity
-     border) and pick up an icon only if the host answers - a refusing host then costs one request
-     instead of one per card. */
-  var artState = 'probing';   // 'probing' | 'ok' | 'off'
-
-  /* art source for a card: the local hi-res set (static/hi/index.json) when the slug is in
-     it, else the warframe.market CDN icon */
+  // ---------- art (local only) ----------
+  /* Card art is LOCAL: the 4x wiki set built on this PC (static/hi/index.json -> /hi/<slug>.webp).
+     The warframe.market CDN refuses these embeds (HTTP 403 + Cross-Origin-Resource-Policy:
+     same-origin), so the grid never asks it for an image at all - a card with no local file gets
+     the shared drawer's letter tile, so nothing shows a broken image and the console stays clean. */
+  /* art source for a card: the local hi-res set only - never the remote CDN */
   function artSrc(card) {
     if (!card) return null;
-    return (state.hi && state.hi[card.slug]) ? '/hi/' + card.slug + '.webp' : (card.icon || null);
+    return (state.hi && state.hi[card.slug]) ? '/hi/' + card.slug + '.webp' : null;
   }
 
   /* cardart/index.json maps slug -> "file.webp" (art fills the front, our wording rides on it)
@@ -419,47 +417,40 @@
     return v.file ? { file: v.file, baked: !!v.baked } : null;
   }
 
+  /* the fallback tile (same colours as the drawer's .dw-avatar): a card with no local art.
+     The letter is the drawer's rule: first alphanumeric character of the name (or slug), uppercased. */
+  function initial(name, slug) {
+    var s = String(name || slug || '?').replace(/[^A-Za-z0-9]/g, '');
+    return (s.charAt(0) || '?').toUpperCase();
+  }
+
+  function addTile(art, card) {
+    if (!art || !card || art.querySelector('.mcd-tile')) return;
+    var tile = el('span', 'mcd-tile', initial(card.name, card.slug));
+    tile.setAttribute('aria-hidden', 'true');
+    art.classList.add('has-tile');       // the polarity line steps back while the tile is the art
+    art.appendChild(tile);
+  }
+
   function addArt(art, card) {
     if (!art || !card || art.querySelector('.mcd-art-img')) return;
     if (artEntry(card)) return;   // full-art / baked faces NEVER take the base card image
     var src = artSrc(card);
-    if (!src) return;
+    if (!src) { addTile(art, card); return; }
     var img = el('img', 'mcd-art-img');
     img.alt = '';
     img.loading = 'lazy';
     img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
-    img.addEventListener('error', function () { img.remove(); art.classList.remove('has-art'); });
+    // a local file that will not decode: drop the img and paint the tile instead
+    img.addEventListener('error', function () {
+      img.remove();
+      art.classList.remove('has-art');
+      addTile(art, card);
+    });
     img.src = src;
     art.classList.add('has-art');
     art.appendChild(img);
-  }
-
-  function upgradeArt() {
-    var nodes = document.querySelectorAll('#grid .mcd-card[data-slug]');
-    for (var i = 0; i < nodes.length; i++) {
-      var card = state.map[nodes[i].getAttribute('data-slug')];
-      if (card) addArt(nodes[i].querySelector('.mcd-art'), card);
-    }
-  }
-
-  function probeArt() {
-    if (artState !== 'probing') return;
-    var first = null;
-    for (var i = 0; i < state.all.length && !first; i++) { if (artSrc(state.all[i])) first = state.all[i]; }
-    if (!first) { artState = 'off'; return; }
-    var probe = new Image();
-    var done = false;
-    function finish(ok) {
-      if (done) return;
-      done = true;
-      artState = ok ? 'ok' : 'off';
-      if (ok) upgradeArt();
-    }
-    probe.onload = function () { finish(!!probe.naturalWidth); };
-    probe.onerror = function () { finish(false); };
-    setTimeout(function () { finish(true); }, 4000);   // slow host: let the lazy <img>s try
-    probe.src = artSrc(first);
   }
 
   // ---------- card ----------
@@ -557,9 +548,12 @@
     }
     node.setAttribute('data-art', fa ? 'full' : 'standard');
     var art = el('div', 'mcd-art');
-    if (artState === 'ok' && !fa) addArt(art, card);   // full-art cards skip the icon fetch
     art.appendChild(el('span', 'mcd-type', card.type || 'mod'));
     if (!owned) art.appendChild(el('span', 'mcd-missing-flag', 'missing'));
+    // local art when this PC has the file, else the drawer's letter tile. Full-art cards paint
+    // from their own manifest file and never take an <img>; nothing here asks a remote host,
+    // so no card can render a broken-image icon and the console stays clean.
+    if (!fa) addArt(art, card);
     art.appendChild(el('span', 'mcd-pol', pol[0]));
     art.appendChild(el('span', 'mcd-pol-name', pol[1]));
     front.appendChild(art);
@@ -570,9 +564,10 @@
     }
     var body = el('div', 'mcd-body');
     body.appendChild(el('div', 'mcd-name', card.name));
-    // the mod's own card text rides ONLY on full-art faces — standard cards already show
-    // their in-game artwork, so a text box there is noise (details stay in the inspect panel)
-    if (fa && card.stats_text) body.appendChild(el('div', 'mcd-desc', card.stats_text));
+    // the mod's own card text: full-art faces draw it over the art, and a card with NO local art
+    // shows it too (the face would otherwise be an empty plate) - an art card already prints its
+    // text inside the image, so the drawn box there stays off
+    if ((fa || !artSrc(card)) && card.stats_text) body.appendChild(el('div', 'mcd-desc', card.stats_text));
     // rank pips, condition chip and local prices are NOT on card faces any more (Jay: the
     // inspect panel to the right carries that) — pips()/priceLine() stay for future use
     if (!owned) body.appendChild(el('div', 'mcd-missing-flag', 'not owned'));
@@ -833,7 +828,6 @@
 
   // ---------- render ----------
   function render() {
-    var grid = document.getElementById('grid');
     var meta = document.getElementById('meta');
     var empty = document.getElementById('empty');
     var more = document.getElementById('moreWrap');
@@ -847,19 +841,16 @@
 
     clearBtn.classList.toggle('hidden', !state.q);
     if (!state.filtered.length) {
-      empty.textContent = '';
-      empty.appendChild(el('b', null, 'No card matches those filters.'));
+      empty.textContent = 'No cards match those filters.';
+      empty.removeAttribute('title');
       empty.classList.remove('hidden');
       more.classList.add('hidden');
     } else {
       empty.classList.add('hidden');
-      more.classList.toggle('hidden', state.shown >= state.filtered.length);
+      updateMore();
     }
-    var btn = document.getElementById('moreBtn');
-    var left = state.filtered.length - state.shown;
-    btn.textContent = left > 0 ? ('Show ' + Math.min(BATCH, left) + ' more (' + left + ' left)' +
-      ' — ' + state.filtered.length + ' match' + (state.filtered.length === 1 ? '' : 'es')) : 'Show more';
-    grid.setAttribute('aria-label', 'Mod cards (' + state.filtered.length + ' shown)');
+    document.getElementById('grid').setAttribute('aria-label',
+      'Mod cards (' + state.filtered.length + ' shown)');
   }
 
   function paint() {
@@ -877,10 +868,18 @@
     }
   }
 
+  function updateMore() {
+    var more = document.getElementById('moreWrap');
+    var btn = document.getElementById('moreBtn');
+    var left = Math.max(0, state.filtered.length - state.shown);
+    btn.textContent = left > 0 ? 'Show ' + Math.min(BATCH, left) + ' more (' + left + ' left)' : 'Show more';
+    btn.title = left > 0 ? state.shown + ' of ' + state.filtered.length + ' matches shown' : '';
+    more.classList.toggle('hidden', left === 0);
+  }
+
   function updateMeta() {
     var meta = document.getElementById('meta');
     var counts = countOwned();
-    var s = state.summary || {};
     var filters = [];
     if (state.rarity) filters.push(state.rarity === 'Prime' ? 'prime/foil' : state.rarity.toLowerCase());
     if (state.type) filters.push(state.type.toLowerCase());
@@ -889,16 +888,13 @@
     if (state.dupes) filters.push('dupes only');
     if (state.q) filters.push('“' + state.q + '”');
 
+    /* label + value, one line: what is on screen, then the collection's own counts. The build
+       notes and the rarity coverage live in title= (and the rarity buttons carry their counts),
+       so the visible line never turns into a paragraph. */
     meta.textContent = '';
-    /* group mark: this grid is the mod-card set (the dashboard marks its own groups the same way) */
-    var mark = el('span', 'i-only-host i-before');
-    mark.setAttribute('data-icon', 'stack');
-    mark.setAttribute('data-icon-size', '14');
-    mark.setAttribute('aria-hidden', 'true');
-    meta.appendChild(mark);
     meta.appendChild(el('span', null, 'Showing '));
     meta.appendChild(el('b', null, state.shown + ' / ' + state.filtered.length));
-    meta.appendChild(el('span', null, ' of ' + state.all.length + ' mods'));
+    meta.appendChild(el('span', null, ' mods'));
     if (filters.length) meta.appendChild(el('span', null, ' · filters: ' + filters.join(', ')));
     meta.appendChild(el('span', null, ' · owned '));
     meta.appendChild(el('b', null, String(counts.owned)));
@@ -906,18 +902,20 @@
     meta.appendChild(el('b', null, String(counts.missing)));
     meta.appendChild(el('span', null, ' · dupes '));
     meta.appendChild(el('b', null, String(counts.dupes)));
-    meta.appendChild(el('span', null, ' (' + counts.extra + ' spare copies) · quoted '));
+    meta.appendChild(el('span', null, ' · quoted '));
     meta.appendChild(el('b', null, String(quoteCount())));
+
+    var help = [];
+    var s = state.summary || {};
     if (s.rarities) {
       var parts = [];
       Object.keys(s.rarities).forEach(function (k) {
         parts.push(k + ' ' + s.rarities[k].owned + '/' + s.rarities[k].total);
       });
-      meta.appendChild(el('div', null, 'rarity coverage (owned/total): ' + parts.join(' · ')));
+      help.push('rarity coverage (owned/total): ' + parts.join(' · '));
     }
-    if (state.notes && state.notes.length) {
-      meta.appendChild(el('div', null, state.notes.join(' · ')));
-    }
+    if (state.notes && state.notes.length) help.push(state.notes.join(' · '));
+    meta.title = help.join(' · ');
   }
 
   // ---------- wiring ----------
@@ -1024,10 +1022,7 @@
       state.shown = Math.min(state.filtered.length, state.shown + BATCH);
       paint();
       updateMeta();
-      document.getElementById('moreWrap').classList.toggle('hidden', state.shown >= state.filtered.length);
-      var btn = document.getElementById('moreBtn');
-      var left = state.filtered.length - state.shown;
-      btn.textContent = 'Show ' + Math.min(BATCH, left) + ' more (' + left + ' left)';
+      updateMore();
     });
 
     document.addEventListener('keydown', function (e) {

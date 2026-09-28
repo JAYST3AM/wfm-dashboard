@@ -24,11 +24,8 @@
     --r-prime: #c9a227;    /* foil base */
     --pip: color-mix(in srgb, var(--text) 55%, transparent);
   }
-  /* nav: the pill row wraps inside its own box once it is wider than the window, instead of
-     pushing the whole document sideways (page-local; style.css is shared and stays untouched) */
-  /* Cards is a Collection section now: the sub-tab row gets its own line directly under the
-     pill bar and reuses the same pill styling (no new colours, no new tokens) */
-  .mainnav.subnav { display: flex; width: fit-content; margin: 2px 0 0 18px; padding: 3px; }
+  /* Cards is a Collection section: the sub-tab row (Collection | Relics | Mastery | Cards) is
+     the shell's .mainnav.subnav, same as every other page's - no page-local override. */
 
   /* layout + density (wrap, toolbar, filter rows, meta, grid, tile text, foot) live in
      /cards.css - loaded right after style.css, one home for every number this page uses.
@@ -232,9 +229,9 @@
   .cond-played { color: #fb923c; }
   .cond-poor { color: #f87171; }
 
-  /* missing mods: dimmed + greyscale, no rank pips */
-  .mcd-card.missing .mcd-front { filter: grayscale(.85); opacity: .52; }
-  .mcd-card.missing:hover .mcd-front { opacity: .8; }
+  /* missing mods: the same card treatment, dimmed - the "missing" flag + muted name say it */
+  .mcd-card.missing .mcd-front { opacity: .55; }
+  .mcd-card.missing:hover .mcd-front { opacity: .85; }
   .mcd-card.missing .mcd-name { color: var(--muted); font-weight: 500; }
 
   /* back face — ONE universal card back for every card: the Orokin plate art
@@ -365,7 +362,14 @@
 </nav>
 
 <main class="mcd-wrap">
-  <div class="mcd-bar">
+  <div class="mcd-head">
+    <h1 class="mcd-title" data-icon="stack">Mod Cards</h1>
+    <div class="mcd-meta" id="meta">Loading mod cards…</div>
+  </div>
+
+  <!-- One toolbar row: search, type, sort, then the rarity + state filters and the reset.
+       Every control is a live filter; none hides behind a click. -->
+  <div class="mcd-tools" role="group" aria-label="Card filters">
     <div class="search mcd-search">
       <span class="si i-only-host" data-icon="magnifying-glass" aria-hidden="true"></span>
       <input id="q" type="text" placeholder="Search mods…"
@@ -384,25 +388,20 @@
       <option value="copies">Copies (most first)</option>
       <option value="value">Sell floor (highest first)</option>
     </select>
-  </div>
 
-  <div class="mcd-filters">
     <div class="mcd-row" id="rarityRow" role="group" aria-label="Rarity filter">
       <span class="mcd-lbl">Rarity</span>
       <button class="mcd-btn rar active" type="button" data-rar="">All</button>
     </div>
 
     <div class="mcd-row" id="stateRow" role="group" aria-label="Ownership filter">
-      <span class="mcd-lbl">State</span>
       <button class="mcd-btn active" type="button" data-state="owned" aria-pressed="true">Owned</button>
       <button class="mcd-btn active" type="button" data-state="missing" aria-pressed="true">Missing</button>
-      <button class="mcd-btn" type="button" data-state="dupes" aria-pressed="false">Dupes ×N</button>
-      <span class="mcd-sep"></span>
-      <button class="mcd-btn" type="button" id="resetBtn" data-icon="arrows-clockwise">Reset filters</button>
+      <button class="mcd-btn" type="button" data-state="dupes" aria-pressed="false" title="Mods you own more than one copy of">Dupes</button>
+      <button class="mcd-btn" type="button" id="resetBtn" data-icon="arrows-clockwise" title="Back to the default filters">Reset</button>
     </div>
   </div>
 
-  <div class="mcd-meta" id="meta">Loading mod cards…</div>
   <div class="mcd-grid" id="grid" role="list" aria-label="Mod cards"></div>
   <div class="mcd-more hidden" id="moreWrap"><button class="btn primary" type="button" id="moreBtn">Show more</button></div>
   <div class="mcd-empty hidden" id="empty"></div>
@@ -411,8 +410,8 @@
 </div><!-- /shellbody -->
 
 <footer class="mcd-foot">
-  <span id="srcLine">Cards built by <code>scripts/mod_cards.py</code> → <code>data/mod_cards.json</code></span> ·
-  <a href="/#search">item search</a> · <a href="/">back to dashboard</a>
+  <span id="srcLine">Built by <code>scripts/mod_cards.py</code></span> ·
+  <a href="/#search">Item search</a> · <a href="/">Dashboard</a>
 </footer>
 
 <script src="/shell.js"></script>

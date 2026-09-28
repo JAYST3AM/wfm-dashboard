@@ -520,7 +520,9 @@ def test_grid_never_flips_on_hover():
     js = open(SCRIPT, encoding='utf-8').read()
     assert 'body.appendChild(pips(card))' not in js           # no rank/price rows on faces
     assert 'body.appendChild(priceLine(card))' not in js      # (they live in the panel right)
-    assert 'if (fa && card.stats_text)' in js                 # mod text ONLY on full-art faces
+    # mod text on full-art faces AND on faces with no local art (the clean pass: such a card
+    # would otherwise be an empty plate); an art card already prints its text inside the image
+    assert 'if ((fa || !artSrc(card)) && card.stats_text)' in js
     # pointer capture retargets the follow-up click to the tilt, so the viewer flips on
     # pointerup instead of relying on the card's own click handler
     assert "e.type === 'pointerup'" in js and 'elementFromPoint' in js
@@ -558,12 +560,12 @@ def test_page_css_defines_every_state_the_js_sets():
 
 
 def test_baked_card_faces_and_the_art_probe_cannot_overwrite_them():
-    """Full-art regression fix (2026-09-26): after the local hi-res probe succeeds,
-    upgradeArt() used to inject the upscaled BASE card image into every card - including
-    full-art faces, which made Archon Continuity render as its base card. addArt() now
-    refuses any card with a cardart entry. The manifest also gained the baked form:
-    {file, baked: true} = the file already IS the finished card face (its own frame,
-    title, stats and polarity), so nothing is drawn over it and it shows edge-to-edge."""
+    """Full-art regression fix (2026-09-26): after the local hi-res art arrived, the grid used
+    to inject the upscaled BASE card image into every card - including full-art faces, which made
+    Archon Continuity render as its base card. addArt() refuses any card with a cardart entry;
+    the clean pass (2026-09-28) kept that guard while the grid moved to local-only art. The
+    manifest also has the baked form: {file, baked: true} = the file already IS the finished card
+    face (its own frame, title, stats and polarity), so nothing is drawn over it."""
     import json
     js = open(SCRIPT, encoding='utf-8').read()
     html = open(PAGE, encoding='utf-8').read()
