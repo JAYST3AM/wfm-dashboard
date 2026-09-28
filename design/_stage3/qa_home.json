@@ -1,0 +1,677 @@
+{
+ "home": {
+  "order": [
+   "homeHead",
+   "firstRun",
+   "todayCard",
+   "homeSellNext",
+   "alertsCard",
+   "sellQueueCard",
+   "recentCard",
+   "chartCard"
+  ],
+  "strip": [
+   {
+    "label": "Earned today",
+    "value": "+0p",
+    "tip": "platinum gained or spent today"
+   },
+   {
+    "label": "Sales today",
+    "value": "0",
+    "tip": "sales logged today"
+   },
+   {
+    "label": "Trades left",
+    "value": "—",
+    "tip": "daily trade allowance left"
+   },
+   {
+    "label": "Platinum now",
+    "value": "1,022p",
+    "tip": "in-game platinum balance"
+   }
+  ],
+  "numbers": [
+   [
+    "head",
+    "span.-",
+    "Monday, September 28"
+   ],
+   [
+    "todayCard",
+    "span.-",
+    "+0p"
+   ],
+   [
+    "todayCard",
+    "div.k-val",
+    "0"
+   ],
+   [
+    "todayCard",
+    "span.-",
+    "1,022"
+   ],
+   [
+    "todayCard",
+    "span.upl",
+    "+91,261"
+   ],
+   [
+    "todayCard",
+    "span.h-act",
+    "+1 / 0"
+   ],
+   [
+    "todayCard",
+    "span.h-act",
+    "0"
+   ],
+   [
+    "todayCard",
+    "div.h-l2",
+    "19h 20m in game"
+   ],
+   [
+    "todayCard",
+    "span.h-act",
+    "+314,877"
+   ],
+   [
+    "todayCard",
+    "div.h-l2",
+    "Nano Spores +299,994 · Entrati Obols +13,852 · Vessel Capillaries +446"
+   ],
+   [
+    "todayCard",
+    "span.h-act",
+    "+0p"
+   ],
+   [
+    "todayCard",
+    "div.h-l2",
+    "0 trades · 19h 20m in game"
+   ],
+   [
+    "todayCard",
+    "span.h-act",
+    "25,548p"
+   ],
+   [
+    "todayCard",
+    "span.h-l2",
+    "Sun 16:33 → Mon 19:20"
+   ],
+   [
+    "todayCard",
+    "span.h-l3",
+    "idle · +0p · +856 items"
+   ],
+   [
+    "todayCard",
+    "span.h-num",
+    "26h 46m"
+   ],
+   [
+    "todayCard",
+    "span.h-l2",
+    "Fri 23:19 → Sun 15:29"
+   ],
+   [
+    "todayCard",
+    "span.h-l3",
+    "idle · +0p · +867 items"
+   ],
+   [
+    "todayCard",
+    "span.h-num",
+    "40h 11m"
+   ],
+   [
+    "todayCard",
+    "span.h-l2",
+    "Fri 20:41 → 22:18"
+   ],
+   [
+    "todayCard",
+    "span.h-l3",
+    "1 event · +0p"
+   ],
+   [
+    "todayCard",
+    "span.h-num",
+    "1h 37m"
+   ],
+   [
+    "todayCard",
+    "span.h-l2",
+    "Fri 10:00 → 10:00"
+   ],
+   [
+    "todayCard",
+    "span.h-l3",
+    "idle · +0p"
+   ],
+   [
+    "homeSellNext",
+    "div.next-sub",
+    "rank 0 · 3 copies"
+   ],
+   [
+    "homeSellNext",
+    "div.next-pr",
+    "48p"
+   ],
+   [
+    "homeSellNext",
+    "div.nf-l",
+    "Sold 48h"
+   ],
+   [
+    "homeSellNext",
+    "div.nf-v",
+    "110"
+   ],
+   [
+    "alertsCard",
+    "div.h-alert-d",
+    "Sign-in failed warframe.market is showing a Cloudflare browser check (http 403)"
+   ],
+   [
+    "alertsCard",
+    "div.h-alert-t",
+    "19 planned listings are parked until posting goes live"
+   ],
+   [
+    "sellQueueCard",
+    "span.dim small",
+    "5 of 17 items"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-dm",
+    "Sold 48h"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-sub",
+    "rank 0 · 71 copies"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-dm",
+    "4"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-pr",
+    "3p"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-sub",
+    "rank 0 · 40 copies"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-dm",
+    "2"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-pr",
+    "3p"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-t",
+    "Neo D3 Relic"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-sub",
+    "radiant · 1 copy"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-dm",
+    "6"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-pr",
+    "35p"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-sub",
+    "rank 0 · 5 copies"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-dm",
+    "111"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-pr",
+    "6p"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-sub",
+    "rank 0 · 3 copies"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-dm",
+    "53"
+   ],
+   [
+    "sellQueueCard",
+    "span.hnext-pr",
+    "7p"
+   ],
+   [
+    "recentCard",
+    "span.dim small",
+    "· latest Sep 25, 08:53 PM"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Sep 25, 08:53 PM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "9p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Aug 3, 01:17 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "14p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Aug 3, 01:16 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "20p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 08:47 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "16p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 06:41 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "17p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 06:41 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "5p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 06:22 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "20p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 06:13 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "9p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 06:07 AM"
+   ],
+   [
+    "recentCard",
+    "span.h-num h-qty",
+    "1×"
+   ],
+   [
+    "recentCard",
+    "span.h-num",
+    "55p"
+   ],
+   [
+    "recentCard",
+    "span.h-when",
+    "Jul 30, 06:06 AM"
+   ],
+   [
+    "chartCard",
+    "button.-",
+    "24h"
+   ],
+   [
+    "chartCard",
+    "button.-",
+    "7d"
+   ],
+   [
+    "chartCard",
+    "button.active",
+    "30d"
+   ],
+   [
+    "chartCard",
+    "div.status",
+    "181 readings · every 15 min"
+   ]
+  ],
+  "duplicateIds": [],
+  "headText": "Home Monday, September 28 Chat",
+  "headHtml": " <div class=\"home-title\">Home</div> <div class=\"home-sub\" id=\"homeSub\"><span id=\"homeDate\">Monday, September 28</span></div> <button class=\"chat-toggle\" id=\"chatToggle\" type=\"button\" aria-expanded=\"false\" aria-controls=\"chatDock\" data-icon=\"users-three\" title=\"Show the squad chat\" data-icon-done=\"1\"",
+  "toggle": {
+   "text": "Chat",
+   "expanded": "false",
+   "title": "Show the squad chat"
+  },
+  "dock": {
+   "attached": true,
+   "displayed": "none",
+   "rows": 0
+  },
+  "viewClass": "",
+  "secOverflow": 0,
+  "alertsVisible": true,
+  "alertText": "Could not sign in to the market siteSign-in failed warframe.market is showing a Cloudflare browser check (http 403)19 planned listings are parked until posting goes liveNot live - plan onlyNothing is ",
+  "nextText": "Primed Continuity rank 0 · 3 copies 48p Demandfading Sold 48h110 Liquidityhigh No buyer in the run queue",
+  "queueRows": [
+   "ItemSold 48hList at",
+   "Vitality rank 0 · 71 copies 4 3p ›",
+   "Enhanced Vitality rank 0 · 40 copies 2 3p ›",
+   "Neo D3 Relic radiant · 1 copy 6 35p ›",
+   "Galvanized Chamber rank 0 · 5 copies 111 6p ›",
+   "Maul rank 0 · 3 copies 53 7p ›"
+  ],
+  "recentRows": [
+   "NoteHistory tracking startedSep 25, 08:53 PM",
+   "SoldTrinity Prime Systems Blueprint1×9pAug 3, 01:17 AM",
+   "SoldWukong Prime Systems Blueprint1×14pAug 3, 01:16 AM",
+   "SoldChroma Prime Systems Blueprint1×20pJul 30, 08:47 AM",
+   "SoldNezha Prime Neuroptics Blueprint1×16pJul 30, 06:41 AM",
+   "SoldNezha Prime Systems Blueprint1×17pJul 30, 06:41 AM",
+   "SoldFulmin Prime Stock1×5pJul 30, 06:22 AM",
+   "SoldGaruda Prime Neuroptics Blueprint1×20pJul 30, 06:13 AM",
+   "SoldGauss Prime Neuroptics Blueprint1×9pJul 30, 06:07 AM",
+   "SoldValkyr Prime Chassis Blueprint1×55pJul 30, 06:06 AM"
+  ],
+  "newsMoved": {
+   "homeHasNews": false,
+   "toolsHasNews": true
+  }
+ },
+ "fit": {
+  "1920x1080": {
+   "home": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-home"
+   },
+   "trade": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-trade"
+   },
+   "inventory": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-inventory"
+   },
+   "tools": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-tools"
+   },
+   "tools/news": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-tools"
+   }
+  },
+  "1536x864": {
+   "home": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-home"
+   },
+   "trade": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-trade"
+   },
+   "inventory": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-inventory"
+   },
+   "tools": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-tools"
+   },
+   "tools/news": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-tools"
+   }
+  },
+  "1366x768": {
+   "home": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-home"
+   },
+   "trade": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-trade"
+   },
+   "inventory": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-inventory"
+   },
+   "tools": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-tools"
+   },
+   "tools/news": {
+    "overX": 0,
+    "overY": 0,
+    "secOver": 0,
+    "secId": "view-tools"
+   }
+  }
+ },
+ "chatClosed": {
+  "dockDisplay": "none",
+  "expanded": "false",
+  "viewClass": "",
+  "stored": null,
+  "homeWidth": 1660
+ },
+ "chatOpen": {
+  "dockDisplay": "flex",
+  "expanded": "true",
+  "viewClass": "chat-open",
+  "stored": "1",
+  "dockTop": 65,
+  "dockBottom": 1040,
+  "dockWidth": 360,
+  "viewBottom": 1040,
+  "rows": 2,
+  "form": true,
+  "stateChip": "Live",
+  "homeWidth": 1288,
+  "overY": 0
+ },
+ "chatPersisted": {
+  "expanded": "true",
+  "dockDisplay": "flex",
+  "viewClass": "chat-open"
+ },
+ "chatReclosed": {
+  "expanded": "false",
+  "dockDisplay": "none",
+  "homeWidth": 1660,
+  "stored": "0"
+ },
+ "todayDetail": {
+  "rows": [
+   "Credits-",
+   "Credits today+91,261",
+   "Items added / removed+1 / 0",
+   "Trades0",
+   "Sessions1 · live19h 20m in game",
+   "Materials+314,877Nano Spores +299,994 · Entrati Obols +13,852 · Vessel Capillaries +446",
+   "This week+0p0 trades · 19h 20m in game",
+   "Inventory value25,548p"
+  ],
+  "sessions": 4,
+  "groupHeads": [
+   "Sessions"
+  ],
+  "overY": 0
+ },
+ "news": {
+  "launcherHidden": true,
+  "wsHidden": false,
+  "listRows": 8,
+  "meta": "· v44.0.1 · checked 5m ago",
+  "backLink": true,
+  "overY": 0
+ },
+ "chatOpenFit": {
+  "1920x1080": {
+   "overX": 0,
+   "overY": 0,
+   "secOver": 0,
+   "dockWidth": 360,
+   "dockBottom": 1040,
+   "viewBottom": 1040,
+   "rows": true
+  },
+  "1536x864": {
+   "overX": 0,
+   "overY": 0,
+   "secOver": 0,
+   "dockWidth": 360,
+   "dockBottom": 824,
+   "viewBottom": 824,
+   "rows": true
+  },
+  "1366x768": {
+   "overX": 0,
+   "overY": 0,
+   "secOver": 0,
+   "dockWidth": 340,
+   "dockBottom": 728,
+   "viewBottom": 728,
+   "rows": true
+  }
+ },
+ "noAlerts": {
+  "gap": 10,
+  "nextWidth": 1660,
+  "overY": 0,
+  "overX": 0
+ },
+ "errors": []
+}

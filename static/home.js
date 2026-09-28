@@ -1,37 +1,32 @@
-/* WFM Trader - HOME renderer.
-   Fills three containers owned by index.html: #homeToday, #homeAlerts and
-   #homeRecent. They are .picks bodies inside page-owned cards, so this file adds
-   rows only; it also unhides #alertsCard while there is something to show and
-   fills the page's #todayMeta / #recentMeta spans when they are empty.
-   The page calls window.wfmRenderHome() on load and on every view switch or
-   refresh; the function is idempotent (containers are rebuilt in place, no
-   duplicate rows, stale responses from an older call are discarded).
+/* WFM Trader - HOME renderer (stage 3, Jay 2026-09-28).
+   Home is an action surface: TODAY (one strip) / NEXT ACTION / ALERTS / SELL QUEUE / RECENT.
+   This file owns the parts fed by the progress store and the trade log:
+     #todayEarned / #todaySales  - the today strip's two progress cells (app.js draws the strip)
+     #homeToday                 - the strip's detail disclosure (credits, items, sessions, the
+                                  week roll-up, inventory value - each value exactly once)
+     #homeAlerts                - real problems only (quiet if there are none)
+     #homeRecent                - the last few trade events
+   The page calls window.wfmRenderHome() on load and on every view switch or refresh; the function
+   is idempotent (containers are rebuilt in place, no duplicate rows, stale responses from an
+   older call are discarded).
 
-   What it answers:
-     #homeToday  - what the day has actually done (/api/feature/progress: platinum,
-                   credits, items added/removed, trades, sessions, materials gained,
-                   the week roll-up) followed by the newest few sessions, one line each
-     #homeAlerts - real problems only (quiet if there are none)
-     #homeRecent - last few trade events + the latest session summary
+   Plain browser JS, no libraries, no build step. DOM is built with createElement/textContent
+   (never innerHTML with data) and colours come from the palette vars in style.css, so all themes
+   work. Field names follow the local API payloads (/api/feature/progress, /api/trader,
+   /api/trades, /api/feature/{sessions,baro,killswitch,hygiene}).
 
-   Plain browser JS, no libraries, no build step. DOM is built with
-   createElement/textContent (never innerHTML with data) and colours come from
-   the palette vars in style.css, so all themes work. Field names follow the
-   local API payloads (/api/feature/progress, /api/trader, /api/trades,
-   /api/feature/{sessions,baro,killswitch,hygiene}).
+   Honesty rule for the progress store: null means "not known", never zero. Those values render
+   '-' and the matching note from the store's notes[] becomes the row's hover text, so the card
+   never invents a number.
 
-   Honesty rule for the progress store: null means "not known", never zero. Those
-   values render '-' and the matching note from the store's notes[] becomes the
-   row's hover text, so the card never invents a number.
-
-   Icon rule: every render rebuilds its rows from scratch, so a host carrying
-   data-icon is never re-texted after the sprite has injected its <svg> (textContent
-   would wipe it). New nodes are picked up by icons.js' own observer. */
+   Icon rule: every render rebuilds its rows from scratch, so a host carrying data-icon is never
+   re-texted after the sprite has injected its <svg> (textContent would wipe it). New nodes are
+   picked up by icons.js' own observer. */
 'use strict';
 (function () {
-  const SESSIONS_SHOWN = 5;     /* newest sessions listed in the Today card */
+  const SESSIONS_SHOWN = 5;     /* newest sessions listed in the Today detail */
   const MATERIALS_SHOWN = 3;    /* material names shown at once */
-  const RECENT_EVENTS = 5;      /* trade events in the recent card */
+  const RECENT_EVENTS = 10;     /* trade events in the recent card (it scrolls past that) */
   const BARO_ALERT_HOURS = 48;  /* only treat a visit as news when this close */
   const UNKNOWN = '-';          /* rendered when the progress store has no reading */
 
@@ -114,10 +109,15 @@
   const get = (url) => fetch(url, { headers: { 'Accept': 'application/json' } })
     .then((r) => (r && r.ok ? r.json() : null))
     .catch(() => null);
+  /* the page's own summary payload (app.js owns the fetch; Home only reads the two values that
+     have no home anywhere else: the credit balance and the inventory value) */
+  const summaryOf = () => {
+    try { return (typeof SUMMARY !== 'undefined' && SUMMARY) ? SUMMARY : null; } catch (e) { return null; }
+  };
 
   /* ---------- navigation (drawer agent owns wfmOpenItem) ----------
-     The drawer contract stays wired for rows that name a tradeable; the Today card's
-     progress rows are counts, so nothing calls it right now. */
+     The drawer contract stays wired for rows that name a tradeable; the Today detail's rows are
+     counts, so nothing calls it right now. */
   const openItem = (slug) => {
     if (!slug) return;
     if (typeof window.wfmOpenItem === 'function') {
@@ -130,10 +130,10 @@
   };
 
   /* ---------- shared row builders ----------
-     The page supplies the card chrome: #homeToday / #homeRecent are .picks bodies
-     inside a card whose title is already rendered, and #alertsCard is hidden until
-     something is worth showing. If the hosts are ever bare containers instead, a
-     card shell is built so the blocks still look right. */
+     The page supplies the card chrome: #homeToday / #homeRecent are .picks bodies inside a card
+     whose title is already rendered, and #alertsCard is hidden until something is worth showing.
+     If the hosts are ever bare containers instead, a card shell is built so the blocks still
+     look right. */
   const hasChildClass = (node, cls) => (node.childNodes || []).some((n) => n.classList && n.classList.contains(cls));
   const block = (host, title) => {
     const cls = host.classList || { contains: () => false };
@@ -146,9 +146,11 @@
     }
     return add(card, 'div', 'picks');
   };
-  const setMeta = (id, text) => {
+  const setMeta = (id, text, tip) => {
     const n = document.getElementById(id);
-    if (n && !String(n.textContent || '').trim()) n.textContent = text || '';
+    if (!n) return;
+    if (!String(n.textContent || '').trim()) n.textContent = text || '';
+    if (tip) n.title = tip;
   };
 
   /* One label and one short value per row. The value column is max-content, so it must
@@ -193,8 +195,41 @@
     return row;
   };
 
-  /* ---------- A. today : the progress tracker (scripts/progress.py) ---------- */
-  const renderToday = (host, p) => {
+  /* ---------- A. today : the strip cells + the detail disclosure ----------
+     The strip itself is app.js's (it holds the page's own platinum + trade readings). This fills
+     the two cells only the progress store can answer - and never a second copy of a value that
+     is already on the strip: no Platinum row below, no sales count twice. */
+  const renderTodayCells = (p) => {
+    const earned = document.getElementById('todayEarned');
+    const sales = document.getElementById('todaySales');
+    const t = (p && p.today) || {};
+    const notes = (p && Array.isArray(p.notes) ? p.notes : []).filter((n) => typeof n === 'string');
+    if (earned) {
+      const pv = p ? num(t.plat_delta) : null;
+      /* the accent only celebrates a gain: a zero or a loss stays quiet (orange must mean
+         something on this page) */
+      earned.textContent = '';
+      earned.className = 'k-val' + (pv !== null && pv > 0 ? ' accent' : '');
+      if (pv === null) earned.textContent = UNKNOWN;
+      else {
+        const sp = document.createElement('span');
+        sp.className = trend(pv);
+        sp.textContent = signed(pv, 'p');
+        earned.appendChild(sp);
+      }
+      const from = plat(t.plat_start), now = plat(t.plat_now);
+      earned.title = pv === null
+        ? noteFor(notes, /plat/i, 'No reading today')
+        : ('from ' + (from || UNKNOWN) + ' to ' + (now || UNKNOWN));
+    }
+    if (sales) {
+      const sc = p ? num((t.trades || {}).sales) : null;
+      sales.textContent = sc === null ? UNKNOWN : String(sc);
+      sales.title = sc === null ? noteFor(notes, /trade_log/i, 'No reading today') : 'sales logged today';
+    }
+  };
+
+  const renderTodayDetail = (host, p) => {
     clear(host);
     const body = block(host, 'Today');
     if (!p || typeof p !== 'object') {            /* store missing or unreachable */
@@ -206,15 +241,19 @@
     const tr = t.trades || {};
     const ss = t.sessions || {};
     const st = p.streaks || {};
-    if (p.updated) setMeta('todayMeta', '\u00b7 updated ' + clip(dayLabel(t.date || localDate()) + ' ' + hm(p.updated), 24));
+    if (p.updated) {
+      /* the date belongs to the page header, and the header already carries the sync clock: the
+         store's own reading time is the card's hover, so no clock and no date render twice */
+      const head = document.querySelector('#todayCard .card-title');
+      if (head) head.title = 'progress store updated ' + hm(p.updated);
+    }
 
-    /* platinum and credits: the signed change for today */
-    const pv = num(t.plat_delta);
-    statRow(body, 'Platinum', pv === null ? UNKNOWN : [[signed(pv, 'p'), trend(pv)]],
-      pv === null ? noteFor(notes, /plat/i, 'No reading today')
-        : 'from ' + (plat(t.plat_start) || UNKNOWN) + ' to ' + (plat(t.plat_now) || UNKNOWN));
+    /* credits: the balance (it lives nowhere else in the app) and the day's own change */
+    const s = summaryOf() || {};
+    const bal = num(s.credits);
+    statRow(body, 'Credits', bal === null ? UNKNOWN : bal.toLocaleString(), 'in-game credit balance');
     const cv = num(t.credits_delta);
-    statRow(body, 'Credits', cv === null ? UNKNOWN : [[signed(cv, ''), trend(cv)]],
+    statRow(body, 'Credits today', cv === null ? UNKNOWN : [[signed(cv, ''), trend(cv)]],
       cv === null ? noteFor(notes, /credits/i, 'No reading today') : '');
 
     /* items: null until the day has an inventory snapshot of its own */
@@ -232,8 +271,7 @@
     const tc = num(tr.count);
     const tin = num(tr.plat_in), tout = num(tr.plat_out);
     const trow = statRow(body, 'Trades', tc === null ? UNKNOWN : String(tc),
-      tc ? plural(num(tr.sales) || 0, 'sale') + ' \u00b7 ' + plural(num(tr.purchases) || 0, 'purchase')
-        : noteFor(notes, /trade_log/i, 'No trades today'));
+      tc ? 'sales and purchases logged today' : noteFor(notes, /trade_log/i, 'No trades today'));
     if (tc && (tin || tout)) {
       const bits = [];
       if (tin) bits.push('in ' + tin.toLocaleString() + 'p');
@@ -269,12 +307,16 @@
     if (wh !== null) wsub.push(dur(wh * 60) + ' in game');
     subRow(wrow, wsub.join(' \u00b7 '));
 
+    /* the inventory value reading (the old KPI cell) - sellable copies only, per report.json */
+    const iv = num(s.total_value);
+    statRow(body, 'Inventory value', iv === null ? UNKNOWN : iv.toLocaleString() + 'p', 'sellable copies only');
+
     /* the newest sessions, one line each (the store sends up to 30, newest first) */
-    const list = (Array.isArray(p.sessions) ? p.sessions : []).filter((s) => s && s.start_ts && s.end_ts);
+    const list = (Array.isArray(p.sessions) ? p.sessions : []).filter((x) => x && x.start_ts && x.end_ts);
     const head = add(body, 'div', 'h-group-head', 'Sessions');
     head.setAttribute('data-icon', 'clock');
     if (!list.length) add(body, 'div', 'h-l3', 'No sessions yet');
-    list.slice(0, SESSIONS_SHOWN).forEach((s) => body.appendChild(sessionRow(s)));
+    list.slice(0, SESSIONS_SHOWN).forEach((x) => body.appendChild(sessionRow(x)));
   };
 
   /* ---------- B. alerts ---------- */
@@ -356,15 +398,11 @@
       });
     }
 
-    /* posting is off */
+    /* posting is off (the title says it; the "Not live" wording already rides the alert above) */
     const set = (d.trader && d.trader.settings) || {};
     const dry = set.dry_run === true || !!(plan && plan.dry_run === true);
     if (dry) {
-      out.push({
-        kind: 'info',
-        t: 'Nothing is posted automatically',
-        d: 'Not live - plan only'
-      });
+      out.push({ kind: 'info', t: 'Nothing is posted automatically' });
     }
 
     /* Baro visit, only when it is actually close */
@@ -390,15 +428,17 @@
     clear(host);
     const alerts = buildAlerts(d);
     /* The page ships #alertsCard hidden; show it only when there is something real.
-       Empty alerts must leave no trace: no card, no placeholder text. */
+       Empty alerts must leave no trace: no card, no placeholder text - and the band above
+       widens (no-alerts) so a quiet day leaves no empty column either. */
     const wrap = document.getElementById('alertsCard');
+    const main = document.getElementById('homeMain');
+    if (main) main.classList.toggle('no-alerts', !alerts.length);
     if (!alerts.length) {
-      if (wrap && wrap.classList && wrap.classList.add) wrap.classList.add('hidden');
+      if (wrap && wrap.classList.add) wrap.classList.add('hidden');
       return;
     }
-    if (wrap && wrap.classList && wrap.classList.remove) wrap.classList.remove('hidden');
+    if (wrap && wrap.classList.remove) wrap.classList.remove('hidden');
     const body = block(host, 'Needs attention');
-    add(body, 'div', 'h-lead2', plural(alerts.length, 'thing needs', 'things need') + ' a look');
     alerts.forEach((a) => {
       const row = el('div', 'h-alert h-alert-' + (a.kind || 'info'));
       add(row, 'div', 'h-alert-t', a.t);
@@ -407,79 +447,33 @@
     });
   };
 
-  /* ---------- C. recent ---------- */
+  /* ---------- C. recent : the last few trade events ---------- */
   const renderRecent = (host, d) => {
     clear(host);
     const events = ((d.trades && d.trades.events) || []).filter((e) => e && typeof e === 'object');
-    const sessions = (d.sessions && d.sessions.sessions) || [];
-    if (!events.length && !sessions.length) return;
-
     setMeta('recentMeta', events.length && events[0].ts ? '\u00b7 latest ' + when(events[0].ts) : '');
     const body = block(host, 'Recent');
-
-    /* latest day with a session, rolled up */
-    const byDate = {};
-    sessions.forEach((s) => {
-      if (s && s.date) (byDate[s.date] = byDate[s.date] || []).push(s);
+    if (!events.length) {
+      const empty = add(body, 'div', 'empty');
+      const ic = add(empty, 'span', 'empty-icon');
+      ic.setAttribute('data-icon', 'tray');
+      ic.setAttribute('data-icon-size', '18');
+      add(empty, 'div', null, 'No trades logged yet');
+      return;
+    }
+    const LABEL = { sale: 'Sold', purchase: 'Bought', listing: 'Listed', unlist: 'Unlisted', reprice: 'Repriced', note: 'Note' };
+    events.slice(0, RECENT_EVENTS).forEach((e) => {
+      const row = el('div', 'h-ev');
+      if (e.note) row.setAttribute('title', clip(e.note, 300));
+      add(row, 'span', 'badge' + (e.kind ? ' ' + e.kind : ''), LABEL[e.kind] || e.kind || 'Event');
+      add(row, 'span', 'h-name', clip(e.name || e.note || 'item', 60));
+      add(row, 'span', 'h-num h-qty', e.qty === null || e.qty === undefined ? '' : e.qty + '\u00d7');
+      const deal = (e.total !== null && e.total !== undefined) ? plat(e.total)
+        : (e.plat !== null && e.plat !== undefined ? plat(e.plat) : null);
+      add(row, 'span', 'h-num', deal || '');
+      add(row, 'span', 'h-when', when(e.ts) || ago(e.ts));
+      body.appendChild(row);
     });
-    const days = Object.keys(byDate).sort().reverse();
-    if (days.length) {
-      const day = days[0];
-      const group = byDate[day];
-      const agg = { dur: 0, sales: 0, gross: 0, bought: 0, spent: 0, net: 0 };
-      group.forEach((s) => {
-        agg.dur += s.dur_min || 0;
-        agg.sales += s.sales || 0;
-        agg.gross += s.gross || 0;
-        agg.bought += s.purchases || 0;
-        agg.spent += s.spent || 0;
-        agg.net += s.net || 0;
-      });
-      const best = group.map((s) => s.best_sale).filter(Boolean)
-        .sort((a, b) => (b.total || b.plat || 0) - (a.total || a.plat || 0))[0] || null;
-      const box = add(body, 'div', 'h-sess');
-      const yesterday = (() => { const t = new Date(); t.setDate(t.getDate() - 1); return localDate(t); })();
-      const dayTxt = day === localDate() ? 'Today'
-        : day === yesterday ? 'Yesterday'
-          : 'Last session \u00b7 ' + dayLabel(day);
-      add(box, 'span', 'h-sess-t', dayTxt);
-      add(box, 'span', 'h-sess-n', dur(agg.dur) + ' in game \u00b7 '
-        + plural(agg.sales, 'sale') + ' \u00b7 ' + Math.round(agg.gross) + 'p earned');
-      const sub = add(box, 'div', 'h-l3');
-      if (agg.bought) {
-        sub.appendChild(el('span', null, plural(agg.bought, 'buy', 'buys') + ' \u00b7 ' + Math.round(agg.spent) + 'p spent'));
-        sub.appendChild(document.createTextNode(' \u00b7 '));
-      }
-      const net = el('span', agg.net >= 0 ? 'upl' : 'downl',
-        (agg.net >= 0 ? '+' : '\u2212') + Math.abs(Math.round(agg.net)) + 'p net');
-      sub.appendChild(net);
-      if (best && (best.name || best.plat || best.total)) {
-        sub.appendChild(document.createTextNode(' \u00b7 '));
-        sub.appendChild(el('span', null, 'best sale: ' + clip(best.name || 'item', 40)
-          + (best.total || best.plat ? ' ' + Math.round(best.total || best.plat) + 'p' : '')));
-      }
-      if (group.length > 1) {
-        sub.appendChild(document.createTextNode(' \u00b7 '));
-        sub.appendChild(el('span', null, plural(group.length, 'session')));
-      }
-    }
-
-    if (events.length) {
-      add(body, 'div', 'h-group-head', 'Latest activity');
-      const LABEL = { sale: 'Sold', purchase: 'Bought', listing: 'Listed', unlist: 'Unlisted', reprice: 'Repriced', note: 'Note' };
-      events.slice(0, RECENT_EVENTS).forEach((e) => {
-        const row = el('div', 'h-ev');
-        if (e.note) row.setAttribute('title', clip(e.note, 300));
-        add(row, 'span', 'badge' + (e.kind ? ' ' + e.kind : ''), LABEL[e.kind] || e.kind || 'Event');
-        add(row, 'span', 'h-name', clip(e.name || e.note || 'item', 60));
-        add(row, 'span', 'h-num h-qty', e.qty === null || e.qty === undefined ? '' : e.qty + '\u00d7');
-        const deal = (e.total !== null && e.total !== undefined) ? plat(e.total)
-          : (e.plat !== null && e.plat !== undefined ? plat(e.plat) : null);
-        add(row, 'span', 'h-num', deal || '');
-        add(row, 'span', 'h-when', when(e.ts) || ago(e.ts));
-        body.appendChild(row);
-      });
-    }
   };
 
   /* ---------- entry point ---------- */
@@ -492,7 +486,6 @@
     return Promise.all([
       get('/api/trader'),
       get('/api/trades'),
-      get('/api/feature/sessions'),
       get('/api/feature/progress'),
       get('/api/feature/baro'),
       get('/api/feature/killswitch'),
@@ -500,105 +493,21 @@
     ]).then((r) => {
       if (mine !== seq) return;   /* a newer refresh already answered */
       const d = {
-        trader: jok(r[0]), trades: jok(r[1]), sessions: jok(r[2]), progress: jok(r[3]),
-        baro: jok(r[4]), killswitch: jok(r[5]), hygiene: jok(r[6])
+        trader: jok(r[0]), trades: jok(r[1]), progress: jok(r[2]),
+        baro: jok(r[3]), killswitch: jok(r[4]), hygiene: jok(r[5])
       };
-      if (today) renderToday(today, d.progress);
+      renderTodayCells(d.progress);
+      if (today) renderTodayDetail(today, d.progress);
       if (alerts) renderAlerts(alerts, d);
       if (recent) renderRecent(recent, d);
-      setTimeout(syncNewsHeight, 60);
     });
   };
-
-  /* ---- Game updates matches Recent activity in length (Jay 2026-09-26) ----
-     Two jobs: (1) keep #newsCard at least as tall as #recentCard, (2) grow the news list row by
-     row until the card is filled (app.js renders four; the payload usually carries more). Both are
-     re-applied after app.js re-renders the list on a refresh, so the columns never drift apart. */
-  const NEWS_FILL_MAX = 10;
-  let newsObserving = false;
-
-  function newsPayload() {
-    try {
-      if (typeof GAMENEWS !== 'undefined' && GAMENEWS && Array.isArray(GAMENEWS.items)) return GAMENEWS.items;
-    } catch (e) { /* app.js has not run yet - fine, try again on the next tick */ }
-    return null;
-  }
-
-  function newsDayLabel(ts) {
-    try { if (typeof fmtDay === 'function') return fmtDay(ts); } catch (e) { /* fall through */ }
-    return '';
-  }
-
-  function renderNewsRows(list, items, n) {
-    list.textContent = '';
-    items.slice(0, n).forEach((it) => {
-      const row = document.createElement('div'); row.className = 'newsrow';
-      const d = document.createElement('span'); d.className = 'n-date'; d.textContent = newsDayLabel(it.date);
-      const a = document.createElement('a'); a.className = 'n-title';
-      a.href = it.url || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.title || '';
-      if (it.excerpt) a.title = it.excerpt;
-      const s = document.createElement('span'); s.className = 'n-src dim'; s.textContent = it.source || '';
-      row.appendChild(d); row.appendChild(a); row.appendChild(s);
-      list.appendChild(row);
-    });
-  }
-
-  function syncNewsHeight() {
-    const news = document.getElementById('newsCard');
-    const recent = document.getElementById('recentCard');
-    if (!news || !recent) return;
-    const target = Math.round(recent.getBoundingClientRect().height);
-    if (target < 60) return;
-    if (Math.abs((parseFloat(news.style.minHeight) || 0) - target) > 1) news.style.minHeight = target + 'px';
-
-    const list = document.getElementById('newsList');
-    const items = newsPayload();
-    if (!list || !items || !items.length) return;
-    const shown = list.querySelectorAll('.newsrow').length;
-    const cap = Math.min(NEWS_FILL_MAX, items.length);
-    if (!shown || shown >= cap) return;
-    /* compare the card's CONTENT height against the target - min-height already made the box tall */
-    const cs = getComputedStyle(news);
-    const padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-    const headEl = news.querySelector('.card-head');
-    const headH = headEl ? headEl.getBoundingClientRect().height : 0;
-    const content = () => Math.round(list.getBoundingClientRect().height + headH + padV);
-    let n = shown;
-    while (n < cap) {
-      renderNewsRows(list, items, n + 1);
-      if (content() > target + 1) {          /* overshoot: fall back one row so the boxes match exactly */
-        renderNewsRows(list, items, n);
-        break;
-      }
-      n += 1;
-    }
-  }
-
-  function watchNews() {
-    const list = document.getElementById('newsList');
-    if (!list || !window.MutationObserver || newsObserving) return;
-    const mo = new MutationObserver(() => {
-      mo.disconnect();
-      syncNewsHeight();
-      mo.observe(list, { childList: true });
-    });
-    mo.observe(list, { childList: true });
-    newsObserving = true;
-  }
-
-  window.wfmSyncNewsHeight = syncNewsHeight;
-  window.addEventListener('resize', () => {
-    clearTimeout(window.wfmSyncNewsHeight._t);
-    window.wfmSyncNewsHeight._t = setTimeout(syncNewsHeight, 200);
-  });
-  setTimeout(() => { syncNewsHeight(); watchNews(); }, 700);
-  setInterval(syncNewsHeight, 30000);
 })();
 
 /* ---------------------------------------------------------------- chat dock (right of HOME)
    Loads static/chat.js + static/chat.css once, only on the page that already runs the HOME
-   renderer. The chat owns its own DOM and placement (see chat.js), so this is the whole
-   integration: no edit to app.js or index.html is needed. */
+   renderer. The chat owns its own DOM, its collapsed-or-open state and placement (see chat.js),
+   so this is the whole integration: no edit to app.js is needed. */
 (function () {
   if (document.getElementById('chatDock')) return;
   if (!document.querySelector('link[href="/chat.css"]')) {

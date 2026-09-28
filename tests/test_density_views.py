@@ -84,31 +84,36 @@ def test_the_fit_block_comes_after_the_trade_density_block():
 
 # ------------------------------------------------------------------ each view is bounded + scrolls
 
-def test_home_fills_the_left_column_beside_the_chat_rail():
+def test_home_fills_the_window_in_five_bands():
+    """Stage 3 (Jay 2026-09-28): the chat rail is collapsible now (chat.css owns it), so Home fills
+    the window on its own: header row, the Today strip, NEXT ACTION beside the alerts column (full
+    width when there are none), the Sell queue, then RECENT beside the small chart."""
     css = read('static/home.css')
-    assert 'body.shell-fit #view-home.chat-docked {' in css
-    assert 'grid-template-rows: minmax(0, 1fr); align-items: stretch;' in css      # the chat rail owns its own column
     assert 'body.shell-fit #view-home #homeMain {' in css
-    # the clean pass order: header row, hero, the alert surface, the KPI grid, then sell next
-    # beside the chart, then the three lists sharing the last band
-    assert 'grid-template-rows: auto auto auto auto auto minmax(112px, 1fr);' in css
-    for band in ('#homeHead', '#heroCard', '#alertsCard', '#kpiCard'):
+    assert 'grid-template-columns: repeat(3, minmax(0, 1fr));' in css
+    assert 'grid-template-rows: auto auto minmax(0, auto) minmax(0, auto) minmax(112px, 1fr);' in css
+    for band in ('#homeHead', '#todayCard', '#sellQueueCard'):
         assert ('body.shell-fit #homeMain > %s' % band) in css, band
-    assert 'body.shell-fit #homeMain > #homeSellNext { grid-column: 1; }' in css
-    assert 'body.shell-fit #homeMain > #chartCard { grid-column: 2 / -1; }' in css
+    assert 'body.shell-fit #homeMain > #homeSellNext { grid-column: 1 / span 2; }' in css
+    assert 'body.shell-fit #homeMain > #alertsCard { grid-column: 3; }' in css
+    assert 'body.shell-fit #homeMain > #recentCard { grid-column: 1 / span 2; }' in css
+    assert 'body.shell-fit #homeMain > #chartCard { grid-column: 3; }' in css
+    assert 'body.shell-fit #homeMain.no-alerts > #homeSellNext { grid-column: 1 / -1; }' in css
     # the alert cap is a safety net (three alerts fit whole); short windows use the tighter cap
-    assert 'body.shell-fit #homeMain > #alertsCard { max-height: min(420px, 45vh); }' in css
-    assert 'body.shell-fit #homeMain > #alertsCard { max-height: 17vh; }' in css
-    assert 'body.shell-fit #homeMain > .h-cols {' in css
-    assert 'grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);' in css
-    assert 'body.shell-fit .h-cols > .h-col { display: contents; }' in css        # news / today / recent side by side
-    for card, list in (('#newsCard', '#newsCard > .picks'), ('#todayCard', '#todayCard > .picks'),
-                       ('#recentCard', '#recentCard > .picks'), ('#homeSellNext', '#homeSellNext > .picks')):
+    assert 'body.shell-fit #homeMain > #alertsCard { max-height: min(360px, 42vh); }' in css
+    assert 'body.shell-fit #homeMain > #alertsCard { max-height: 24vh; }' in css
+    for card, list in (('#alertsCard', 'body.shell-fit #alertsCard > .picks'),
+                       ('#recentCard', 'body.shell-fit #recentCard > .picks'),
+                       ('#sellQueueCard', 'body.shell-fit #sellQueueCard > .picks')):
         assert card in css, card
         assert list in css, list
-    # the lists scroll inside their cards; the chart keeps a readable, window-relative height
+    # the Today strip keeps its height; its detail disclosure scrolls instead
+    assert 'body.shell-fit #view-home .home-more[open] > .picks ' \
+           '{ max-height: min(300px, 34vh); overflow-y: auto; overscroll-behavior: contain; }' in css
+    # the lists scroll inside their cards; the chart grows into its column (its canvas is sized by
+    # its own box, so a taller card is a taller plot - never a stretched bitmap)
     assert 'flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;' in css
-    assert 'body.shell-fit #view-home .chartwrap { height: clamp(84px, 10vh, 140px); margin: 4px 12px 0; }' in css
+    assert 'body.shell-fit #view-home .chartwrap { flex: 1 1 auto; height: auto; min-height: 56px; margin: 4px 12px 0; }' in css
 
 
 def test_inventory_keeps_the_table_and_gives_the_three_cards_their_own_band():
@@ -244,11 +249,13 @@ def test_card_chrome_is_the_shared_dense_recipe():
 def test_every_id_and_control_survives():
     html = read('static/index.html')
     for view, frags in (
-        ('view-home', ('id="homeHead"', 'id="homeSync"', 'id="heroCard"', 'id="platinumNow"', 'id="heroMeta"',
-                       'id="kpis"', 'id="kpiCard"', 'id="homeSellNext"', 'id="sellNextList"', 'id="sellNextMeta"',
+        ('view-home', ('id="homeHead"', 'id="homeSub"', 'id="homeDate"', 'id="chatToggle"',
+                       'id="kpis"', 'id="todayCard"', 'id="todayMore"', 'id="homeToday"',
+                       'id="homeSellNext"', 'id="sellNextList"', 'id="sellNextMeta"',
                        'id="chartCard"', 'id="platChart"', 'id="ranges"', 'id="chartMeta"',
-                       'id="alertsCard"', 'id="homeAlerts"', 'id="newsCard"', 'id="newsList"',
-                       'id="todayCard"', 'id="homeToday"', 'id="recentCard"', 'id="homeRecent"')),
+                       'id="alertsCard"', 'id="homeAlerts"', 'id="chartTip"',
+                       'id="sellQueueCard"', 'id="sellQueueList"', 'id="sellQueueMeta"',
+                       'id="recentCard"', 'id="recentMeta"', 'id="homeRecent"')),
         ('view-inventory', ('id="tabs"', 'id="totals"', 'id="invQ"', 'id="btnCols"', 'id="tbl"', 'id="rows"',
                             'id="status"', 'id="matCard"', 'id="matQ"', 'id="matView"', 'id="matSort"',
                             'id="matTbl"', 'id="matRows"', 'id="matCap"', 'id="dojoCard"', 'id="dojoTier"',
@@ -259,6 +266,7 @@ def test_every_id_and_control_survives():
         # the page's own footer (#foot) is a sibling of <main>, not part of the section - it is
         # pinned by tests/test_ia_reachability.py and tests/test_app_shell.py
         ('view-tools', ('id="toolsLauncher"', 'id="toolsWs"', 'id="setupCard"',
+                        'id="newsList"', 'id="tws-news"',
                         'id="dealsList"', 'id="moversList"', 'id="trendsList"', 'id="ducatsList"',
                         'id="craftList"', 'id="relicsList"', 'id="setsList"', 'id="nudgesList"',
                         'id="wlList"', 'id="rivensList"', 'id="baroList"', 'id="metaList"')),

@@ -1,29 +1,46 @@
-/* WFM Trader - chat dock layout (HOME, right side).
-   Loaded by home.js on index.html only. Owns #homeMain / #chatDock / #chatRows / .chatrow, and the
-   #view-home.chat-docked grid. Nothing here touches app.js or style.css, and colours come from the
-   palette vars so every theme works.
+/* WFM Trader - chat dock (HOME, right side).
+   Stage 3 (Jay 2026-09-28): the dock is COLLAPSIBLE and closed by default - it is not a
+   permanently visible 300-360px column any more. One control owns it: the Chat toggle in the
+   home head (#chatToggle), and the open/closed choice is remembered per browser (localStorage,
+   see chat.js). While it is closed the home grid is a single column, so the rail leaves no dead
+   gap; while it is open the dock is the second column (340px, 2 columns wide windows get 360px)
+   and its message list scrolls inside itself.
+
+   Loaded by home.js on index.html only. Owns #chatToggle / #chatDock / #chatRows / .chatrow and
+   the #view-home.chat-open grid. Nothing here touches app.js or style.css, and colours come from
+   the palette vars so every theme works.
 
    Breakpoints mirror the relic dock on the collection page (the house pattern):
-     >=1500px  two columns: cards left, 360px sticky chat rail right
-     1200-1499 cards full width, 300px rail right
-     <1200px   chat sits under the cards as a normal block, list scrolls inside itself */
+     >=1200px  open: cards left, the chat rail right, running to the bottom of the view
+     <1200px   open: the chat sits under the cards as a normal block, list scrolls inside itself */
 
-#view-home.chat-docked { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: start; }
-#view-home.chat-docked > #homeMain { display: flex; flex-direction: column; min-width: 0; }
-#view-home.chat-docked > #homeMain > * { min-width: 0; }
+/* ---- the one toggle (sits at the right end of the home header row) ---- */
+.chat-toggle {
+  margin-left: auto; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  font: 500 12px var(--sans); color: var(--muted); background: transparent;
+  border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; cursor: pointer;
+}
+.chat-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.chat-toggle[aria-expanded="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.chat-toggle .i { color: inherit; }
 
-#chatDock { margin-bottom: 10px; display: flex; flex-direction: column; min-width: 0; }
+/* ---- closed (default): no rail, no gap ---- */
+#view-home.chat-open { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: start; }
+#chatDock { display: none; }
+#view-home.chat-open > #chatDock { display: flex; flex-direction: column; min-width: 0; }
+
+#chatDock { margin-bottom: 10px; }
 #chatDock .card-head { flex: 0 0 auto; }
 #chatDock .chat-rows {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 6px 12px 4px; display: flex; flex-direction: column; gap: 0;
 }
-/* The rail fills the column ("chat can go all the way down") but the chat itself stays at the
-   top of it: the list takes its content height and the composer follows right under, so a short
-   conversation is not stranded 800px down the rail (Jay: "chat is too far down"). Once the list
-   has more messages than room, flex-shrink makes it the scroller and the composer lands on the
-   bottom edge, which is the usual chat behaviour. */
-#chatDock .chat-rows { flex: 0 1 auto; }
+/* The rail runs the full height (Jay: "chat can go all the way down") and the conversation sits on
+   its bottom edge, right above the composer (Jay: "chat is too far down" - a lone message used to
+   strand the composer a screen away). The spacer carries the slack only while the history is
+   short; once the rows fill the rail it shrinks to nothing, so scrolling starts at the newest
+   readable top and no old row is stranded out of reach (which an anchored flex container does). */
+#chatDock .chat-rows::before { content: ''; flex: 1 0 auto; }
 #chatDock .chatrow {
   display: flex; gap: 6px; align-items: baseline; padding: 4px 2px; font-size: 12px;
   line-height: 1.35; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
@@ -48,14 +65,14 @@
 #chatDock .chat-form .btn { flex: 0 0 auto; }
 
 @media (min-width: 1200px) {
-  #view-home.chat-docked { grid-template-columns: minmax(0, 1fr) 300px; }
-  /* height is measured by chat.js (fit()): the rail runs from its own top down to the bottom of
-     the viewport, so the message list fills it and the input sits on the bottom edge */
-  #chatDock { position: sticky; top: 10px; }
+  /* open: the cards keep their own column grid and the dock runs down the right side; its height
+     is measured by chat.js (fit()) so it ends at the bottom of the view, above the footer line */
+  #view-home.chat-open { grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  #chatDock { margin-bottom: 0; min-height: 0; }
 }
 
 @media (min-width: 1500px) {
-  #view-home.chat-docked { grid-template-columns: minmax(0, 1fr) 360px; }
+  #view-home.chat-open { grid-template-columns: minmax(0, 1fr) 360px; }
 }
 
 /* stack: the chat becomes a normal block under the cards; keep it short so it does not push the

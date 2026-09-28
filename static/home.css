@@ -1,10 +1,12 @@
 /* WFM Trader - HOME (static/home.css).
-   The clean pass (Jay 2026-09-28): "the entire thing still looks like its everywhere". The
-   approved V1 mockup (design/mockups/desktop-directions.html) is one quiet column: a page
-   header, the hero number, the alert surface, one labelled KPI grid, the short "sell next"
-   list, then the chart and the three lists. Same data, same ids, calmer chrome - one row
-   anatomy everywhere (name + sub on the left, the value on the right, 1px separators, no
-   cramped 3px rows), quieter card heads and more air between the cards.
+   Stage 3 (Jay 2026-09-28): Home is an action surface, top to bottom - TODAY (one strip, four
+   labelled cells), NEXT ACTION (the one best item, dominant), ALERTS (compact, hidden when
+   empty), SELL QUEUE (the next few plan rows) and RECENT (the last trade events + the small
+   platinum chart). Every value renders exactly once here; the old hero band and the six-cell KPI
+   grid are merged into the strip, so this file no longer styles a hero.
+
+   The chat dock opens as a second column (chat.css owns that grid); collapsed - the default -
+   Home is one column and there is no gap where the rail would be.
 
    HOME-only rules: every colour comes from the palette vars (--panel --panel2 --border --text
    --muted --accent --hover), so all 60 themes stay consistent, and every text line clips with
@@ -12,52 +14,83 @@
    long list scrolls inside its own card (heads and footers stay put); under 1200px the page
    scrolls as it always did, one column. */
 
-/* ============ the page header row (Home + the quiet date / sync line) ============ */
+/* ============ the page header row (Home + the quiet date line + the chat toggle) ============ */
 .home-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-width: 0; }
 .home-title { font-size: 19px; font-weight: 700; letter-spacing: -.2px; color: var(--text); }
 .home-sub { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 12.5px; min-width: 0; }
-#homeSync:not(:empty)::before { content: "\00b7"; margin-right: 8px; color: var(--muted); }
-
-/* ============ the hero (the visual anchor) ============ */
-#view-home .hero { display: flex; align-items: center; gap: 18px; padding: 16px 20px; }
-.hero-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.hero-lab { font-size: 11.5px; color: var(--muted); }
-.hero-num {
-  font: 800 38px/1.05 var(--sans); letter-spacing: -.5px; color: var(--text);
-  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 2px;
-}
-.hero-num .hero-unit { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
-.hero-vl { width: 1px; align-self: stretch; background: var(--border); flex: 0 0 auto; }
-.hero-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; min-width: 0; color: var(--muted); font-size: 12.5px; }
-.hero-meta b { color: var(--text); font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
-.hero-go { margin-left: auto; flex: 0 0 auto; }
 
 /* a head label that is longer than its card ellipsizes - it never bleeds past the edge */
 #view-home .card-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-/* ============ the KPI grid: one quiet card, labelled cells, no hover lift ============ */
-#view-home .home-kpis { padding: 0; }
-#view-home .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 0; }
+/* ============ TODAY: one strip, four labelled cells ============ */
+#view-home .home-today { padding: 0; }
+#view-home .kpis.home-strip {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 0 0 6px;
+}
 #view-home .kpi {
   background: none; border: 0; border-left: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
-  border-radius: 0; padding: 10px 12px; min-width: 0;
+  border-radius: 0; padding: 9px 14px 10px; min-width: 0;
   box-shadow: none; transition: none; transform: none;
 }
 #view-home .kpi:first-child { border-left: 0; }
 #view-home .kpi:hover { border-color: color-mix(in srgb, var(--border) 65%, transparent); transform: none; }
 #view-home .kpi::after { content: none; }
 #view-home .kpi:hover::after { opacity: 0; animation: none; }
-#view-home .kpi .k-label { font-size: 10px; letter-spacing: .7px; }
-#view-home .kpi .k-val { font-size: 15px; font-weight: 700; margin-top: 2px; color: var(--text); }
+#view-home .kpi .k-label { font-size: 10.5px; letter-spacing: .7px; color: color-mix(in srgb, var(--muted) 88%, var(--text)); }
+#view-home .kpi .k-val { font-size: 16.5px; font-weight: 700; margin-top: 3px; color: var(--text); font-variant-numeric: tabular-nums; }
 #view-home .kpi .k-val.accent { color: var(--accent); }
-#view-home .kpi .k-val .upl, #view-home .kpi .k-val .downl { font-size: 13px; }
+#view-home .kpi .k-val .upl, #view-home .kpi .k-val .downl { font-size: 14px; }
+/* the anchor of the strip: the day's own number is one size up, the rest stays quiet */
+#view-home .kpi:first-child .k-val { font-size: 23px; letter-spacing: -.3px; }
+/* the disclosure reads as a control: a bordered pill with the app's own caret, and a hover that
+   names what is behind it (credits, items, sessions, materials, inventory value) */
+#view-home .home-more { border: 0; margin: 0 12px 8px; }
+#view-home .home-more > summary {
+  padding: 4px 12px; font-size: 11.5px; font-weight: 500; color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 999px; width: fit-content;
+}
+#view-home .home-more > summary:hover { color: var(--text); border-color: var(--accent); }
+#view-home .home-more[open] > summary { color: var(--text); }
 
-/* ============ sell next: three rows, name + sub, price right, one chevron ============ */
-#view-home .home-next-list { padding: 0 8px 8px; display: flex; flex-direction: column; }
-/* the three rows share the card's height with the chart beside them - no dead space at the bottom */
-#view-home .home-next-list .hnext-row { flex: 1 1 auto; }
+/* ============ NEXT ACTION: one item, big price, the buyer line ============ */
+#view-home .home-next-list { padding: 4px 14px 12px; }
+#view-home .next-one { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 14px; align-items: baseline; }
+#view-home .next-l { min-width: 0; }
+#view-home .next-t { font-size: 17px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .next-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .next-pr {
+  font: 800 26px/1 var(--mono); color: var(--accent);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#view-home .next-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 9px; min-width: 0; }
+/* the labelled facts line: demand / sold 48h / liquidity - the same label-above-value anatomy as
+   the Today strip, so the action card reads as part of the page rather than a stack of chips */
+#view-home .next-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 12px; }
+#view-home .next-fact {
+  min-width: 0; padding: 7px 12px 8px; border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+#view-home .next-fact:first-child { border-left: 0; padding-left: 0; }
+#view-home .nf-l { font-size: 10px; letter-spacing: .7px; text-transform: uppercase; color: var(--muted); }
+#view-home .nf-v { margin-top: 2px; font-size: 13.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .nf-v.upl { color: var(--ok, #58c07a); }
+#view-home .nf-v.downl { color: var(--muted); }
+#view-home .next-dm { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+#view-home .next-buyer { font-size: 12.5px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .next-buyer b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+#view-home .next-nobuyer { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ SELL QUEUE: item + sub, demand, price, one chevron ============ */
+#view-home .home-queue .picks { padding: 0 8px 8px; }
+/* the card head's one action reads as a button, not a stray label */
+#view-home .home-open {
+  color: var(--text); font-size: 11.5px; text-decoration: none; white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent); border-radius: 999px;
+  padding: 2px 10px; line-height: 1.7;
+}
+#view-home .home-open:hover { color: var(--accent); border-color: var(--accent); }
 #view-home .hnext-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) max-content 12px; gap: 10px;
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content 12px; gap: 10px;
   align-items: center; padding: 9px 8px; min-height: 36px; color: var(--text); text-decoration: none;
   border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
@@ -68,10 +101,16 @@
 /* the item name never yields: the sub line is the secondary hint, so it takes the squeeze */
 #view-home .hnext-t { flex: 0 0 auto; max-width: 100%; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #view-home .hnext-sub { flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .hnext-dm { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 #view-home .hnext-pr { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 #view-home .hnext-chev { color: var(--muted); font-size: 13px; text-align: right; }
-#view-home .home-open { color: var(--muted); font-size: 11.5px; text-decoration: none; white-space: nowrap; }
-#view-home .home-open:hover { color: var(--accent); }
+/* the queue's own column heads - the demand and price columns are otherwise unlabelled */
+#view-home .hnext-head { min-height: 22px; padding: 3px 8px 4px; cursor: default; }
+#view-home .hnext-head:hover { background: none; }
+#view-home .hnext-head span {
+  font-family: inherit; font-size: 10px; font-weight: 500; letter-spacing: .6px;
+  text-transform: uppercase; color: var(--muted);
+}
 
 /* ============ rows: one anatomy (name + sub left, value right, 1px separators) ============ */
 .h-row {
@@ -98,17 +137,6 @@
   letter-spacing: .6px; color: var(--muted);
 }
 
-/* ---- today : expander ---- */
-.h-morewrap { padding: 12px 6px 2px; }
-.h-more {
-  background: transparent; color: var(--muted); border: 1px solid var(--border);
-  border-radius: 999px; padding: 6px 14px; cursor: pointer;
-  font: 600 12px var(--sans);
-}
-.h-more:hover { color: var(--accent); border-color: var(--accent); }
-.h-morelist { padding-top: 6px; }
-.h-morelist[hidden] { display: none; }
-
 /* ---- alerts ---- */
 .h-alert { padding: 10px 6px 10px 18px; position: relative; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 .h-alert:first-child { border-top: none; }
@@ -118,12 +146,7 @@
 .h-alert-warn .h-alert-t { color: var(--accent); }
 .h-alert-d { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
 
-/* ---- recent : session roll-up ---- */
-.h-sess { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 11px 6px; font-size: 12.5px; }
-.h-sess-t { font-weight: 600; color: var(--text); }
-.h-sess-n { font-family: var(--mono); font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
-
-/* ---- recent : trade events + the today sessions list ---- */
+/* ---- recent : trade events ---- */
 .h-ev {
   display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content max-content max-content;
   gap: 10px; align-items: center; padding: 9px 6px; font-size: 12.5px;
@@ -135,7 +158,7 @@
 .h-when { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 .h-qty { color: var(--muted); }
 
-/* ---- game updates ---- */
+/* ---- game updates (Tools > Game news; rows keep the same anatomy they had on Home) ---- */
 .newsrow {
   display: grid; grid-template-columns: 64px minmax(0, 1fr) 76px; gap: 10px;
   align-items: baseline; padding: 9px 6px;
@@ -143,14 +166,12 @@
 }
 .newsrow:first-child { border-top: 0; }
 
-/* ============ the three lists: two columns, collapsing to one ============ */
-.h-cols {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px; align-items: start;
-}
-.h-col { display: grid; gap: 0; min-width: 0; }
+/* ============ narrow windows: the strip drops to two columns ============ */
 @media (max-width: 1040px) {
-  .h-cols { grid-template-columns: minmax(0, 1fr); }
+  #view-home .kpis.home-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-home .kpi { border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent); }
+  #view-home .kpi:nth-child(-n+2) { border-top: 0; }
+  #view-home .kpi:nth-child(odd) { border-left: 0; }
 }
 
 @media (max-width: 900px) {
@@ -158,12 +179,8 @@
   .h-row.h-sm .h-act { font-size: 12px; }
   .h-ev { grid-template-columns: max-content minmax(0, 1fr) max-content max-content; }
   .h-ev .h-when { display: none; }
-  .hero { flex-wrap: wrap; }
-  .hero-vl { display: none; }
-  #view-home .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
-  #view-home .kpi { border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent); }
-  #view-home .kpi:nth-child(-n+2) { border-top: 0; }
-  #view-home .kpi:nth-child(odd) { border-left: 0; }
+  #view-home .next-t { font-size: 15px; }
+  #view-home .next-pr { font-size: 22px; }
 }
 
 /* small screens: the header action cluster used to push the page wider than the viewport */
@@ -171,96 +188,77 @@
   header .actions { flex-wrap: wrap; justify-content: flex-end; }
 }
 
-/* ============ the window fit (Jay 2026-09-27, clean pass 2026-09-28) ============
-   From 1200px up the home column fills the left track beside the chat rail and does not
-   scroll: header row, hero, the alert surface, the KPI grid, then Sell next beside the chart,
-   then the three lists sharing the last band. Every long list scrolls inside its own card, so
-   a card head (title, meta, range pills) and a card footer stay put. The rail is chat.css's
-   own column and is left alone; chat.js measures its own height with fit(). */
+/* ============ the window fit (Jay 2026-09-27, stage 3 2026-09-28) ============
+   From 1200px up the home column fits the window: the header row, the Today strip, then NEXT
+   ACTION beside the alerts column (full width when there are none), then the Sell queue, then
+   RECENT beside the small chart. Every long list scrolls inside its own card, so a card head
+   (title, meta, range pills) and a card footer stay put. The chat dock - chat.css's own column,
+   closed by default - only appears when the toggle opens it. */
 @media (min-width: 1200px) {
-  body.shell-fit #view-home.chat-docked {
-    height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch;
-  }
-  body.shell-fit #view-home.chat-docked > #chatDock { max-height: none; }
-  /* room for the floating status line under the cards */
-  body.shell-fit #view-home.chat-docked #homeMain { padding-bottom: 28px; }
+  body.shell-fit #view-home, body.shell-fit #view-home #homeMain { height: 100%; min-height: 0; }
   body.shell-fit #view-home #homeMain {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto auto auto auto auto minmax(112px, 1fr);
-    gap: 10px 12px; min-height: 0;
+    grid-template-rows: auto auto minmax(0, auto) minmax(0, auto) minmax(112px, 1fr);
+    gap: 10px 12px; align-items: stretch;
   }
   body.shell-fit #homeMain > * { min-width: 0; }
   body.shell-fit #homeMain > #homeHead, body.shell-fit #homeMain > #firstRun,
-  body.shell-fit #homeMain > #heroCard, body.shell-fit #homeMain > #alertsCard,
-  body.shell-fit #homeMain > #kpiCard, body.shell-fit #homeMain > .h-cols { grid-column: 1 / -1; }
-  body.shell-fit #homeMain > #homeSellNext { grid-column: 1; }
-  body.shell-fit #homeMain > #chartCard { grid-column: 2 / -1; }
-  /* the alert surface is a full-width row and a real list: it keeps its own scroller and never
-     pushes the chart or the band off the window */
-  /* a safety net, not a squeeze: three real alerts (the normal case) fit whole; a long list
-     still scrolls inside the card. Short windows use the tighter cap below. */
-  body.shell-fit #homeMain > #alertsCard { max-height: min(420px, 45vh); }
-  body.shell-fit #homeMain > #firstRun { max-height: 42vh; overflow-y: auto; }
-  body.shell-fit #chartCard, body.shell-fit #alertsCard, body.shell-fit #newsCard,
-  body.shell-fit #todayCard, body.shell-fit #recentCard, body.shell-fit #homeSellNext {
+  body.shell-fit #homeMain > #todayCard, body.shell-fit #homeMain > #sellQueueCard { grid-column: 1 / -1; }
+  body.shell-fit #homeMain > #homeSellNext { grid-column: 1 / span 2; }
+  body.shell-fit #homeMain > #alertsCard { grid-column: 3; }
+  body.shell-fit #homeMain > #recentCard { grid-column: 1 / span 2; }
+  body.shell-fit #homeMain > #chartCard { grid-column: 3; }
+  /* a quiet day leaves no empty column: with the alerts card hidden the action band takes the row */
+  body.shell-fit #homeMain.no-alerts > #homeSellNext { grid-column: 1 / -1; }
+
+  /* every band card is a flex column that scrolls its own list - and a hidden one leaves the grid
+     entirely (:not(.hidden) keeps this rule's id out of the way of the plain .hidden class, which
+     would otherwise lose to it and leave an empty card in the row) */
+  body.shell-fit #homeMain > .card:not(.hidden) {
     display: flex; flex-direction: column; min-height: 0; margin-bottom: 0;
   }
-  body.shell-fit #homeSellNext > .picks { padding-top: 0; }
-  body.shell-fit #alertsCard > .picks, body.shell-fit #newsCard > .picks,
-  body.shell-fit #todayCard > .picks, body.shell-fit #recentCard > .picks,
-  body.shell-fit #homeSellNext > .picks {
+  body.shell-fit #alertsCard > .picks, body.shell-fit #sellQueueCard > .picks,
+  body.shell-fit #recentCard > .picks {
     flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   }
-  body.shell-fit #alertsCard > .card-head, body.shell-fit #newsCard > .card-head,
-  body.shell-fit #todayCard > .card-head, body.shell-fit #recentCard > .card-head,
-  body.shell-fit #chartCard > .card-head, body.shell-fit #homeSellNext > .card-head,
-  body.shell-fit #view-home .chartwrap, body.shell-fit #view-home #chartMeta { flex: 0 0 auto; }
-
-  /* the three lists share one band: news / today / recent side by side */
-  body.shell-fit #homeMain > .h-cols {
-    grid-column: 1 / -1; min-height: 0; gap: 12px; align-items: stretch;
-    grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
-  }
-  body.shell-fit .h-cols > .h-col { display: contents; }
-  /* home.js matches the news card to the recent card with an inline min-height. The band is one
-     stretched grid row here, so the match is already true - and the inline value must not pin a
-     taller row after the window shrinks (it would push the column past the window). */
-  body.shell-fit #homeMain #newsCard { min-height: 0 !important; }
+  body.shell-fit #homeMain .card > .card-head { flex: 0 0 auto; }
+  /* the Today strip never gives up its height; the detail disclosure scrolls instead */
+  body.shell-fit #view-home .home-more[open] > .picks { max-height: min(300px, 34vh); overflow-y: auto; overscroll-behavior: contain; }
+  /* caps: a long list scrolls inside its card instead of pushing the band past the window */
+  body.shell-fit #homeMain > #alertsCard { max-height: min(360px, 42vh); }
+  body.shell-fit #homeMain > #sellQueueCard { max-height: min(300px, 34vh); }
+  body.shell-fit #homeMain > #firstRun { max-height: 42vh; overflow-y: auto; }
+  body.shell-fit #chartCard > .card-head, body.shell-fit #view-home #chartMeta { flex: 0 0 auto; }
+  /* the chart is the last band's filler: it grows into its card so the band has no dead space */
+  body.shell-fit #view-home .chartwrap { flex: 1 1 auto; height: auto; min-height: 56px; margin: 4px 12px 0; }
+  body.shell-fit #view-home #chartMeta { padding: 2px 14px 5px; font-size: 11px; }
 
   /* ---- quieter card chrome, more air between the rows ---- */
   #view-home .card { margin-bottom: 0; }
   #view-home .card-head { padding: 9px 14px 4px; gap: 10px; flex-wrap: wrap; }
   #view-home .card-title { font-size: 10.5px; letter-spacing: .7px; }
   #view-home .picks { padding: 2px 14px 10px; }
-  body.shell-fit #view-home .chartwrap { height: clamp(84px, 10vh, 140px); margin: 4px 12px 0; }
-  body.shell-fit #view-home #chartMeta { padding: 2px 14px 5px; font-size: 11px; }
-  /* the chart head carries three controls (range, style, colour): kept on one line */
+  #view-home .h-alert { padding: 9px 6px 9px 18px; }
+  #view-home .h-alert::before { top: 11px; }
   #view-home .ranges button { padding: 2px 8px; font-size: 10.5px; min-height: 21px; }
   #view-home .chartviews { gap: 3px; }
   #view-home .chartbtn { font-size: 9.5px; padding: 1px 6px; }
   #view-home .chartbtn.dot { width: 11px; height: 11px; }
-  #view-home .h-morewrap { padding: 10px 6px 4px; }
-  #view-home .h-alert { padding: 10px 6px 10px 18px; }
-  #view-home .h-alert::before { top: 12px; }
   #view-home h1.home-title, #view-home .home-head { margin: 0; }
 }
 
-/* a short window: the chart and the hero give the lists a little more room back */
+/* a short window: the Today strip, the action card and the caps tighten so all five bands fit */
 @media (min-width: 1200px) and (max-height: 820px) {
-  body.shell-fit #view-home .chartwrap { height: 66px; }
-  body.shell-fit #homeMain > #alertsCard { max-height: 17vh; }
-  #view-home .hero-num { font-size: 25px; }
-  #view-home .hero { padding: 10px 18px; }
-  #view-home .home-kpis .kpi { padding: 8px 12px; }
+  body.shell-fit #view-home .chartwrap { min-height: 48px; }
+  body.shell-fit #homeMain > #alertsCard { max-height: 24vh; }
+  body.shell-fit #homeMain > #sellQueueCard { max-height: 26vh; }
+  #view-home .kpi { padding: 7px 12px 8px; }
+  #view-home .kpi .k-val { font-size: 14px; }
+  #view-home .kpi:first-child .k-val { font-size: 18px; }
+  #view-home .home-next-list { padding: 2px 14px 8px; }
+  #view-home .next-t { font-size: 15px; }
+  #view-home .next-pr { font-size: 22px; }
+  #view-home .next-facts { margin-top: 8px; }
+  #view-home .next-foot { margin-top: 6px; }
+  #view-home .home-more[open] > .picks { max-height: 26vh; }
 }
-
-/* narrow three-across band: News and Recent activity need ~280px for their head labels, and a
-   band card is 259-268px of text at 1200-1599px, so there the meta drops to its own line instead
-   of being ellipsised. The labels stay readable and nothing is clipped. */
-@media (min-width: 1200px) and (max-width: 1599px) {
-  #view-home #newsCard .card-title .dim.small,
-  #view-home #recentCard .card-title .dim.small { display: block; }
-}
-/* the hero is the anchor: one lifted surface, everything else stays flat */
-#view-home #heroCard { background: linear-gradient(180deg, color-mix(in srgb, var(--panel2) 92%, transparent), var(--panel)); }
-#view-home #heroCard .hero-lab { text-transform: uppercase; letter-spacing: .8px; font-size: 10.5px; }

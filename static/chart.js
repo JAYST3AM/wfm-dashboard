@@ -91,6 +91,10 @@
   var registry = [];
   function wfmChart(opts) {
     opts = opts || {};
+    /* the range / style / colour controls carry their own styles: inject them from the factory, not
+       from one caller - only the Home platinum chart injected, so the item page colour dots fell
+       back to raw UA buttons until stage 9 (2026-09-28) */
+    injectCss();
     var canvas = opts.canvas;
     var noop = {
       setData: function () {}, setMarkers: function () {}, setRange: function () {}, setStyle: function () {},
@@ -467,7 +471,11 @@
              buttons still override it, and a stored choice still wins. gapS breaks the line at
              any break longer than two days instead of drawing through it. */
           range: '30d', style: 'area', palette: 'accent', gapS: 172800,
-          height: c.parentElement ? c.parentElement.clientHeight : 220,
+          /* no `height` on purpose (stage 3): it used to be captured once, from whatever the wrap
+             measured at init, and that stale number outranked the live box forever - the canvas
+             was drawn 717px tall inside a 271px card and only its top sliver showed. Sizing is
+             left to sizeCanvas(), which reads the wrap at every draw, so the plot always matches
+             the card it lives in (and the card can grow with the grid). */
         });
         /* the view controls mount beside the range pills in the chart card's head */
         var mount = document.getElementById('chartViews');

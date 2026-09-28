@@ -17,11 +17,15 @@ body, .chip, .tab, .btn, header, table, th, td, .theme-item, .search input, .tab
   transition: background-color .22s ease, border-color .22s ease, color .22s ease;
 }
 .hidden { display: none; }
-/* A hidden view is really hidden. home.css/chat.css style #view-home.chat-docked (an id + class, so
+/* A hidden view is really hidden. home.css/chat.css style #view-home (an id + class, so
    it outranks the bare .hidden class): without this the HOME cards stayed on screen underneath every
    other view and every page measured ~1.5k taller than the view it was showing. Same contract as
    showView(): exactly one main > section is visible. */
 main > section.hidden { display: none !important; }
+/* Stage 3: no number renders twice on HOME. The daily trade allowance is a Today-strip cell
+   there, so the header's trades chip steps aside while Home is the active view - the chip is
+   still on Trade / Inventory / Tools (and on the other pages, which have no #view-home). */
+body:has(#view-home:not(.hidden)) #chips .chip.warn { display: none; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
@@ -585,8 +589,8 @@ html[data-adv="on"] .explain { display: revert !important; }
   #view-trade .card-title { white-space: normal; }
   /* the run queue stays on two lines (the whisper needs the width) but keeps the dense spacing */
   .runrow { gap: 2px 10px; padding: 3px 10px; font-size: 12px; }
-  .h-cols .newsrow .n-title { white-space: normal; }   /* headlines read fully on a phone */
-  .h-cols .h-l2, .h-cols .h-l3 { white-space: normal; }  /* the why/how lines wrap, never clip */
+  .newsrow .n-title { white-space: normal; }      /* headlines read fully on a phone */
+  #view-home .h-l2, #view-home .h-l3 { white-space: normal; }   /* the why/how lines wrap, never clip */
 }
 
 /* ============ Phosphor icons (static/icons.js + icons.css) ============
@@ -777,12 +781,8 @@ html[data-adv="on"] .explain { display: revert !important; }
   body.shell-fit .shellbody > main { flex: 1 1 auto; min-height: 0; padding: 12px 22px; }
   body.shell-fit .shellcol > main { flex: 1 1 auto; min-height: 0; padding: 12px 22px; }
   body.shell-fit > .foot { padding: 4px 18px 8px; }
-  /* On HOME the rail owns the right column down to the window edge and the view must not be
-     clipped by the status line, so the line floats over the bottom-left instead of taking a
-     flex row. Its text starts left of the rail (right inset 384px = rail 360 + page inset). */
-  body.shell-fit:has(#view-home.chat-docked) > .foot {
-    position: fixed; left: 0; right: 384px; bottom: 0; padding: 4px 18px 8px;
-  }
+  /* Stage 3: the chat dock is collapsible and closed by default, so no view owns the bottom
+     strip any more - the footer is a normal flex row on every view, Home included. */
   body.shell-fit main > section:not(.hidden) {
     height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable;
   }

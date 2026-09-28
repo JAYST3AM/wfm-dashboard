@@ -48,12 +48,13 @@ WORKSPACES = [
     ('sets', ['setsList', 'nudgesList']),              # merged: completion + near misses
     ('baro', ['baroList']),
     ('meta', ['metaList']),
+    ('news', ['newsList']),                            # moved off Home in stage 3 (its old card id)
     ('player', ['pcHead', 'pcStats', 'pcTop', 'pcSyn', 'pcInt', 'pcFocus', 'pcMarket', 'pcClan']),
 ]
 SLUGS = [slug for slug, _lists in WORKSPACES]
 GROUPS = {'Trading': ['deals', 'trends', 'rivens', 'wl'],
           'Planning': ['ducats', 'craft', 'relicev', 'sets'],
-          'Warframe': ['baro', 'meta', 'player']}
+          'Warframe': ['baro', 'meta', 'news', 'player']}
 
 
 def tool_slugs_from_app():
@@ -155,9 +156,9 @@ def test_the_launcher_groups_the_tools_trading_planning_warframe():
     for group, slugs in GROUPS.items():
         chunk = launcher.split('>%s</div>' % group, 1)[1].split('tl-group', 1)[0]
         assert re.findall(r'data-tool="([a-z]+)"', chunk) == slugs, group
-    # 11 entries in three groups, and the launcher is a list, not a wall of live lists: no data
+    # 12 entries in three groups, and the launcher is a list, not a wall of live lists: no data
     # list renders up here (they are all inside the workspaces below)
-    assert launcher.count('class="tool"') == 11
+    assert launcher.count('class="tool"') == len(SLUGS)
     for _slug, lists in WORKSPACES:
         for list_id in lists:
             assert 'id="%s"' % list_id not in launcher, list_id
@@ -209,13 +210,28 @@ def test_the_page_foot_and_setup_links_stay_at_the_launcher_bottom():
 # ------------------------------------------------------------------ Mastery -> Collection
 
 def test_mastery_is_a_tab_of_the_collection_section_row():
+    """Stage 6: the row is the page's ONE section navigation - four entries, one anatomy (icon +
+    label), one active mark, deep-linkable hrefs. It sits inside the page head, under the title
+    and the log's counts."""
     row = COLLECTION.split('id="collectionNav"', 1)[1].split('</nav>', 1)[0]
     assert re.findall(r'data-v="([a-z]+)"', row) == ['collection', 'relics', 'mastery', 'cards']
-    assert 'href="/collection.html#mastery" class="navpill" data-v="mastery">Mastery</a>' in row
-    assert 'href="/cards.html" class="navpill" data-v="cards">Cards</a>' in row, 'Cards stays a page'
-    for href in ('href="/collection.html" class="navpill active" data-v="collection" aria-current="page"',
-                 'href="/collection.html#relics" class="navpill" data-v="relics">Relics</a>'):
+    # same anatomy on all four: one Phosphor mark each, then the label
+    assert re.findall(r'data-v="[a-z]+" data-icon="([a-z-]+)"',
+                      row) == ['squares-four', 'tray', 'trophy', 'stack']
+    assert row.count('class="navpill') == 4
+    assert 'href="/collection.html#mastery" class="navpill" data-v="mastery"' in row
+    assert 'href="/cards.html" class="navpill" data-v="cards"' in row, 'Cards stays a page'
+    for href in ('href="/collection.html" class="navpill active" data-v="collection"',
+                 'href="/collection.html#relics" class="navpill" data-v="relics"'):
         assert href in row, href
+    assert 'aria-current="page"' in row
+    assert ' aria-label="Collection sections"' in row
+    # the head carries the page title and the log's counts; the row is the last thing in it
+    head = COLLECTION.split('id="overall"', 1)[1].split('</nav>', 1)[0]
+    for frag in ('<h1 class="cl-title"', 'id="ovPct"', 'id="ovCount"', 'id="ovBar"', 'id="ovFoot"'):
+        assert frag in head, frag
+    assert COLLECTION.index('id="overall"') < COLLECTION.index('id="collectionNav"') \
+        < COLLECTION.index('</main>')
 
 
 def test_the_mastery_markup_moved_whole_and_left_nothing_behind():
@@ -315,10 +331,25 @@ pytestmark_optional_snapshot = pytest.mark.skipif(
 def test_no_id_from_the_stage1_snapshot_disappeared():
     """The acceptance criterion, source-level: every id that existed before stage 2 is still in a
     shipped file. One sanctioned rename: the old More view's wrapper became the Tools section
-    (#view-more -> #view-tools), because that section is what it is now."""
+    (#view-more -> #view-tools), because that section is what it is now.
+
+    Stage 3 (Jay 2026-09-28, "make Home a clean action surface with no duplicated values") retired
+    four Home ids whose values merged into the one Today strip. Each one is listed here with the
+    duplicate it stood for; this is the whole sanctioned removal set, and nothing else may go:
+      heroCard   the hero band: platinum now + trades left, both now in #kpis (the strip)
+      heroMeta   the hero's date line, a copy of #homeSub (the page header's own date)
+      homeSync   the sync state, a copy of #syncState in the header (and the footer line)
+      kpiCard    the six-cell grid, merged into #kpis
+    The data those ids carried did not leave the app: the six readings are the strip's four cells
+    and its detail disclosure, and the sync state still renders in the header + footer.
+    """
     with open(os.path.join(REPO, 'design', '_stage1', 'ids_before.json'), encoding='utf-8') as fh:
         before = json.load(fh)
-    wanted = sorted({i for ids in before.values() for i in ids})
+    removed = {'heroCard': 'duplicate of the Today strip (#kpis) + #chartCard',
+               'heroMeta': 'duplicate of #homeSub (the page date line)',
+               'homeSync': 'duplicate of #syncState (the header clock)',
+               'kpiCard': 'merged into the Today strip (#kpis)'}
+    wanted = sorted({i for ids in before.values() for i in ids} - set(removed))
     sources = []
     for name in sorted(os.listdir(STATIC)):
         if name.endswith(('.html', '.js', '.css', '.svg')):
@@ -329,5 +360,7 @@ def test_no_id_from_the_stage1_snapshot_disappeared():
     missing = [i for i in wanted if i not in renamed and
                not re.search(r'id="%s"|\b%s\b' % (re.escape(i), re.escape(i)), blob)]
     assert missing == [], missing
+    for gone in removed:
+        assert not re.search(r'id="%s"' % re.escape(gone), INDEX), gone
     for old, new in renamed.items():
         assert 'id="%s"' % new in blob, new

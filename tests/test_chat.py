@@ -167,18 +167,46 @@ def test_the_dock_is_local_first_and_html_safe():
 
 def test_the_dock_layout_matches_the_house_breakpoints():
     css = read('static/chat.css')
-    assert '#view-home.chat-docked' in css and 'grid-template-columns' in css
+    assert '#view-home.chat-open' in css and 'grid-template-columns' in css
     assert '(min-width: 1500px)' in css and '(min-width: 1200px)' in css and '(max-width: 540px)' in css
-    assert 'position: sticky' in css
+    assert '#chatDock { display: none; }' in css, 'closed is the shipped state'
+    assert '#view-home.chat-open > #chatDock { display: flex; flex-direction: column; min-width: 0; }' in css
     assert 'var(--mono)' in css and 'tabular-nums' in css, 'matches the app palette + numerals'
+
+
+def test_the_dock_is_collapsible_and_closed_by_default():
+    """Jay (2026-09-28, stage 3): "Chat: make it collapsible / opened on demand ... not a
+    permanently visible 300-360px column."  One control owns it - the toggle in the home head -
+    and the open/closed choice is remembered per browser."""
+    css = read('static/chat.css')
+    js = read('static/chat.js')
+    html = read('static/index.html')
+    assert 'id="chatToggle"' in html and 'aria-controls="chatDock"' in html
+    assert 'aria-expanded' in html, 'the toggle announces its state'
+    assert "'#view-home'" not in js and "getElementById('view-home')" in js
+    assert "var KEY = 'wfm.chat.open';" in js and 'localStorage.getItem(KEY)' in js and 'localStorage.setItem(KEY' in js
+    assert 'function setOpen(v)' in js and 'view.classList.toggle(\'chat-open\', open)' in js
+    assert "btn.addEventListener('click', function () { setOpen(!open); })" in js
+    # closed: one column, no rail, no gap - and nothing polls while it is shut
+    assert '#view-home.chat-open { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: start; }' in css
+    assert 'if (!open) return;' in js, 'a closed dock does not poll'
+
+
+def test_the_toggle_is_the_one_clean_control():
+    css = read('static/chat.css')
+    js = read('static/chat.js')
+    assert '.chat-toggle {' in css and 'margin-left: auto' in css, 'it sits at the end of the home head row'
+    assert 'aria-expanded="true"]' in css, 'the open state shows on the toggle itself'
+    assert "btn.setAttribute('aria-expanded', open ? 'true' : 'false');" in js
+    assert "'Hide the squad chat' : 'Show the squad chat'" in js, 'one sentence of how-to, in the title'
 
 
 def test_the_rail_runs_to_the_bottom_of_the_viewport():
     """Jay: "the chat isn't going down to the bottom of the screen its only taking the top bit" /
-    "chat can go all the way down". A max-height alone left the dock at content height, so the dock
-    carries no cap and chat.js measures its own top and fills to the bottom edge (verified at
-    1920/1600/1536/1440/1366/1280: 12px below every viewport, list fills, input on the bottom
-    edge; under 1200px it is a normal block again)."""
+    "chat can go all the way down". A max-height alone left the dock at content height, so the open
+    dock carries no cap and chat.js measures its own top and fills to the bottom of the view
+    (verified at 1920/1600/1536/1440/1366/1280: dock bottom == view bottom, list fills, input on
+    the bottom edge; under 1200px it is a normal block again, and closed it is display: none)."""
     css = read('static/chat.css')
     js = read('static/chat.js')
     assert 'max-height: calc(100vh - 240px)' not in css, 'the old cap is gone'
@@ -189,14 +217,20 @@ def test_the_rail_runs_to_the_bottom_of_the_viewport():
         'the header grows after load (sync status, wrapped chips) so fit() re-runs'
     assert "window.addEventListener('resize'" in js
     assert "min-height: 0; overflow-y: auto; overscroll-behavior: contain" in css, 'the list must scroll, not the page'
+    assert 'if (!open || window.innerWidth < 1200 || !view)' in js, 'a closed dock has no measured height to clear'
 
 
 def test_the_conversation_sits_above_the_composer():
     """Jay: "chat is too far down" - a lone message sat at the top of a tall rail with 80-90% of
-    the body empty beneath it, pushing the composer a screen away. The list anchors its first row
-    to the bottom with margin-top: auto (not justify-content, which breaks scrolling)."""
+    the body empty beneath it, pushing the composer a screen away. The rail still runs the full
+    height ("chat can go all the way down"), but the history is anchored to its bottom edge so the
+    composer follows the last message instead of floating mid-panel: the slack is carried by a
+    spacer that collapses the moment the rows fill the rail (justify-content: flex-end would make
+    the oldest rows unreachable, margin-top: auto is the same trap - see the stage 3 note)."""
     css = read('static/chat.css')
-    assert '#chatDock .chat-rows { flex: 0 1 auto; }' in css, 'the list takes content height, the composer follows it'
+    assert '#chatDock .chat-rows {\n  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;' in css, \
+        'the list fills the rail and scrolls inside it'
+    assert "#chatDock .chat-rows::before { content: ''; flex: 1 0 auto; }" in css, 'the short-history spacer'
     assert 'margin-top: auto' not in css and 'justify-content: flex-end' not in css
     js = read('static/chat.js')
     assert "if (atBottom || !list.dataset.init) { list.dataset.init = '1'; list.scrollTop = list.scrollHeight; }" in js

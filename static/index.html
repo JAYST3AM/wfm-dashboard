@@ -22,67 +22,78 @@
 <div class="shellbody">
 
 <main>
-  <!-- HOME - the clean pass (Jay 2026-09-28): page header, hero number, the alert surface,
-       one quiet KPI grid, the top of the plan, then the chart and the three lists.
-       Every id the old layout shipped is still here. -->
+  <!-- HOME - the action surface (stage 3, Jay 2026-09-28). Five bands, in order:
+       TODAY (one strip) / NEXT ACTION / ALERTS / SELL QUEUE / RECENT. Every value Home shows
+       renders exactly once: the old hero band + six-cell KPI grid are merged into the Today
+       strip, and game news moved to Tools > Game news (same list ids, see #tws-news below).
+       #homeMain is the one wrapper (the chat dock opens as a second column beside it). -->
   <section id="view-home">
-    <div class="home-head" id="homeHead">
-      <div class="home-title">Home</div>
-      <div class="home-sub" id="homeSub"><span id="homeDate"></span><span id="homeSync"></span></div>
-    </div>
-    <div id="firstRun" class="card hidden"></div>
-    <div class="card hero" id="heroCard">
-      <div class="hero-body">
-        <div class="hero-lab">Platinum</div>
-        <div class="hero-num"><span id="platinumNow">—</span><span class="hero-unit">p</span></div>
+    <div id="homeMain">
+      <div class="home-head" id="homeHead">
+        <div class="home-title">Home</div>
+        <div class="home-sub" id="homeSub"><span id="homeDate"></span></div>
+        <button class="chat-toggle" id="chatToggle" type="button" aria-expanded="false"
+                aria-controls="chatDock" data-icon="users-three"
+                title="Show or hide the squad chat">Chat</button>
       </div>
-      <span class="hero-vl" aria-hidden="true"></span>
-      <div class="hero-meta" id="heroMeta"></div>
-      <a class="btn primary hero-go" href="#trade">Sell next</a>
-    </div>
-    <div class="card hidden" id="alertsCard">
-      <div class="card-head"><div class="card-title" data-icon="bell">Needs attention</div></div>
-      <div id="homeAlerts" class="picks"></div>
-    </div>
-    <div class="card home-kpis" id="kpiCard"><div class="kpis" id="kpis"></div></div>
-    <div class="card home-next" id="homeSellNext">
-      <div class="card-head">
-        <div class="card-title" data-icon="tag">Sell next <span class="dim small" id="sellNextMeta"></span></div>
-        <a class="home-open" href="#trade">Open</a>
-      </div>
-      <div class="picks home-next-list" id="sellNextList"></div>
-    </div>
-    <div class="card" id="chartCard">
-      <div class="card-head">
-        <div class="card-title" data-icon="chart-line">Platinum balance</div>
-        <div class="ranges" id="ranges">
-          <button data-r="24h">24h</button>
-          <button data-r="7d">7d</button>
-          <button data-r="30d" class="active">30d</button>
-          <button data-r="all">All</button>
+      <div id="firstRun" class="card hidden"></div>
+
+      <!-- TODAY - the strip: earned today, sales today, trades left, platinum now. The progress
+           store's detail rows (credits, items, sessions, materials, week) sit one tap below. -->
+      <div class="card home-today" id="todayCard">
+        <div class="card-head">
+          <div class="card-title" data-icon="calendar-blank">Today <span class="dim small" id="todayMeta"></span></div>
         </div>
+        <div class="kpis home-strip" id="kpis"></div>
+        <details class="acc sub home-more" id="todayMore">
+          <summary title="credits, items, sessions, materials, inventory value">Today's detail</summary>
+          <div class="picks" id="homeToday"><div class="empty"><span class="empty-icon" data-icon="circle-notch" data-icon-size="18"></span>Loading…</div></div>
+        </details>
       </div>
-      <div class="chartwrap"><canvas id="platChart"></canvas><div id="chartTip" class="tip hidden"></div></div>
-      <div id="chartMeta" class="status"></div>
+
+      <!-- NEXT ACTION - the one best item: name, price, demand, copies, best buyer -->
+      <div class="card home-next" id="homeSellNext">
+        <div class="card-head">
+          <div class="card-title" data-icon="tag">Next action <span class="dim small" id="sellNextMeta"></span></div>
+          <a class="home-open" href="#trade">Open Trade</a>
+        </div>
+        <div class="picks home-next-list" id="sellNextList"></div>
+      </div>
+
+      <!-- ALERTS - only things that need a decision; the card stays hidden when there are none -->
+      <div class="card hidden" id="alertsCard">
+        <div class="card-head"><div class="card-title" data-icon="bell">Needs attention</div></div>
+        <div id="homeAlerts" class="picks"></div>
+      </div>
+
+      <!-- SELL QUEUE - the next few plan rows, one quick action each -->
+      <div class="card home-queue" id="sellQueueCard">
+        <div class="card-head">
+          <div class="card-title" data-icon="list">Sell queue <span class="dim small" id="sellQueueMeta"></span></div>
+        </div>
+        <div class="picks" id="sellQueueList"></div>
+      </div>
+
+      <!-- RECENT - the last few trade events + the small platinum chart -->
+      <div class="card" id="recentCard">
+        <div class="card-head"><div class="card-title" data-icon="clock-counter-clockwise">Recent <span class="dim small" id="recentMeta"></span></div></div>
+        <div id="homeRecent" class="picks"></div>
+      </div>
+      <div class="card" id="chartCard">
+        <div class="card-head">
+          <div class="card-title" data-icon="chart-line">Platinum</div>
+          <div class="ranges" id="ranges">
+            <button data-r="24h">24h</button>
+            <button data-r="7d">7d</button>
+            <button data-r="30d" class="active">30d</button>
+            <button data-r="all">All</button>
+          </div>
+        </div>
+        <div class="chartwrap"><canvas id="platChart"></canvas><div id="chartTip" class="tip hidden"></div></div>
+        <div id="chartMeta" class="status"></div>
+      </div>
     </div>
-    <div class="h-cols">
-      <div class="h-col">
-        <div class="card" id="newsCard">
-          <div class="card-head"><div class="card-title" data-icon="newspaper">Game updates <span class="dim small" id="newsMeta"></span></div></div>
-          <div id="newsList" class="picks"></div>
-        </div>
-        <div class="card" id="todayCard">
-          <div class="card-head"><div class="card-title" data-icon="calendar-blank">Today <span class="dim small" id="todayMeta"></span></div></div>
-          <div id="homeToday" class="picks"><div class="empty"><span class="empty-icon" data-icon="circle-notch" data-icon-size="18"></span>Loading…</div></div>
-        </div>
-      </div>
-      <div class="h-col">
-        <div class="card" id="recentCard">
-          <div class="card-head"><div class="card-title" data-icon="clock-counter-clockwise">Recent activity <span class="dim small" id="recentMeta"></span></div></div>
-          <div id="homeRecent" class="picks"></div>
-        </div>
-      </div>
-    </div>
+    <!-- chat dock: static/chat.js appends #chatDock here, collapsed until the toggle opens it -->
   </section>
 
   <!-- INVENTORY - simple default columns, all detail in the drawer -->
@@ -370,6 +381,11 @@
             <span class="tool-sub">What moved after a patch</span>
             <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
           </a>
+          <a class="tool" href="#tools/news" data-tool="news">
+            <span class="tool-name" data-icon="newspaper">Game news</span>
+            <span class="tool-sub">Update headlines and versions</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
           <a class="tool" href="#tools/player" data-tool="player">
             <span class="tool-name" data-icon="user">Player profile</span>
             <span class="tool-sub">Mastery, syndicates, focus</span>
@@ -531,6 +547,20 @@
         <div class="card">
           <div class="card-head"><div class="card-title" data-icon="broadcast">Post-patch meta <span class="dim small" id="metaMeta"></span></div></div>
           <div class="picks" id="metaList"></div>
+        </div>
+
+      </div>
+    </div>
+    <!-- Game news moved off Home in stage 3 (Jay 2026-09-28): the same list ids render here. -->
+    <div class="tws hidden" id="tws-news" data-tool="news" role="region" aria-label="Game news">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Game news</span>
+      </div>
+      <div class="tws-body cols-1">
+        <div class="card" id="newsCard">
+          <div class="card-head"><div class="card-title" data-icon="newspaper">Game updates <span class="dim small" id="newsMeta"></span></div></div>
+          <div id="newsList" class="picks"></div>
         </div>
 
       </div>

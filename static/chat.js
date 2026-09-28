@@ -1,6 +1,10 @@
 /* WFM Trader - CHAT dock (right of HOME).
    Jay (2026-09-27): "add a chat that snaps to the right of the home page. look into getting it so
    other people can chat with their profiles active."
+   Jay (2026-09-28, stage 3): "Chat: make it collapsible / opened on demand ... not a permanently
+   visible 300-360px column." So the dock is COLLAPSED BY DEFAULT: one toggle (#chatToggle, in the
+   home header row) opens and closes it, the choice is remembered per browser (localStorage), and
+   a closed dock leaves no rail and no gap (the home grid is one column until it opens).
 
    Local-first: every message is stored by the dashboard itself (POST /api/chat -> data/chat.json),
    so the panel works with no relay, no account and no keys. When a relay URL is configured
@@ -9,11 +13,11 @@
    the same chat. Each message carries a profile stamp (name, MR, platform) taken from the local
    save - the chip shows exactly what is sent.
 
-   Layout: this file owns #chatDock and its own placement, so no edit is needed inside
-   app.js/index.html. On first load it wraps the existing HOME cards in #homeMain and appends the
-   dock beside them; #view-home.chat-docked is a 2-column grid at >=1500px (360px rail), a 300px
-   rail at 1200-1499px, and a normal block below the cards under 1200px. Styling is in chat.css,
-   colours come from the palette vars, sounds from window.sfx (no-op when absent).
+   Layout: this file owns #chatDock, the toggle and their placement, so no edit is needed inside
+   app.js/index.html; #homeMain (the cards) is the page's own wrapper and the dock simply appends
+   beside it. #view-home.chat-open is a 2-column grid at >=1200px (340px rail, 360px at >=1500px)
+   and a normal block under the cards below 1200px. Styling is in chat.css, colours come from the
+   palette vars, sounds from window.sfx (no-op when absent).
 
    Plain browser JS, no libraries, no build step. DOM via createElement/textContent only. */
 (function () {
@@ -21,8 +25,10 @@
   var POLL = 5000;          /* local poll: cheap, one request per tick, paused when hidden */
   var RELAY_POLL = 5000;
   var MAXLEN = 500;
+  var KEY = 'wfm.chat.open'; /* per-browser: closed until the toggle asks for it */
 
   var href = '', rows = [], seen = {}, lastId = 0, relayCursor = 0, me = {}, timer = null, busy = false;
+  var open = false;
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -62,6 +68,37 @@
     return bits.join(' · ') || 'anon';
   }
 
+  /* ---------------------------------------------------------------- open / closed */
+
+  function stored() {
+    try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function remembered(v) {
+    try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (e) { /* private mode: session only */ }
+  }
+
+  function setOpen(v) {
+    open = !!v;
+    remembered(open);
+    paint();
+  }
+
+  /* paint the state: the section grid, the toggle's own state, the measured height, and the
+     first pull the moment the dock becomes visible (a closed dock does not poll) */
+  function paint() {
+    var view = document.getElementById('view-home');
+    var btn = document.getElementById('chatToggle');
+    if (view) view.classList.toggle('chat-open', open);
+    if (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.title = open ? 'Hide the squad chat' : 'Show the squad chat';
+    }
+    fit();
+    if (window.PlatChart && window.PlatChart.redraw) { try { window.PlatChart.redraw(); } catch (e) {} }
+    if (open) pullLocal().then(pullRelay);
+  }
+
   /* ---------------------------------------------------------------- build */
 
   function build() {
@@ -70,22 +107,12 @@
     var dock = document.getElementById('chatDock');
     if (dock && dock.isConnected) return true;
 
-    /* wrap the existing HOME cards once (never twice), then dock beside them */
-    var main = document.getElementById('homeMain');
-    if (!main) {
-      main = el('div');
-      main.id = 'homeMain';
-      while (view.firstChild) main.appendChild(view.firstChild);
-      view.appendChild(main);
-      view.classList.add('chat-docked');
-    }
-
     dock = el('aside', 'card');
     dock.id = 'chatDock';
 
     var head = el('div', 'card-head');
     var title = el('div', 'card-title', 'Chat');
-    title.setAttribute('data-icon', 'chats');
+    title.setAttribute('data-icon', 'users-three');
     var state = el('span', 'chip act-offline', 'Local only');
     state.id = 'chatState';
     state.title = 'Local only · no relay set';
@@ -115,6 +142,10 @@
     view.appendChild(dock);
 
     form.addEventListener('submit', function (ev) { ev.preventDefault(); post(); });
+    var btn = document.getElementById('chatToggle');
+    if (btn) btn.addEventListener('click', function () { setOpen(!open); });
+    open = stored();
+    paint();
     if (window.iconRepaint) { try { window.iconRepaint(dock); } catch (e) {} }
     return true;
   }
@@ -165,16 +196,18 @@
     s.className = 'chip ' + (kind === 'live' ? 'act-show' : (kind === 'err' ? 'act-offline' : ''));
   }
 
-  /* The rail runs from its own top to the bottom of the viewport (Jay: "chat can go all the way
-     down"). CSS cannot know the header height, so it is measured here and re-measured on resize.
-     Under 1200px the dock is a normal block under the cards and the CSS cap takes over again. */
+  /* The open rail runs from its own top to the bottom of the home view (Jay: "chat can go all the
+     way down"). CSS cannot know the header or footer heights, so the view's bottom edge is
+     measured here and re-measured on resize. While the dock is closed - or under 1200px, where it
+     stacks under the cards - the measured height is cleared and the CSS caps take over. */
   function fit() {
     var dock = document.getElementById('chatDock');
+    var view = document.getElementById('view-home');
     if (!dock) return;
-    if (window.innerWidth < 1200) { dock.style.height = ''; return; }
+    if (!open || window.innerWidth < 1200 || !view) { dock.style.height = ''; return; }
     var top = dock.getBoundingClientRect().top;
     if (top < 0) top = 10;                     /* already stuck to the top of the viewport */
-    dock.style.height = Math.max(280, Math.round(window.innerHeight - top - 12)) + 'px';
+    dock.style.height = Math.max(280, Math.round(view.getBoundingClientRect().bottom - top)) + 'px';
   }
 
   /* ---------------------------------------------------------------- sync */
@@ -248,6 +281,7 @@
     if (view.hidden) return;                      /* HOME only: no polling while another view is up */
     if (!build()) return;
     fit();
+    if (!open) return;                            /* closed: nothing renders, so nothing to poll */
     pullLocal().then(pullRelay);
   }
 
@@ -275,4 +309,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
   window.wfmChatBoot = boot;                       /* the HOME renderer can re-dock after a rebuild */
+  window.wfmChatOpen = function (v) { setOpen(v); };   /* tests / QA drive the same one toggle */
 })();

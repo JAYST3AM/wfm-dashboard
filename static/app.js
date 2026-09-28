@@ -64,7 +64,7 @@ const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', tools
    by hash (#tools/<slug>); '' is the launcher itself. Keep in step with the markup in
    index.html and with tests/test_ia_reachability.py. */
 const TOOL_SLUGS = ['deals', 'trends', 'rivens', 'wl', 'ducats', 'craft', 'relicev', 'sets',
-  'baro', 'meta', 'player'];
+  'baro', 'meta', 'news', 'player'];
 
 function showView(v, sub) {
   if (!VIEWS.includes(v)) v = 'home';
@@ -152,72 +152,158 @@ function renderFirstRun() {
     </div>`;
 }
 
-/* ---------- home ---------- */
-function renderKpis() {
+/* ---------- home ----------
+   Stage 3 (Jay 2026-09-28): Home is an action surface - TODAY / NEXT ACTION / ALERTS / SELL
+   QUEUE / RECENT - and every value renders exactly once. The old hero band and the six-cell KPI
+   grid are merged into the one Today strip below; credits, items, sessions and the week roll-up
+   ride the strip's detail disclosure (home.js); nothing that used to be on Home left the app -
+   game news is Tools > Game news, the session roll-up is Trade > History > Sessions. */
+
+/* the Today strip, in the order the brief gave: earned today, sales today, trades left, platinum
+   now. The two day cells come from home.js (fed by /api/feature/progress): #todayEarned and
+   #todaySales read '-' until that answer lands, never an invented 0. One number, one place. */
+function renderTodayStrip() {
   const s = SUMMARY || {}, ph = PLAT || {};
-  const d = (v) => (v === null || v === undefined)
-    ? '<span class="dim">—</span>'
-    : `<span class="${v >= 0 ? 'upl' : 'downl'}">${v >= 0 ? '+' : ''}${v.toLocaleString()}p</span>`;
-  document.getElementById('kpis').innerHTML = `
-    <div class="kpi"><div class="k-label">Platinum now</div><div class="k-val accent">${(ph.now ?? s.plat ?? 0).toLocaleString()}p</div></div>
-    <div class="kpi"><div class="k-label">Δ 24h</div><div class="k-val">${d(ph.d24)}</div></div>
-    <div class="kpi"><div class="k-label">Δ 7d</div><div class="k-val">${d(ph.d7)}</div></div>
-    <div class="kpi"><div class="k-label">Trades left</div><div class="k-val">${s.trades ?? '—'}</div></div>
-    <div class="kpi" title="sellable only · equipped copies never count · owned basis: ${(s.total_value_owned ?? s.total_value ?? 0).toLocaleString()}p)"><div class="k-label">Inventory value</div><div class="k-val">${(s.total_value ?? 0).toLocaleString()}p</div></div>
-    <div class="kpi"><div class="k-label">Credits</div><div class="k-val">${(s.credits ?? 0).toLocaleString()}</div></div>`;
+  const el = document.getElementById('kpis');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="kpi" title="platinum gained or spent today"><div class="k-label">Earned today</div><div class="k-val accent" id="todayEarned">—</div></div>
+    <div class="kpi" title="sales logged today"><div class="k-label">Sales today</div><div class="k-val" id="todaySales">—</div></div>
+    <div class="kpi" title="daily trade allowance left"><div class="k-label">Trades left</div><div class="k-val" id="todayTrades">${s.trades ?? '—'}</div></div>
+    <div class="kpi" title="in-game platinum balance"><div class="k-label">Platinum now</div><div class="k-val"><span id="platinumNow">${(ph.now ?? s.plat ?? 0).toLocaleString()}</span>p</div></div>`;
 }
 
-/* ---------- home: page header row, hero and sell-next (clean pass, Jay 2026-09-28) ----------
-   All three read data the page already has (SUMMARY, PLAT, and TRADER.plan - the same plan the
-   Trade view sells from), so Home fetches nothing new. The hero number is the same reading as
-   the "Platinum now" KPI, and no Home control writes anything: the hero button and every
-   sell-next row are plain #trade links. */
+/* the page header row: the date only - the sync state lives in the header (#syncState) and the
+   footer, so repeating it here was one of Home's duplicate lines (stage 3 removed it) */
 function renderHomeHead() {
-  const s = SUMMARY || {};
   const date = document.getElementById('homeDate');
-  const sync = document.getElementById('homeSync');
   if (date) date.textContent = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
-  if (sync) sync.textContent = s.lastdata_mtime ? 'Synced ' + ago(s.lastdata_mtime) : 'Synced —';
 }
 
-function renderHomeHero() {
-  const s = SUMMARY || {}, ph = PLAT || {};
-  const num = document.getElementById('platinumNow');
-  if (num) num.textContent = (ph.now ?? s.plat ?? 0).toLocaleString();
-  const meta = document.getElementById('heroMeta');
-  if (!meta) return;
-  meta.innerHTML =
-    `<span><b>${s.trades ?? '—'}</b> trades left today</span>`
-    + `<span><b>${(s.credits ?? 0).toLocaleString()}</b> credits</span>`;
+/* NEXT ACTION + SELL QUEUE: both read the plan Trade sells from (TRADER.plan) plus the advisor
+   and run-queue payloads this page already fetches, so Home invents nothing and fetches nothing
+   new. The buyer line only shows when the run queue names that exact item; otherwise the row
+   points at Trade's run-queue surface. */
+const QUEUE_ROWS = 5;      /* plan rows listed under NEXT ACTION */
+const RUNQ_WHOM = 3;       /* buyers named in a hover title */
+
+function homePlan() {
+  const plan = (TRADER || {}).plan || {};
+  return { plan, rows: (plan.plan || []) };
 }
 
-function renderHomeSellNext() {
+/* demand for one plan row: the advisor's own 48h sales count and its trend word, else the plan
+   row's vol48; everything missing stays missing ('—' / no chip) rather than being guessed */
+function homeDemand(slug, row) {
+  const a = advOf(slug) || {};
+  const vol = (a.vol48 !== null && a.vol48 !== undefined) ? a.vol48 : row.vol48;
+  const word = a.trend === 'rising' ? 'rising' : (a.trend === 'falling' ? 'fading' : (a.trend === 'steady' ? 'steady' : ''));
+  return { vol: (vol === null || vol === undefined) ? null : vol, word,
+    conf: a.liquidity || '', pct: (a.price_trend_pct === null || a.price_trend_pct === undefined) ? null : a.price_trend_pct };
+}
+
+function demandCell(slug, row) {
+  const d = homeDemand(slug, row);
+  /* the column head already says "Sold 48h", so the cell is the count alone; a rising/falling
+     trend rides a one-glyph arrow and the word lives in the hover */
+  const arrow = d.word === 'rising' ? ' \u2191' : (d.word === 'fading' ? ' \u2193' : '');
+  const txt = d.vol !== null ? String(d.vol) + arrow : (d.word || '—');
+  const tip = [d.vol !== null ? d.vol + ' completed sales in 48h' : '', d.word ? 'demand ' + d.word : '']
+    .filter(Boolean).join(' · ');
+  return { txt, tip };
+}
+
+/* the run queue's own rows for this item - the tradeable buyers, if it names any */
+function homeBuyers(slug) {
+  const R = FEAT.runqueue || {};
+  return (R.queue || []).filter((q) => q && q.slug === slug);
+}
+
+function renderNextAction() {
   const card = document.getElementById('homeSellNext');
   const list = document.getElementById('sellNextList');
   if (!card || !list) return;
-  const plan = (TRADER || {}).plan || {};
-  const all = plan.plan || [];
-  const rows = all.slice(0, 3);
+  const { plan, rows } = homePlan();
   const meta = document.getElementById('sellNextMeta');
-  if (!rows.length) {
-    /* no plan loaded on Home: the section steps out of the way rather than sweeping the market */
+  const r = rows[0];
+  if (!r) {                                   /* no plan on Home: the band steps aside */
     card.classList.add('hidden');
     list.textContent = '';
-    if (meta) meta.textContent = '';
+    if (meta) { meta.textContent = ''; meta.title = ''; }
     return;
   }
   card.classList.remove('hidden');
-  if (meta) {
-    /* the head stays a label: the plan's own freshness is the hover detail */
-    meta.textContent = `${all.length} ready`;
-    meta.title = plan.generated ? `plan built ${ago(plan.generated)}` : '';
-  }
-  list.innerHTML = rows.map(r => `
-    <a class="hnext-row" href="#trade" title="${escHtml(r.name || '')}${r.note ? ' · ' + escHtml(r.note) : ''}${r.qty ? ' · ' + r.qty + ' to list' : ''}">
-      <span class="hnext-nm"><span class="hnext-t">${escHtml(r.name || pretty(r.slug))}</span><span class="hnext-sub">${escHtml([r.lane, r.qty > 1 ? r.qty + ' spare' : '1 copy'].filter(Boolean).join(' · '))}</span></span>
+  const a = advOf(r.slug) || {};
+  const d = homeDemand(r.slug, r);
+  const copies = (a.sellable !== null && a.sellable !== undefined) ? a.sellable : r.qty;
+  const head = card.querySelector('.card-title');
+  if (head) head.title = plan.generated ? rows.length + ' items in the plan' : '';
+  if (meta) { meta.textContent = ''; meta.title = ''; }
+  const sub = [r.lane, copies + (copies === 1 ? ' copy' : ' copies')].filter(Boolean).join(' · ');
+  const who = homeBuyers(r.slug);
+  const b = who[0];
+  /* one link on the card, and it says what it opens: with a buyer named below, the head action
+     opens Trade; with nobody named, the head action IS the buyers surface (no second CTA) */
+  const open = card.querySelector('.home-open');
+  if (open) open.textContent = b ? 'Open Trade' : 'See buyers in Trade';
+  const dmTip = ['advisor demand ' + (d.word || 'not known'),
+    d.pct === null ? '' : Math.abs(d.pct) + '% price move over 30 days'].filter(Boolean).join(' · ');
+  list.innerHTML = `
+    <div class="next-one">
+      <div class="next-l">
+        <div class="next-t">${escHtml(r.name || pretty(r.slug))}</div>
+        <div class="next-sub" title="${escHtml(r.note || '')}">${escHtml(sub)}</div>
+      </div>
+      <div class="next-pr">${r.price}p</div>
+    </div>
+    <div class="next-facts">
+      <div class="next-fact" title="${escHtml(dmTip)}"><div class="nf-l">Demand</div><div class="nf-v${d.word === 'rising' ? ' upl' : (d.word === 'fading' ? ' downl' : '')}">${escHtml(d.word || '—')}</div></div>
+      <div class="next-fact" title="completed sales in the last 48h"><div class="nf-l">Sold 48h</div><div class="nf-v">${d.vol === null ? '—' : escHtml(String(d.vol))}</div></div>
+      <div class="next-fact" title="how easily it sells near this price"><div class="nf-l">Liquidity</div><div class="nf-v">${escHtml(d.conf || '—')}</div></div>
+    </div>
+    <div class="next-foot">
+      ${b
+        ? `<span class="next-buyer" title="${escHtml(who.slice(0, RUNQ_WHOM).map((q) => q.buyer + ' pays ' + q.buy_price + 'p').join(' · '))}">Buyer <b>${escHtml(b.buyer)}</b> pays ${b.buy_price}p</span>
+           <span class="chip act-${escHtml(b.buyer_status)}">${escHtml(b.buyer_status)}</span>`
+        : `<span class="next-nobuyer" title="no buyer row in the run queue">No buyer in the run queue</span>`}
+    </div>`;
+  renderSellQueue(rows);
+}
+
+/* Sell queue: the next few DIFFERENT items (a plan can carry the same item twice - two ranks,
+   two prices; those stay in Trade's plan table, Home lists each item once). */
+function renderSellQueue(rows) {
+  const card = document.getElementById('sellQueueCard');
+  const el = document.getElementById('sellQueueList');
+  if (!el) return;
+  const all = rows || homePlan().rows;
+  const items = [];
+  const seenSlug = {};
+  all.forEach((r) => {
+    const key = r.slug || r.name;
+    if (seenSlug[key]) return;
+    seenSlug[key] = 1;
+    items.push(r);
+  });
+  const rest = items.slice(1, 1 + QUEUE_ROWS);
+  if (card) card.classList.toggle('hidden', !rest.length);
+  const meta = document.getElementById('sellQueueMeta');
+  if (meta) meta.textContent = rest.length ? rest.length + ' of ' + (items.length - 1) + ' items' : '';
+  el.innerHTML = (rest.length ? `<div class="hnext-row hnext-head">
+      <span>Item</span><span class="hnext-dm">Sold 48h</span><span class="hnext-pr">List at</span><span></span>
+    </div>` : '') + rest.map((r) => {
+    const d = demandCell(r.slug, r);
+    return `
+    <a class="hnext-row" href="#trade" title="${escHtml(r.note || r.name || '')}">
+      <span class="hnext-nm">
+        <span class="hnext-t">${escHtml(r.name || pretty(r.slug))}</span>
+        <span class="hnext-sub">${escHtml([r.lane, r.qty + (r.qty === 1 ? ' copy' : ' copies')].filter(Boolean).join(' · '))}</span>
+      </span>
+      <span class="hnext-dm" title="${escHtml(d.tip)}">${escHtml(d.txt)}</span>
       <span class="hnext-pr">${r.price}p</span>
       <span class="hnext-chev" aria-hidden="true">\u203a</span>
-    </a>`).join('');
+    </a>`;
+  }).join('');
 }
 
 /* ---- smart sell advisor (scripts/sell_advisor.py -> /api/feature/advisor) ---- */
@@ -366,17 +452,21 @@ function renderHistory() {
     `<div class="empty">${EMPTY_ICON}Nothing here yet — fills automatically once the trader runs.</div>`;
 }
 
-/* ---------- game updates ---------- */
+/* ---------- game updates (Tools > Game news since stage 3; was a Home card) ---------- */
+const NEWS_ROWS = 8;        /* headlines listed in the workspace */
 function fmtDay(ts) {
   if (!ts) return '—';
   return new Date(ts * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 function renderNews() {
   const n = GAMENEWS || {};
-  document.getElementById('newsMeta').textContent =
+  const meta = document.getElementById('newsMeta');
+  const list = document.getElementById('newsList');
+  if (!meta || !list) return;                        /* the workspace owns these (Tools > Game news) */
+  meta.textContent =
     (n.version ? `· v${n.version}` : '') + (n.fetched ? ` · checked ${ago(n.fetched)}` : ' · not loaded');
-  const items = (n.items || []).slice(0, 4);
-  document.getElementById('newsList').innerHTML = items.length
+  const items = (n.items || []).slice(0, NEWS_ROWS);
+  list.innerHTML = items.length
     ? items.map(it => `<div class="newsrow">
         <span class="n-date">${fmtDay(it.date)}</span>
         <a class="n-title" href="${it.url}" target="_blank" rel="noopener" title="${(it.excerpt || '').replace(/"/g, '&quot;')}">${it.title}</a>
@@ -916,9 +1006,9 @@ async function load() {
   paintDojoTier();
   renderChips(); renderTabs(); renderTable(); renderMaterials(); renderDojo();
   markScrollers();
-  renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
+  renderTodayStrip(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
   renderFirstRun();
-  renderHomeHead(); renderHomeHero(); renderHomeSellNext();
+  renderHomeHead(); renderNextAction();
   if (window.wfmRenderHome) wfmRenderHome();
   window.addEventListener('resize', function () { window.clearTimeout(window.__wfmScrollerT); window.__wfmScrollerT = window.setTimeout(markScrollers, 180); });
   /* the trade columns settle after the first paint (details content, flex heights), and any body
@@ -936,7 +1026,7 @@ async function load() {
     ? `prices updated ${ago(s.prices_mtime)} · checked ${new Date().toLocaleTimeString()}`
     : 'No data yet — run: python scripts/setup.py';
   document.getElementById('foot').textContent =
-    `WFM Trader · refreshed ${new Date().toLocaleTimeString()} · ${(tr && tr.n) || 0} history events · prices refresh every 15 min`;
+    `WFM Trader · refreshed ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} · ${(tr && tr.n) || 0} history events · prices refresh every 15 min`;
 }
 
 /* ---------- market ---------- */
