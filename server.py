@@ -581,6 +581,237 @@ def summary_payload():
         plat_hist=plat_history_payload(),
     )
 
+# ---------------------------------------------------------------- orders (Trade page)
+# Jay (2026-09-28): *"is there a list on trade that shows real buy orders and sell orders?
+# with usernames"* + *"the app needs to understand values of different ranks for a mod"*.
+# scripts/orders.py owns the network discipline and the 45s raw cache; these routes only shape
+# its answer for the tab. /api/rank_values keeps the ladder rendering even when wfm is
+# unreachable (data/price_lanes.json is the last snapshot), and /api/whisper owns the local
+# rate limit so the dashboard can never spam the same seller twice in a row.
+ORDERS_TIMEOUT = 6.0     # wall-clock budget for one orderbook read; the route cannot hang past it
+ORDERS_MAX = 40          # rows a side the tab shows
+
+try:
+    import orders as orderbook               # scripts/ is on sys.path (the config import above)
+except Exception:
+    orderbook = None
+
+
+def _qs(query, key, default=''):
+    """First value of a GET query key (parse_qs shape)."""
+    try:
+        vals = (query or {}).get(key)
+        return str(vals[0]) if vals else default
+    except (TypeError, ValueError, IndexError):
+        return default
+
+
+def _rank_arg(raw):
+    """rank=<n|all> -> (rank|None, error|None)."""
+    s = str(raw or '').strip().lower()
+    if s in ('', 'all'):
+        return None, None
+    try:
+        r = int(s)
+    except ValueError:
+        return None, 'rank must be a number or all'
+    if r < 0:
+        return None, 'rank must be 0 or more'
+    return r, None
+
+
+def _limit_arg(raw, cap=ORDERS_MAX):
+    """limit=<n<=40> -> (1..cap, error|None); numbers are clamped, junk is refused."""
+    s = str(raw or '').strip()
+    if not s:
+        return cap, None
+    try:
+        n = int(s)
+    except ValueError:
+        return cap, 'limit must be a number'
+    return max(1, min(cap, n)), None
+
+
+def orders_payload(query=None):
+    """GET /api/orders - one item's live book, reduced for the Trade > Orders tab.
+
+    {'ok', 'item', 'age_s', 'counts': {'sell','buy'}, 'ranks': [...], 'sell': [...],
+     'buy': [...], 'values': {...}, 'source': 'live'|'cache'} - plus 'error' when the book
+    could not be read, in which case the lists stay empty and ok stays true: the tab shows
+    the reason instead of the route raising or hanging (ORDERS_TIMEOUT is the ceiling).
+    rows are {platinum, quantity, rank, user, reputation, status, updated_ts} and 'values'
+    is the per-rank ladder, so the tab can price the rank the copy actually is.
+    """
+    if orderbook is None:
+        return {'ok': False, 'error': 'orders not installed'}
+    item = _qs(query, 'item').strip().lower()
+    if not item:
+        return {'ok': False, 'error': 'item required'}
+    if not orderbook.valid_slug(item):
+        return {'ok': False, 'item': item, 'error': 'bad item slug'}
+    rank, err = _rank_arg(_qs(query, 'rank'))
+    if err:
+        return {'ok': False, 'item': item, 'error': err}
+    limit, err = _limit_arg(_qs(query, 'limit'))
+    if err:
+        return {'ok': False, 'item': item, 'error': err}
+    snap = orderbook.snapshot(item, budget=ORDERS_TIMEOUT)
+    if snap['source'] is None:                        # nothing to serve: no cache and no answer
+        if '404' in str(snap['error'] or ''):         # a wrong slug is a wrong slug, not an outage
+            return {'ok': False, 'item': item, 'error': 'unknown item'}
+        return {'ok': True, 'item': item, 'age_s': None, 'source': None,
+                'counts': {'sell': 0, 'buy': 0}, 'ranks': [], 'sell': [], 'buy': [],
+                'values': {}, 'error': str(snap['error'] or 'orderbook unavailable')}
+    rows = orderbook.book(snap['orders'], rank=rank, limit=limit)
+    out = {'ok': True, 'item': item, 'name': item_display_name(item), 'age_s': snap['age_s'],
+           'source': snap['source'],
+           'counts': orderbook.counts(snap['orders'], rank=rank),
+           'ranks': orderbook.ranks(snap['orders']),
+           'sell': rows['sell'], 'buy': rows['buy'],
+           'values': orderbook.values(snap['orders'])}
+    if snap['error']:
+        out['error'] = snap['error']
+    return out
+
+
+def rank_values_payload(query=None):
+    """GET /api/rank_values - the per-rank ladder for one item.
+
+    Live/cached orders first (source 'orders'); when there is no book the ladder falls back
+    to data/price_lanes.json (source 'price_lanes', scripts/fetch_lanes.py's snapshot) so a
+    rank ladder renders even with wfm unreachable. Only an item in neither store is an error.
+    """
+    if orderbook is None:
+        return {'ok': False, 'error': 'orders not installed'}
+    item = _qs(query, 'item').strip().lower()
+    if not item:
+        return {'ok': False, 'error': 'item required'}
+    if not orderbook.valid_slug(item):
+        return {'ok': False, 'item': item, 'error': 'bad item slug'}
+    snap = orderbook.snapshot(item, budget=ORDERS_TIMEOUT)
+    vals = orderbook.values(snap['orders']) if snap['orders'] else {}
+    if vals:
+        return {'ok': True, 'item': item, 'values': vals, 'source': 'orders'}
+    lane_doc = jload(os.path.join(DATA, 'price_lanes.json')) or {}
+    lanes = lane_doc.get('items') if isinstance(lane_doc, dict) else None
+    rec = (lanes or {}).get(item) if isinstance(lanes, dict) else None
+    if isinstance(rec, dict):
+        return {'ok': True, 'item': item, 'values': rec.get('lanes') or {}, 'source': 'price_lanes'}
+    return {'ok': False, 'item': item, 'values': {},
+            'error': str(snap['error'] or ('no rank values for %s' % item))}
+
+
+WHISPER_GAP = 2.0        # one whisper every 2 seconds...
+WHISPER_PER_MIN = 10     # ...and ten a minute: wfm chat is not a firehose
+_whisper_last = [0.0]
+_whisper_minute = []
+
+
+def _load_whisper():
+    """scripts/whisper.py, imported on first use. -> (module|None, error|None)."""
+    scripts = os.path.join(ROOT, 'scripts')
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    try:
+        import whisper
+        return whisper, None
+    except Exception as e:
+        return None, str(e)[:120]
+
+
+_NAME_BY_SLUG = None
+
+
+def item_display_name(item):
+    """The name the paste carries: the catalogue's display name for a slug, else the text as given.
+
+    The Orders tab sends the slug ('primed_continuity'); warframe.market's own message names the
+    item ('Primed Continuity'), and the paste should read the same way.
+    """
+    global _NAME_BY_SLUG
+    text = str(item or '').strip()
+    if not text:
+        return text
+    if _NAME_BY_SLUG is None:
+        try:
+            _NAME_BY_SLUG = {r['slug']: r['name'] for r in catalog_payload()}
+        except Exception:                                          # a missing dump must not 500
+            _NAME_BY_SLUG = {}
+    return _NAME_BY_SLUG.get(text.lower(), text)
+
+
+def whisper_post(body):
+    """POST /api/whisper -> (http_status, payload).
+
+    body: {'item', 'user', 'price', 'kind': 'buy'|'sell', 'rank'?, 'mode': 'copy'|'send'}.
+    Builds the message through scripts/whisper.py (whisper.message(item, price, kind, rank)),
+    copies it (whisper.copy) and, in send mode, sends it and reports the module's own reason.
+    503 when whisper.py is not installed, 429 when the local cooldown trips, 400 on bad input -
+    bad input never 500s.
+    """
+    body = body if isinstance(body, dict) else {}
+    item = str(body.get('item') or '').strip().lower()
+    # the paste names the item the way the site does; the slug stays for the ledger and lookups
+    name = item_display_name(item)
+    user = str(body.get('user') or '').strip()
+    kind = str(body.get('kind') or '').strip().lower()
+    mode = str(body.get('mode') or 'copy').strip().lower()
+    if not item or not user:
+        return 400, {'ok': False, 'error': 'item and user required'}
+    if kind not in ('buy', 'sell'):
+        return 400, {'ok': False, 'error': "kind must be 'buy' or 'sell'"}
+    if mode not in ('copy', 'send'):
+        return 400, {'ok': False, 'error': "mode must be 'copy' or 'send'"}
+    price = body.get('price')
+    if isinstance(price, bool) or isinstance(price, (dict, list)):
+        return 400, {'ok': False, 'error': 'price must be a number'}
+    try:
+        price = int(price)
+    except (TypeError, ValueError):
+        return 400, {'ok': False, 'error': 'price must be a number'}
+    if price < 1:
+        return 400, {'ok': False, 'error': 'price must be at least 1'}
+    rank = body.get('rank')
+    if rank in (None, ''):
+        rank = None
+    else:
+        try:
+            rank = int(rank)
+        except (TypeError, ValueError):
+            return 400, {'ok': False, 'error': 'rank must be a number'}
+        if rank < 0:
+            return 400, {'ok': False, 'error': 'rank must be 0 or more'}
+    now = time.time()
+    if now - _whisper_last[0] < WHISPER_GAP:
+        reason = 'one whisper every %.0fs' % WHISPER_GAP
+        return 429, {'ok': False, 'error': reason, 'reason': reason}
+    while _whisper_minute and now - _whisper_minute[0] > 60:
+        _whisper_minute.pop(0)
+    if len(_whisper_minute) >= WHISPER_PER_MIN:
+        reason = 'whisper limit reached (%d a minute)' % WHISPER_PER_MIN
+        return 429, {'ok': False, 'error': reason, 'reason': reason}
+    whisper, err = _load_whisper()
+    if whisper is None:
+        return 503, {'ok': False, 'error': 'whisper not installed'}
+    try:
+        msg = whisper.message(name, price, kind, rank)
+        # warframe.market's copy button includes the whisper command and its Terms ask for that
+        # text used as-is: the clipboard and the keystrokes carry the whole line, not just the body
+        ln = whisper.line(user, name, price, kind, rank) if hasattr(whisper, 'line') else msg
+        copied = bool(whisper.copy(ln))
+        sent, reason = False, ''
+        if mode == 'send':
+            res = whisper.send(ln, item=name, price=price, kind=kind, user=user)
+            sent = bool(res[0])
+            reason = str(res[1] or '') if len(res) > 1 else ''
+    except Exception as e:                                     # a broken module must not 500 the UI
+        return 500, {'ok': False, 'error': 'whisper: ' + str(e)[:160]}
+    _whisper_last[0] = now
+    _whisper_minute.append(now)
+    return 200, {'ok': True, 'message': msg, 'line': ln, 'copied': copied,
+                 'sent': sent, 'reason': reason}
+
+
 # ---------------------------------------------------------------- auto sync
 # Jay (2026-09-27): "can we get an auto sync with settings ie 5m 10m 15m 30m 1hr".
 # The cadence is the dashboard knob auto_refresh_seconds (0 = manual only, default 900). While the
@@ -822,6 +1053,8 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/chat': return self._send(200, chat_payload())
         if p == '/api/trader/cfg': return self._send(200, cfg_payload())
         if p == '/api/profiles': return self._send(200, profiles_payload())
+        if p == '/api/orders': return self._send(200, orders_payload(parse_qs(urlparse(self.path).query)))
+        if p == '/api/rank_values': return self._send(200, rank_values_payload(parse_qs(urlparse(self.path).query)))
         if p.startswith('/api/feature/'):
             name = p.rsplit('/', 1)[-1]
             if name in FEATURES:
@@ -839,6 +1072,17 @@ class H(BaseHTTPRequestHandler):
             ln = int(self.headers.get('Content-Length') or 0)
             b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
             code, out = chat_post(b.get('who'), b.get('text'))
+            return self._send(code, out)
+        if p == '/api/whisper':
+            try:
+                ln = int(self.headers.get('Content-Length') or 0)
+                b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
+            except Exception:
+                return self._send(400, {'ok': False, 'error': 'bad json body'})
+            try:
+                code, out = whisper_post(b)
+            except Exception as e:
+                return self._send(500, {'ok': False, 'error': str(e)[:200]})
             return self._send(code, out)
         if p == '/api/refresh':
             try:
