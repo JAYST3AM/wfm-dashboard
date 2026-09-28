@@ -72,6 +72,9 @@ def entry(name, default, why, kind='json'):
 # read/write path that makes the file account-scoped.
 MANIFEST = [
     # --- this account's own state (written from the game save / the account's own actions) ---
+    entry('trade_session.json', {}, 'the Trading Session loop: the live queue, the trades that were '
+          'whispered (CONTACTED) and the ids already confirmed, so a retry can never double-log a '
+          'trade (scripts/trade_session.py, server /api/session)'),
     entry('lastData.dec.json', {}, 'decrypted AlecaFrame save: plat, MR, trades left, inventory '
           '(scripts/refresh.py:54 writes; server.summary_payload, trader/lister.py, '
           'trader/inuse.py and trader/detector.py read it)'),

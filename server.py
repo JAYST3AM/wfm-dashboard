@@ -8,8 +8,8 @@ from email.utils import parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(ROOT, 'data')
+ROOT = os.path.abspath(os.environ.get('WFM_ROOT') or os.path.dirname(os.path.abspath(__file__)))
+DATA = os.environ.get('WFM_DATA') or os.path.join(ROOT, 'data')
 STATIC = os.path.join(ROOT, 'static')
 PORT = int(os.environ.get('WFM_PORT', '8787'))
 HOST = '127.0.0.1'
@@ -181,10 +181,14 @@ FEATURES = {
     'relics_panel': 'relics_panel.json',     # Collection > Relics (where from + what's inside)
     'mastery': 'mastery.json',               # Mastery Helper (MR + what to master next)
     'progress': 'progress.json',             # Today / sessions tracker
+    'session': 'trade_session.json',         # Trading Session loop (computed in session_payload)
 }
 
 
 def feature_payload(name, query=None):
+    if name == 'session':
+        # The loop's own payload, not the raw store: session + focus + pending + summary.
+        return session_payload()
     raw = jload(os.path.join(DATA, FEATURES[name])) or {}
     if name == 'deals':
         raw['deals'] = (raw.get('deals') or [])[:_cfg.get('deals_shown') or 60]
@@ -906,6 +910,75 @@ def sync_log_write(keep=50):
         pass
 
 
+# ------------------------------------------------------------------ trading session (the loop)
+# docs/trading-session-workflow.md, stages 2-5. The state lives in data/trade_session.json and is
+# owned by scripts/trade_session.py - these are thin adapters: read the payloads the app already
+# produces, hand them in, save the result. No price, rank or buyer is recomputed here.
+def _scripts_path():
+    scripts = os.path.join(ROOT, 'scripts')
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    return scripts
+
+
+def _session():
+    _scripts_path()
+    import trade_session as ts
+    return ts
+
+
+def _session_inputs():
+    """The recommendation payloads the session queue is built from (same files Home reads)."""
+    return {'plan': jload(os.path.join(DATA, 'trader_plan.json')) or {},
+            'advisor': jload(os.path.join(DATA, 'sell_advisor.json')) or {},
+            'report': jload(os.path.join(DATA, 'report.json')) or {},
+            'runqueue': jload(os.path.join(DATA, 'run_queue.json')) or {}}
+
+
+def session_payload():
+    """GET /api/session - the live session, its focus row, the pending trades and the summary."""
+    ts = _session()
+    limits = jload(os.path.join(DATA, 'trader_limits.json')) or {}
+    return ts.payload(DATA, limits=limits, **_session_inputs())
+
+
+def session_post(action, body):
+    """POST /api/session/<action> -> (code, body). start | focus | state | end."""
+    ts = _session()
+    limits = jload(os.path.join(DATA, 'trader_limits.json')) or {}
+    if action == 'start':
+        limit = body.get('limit')
+        try:
+            limit = max(1, min(40, int(limit))) if limit is not None else ts.QUEUE_LIMIT
+        except (TypeError, ValueError):
+            limit = ts.QUEUE_LIMIT
+        out = ts.start_payload(DATA, limits=limits, limit=limit, **_session_inputs())
+        return (200 if out.get('ok') else 409), out
+    doc = ts.load(DATA)
+    if action == 'focus':
+        row = ts.focus(doc, index=body.get('index'), slug=body.get('slug'))
+        if row is None:
+            return 404, {'ok': False, 'error': 'the session has no queue to point at'}
+        ts.save(DATA, doc)
+        return 200, {'ok': True, 'focus': row, 'session_payload': session_payload()}
+    if action == 'state':
+        state = str(body.get('state') or '').upper()
+        if state not in ts.STATES:
+            return 400, {'ok': False, 'error': 'bad state', 'states': list(ts.STATES)}
+        row = ts.set_state(doc, body.get('slug'), rank=body.get('rank'), state=state,
+                           note=body.get('note') or '')
+        if row is None:
+            return 404, {'ok': False, 'error': 'no such queue row'}
+        ts.save(DATA, doc)
+        return 200, {'ok': True, 'row': row, 'session_payload': session_payload()}
+    if action == 'end':
+        if ts.end(doc) is None:
+            return 404, {'ok': False, 'error': 'no session is open'}
+        ts.save(DATA, doc)
+        return 200, {'ok': True, 'session_payload': session_payload()}
+    return 404, {'ok': False, 'error': 'unknown session action'}
+
+
 # ------------------------------------------------------------------ chat (home dock)
 # Jay (2026-09-27): *"add a chat that snaps to the right of the home page. look into getting it so
 # other people can chat with their profiles active."* The store is local and always works with no
@@ -1047,6 +1120,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/plat_history': return self._send(200, plat_history_payload())
         if p == '/api/trades': return self._send(200, trades_payload())
         if p == '/api/trader': return self._send(200, trader_payload())
+        if p == '/api/session': return self._send(200, session_payload())
         if p == '/api/gamenews': return self._send(200, gamenews_payload())
         if p == '/api/config': return self._send(200, dashcfg_payload())
         if p == '/api/sync': return self._send(200, sync_payload())
@@ -1081,6 +1155,19 @@ class H(BaseHTTPRequestHandler):
                 return self._send(400, {'ok': False, 'error': 'bad json body'})
             try:
                 code, out = whisper_post(b)
+            except Exception as e:
+                return self._send(500, {'ok': False, 'error': str(e)[:200]})
+            return self._send(code, out)
+        if p.startswith('/api/session/'):
+            try:
+                ln = int(self.headers.get('Content-Length') or 0)
+                b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
+            except Exception:
+                b = {}
+            if not isinstance(b, dict):
+                b = {}
+            try:
+                code, out = session_post(p.rsplit('/', 1)[-1], b)
             except Exception as e:
                 return self._send(500, {'ok': False, 'error': str(e)[:200]})
             return self._send(code, out)
