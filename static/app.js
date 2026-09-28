@@ -525,6 +525,15 @@ function renderTrader() {
   const held = plan.held_list || [];
   document.getElementById('planMeta').textContent = plan.generated
     ? `· built ${ago(plan.generated)}${plan.mr != null ? ' · MR ' + plan.mr : ''}` : '';
+  /* the posting gate, read from the config that decides it (settings.json + the plan's own
+     dry_run) and stated where the decision is made - the chip can never claim Live while
+     dry_run is locked, and it is never hardcoded */
+  const dry = set.dry_run === true || plan.dry_run === true;
+  const pm = document.getElementById('postMode');
+  if (pm) {
+    pm.className = dry ? 'chip' : 'chip kill-on';
+    pm.textContent = dry ? 'Not live - nothing is posted' : 'Live';
+  }
   const head = `<div class="prow plan-head"><span>#</span><span>Item</span><span class="p-qty">Qty</span><span class="p-price">List at</span><span class="p-est">Est</span><span class="p-note">Notes</span></div>`;
   document.getElementById('planList').innerHTML = rows.length
     ? head + rows.map((r, i) => {
@@ -532,8 +541,10 @@ function renderTrader() {
          cut, and the cell title carries the whole line (note + advisor bits) for hover */
       const note = r.note || (r.subtype || ''), bits = advBits(r.slug);
       const tip = escHtml(note) + (bits ? escHtml(' · advisor: ' + bits) : '');
+      /* one action per row: a click opens the shared item drawer, exactly like an inventory row */
+      const act = r.slug ? ` data-slug="${escHtml(r.slug)}" title="Open item"` : '';
       return `
-      <div class="prow">
+      <div class="prow"${act}>
         <span class="dim">${i + 1}</span>
         <span class="l-name" title="${r.name}">${r.name}</span>
         <span class="p-qty">${r.qty}</span>
@@ -551,7 +562,7 @@ function renderTrader() {
   document.getElementById('attnMeta').textContent = w.generated
     ? `· checked ${ago(w.generated)}` : '';
   const wr = w.rows || [];
-  const attn = wr.map(r => `<div class="heldline attnrow">
+  const attn = wr.map(r => `<div class="heldline attnrow"${r.slug ? ` data-slug="${escHtml(r.slug)}" title="Open item"` : ''}>
         <span class="l-name" title="${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}">${escHtml(r.name)}${r.lane ? ' · ' + escHtml(r.lane) : ''}</span>
         <span class="dim">${r.floor != null && r.my_price != null && r.floor < r.my_price
           ? `someone listed at ${r.floor}p - below your ${r.my_price}p`
@@ -702,10 +713,13 @@ function renderNotify() {
   const N = Array.isArray(raw) ? raw : ((raw && raw.rows) || []);
   const el = document.getElementById('notifyList'), m = document.getElementById('notifyMeta');
   if (!el) return;
+  /* the outbox stores engine statuses (plan-mode rows carry dry_run): the cell prints the
+     label, never the raw status value */
+  const NLABEL = { sent: 'sent', dry_run: 'not live', held: 'not live', failed: 'failed' };
   const rows = N.slice().reverse().slice(0, 6);
   const sent = N.filter(r => r.status === 'sent').length;
   if (m) m.textContent = N.length ? `· ${N.length} in outbox · ${sent} delivered (rest held)` : '· no outbox yet';
-  el.innerHTML = rows.length ? rows.map(r => `<div class="mrow"><span class="m-name" title="${escHtml(r.title)}${r.to ? ' · ' + escHtml(r.to) : ''}">${escHtml(r.title)} <span class="dim small">${escHtml(r.to || '')}</span></span><span class="num"><span class="chip ${r.status === 'sent' ? 'act-show' : 'act-offline'}">${escHtml(r.status)}</span> ${r.ts ? ago(Date.parse(r.ts) / 1000) : ''}</span></div>`).join('')
+  el.innerHTML = rows.length ? rows.map(r => `<div class="mrow"><span class="m-name" title="${escHtml(r.title)}${r.to ? ' · ' + escHtml(r.to) : ''}">${escHtml(r.title)} <span class="dim small">${escHtml(r.to || '')}</span></span><span class="num"><span class="chip ${r.status === 'sent' ? 'act-show' : 'act-offline'}">${escHtml(NLABEL[r.status] || r.status)}</span> ${r.ts ? ago(Date.parse(r.ts) / 1000) : ''}</span></div>`).join('')
     : '<div class="dim pad">Configure a webhook in data/notify_config.json, then send a test ping.</div>';
 }
 
@@ -1562,6 +1576,14 @@ document.querySelectorAll('#tradeTabs [role="tab"]').forEach(t => t.addEventList
 /* opening/closing the held-back panel gives the plan table a different amount of room */
 const heldAcc = document.getElementById('heldAcc');
 if (heldAcc) heldAcc.addEventListener('toggle', () => markScrollers());
+
+/* one action per trade row: a recommended listing or an attention row opens the shared item
+   drawer, the same wfmOpenItem the inventory rows use - no per-row buttons to confuse the plan */
+const tradeView = document.getElementById('view-trade');
+if (tradeView) tradeView.addEventListener('click', e => {
+  const row = e.target.closest('[data-slug]');
+  if (row && row.dataset.slug && window.wfmOpenItem) wfmOpenItem(row.dataset.slug);
+});
 
 document.querySelectorAll('#ranges button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#ranges button').forEach(x => x.classList.toggle('active', x === b));

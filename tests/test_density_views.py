@@ -74,11 +74,12 @@ def test_the_fit_rules_are_desktop_only():
 
 def test_the_fit_block_comes_after_the_trade_density_block():
     """test_trade_density splits on the FIRST min-width:1200/1500px block - the trade pins must
-    keep pointing at the trade rules."""
+    keep pointing at the trade rules. Stage 4: the ops strip became the Advanced panel's
+    .adv-cards band, so the anchors moved with it."""
     css = read('static/style.css')
-    assert css.index('.trade-ops { display: grid; grid-template-columns: minmax(0, 1fr);') < \
+    assert css.index('.trade-split { display: grid; grid-template-columns: minmax(0, 1fr);') < \
         css.index('/* ============ fit the viewport')
-    assert css.index('.trade-ops { grid-template-columns: repeat(3, minmax(0, 1fr)); }') < \
+    assert css.index('.adv-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }') < \
         css.index('body.shell-fit #view-player .p-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }')
 
 
@@ -193,13 +194,28 @@ def test_the_tools_launcher_and_its_workspaces_share_the_fit_recipe():
 
 
 def test_trade_fills_the_window_without_losing_its_own_rules():
+    """Stage 4: the view is the tab row + the ACTIVE panel (the engine strip no longer takes a
+    grid row), and every long list scrolls inside its own card - Sell's plan table + held panel +
+    attention strip, the Advanced panel's notifications / run queue / hygiene plan, and the
+    Buy/History lists."""
     css = read('static/style.css')
     assert ('body.shell-fit #view-trade {\n'
-            '    display: grid; grid-template-rows: auto minmax(200px, 1.7fr) auto minmax(140px, 0.8fr);\n  }') in css
+            '    display: grid; grid-template-rows: auto minmax(200px, 1fr);\n  }') in css
     for frag in ('body.shell-fit #view-trade > .tpanel:not(.hidden) {',
                  'body.shell-fit #view-trade #planList, body.shell-fit #view-trade #heldAcc {',
-                 'body.shell-fit #view-trade #runqList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }'):
+                 'body.shell-fit #view-trade #heldList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }',
+                 'body.shell-fit #view-trade #tp-sell > .card:last-child > .picks,\n'
+                 '  body.shell-fit #view-trade #attnList { max-height: 22vh; overflow-y: auto; }',
+                 'body.shell-fit #view-trade #tp-advanced { overflow-y: auto; }',
+                 'body.shell-fit #view-trade #tp-advanced #notifyList { max-height: 30vh; overflow-y: auto; }',
+                 'body.shell-fit #view-trade #tp-advanced #runqList { max-height: 40vh; overflow-y: auto; }',
+                 'body.shell-fit #view-trade #tp-advanced #hygieneList { max-height: 34vh; overflow-y: auto; }',
+                 'body.shell-fit #view-trade #flipsList, body.shell-fit #view-trade #wishList,\n'
+                 '  body.shell-fit #view-trade #tradeLog, body.shell-fit #view-trade #sessList,\n'
+                 '  body.shell-fit #view-trade #timingList, body.shell-fit #view-trade #ledgerList {\n'
+                 '    max-height: 40vh; overflow-y: auto;\n  }'):
         assert frag in css, frag
+    assert 'trade-ops' not in css, 'the dissolved strip left no stale grid-row behind'
     # the trade density values the other test pins must be untouched
     assert '#view-trade .prow { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }' in css
     assert '#view-trade .heldline { padding: 6px 5px; font-size: 12px; line-height: 1.45; gap: 10px; }' in css

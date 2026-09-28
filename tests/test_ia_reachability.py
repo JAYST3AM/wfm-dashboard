@@ -17,7 +17,8 @@ cannot quietly orphan a feature:
   * the Player profile is the `player` workspace (pc* ids) reached from the launcher;
   * the legacy hashes resolve (#more/#market -> tools, #player -> tools/player,
     #mastery -> collection.html#mastery, #history/#trader -> trade);
-  * no id from the stage 1 snapshot disappeared (one sanctioned rename: view-more -> view-tools).
+  * no id from the stage 1 snapshot disappeared (one sanctioned rename: view-more -> view-tools);
+  * the Trade engine internals stay one click from the Sell surface (stage 4's Advanced tab).
 """
 import json
 import os
@@ -307,6 +308,29 @@ def test_the_player_profile_is_the_tools_player_workspace():
     # its renderer stayed in app.js (the tools page IS index.html) and the router calls it
     assert 'function renderPlayerPage' in APP_JS
     assert "'/api/feature/player'" in APP_JS
+
+
+# ------------------------------------------------------------------ Trade internals (stage 4)
+
+def test_the_trade_internals_are_one_click_from_the_sell_surface():
+    """Stage 4 (2026-09-28): Trade is Sell / Buy / History + ONE Safety & advanced tab. This file's
+    watch-list item ("Trade engine internals once behind Safety/Advanced - must stay 1 tap from
+    Sell") is pinned here: the fourth tab sits in #tradeTabs beside Sell, the panel it controls
+    holds every internal id, the kill switch and the trade limit are plain cards (the hygiene plan
+    keeps the layer's only <details>), and nothing engine-side sits on the Sell surface."""
+    trade = INDEX.split('id="view-trade"', 1)[1].split('</section>', 1)[0]
+    tabs = trade.split('<nav id="tradeTabs"', 1)[1].split('</nav>', 1)[0]
+    assert 'id="tt-advanced"' in tabs and 'aria-controls="tp-advanced"' in tabs, 'one click from Sell'
+    adv = trade.split('id="tp-advanced"', 1)[1]
+    for internals in ('limMeta', 'limList', 'killMeta', 'btnKill', 'killNote', 'killList',
+                      'notifyMeta', 'btnNotify', 'notifyList', 'runqMeta', 'btnRunq', 'runqList',
+                      'hygieneAcc', 'hygieneMeta', 'btnHygiene', 'hygieneList'):
+        assert 'id="%s"' % internals in adv, internals
+    assert adv.count('<details') == 1 and 'id="hygieneAcc"' in adv, \
+        'the hygiene plan is the layer\'s only disclosure'
+    sell = trade.split('id="tp-sell"', 1)[1].split('id="tp-buy"', 1)[0]
+    for gone in ('limList', 'killList', 'notifyList', 'runqList', 'hygieneList', 'hygieneAcc'):
+        assert 'id="%s"' % gone not in sell, gone
 
 
 # ------------------------------------------------------------------ legacy addresses

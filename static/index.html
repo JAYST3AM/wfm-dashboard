@@ -198,18 +198,21 @@
     </div>
   </section>
 
-  <!-- TRADE - a workflow, not an engine control room -->
+  <!-- TRADE - Sell decides, Buy hunts, History explains; the engine internals (kill switch, trade
+       limit, webhook outbox, run queue, hygiene plan) sit behind the ONE Advanced tab, one click
+       from Sell. Nothing was removed; safety stays reachable. -->
   <section id="view-trade" class="hidden">
     <nav id="tradeTabs" class="tabs" role="tablist" aria-label="Trade sections">
       <button role="tab" id="tt-sell" data-tp="tp-sell" aria-selected="true" aria-controls="tp-sell">Sell</button>
       <button role="tab" id="tt-buy" data-tp="tp-buy" aria-selected="false" aria-controls="tp-buy">Buy</button>
       <button role="tab" id="tt-history" data-tp="tp-history" aria-selected="false" aria-controls="tp-history">History</button>
+      <button role="tab" id="tt-advanced" data-tp="tp-advanced" aria-selected="false" aria-controls="tp-advanced">Advanced</button>
     </nav>
 
     <div id="tp-sell" class="tpanel" role="tabpanel" aria-labelledby="tt-sell">
       <div class="card">
         <div class="card-head">
-          <div class="card-title" data-icon="hand-coins">Recommended listings <span class="dim small" id="planMeta"></span></div>
+          <div class="card-title" data-icon="hand-coins">Recommended listings <span class="dim small" id="planMeta"></span> <span class="chip" id="postMode"></span></div>
           <div class="actions">
             <button class="btn" id="btnPlan" data-icon="list">Rebuild recommendations</button>
             <button class="btn" id="btnCycle" data-icon="arrows-clockwise">Check the market now</button>
@@ -217,7 +220,7 @@
         </div>
         <div class="trade-split">
           <div class="picks" id="planList"></div>
-          <details class="acc sub" id="heldAcc" open>
+          <details class="acc sub" id="heldAcc">
             <summary>Not recommended right now <span class="dim small" id="heldMeta"></span></summary>
             <div class="picks" id="heldList"></div>
           </details>
@@ -229,11 +232,6 @@
           <div class="actions"><button class="btn" id="btnWatch" data-icon="arrows-clockwise">Check now</button></div>
         </div>
         <div class="picks" id="attnList"></div>
-        <details class="acc sub" id="hygieneAcc">
-          <summary>Listings that haven't moved <span class="dim small" id="hygieneMeta"></span></summary>
-          <div class="actions pad-b"><button class="btn" id="btnHygiene" data-icon="list">Rebuild plan</button></div>
-          <div class="picks" id="hygieneList"></div>
-        </details>
       </div>
     </div>
 
@@ -276,15 +274,11 @@
       </div>
     </div>
 
-    <!-- the trader internals (engine status, detector log, flipper plan, raw output) retired
-         2026-09-27: the default surface stays action-first. Safety and the live controls stay
-         visible below, never buried in an accordion. 2026-09-27 (density): Trade limit moved
-         down to sit 3-across with the kill switch and notifications on wide screens. -->
-      <div class="trade-ops">
-        <div class="card">
-          <div class="card-head"><div class="card-title" data-icon="hourglass">Trade limit <span class="dim small" id="limMeta"></span></div></div>
-          <div class="picks" id="limList"></div>
-        </div>
+    <!-- Safety & advanced: the engine internals, one click from Sell and nothing buried twice.
+         The kill switch and the trade limit are plain cards (no accordion around a safety
+         control); the hygiene plan keeps the one disclosure it always had. -->
+    <div id="tp-advanced" class="tpanel hidden" role="tabpanel" aria-labelledby="tt-advanced">
+      <div class="adv-cards">
         <div class="card">
           <div class="card-head">
             <div class="card-title" data-icon="warning">Kill switch <span class="dim small" id="killMeta"></span></div>
@@ -294,6 +288,10 @@
             <input id="killNote" class="noteinput" type="text" placeholder="Optional note (why)" aria-label="Kill switch note">
           </div>
           <div class="picks" id="killList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="hourglass">Trade limit <span class="dim small" id="limMeta"></span></div></div>
+          <div class="picks" id="limList"></div>
         </div>
         <div class="card">
           <div class="card-head">
@@ -310,6 +308,14 @@
         </div>
         <div class="picks" id="runqList"></div>
       </div>
+      <div class="card adv-hygiene">
+        <details class="acc sub" id="hygieneAcc">
+          <summary>Listings that haven't moved <span class="dim small" id="hygieneMeta"></span></summary>
+          <div class="actions pad-b"><button class="btn" id="btnHygiene" data-icon="list">Rebuild plan</button></div>
+          <div class="picks" id="hygieneList"></div>
+        </details>
+      </div>
+    </div>
   </section>
 
   <!-- TOOLS (stage 2): the launcher, then one focused workspace at a time.

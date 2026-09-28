@@ -620,8 +620,14 @@ html[data-adv="on"] .explain { display: revert !important; }
 
 #view-trade .card { margin-bottom: 10px; }
 #view-trade .card-head { padding: 10px 14px 6px; gap: 10px; flex-wrap: wrap; }   /* a narrow 1/3 column
-   wraps the action under the title instead of pushing it out of the card (card-title carries
-   nowrap via its data-icon) */
+   wraps the action under the title instead of pushing it out of the card */
+/* a heading that cannot wrap reads as a clipped heading: inside a narrow column the title and its
+   meta wrap instead of clipping the head (stage 4 audit minor: the Notify head clipped at
+   1200-1600px, content 514px in a 305-405px card) */
+#view-trade .card-title { white-space: normal; }
+#view-trade .card-title[data-icon] { white-space: normal; overflow-wrap: break-word; }
+/* the trade rows are one-action rows: the whole row is the target and the cursor says so */
+#view-trade .prow[data-slug], #view-trade .attnrow[data-slug] { cursor: pointer; }
 #view-trade .card-head .actions { gap: 6px; }
 #view-trade .btn { padding: 4px 11px; font-size: 11.5px; }
 #view-trade .picks { padding: 4px 12px 8px; }
@@ -643,19 +649,24 @@ html[data-adv="on"] .explain { display: revert !important; }
 @media (min-width: 1500px) {
   .trade-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .trade-split { grid-template-rows: minmax(0, 1fr); }
+  /* a closed held-back panel is a strip under the table, never a reserved half (stage 4) */
+  .trade-split:has(> details.acc.sub:not([open])) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
 }
+/* the same rule below 1500px: the plan table keeps the room while the panel is collapsed */
+.trade-split:has(> details.acc.sub:not([open])) { grid-template-rows: minmax(0, 1fr) auto; }
 
-/* status + safety strip: three EQUAL columns (1fr each), tops and bottoms on the same line. Every
-   card stretches to the tallest one; a card whose list is longer scrolls it instead of cramming
-   (and instead of leaving a hole at the bottom of the short ones). */
-.trade-ops { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: stretch; }
-.trade-ops > .card { display: flex; flex-direction: column; min-width: 0; }
-.trade-ops > .card > .card-head { flex: 0 0 auto; }
-.trade-ops > .card > .picks { min-height: 0; }
-.trade-ops > .card > .picks.kill-input { flex: 0 0 auto; margin-top: auto; }
-.trade-ops > .card > #limList { flex: 1 1 auto; display: grid; align-content: center; }
-.trade-ops > .card > #killList { flex: 0 0 auto; display: flex; flex-direction: column; }
-.trade-ops > .card > #notifyList { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+/* status + safety strip (stage 4: now the Advanced tab's first band): three EQUAL columns (1fr
+   each), tops and bottoms on the same line. Every card stretches to the tallest one; a card whose
+   list is longer scrolls it instead of cramming (and instead of leaving a hole at the bottom of
+   the short ones). Only the hygiene plan sits behind a second click. */
+.adv-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; align-items: stretch; }
+.adv-cards > .card { display: flex; flex-direction: column; min-width: 0; }
+.adv-cards > .card > .card-head { flex: 0 0 auto; }
+.adv-cards > .card > .picks { min-height: 0; }
+.adv-cards > .card > .picks.kill-input { flex: 0 0 auto; margin-top: auto; }
+.adv-cards > .card > #limList { flex: 1 1 auto; display: grid; align-content: center; }
+.adv-cards > .card > #killList { flex: 0 0 auto; display: flex; flex-direction: column; }
+.adv-cards > .card > #notifyList { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 /* the workspace head, the band and the setup rows: LOOK, not fit mechanics - they apply at any
    window width, so a 1000px window still sees a launcher and a titled workspace, not stray links */
 .tws-bar { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 10px; }
@@ -713,7 +724,7 @@ html[data-adv="on"] .explain { display: revert !important; }
 #view-tools .tl-setup .picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 6px; }
 
 @media (min-width: 1200px) {
-  .trade-ops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .adv-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* plan rows: 25px each (was 32). The Notes column is the flexible one - it was capped at 240px
@@ -763,7 +774,7 @@ html[data-adv="on"] .explain { display: revert !important; }
 /* Kill switch: the one state element is the head chip (.chip), the body keeps the note field and
    the recorded why/when line. The pair centres in the card so the card never reads as a hole. */
 #view-trade .killline { padding: 2px 8px 8px; font-size: 11.5px; }
-.trade-ops > .card > #killList { margin-bottom: auto; }
+.adv-cards > .card > #killList { margin-bottom: auto; }
 
 /* ============ fit the viewport (Jay 2026-09-27) ============
    "everything needs to fit on this screen, no matter the resolution for the user".
@@ -896,20 +907,34 @@ html[data-adv="on"] .explain { display: revert !important; }
   body.shell-fit #view-tools .limrow { padding: 6px 10px; gap: 10px; font-size: 12.5px; }
   body.shell-fit #view-tools .subhead { padding: 5px 8px 1px; }
 
-  /* ================= TRADE: plan list fills the card, queue + ops keep their rows ======== */
+  /* ================= TRADE: the tab row + the ACTIVE panel; every long list scrolls inside its
+     card. Sell is the decision surface (recommended listings + attention), the engine internals
+     live behind #tp-advanced one click away, and the grid no longer reserves a row for an ops
+     strip that used to sit under the panels (stage 4). ====================================== */
   body.shell-fit #view-trade {
-    display: grid; grid-template-rows: auto minmax(200px, 1.7fr) auto minmax(140px, 0.8fr);
+    display: grid; grid-template-rows: auto minmax(200px, 1fr);
   }
   body.shell-fit #view-trade > #tradeTabs { grid-row: 1; }
   body.shell-fit #view-trade > .tpanel:not(.hidden) {
     grid-row: 2; min-height: 0; display: flex; flex-direction: column;
   }
-  body.shell-fit #view-trade > .trade-ops { grid-row: 3; }
-  body.shell-fit #view-trade > .card {
-    grid-row: 4; min-height: 0; margin-bottom: 0; display: flex; flex-direction: column;
+  /* every trade card is a column whose list is the scroller: a short window shrinks the list
+     (which scrolls) instead of clipping the card, and the head above it never gives up height */
+  body.shell-fit #view-trade .tpanel:not(.hidden) > .card {
+    min-height: 0; display: flex; flex-direction: column;
   }
+  body.shell-fit #view-trade .tpanel:not(.hidden) > .card > div[id] {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  body.shell-fit #view-trade .tpanel:not(.hidden) > .kpis { flex: 0 0 auto; }
+  /* the attention strip is a decision, not a scroller: it keeps its rows and the plan card above
+     it takes the squeeze (its table is the one that scrolls) */
+  body.shell-fit #view-trade #tp-sell > .card:last-child { flex: 0 0 auto; }
+  /* the plan card hugs its rows: it takes the height its table needs and gives it back when the
+     window is short (then #planList is the scroller). Filling the window instead would leave a
+     hole between the last row and the held-back strip. */
   body.shell-fit #view-trade #tp-sell > .card:first-child {
-    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column;
   }
   body.shell-fit #view-trade #tp-sell .trade-split { flex: 1 1 auto; min-height: 0; }
   body.shell-fit #view-trade #planList, body.shell-fit #view-trade #heldAcc {
@@ -920,7 +945,13 @@ html[data-adv="on"] .explain { display: revert !important; }
   body.shell-fit #view-trade #heldList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   body.shell-fit #view-trade #tp-sell > .card:last-child > .picks,
   body.shell-fit #view-trade #attnList { max-height: 22vh; overflow-y: auto; }
-  body.shell-fit #view-trade #runqList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* the Advanced panel: kill switch + trade limit + notifications on one line, then the run
+     queue and the hygiene plan. Each of their lists is its own scroller, and the panel scrolls
+     as the last resort so a 19-action hygiene plan can never push the window. */
+  body.shell-fit #view-trade #tp-advanced { overflow-y: auto; }
+  body.shell-fit #view-trade #tp-advanced #notifyList { max-height: 30vh; overflow-y: auto; }
+  body.shell-fit #view-trade #tp-advanced #runqList { max-height: 40vh; overflow-y: auto; }
+  body.shell-fit #view-trade #tp-advanced #hygieneList { max-height: 34vh; overflow-y: auto; }
   body.shell-fit #view-trade #flipsList, body.shell-fit #view-trade #wishList,
   body.shell-fit #view-trade #tradeLog, body.shell-fit #view-trade #sessList,
   body.shell-fit #view-trade #timingList, body.shell-fit #view-trade #ledgerList {
