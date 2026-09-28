@@ -8,6 +8,7 @@
   var SOURCES = ['/api/feature/cards', '/api/cards', '/mod_cards.json', '/cards.json',
                  '/data/mod_cards.json', '/api/data/mod_cards.json'];
   var BATCH = 180;                       // cards rendered per call (1551 cards in a full list)
+  var paintGen = 0;                      // bumped per paint: a stale measure pass must not run
   var MARKET = 'https://warframe.market/items/';
   var PIPS = 10;                         // rank pip strip length (= highest in-game mod rank)
   var RARITY_RANK = { Legendary: 4, Rare: 3, Uncommon: 2, Common: 1, Unknown: 0 };
@@ -421,10 +422,14 @@
      same-origin), so the grid never asks it for an image at all - a card with no local file gets
      the shared drawer's letter tile, so nothing shows a broken image and the console stays clean. */
   /* art source for a card: the local hi-res set only - never the remote CDN */
-  function artSrc(card) {
+  /* The grid loads the 264px thumb set (tools/build_card_thumbs.py). The full files are 1000x1456
+     and about 261 KB each - 140 of them decoding into 125px tiles is what made this page lag
+     (Jay 2026-09-28). full=true is for the inspect overlay, which keeps the crisp original. */
+  function artSrc(card, full) {
     if (!card) return null;
-    return (state.hi && state.hi[card.slug]) ? '/hi/' + card.slug + '.webp' : null;
+    return (state.hi && state.hi[card.slug]) ? '/hi/' + (full ? '' : 'thumb/') + card.slug + '.webp' : null;
   }
+  function artAlt(card, full) { return artSrc(card, !full); }
 
   /* cardart/index.json maps slug -> "file.webp" (art fills the front, our wording rides on it)
      or {file: "file.webp", baked: true} when the file already IS the finished card face
@@ -451,18 +456,20 @@
     art.appendChild(tile);
   }
 
-  function addArt(art, card) {
+  function addArt(art, card, full) {
     if (!art || !card || art.querySelector('.mcd-art-img')) return;
     if (artEntry(card)) return;   // full-art / baked faces NEVER take the base card image
-    var src = artSrc(card);
+    var src = artSrc(card, full);
     if (!src) { addTile(art, card); return; }
     var img = el('img', 'mcd-art-img');
     img.alt = '';
     img.loading = 'lazy';
     img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
-    // a local file that will not decode: drop the img and paint the tile instead
+    // a missing thumb (or a local file that will not decode): try the other size, then the tile
+    var tried = false;
     img.addEventListener('error', function () {
+      if (!tried) { tried = true; img.src = artAlt(card, full); return; }
       img.remove();
       art.classList.remove('has-art');
       addTile(art, card);
@@ -572,7 +579,7 @@
     // local art when this PC has the file, else the drawer's letter tile. Full-art cards paint
     // from their own manifest file and never take an <img>; nothing here asks a remote host,
     // so no card can render a broken-image icon and the console stays clean.
-    if (!fa) addArt(art, card);
+    if (!fa) addArt(art, card, !!(opts && opts.full));
     art.appendChild(el('span', 'mcd-pol', pol[0]));
     art.appendChild(el('span', 'mcd-pol-name', pol[1]));
     front.appendChild(art);
@@ -779,7 +786,7 @@
 
     // big card (same builder; inside the overlay a click flips it)
     I.holder.textContent = '';
-    var big = buildCard(card, { quiet: true });
+    var big = buildCard(card, { quiet: true, full: true });
     I.bigCard = big;
     I.holder.style.setProperty('--ins-scale', '1.85');
     I.holder.appendChild(big);
@@ -878,13 +885,20 @@
     for (var i = 0; i < state.shown; i++) frag.appendChild(buildCard(state.filtered[i]));
     grid.textContent = '';
     grid.appendChild(frag);
-    // cache each card's untransformed rect (document space) for the hover-tilt math —
-    // measured now, before any tilt vars exist, so a read can never feed itself back
-    for (var c = 0; c < grid.children.length; c++) {
-      var gnode = grid.children[c];
-      var rr = gnode.getBoundingClientRect();
-      gnode._gr = { l: rr.left + window.scrollX, t: rr.top + window.scrollY, w: rr.width, h: rr.height };
-    }
+    /* Cache each card's untransformed rect (document space) for the hover-tilt math - measured
+       before any tilt vars exist, so a read can never feed itself back. The pass is one forced
+       layout, so it runs after the swap's frame: a keystroke must not wait on 180 measurements
+       (Jay 2026-09-28, the cards page lagged). Hover measures on demand if a card has no rect. */
+    var gen = (paintGen += 1);
+    requestAnimationFrame(function () {
+      if (gen !== paintGen) return;                 // a newer paint owns the grid now
+      for (var c = 0; c < grid.children.length; c++) {
+        var gnode = grid.children[c];
+        if (gnode._gr) continue;
+        var rr = gnode.getBoundingClientRect();
+        gnode._gr = { l: rr.left + window.scrollX, t: rr.top + window.scrollY, w: rr.width, h: rr.height };
+      }
+    });
   }
 
   function updateMore() {
@@ -958,8 +972,17 @@
   document.addEventListener('DOMContentLoaded', function () {
     wireThemePanel();
     var q = document.getElementById('q');
-    q.addEventListener('input', function () { state.q = q.value.trim().toLowerCase(); render(); });
+    /* one render per pause, not per keystroke: rebuilding 180 tiles measured ~335 ms on the second
+       letter (Jay 2026-09-28: the page lagged). 140 ms is under the gap between keystrokes while
+       still feeling immediate, and the value is compared first so a no-op input never renders. */
+    q.addEventListener('input', function () {
+      var v = q.value.trim().toLowerCase();
+      window.clearTimeout(q._t);
+      if (v === state.q) return;
+      q._t = window.setTimeout(function () { state.q = v; render(); }, 140);
+    });
     document.getElementById('clearBtn').addEventListener('click', function () {
+      window.clearTimeout(q._t);                 // a pending debounce must not re-apply the old query
       q.value = ''; state.q = ''; render(); q.focus();
     });
     document.getElementById('typeSel').addEventListener('change', function (e) {
@@ -991,9 +1014,17 @@
     gEl.addEventListener('pointermove', function (e) {
       if (e.pointerType && e.pointerType !== 'mouse') return;   // touch degrades to no tilt
       var card = e.target && e.target.closest ? e.target.closest('.mcd-card') : null;
-      if (card !== gTilt.card) { gReset(); gTilt.card = card; }
+      if (card !== gTilt.card) {
+        gReset();
+        gTilt.card = card;
+        /* Measure the card the pointer just entered, in this event, while no tilt var is on it.
+           The paint pass caches rects, but a card that was offscreen then carries the intrinsic
+           placeholder (content-visibility), and a live read of an already-tilted card would feed
+           the tilt back into itself and make the card jitter. One rect read per hover change. */
+        if (card) card._gr = null;
+      }
       if (!card) return;
-      // cached doc-space rect (measured at paint, before tilt) — a live read of a tilted
+      // cached doc-space rect (measured before tilt) — a live read of a tilted
       // card would feed the tilt back into itself and make the card jitter
       var r = card._gr;
       if (!r) {

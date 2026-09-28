@@ -128,7 +128,7 @@ def test_grid_art_never_asks_a_remote_host():
     for dead in ('artState', 'probeArt', 'upgradeArt', 'new Image()'):
         assert dead not in js, dead + ' belongs to the retired CDN probe'
     # artSrc answers from the local manifest or nothing at all - never card.icon
-    assert "return (state.hi && state.hi[card.slug]) ? '/hi/' + card.slug + '.webp' : null;" in js
+    assert "return (state.hi && state.hi[card.slug]) ? '/hi/' + (full ? '' : 'thumb/') + card.slug + '.webp' : null;" in js
     assert "fetch('hi/index.json'" in js
 
 
@@ -163,7 +163,7 @@ def test_full_art_and_baked_faces_still_win():
     js = cards_js()
     html = cards_html()
     assert 'if (artEntry(card)) return;' in js
-    assert 'if (!fa) addArt(art, card);' in js
+    assert 'if (!fa) addArt(art, card, !!(opts && opts.full));' in js
     assert '.mcd-front.has-fullart.art-baked {' in html
     assert '.mcd-front .mcd-art.has-art ~ .mcd-body { display: none; }' in html
 

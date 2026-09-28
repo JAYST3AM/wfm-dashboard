@@ -37,6 +37,11 @@
     position: relative; padding: 0; margin: 0; background: none; border: none; cursor: pointer;
     perspective: 900px; font: inherit; color: var(--text); text-align: left;
     aspect-ratio: 5 / 7;
+    /* 180 tiles are in the DOM at once; offscreen ones skip layout and paint entirely (the grid
+       scrolls at 60fps instead of re-laying out every tile), and the remembered size keeps the
+       scrollbar honest once a tile has been seen. Jay 2026-09-28: the page lagged. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 175px;
   }
   .mcd-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 13px; }
   .mcd-inner {

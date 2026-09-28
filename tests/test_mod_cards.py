@@ -535,7 +535,8 @@ def test_local_hi_res_set_backs_card_and_drawer_art():
     drawer = open(os.path.join(REPO, 'static', 'drawer.js'), encoding='utf-8').read()
     drawcss = open(os.path.join(REPO, 'static', 'drawer.css'), encoding='utf-8').read()
     assert "fetch('hi/index.json'" in cards and "'/hi/index.json'" in drawer
-    assert "state.hi && state.hi[card.slug]" in cards and "'/hi/' + card.slug + '.webp'" in cards
+    assert "state.hi && state.hi[card.slug]" in cards and "'/hi/' + card.slug + '.webp'" not in cards
+    assert "'/hi/' + (full ? '' : 'thumb/') + card.slug + '.webp'" in cards   # grid = thumbs, overlay = full
     assert "HI_DIR" in drawer and "it.slug + '.webp'" in drawer
     assert 'max-width: min(92vw, 720px)' in drawcss              # zoom shows the big render
 
