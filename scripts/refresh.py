@@ -45,13 +45,36 @@ SECTIONS = ['MiscItems', 'Recipes', 'RawUpgrades', 'Upgrades', 'WeaponSkins', 'S
 REFINE = re.compile(r'\s+(Intact|Exceptional|Flawless|Radiant)$', re.I)
 
 
+def normalise(save):
+    """AlecaFrame's save moved the inventory (and PlayerLevel / TradesRemaining / RegularCredits)
+    into a JSON-encoded 'InventoryJson' string; older saves carry the sections at the top level.
+    Hoist the inner document so every reader of data/lastData.dec.json sees the classic shape."""
+    ij = save.get('InventoryJson')
+    inner = None
+    if isinstance(ij, str) and ij.strip().startswith('{'):
+        try:
+            inner = json.loads(ij)
+        except Exception:
+            inner = None
+    elif isinstance(ij, dict):
+        inner = ij
+    if not isinstance(inner, dict):
+        return save
+    if any(isinstance(save.get(s), list) for s in SECTIONS):
+        return save                       # already flat - the top level wins
+    out = dict(save)
+    out.update(inner)                     # inner wins; extra top-level keys survive
+    return out
+
+
 def main():
     os.makedirs(DATA, exist_ok=True)
     pt = decrypt(os.path.join(AF, 'lastData.dat'))
     save = json.loads(pt.decode('utf-8'))
+    save = normalise(save)
     if 'LastInventorySync' not in ''.join(k for k in save.keys()):
         pass  # key presence not guaranteed top-level; the app checks the raw text
-    open(os.path.join(DATA, 'lastData.dec.json'), 'wb').write(pt)
+    open(os.path.join(DATA, 'lastData.dec.json'), 'wb').write(json.dumps(save).encode('utf-8'))
 
     basic = json.load(open(os.path.join(AF, 'cachedData', 'custom', 'basic.json'), encoding='utf-8'))['items']
     relics_json = json.load(open(os.path.join(AF, 'cachedData', 'json', 'Relics.json'), encoding='utf-8'))
@@ -98,7 +121,21 @@ def main():
             owned.append(dict(slug=it['slug'], name=it['i18n']['en']['name'], count=cnt,
                               ducats=it.get('ducats'), tags=it.get('tags', []), section=sec,
                               path=t, match=how, refinement=ref))
-    json.dump(owned, open(os.path.join(DATA, 'owned.json'), 'w', encoding='utf-8'), indent=1)
+    out_path = os.path.join(DATA, 'owned.json')
+    prev = []
+    try:
+        prev = json.load(open(out_path, encoding='utf-8')) or []
+    except Exception:
+        prev = []
+    if not owned and prev:
+        # Never trade a good inventory for an empty decode: the dashboard auto-syncs on a
+        # cadence (auto_refresh_seconds, default 900), so one blank or unreadable save must not
+        # cost the live rollup - keep the previous file and say so loudly (rc=3 shows in the UI).
+        print(json.dumps({'skipped': 'decode produced 0 items', 'kept': len(prev)}))
+        raise SystemExit(3)
+    tmp = out_path + '.tmp'
+    json.dump(owned, open(tmp, 'w', encoding='utf-8'), indent=1)
+    os.replace(tmp, out_path)
     summ = dict(mr=save.get('PlayerLevel'), trades=save.get('TradesRemaining'),
                 credits=save.get('RegularCredits'), owned=len(owned))
     print(json.dumps(summ))
