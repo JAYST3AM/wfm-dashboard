@@ -647,6 +647,57 @@ function idsCheck() {
     }
     Object.assign(rendered.index, { rowCounts: (await page.evaluate(FACTS)).n.rowCounts });
 
+    /* Trade > Orders (a live order book with usernames): its own state so the console watch, the
+       copy scan and the fit sweep all cover it, plus Jay's placement rule - Orders first in the
+       strip, Sell still the surface a fresh load opens on. */
+    {
+      rec.state = '#trade/orders';
+      m = rec.mark();
+      await page.goto(BASE + '/#trade/orders', { waitUntil: 'load', timeout: 45000 });
+      await sleep(2800);
+      const tabs = await page.evaluate(() => [...document.querySelectorAll('#tradeTabs [role="tab"]')]
+        .map((e) => e.id));
+      addCheck('load', 'Trade puts Orders first in the strip, before Sell',
+        tabs[0] === 'tt-orders' && tabs[1] === 'tt-sell', 'tt-orders, tt-sell',
+        tabs.slice(0, 3).join(', '));
+      const sel = await page.evaluate(() => {
+        const t = document.querySelector('#tradeTabs [aria-selected="true"]');
+        return t ? t.id : null;
+      });
+      addCheck('load', 'the #trade/orders deep link opens the Orders tab itself',
+        sel === 'tt-orders', 'tt-orders selected', String(sel));
+      const ord = await page.evaluate(() => ({
+        rows: document.querySelectorAll('#tp-orders [data-user]').length,
+        ladder: document.querySelectorAll('#ordValues tr').length,
+        chips: document.querySelectorAll('#ordStatus [aria-pressed]').length,
+        meta: ((document.getElementById('ordMeta') || {}).textContent || '').trim(),
+        item: ((document.getElementById('ordItem') || {}).textContent || '').trim(),
+        err: ((document.getElementById('ordErr') || {}).textContent || '').trim(),
+      }));
+      addCheck('load', 'Orders shows its status chips and either a book or an honest reason',
+        ord.chips >= 3 && (ord.rows > 0 || ord.err.length > 0), 'chips >= 3, rows or a reason',
+        ord.chips + ' chips, ' + ord.rows + ' rows, ' + ord.ladder + ' ladder rows, item "' + ord.item + '"');
+      R.orders = ord;
+      const ccord = await page.evaluate(COPY_SCAN);
+      ccord.forEach((c) => R.copy.push({ page: 'index', state: '#trade/orders', text: c.text, words: c.words, chars: c.chars, cls: c.cls }));
+      ids.index.push(...(await page.evaluate(FACTS)).ids);
+      rec.since(m, '#trade/orders', 'index');
+
+      /* the other half of the placement rule: a plain Trade load still lands on Sell, because that
+         is the surface the day-to-day flow runs on */
+      rec.state = '#trade (plain)';
+      m = rec.mark();
+      await page.goto(BASE + '/#trade', { waitUntil: 'load', timeout: 45000 });
+      await sleep(2000);
+      const sel2 = await page.evaluate(() => {
+        const t = document.querySelector('#tradeTabs [aria-selected="true"]');
+        return t ? t.id : null;
+      });
+      addCheck('load', 'a plain Trade load still opens on the Sell surface', sel2 === 'tt-sell',
+        'tt-sell selected', String(sel2));
+      rec.since(m, '#trade (plain)', 'index');
+    }
+
     /* legacy hashes: each one gets a FRESH load, because some of them redirect the whole page
        (#mastery -> /collection.html#mastery, #more/#market -> #tools, #player -> #tools/player) */
     for (const h of LEGACY_HASHES) {
@@ -813,7 +864,7 @@ function idsCheck() {
     for (const [w, h] of VIEWPORTS) {
       await page.setViewport({ width: w, height: h });
       await sleep(400);
-      for (const v of INDEX_VIEWS) {
+      for (const v of INDEX_VIEWS.concat(['trade/orders'])) {
         await page.evaluate((v) => { location.hash = '#' + v; }, v);
         await sleep(700);
         const mm = await page.evaluate(FIT_SCAN);
@@ -833,7 +884,7 @@ function idsCheck() {
   /* ============ 4. themes: 4 palettes across every page ============ */
   {
     const targets = [
-      ['index', '/', INDEX_VIEWS],
+      ['index', '/', INDEX_VIEWS.concat(['trade/orders'])],
       ['collection', '/collection.html', COLLECTION_SECTIONS],
       ['cards', '/cards.html', [null]],
       ['settings', '/settings.html', SETTINGS_CATS],

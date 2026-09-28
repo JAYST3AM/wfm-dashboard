@@ -125,7 +125,7 @@ function switchInvView(v) {
   markScrollers();
 }
 
-/* trade sub-tabs (Sell / Buy / History) */
+/* trade sub-tabs (Orders / Sell / Buy / History / Advanced) */
 function switchTradeTab(panelId) {
   const tabs = document.querySelectorAll('#tradeTabs [role="tab"]');
   if (!tabs.length) return;
@@ -133,6 +133,8 @@ function switchTradeTab(panelId) {
   if (!ok) panelId = 'tp-sell';
   tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tp === panelId)));
   document.querySelectorAll('#view-trade .tpanel').forEach(p2 => p2.classList.toggle('hidden', p2.id !== panelId));
+  /* the order book reads on open (and only then): no timer, one ask at a time */
+  if (panelId === 'tp-orders') renderOrders();
   markScrollers();
 }
 
@@ -408,8 +410,8 @@ function advBits(slug) {
   if (!a) return '';
   const bits = [];
   if (a.demand_badge) bits.push(a.demand_badge === 'spike' ? 'demand rising' : a.demand_badge === 'fade' ? 'demand fading' : 'demand steady');
-  if (a.best_sell_window) bits.push('best ' + a.best_sell_window);
   if (a.sellable) bits.push(a.sellable + ' sellable');
+  /* the best-sell window is help, not a value: it stays in the chip's hover title (reasons) */
   return bits.join(' · ');
 }
 
@@ -460,12 +462,22 @@ function renderPicks() {
 }
 
 function renderChartMeta() {
+  /* The footer names what is on screen: the chart reports its window through onView, so a
+     seven-day view reads 129 readings from Sep 25 rather than quoting the whole history - the old
+     global footer made the plot look empty. Falls back to the global figures before the first
+     draw (and if the chart never reports). */
   const ph = PLAT || {};
   const el = document.getElementById('chartMeta');
   if (!ph.n) { el.textContent = 'Collector: every 15 min'; return; }
-  const since = new Date(ph.first_ts * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
-  el.textContent = `${ph.n} readings · every 15 min`;
-  el.title = `snapshots since ${since}`;
+  const d = t => new Date(t * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const v = window.__chartView;
+  if (v && v.first_ts) {
+    el.textContent = `${v.shown} readings · from ${d(v.first_ts)}`;
+    el.title = `a snapshot every 15 min · first ${d(v.first_ts)}`;
+  } else {
+    el.textContent = `${ph.n} readings · since ${d(ph.first_ts)}`;
+    el.title = `a snapshot every 15 min · first ${d(ph.first_ts)}`;
+  }
 }
 
 /* ---------- history ---------- */
@@ -564,8 +576,9 @@ function renderTrader() {
     ? head + rows.map((r, i) => {
       /* the notes are short by design: the note itself never shrinks, the advisor chip takes the
          cut, and the cell title carries the whole line (note + advisor bits) for hover */
-      const note = r.note || (r.subtype || ''), bits = advBits(r.slug);
-      const tip = escHtml(note) + (bits ? escHtml(' · advisor: ' + bits) : '');
+      const noteFull = r.note || (r.subtype || ''), bits = advBits(r.slug);
+      const note = fitSegments(noteFull, 8);
+      const tip = escHtml(noteFull) + (bits ? escHtml(' · advisor: ' + bits) : '');
       /* one action per row: a click opens the shared item drawer, exactly like an inventory row */
       const act = r.slug ? ` data-slug="${escHtml(r.slug)}" title="Open item"` : '';
       return `
@@ -594,7 +607,7 @@ function renderTrader() {
           : `you're at ${r.my_price}p · best now ${r.floor ?? '—'}p`}${r.proposed ? ` · reprice to ${r.proposed}p` : ''}${r.reason ? ' · ' + escHtml(r.reason) : ''}</span>
       </div>`);
   const hy = FEAT.hygiene || {}, hc = hy.summary || {};
-  if (hc.total) attn.push(`<div class="heldline attnrow"><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} hide · ${hc.refresh} reprice · ${hc.show} restore${(hy.rules || {}).auto_hide_offline ? ` · auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline` : ''}</span></div>`);
+  if (hc.total) attn.push(`<div class="heldline attnrow"${(hy.rules || {}).auto_hide_offline ? ` title="auto-hide after ${(hy.rules || {}).offline_window_minutes} min offline"` : ''}><span class="l-name">Listings that haven't moved</span><span class="dim">${hc.hide} hide</span> <span class="dim">${hc.refresh} reprice</span> <span class="dim">${hc.show} restore</span></div>`);
   document.getElementById('attnList').innerHTML = attn.length
     ? attn.join('')
     : (w.generated
@@ -608,9 +621,7 @@ function renderRunQueue() {
   const R = FEAT.runqueue || {}, s = R.summary || {};
   const m = document.getElementById('runqMeta');
   if (!m) return;
-  m.textContent = R.generated
-    ? `· ${s.ingame || 0} ingame · ${s.online || 0} online · ${s.offline || 0} offline · built ${ago(R.generated)}`
-    : '';
+  sbits(m, R.generated ? ['· ' + (s.ingame || 0) + ' ingame', '· ' + (s.online || 0) + ' online', '· ' + (s.offline || 0) + ' offline', '· built ' + ago(R.generated)] : []);
   const el = document.getElementById('runqList');
   const rows = (R.queue || []).slice(0, 10);
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/trader/runqueue.py</div>'; return; }
@@ -633,14 +644,14 @@ function renderHygiene() {
   const ent = (H.inputs || {}).entries || {};
   const m = document.getElementById('hygieneMeta');
   if (!m) return;
-  m.textContent = (c.total !== undefined)
-    ? `· ${c.hide} hide · ${c.show} show · ${c.refresh} refresh${r.auto_hide_offline ? ` · offline ${r.offline_window_minutes}m` : ''}`
-    : '';
+  sbits(m, (c.total !== undefined)
+    ? ['· ' + c.hide + ' hide', '· ' + c.show + ' show', '· ' + c.refresh + ' refresh' + (r.auto_hide_offline ? ' · offline ' + r.offline_window_minutes + 'm' : '')]
+    : []);
   const el = document.getElementById('hygieneList');
   if (!H.mode) { el.innerHTML = '<div class="dim pad">Run scripts/trader/hygiene.py</div>'; return; }
   const acts = H.actions || [];
   const line = a => `<div class="heldline"><span class="l-name" title="${escHtml(a.order_id)}">${escHtml(a.item)}${a.lane ? ' · ' + escHtml(a.lane) : ''}</span><span class="dim">${escHtml(a.reason || '')}</span></div>`;
-  let html = `<div class="limrow"><b>NOT LIVE - plan only</b><span class="dim">${acts.length} action(s) · ${ent.live || 0} live / ${ent.pending || 0} planned listings</span></div>`;
+  let html = `<div class="limrow"><b>NOT LIVE - plan only</b><span class="dim">${acts.length} action(s)</span> <span class="dim">${ent.live || 0} live / ${ent.pending || 0} planned listings</span></div>`;
   ['hide', 'show', 'refresh'].forEach(k => {
     const rows = acts.filter(a => a.action === k);
     if (rows.length) html += `<div class="subhead">${k} <span class="dim">(${rows.length})</span></div>` + rows.slice(0, 6).map(line).join('');
@@ -649,11 +660,281 @@ function renderHygiene() {
   el.innerHTML = html;
 }
 
+/* ---------- orders (Trade > Orders, the first tab) ----------
+   One item, the live WFM book: who is selling (you would buy from them) and who is buying (you
+   would sell to them), rank by rank from the values map. A SELL order is a seller, a BUY order is
+   a buyer, so the left list is what you can buy and the right list is whom you can sell to.
+   Fetches on tab open, on the rank picker and on Refresh only - never on a timer - and a new ask
+   aborts the one before it. The status chips (ingame / online / offline, ingame + online on by
+   default) filter the rows already fetched and repaint instantly: no refetch, and the server
+   order is kept inside each status. A whisper click prints exactly what the server answered, no
+   more: sent and copied come from the response, never assumed. */
+const ORD = { data: null, ctl: null, slug: '', rank: 'all', limit: 60, shown: 0, total: 0,
+  st: { ingame: true, online: true, offline: false } };
+const ORD_STS = ['ingame', 'online', 'offline'];
+const ORD_ST = { ingame: 0, online: 1, offline: 2 };      /* the server's own status order */
+
+const onum = v => (v === null || v === undefined || v === '') ? '—' : v;
+const ordPrice = v => (v === null || v === undefined || v === '') ? '—' : v + 'p';
+
+/* the status filter over the rows already fetched: ingame + online on by default (the people who
+   can be traded with now), offline off, All clears or restores the three. Toggling re-renders
+   from ORD.data - it never refetches. */
+function ordStOn() { return ORD_STS.filter(s => ORD.st[s]); }
+
+function ordStLabel() {
+  const on = ordStOn();
+  if (on.length === ORD_STS.length) return 'all statuses';
+  if (!on.length) return 'no status';
+  return on.join('+');
+}
+
+function ordStCount(rows) {
+  const n = { ingame: 0, online: 0, offline: 0 };
+  (rows || []).forEach(o => { const s = String(o.status || 'offline'); n[s] = (n[s] || 0) + 1; });
+  return n;
+}
+
+/* the chips carry their own count, the cards page recipe: label + the count span */
+function ordChips(d) {
+  const known = !!d;
+  const n = ordStCount(known ? (d.sell || []).concat(d.buy || []) : []);
+  ORD_STS.forEach(st => {
+    const b = document.getElementById('ordSt' + st[0].toUpperCase() + st.slice(1));
+    if (!b) return;
+    b.innerHTML = escHtml(st) + '<span class="mcd-rank">' + (known ? ' ' + n[st] : '') + '</span>';
+    b.classList.toggle('active', !!ORD.st[st]);
+    b.setAttribute('aria-pressed', String(!!ORD.st[st]));
+  });
+  const all = document.getElementById('ordStAll');
+  if (all) {
+    const on = ordStOn().length === ORD_STS.length;
+    all.classList.toggle('active', on);
+    all.setAttribute('aria-pressed', String(on));
+  }
+}
+
+/* server order, kept: price (sell ascending, buy descending), then who can trade now, then the
+   freshest listing, then the name */
+function ordSort(a, b, desc) {
+  return ((desc ? (b.platinum || 0) - (a.platinum || 0) : (a.platinum || 0) - (b.platinum || 0))
+    || (ORD_ST[a.status] ?? 3) - (ORD_ST[b.status] ?? 3)
+    || (b.updated_ts || 0) - (a.updated_ts || 0)
+    || String(a.user || '').localeCompare(String(b.user || '')));
+}
+
+function ordEmptyLine(side, total) {
+  if (!total) return 'No orders for this item';
+  const on = ordStOn();
+  if (!on.length) return 'No status picked';
+  return 'No ' + on.join(' or ') + ' ' + side;
+}
+
+function ordMetaText(d) {
+  const el = document.getElementById('ordMeta');
+  if (!el) return;
+  if (!d) { el.textContent = ''; return; }
+  const c = d.counts || {};
+  const bits = ['· ' + (c.sell || 0) + ' sell', '· ' + (c.buy || 0) + ' buy'];
+  if (typeof d.age_s === 'number') bits.push('· ' + ago(Math.floor(Date.now() / 1000) - d.age_s));
+  if (d.source === 'cache') bits.push('· cached');
+  bits.push('· ' + ordStLabel());
+  if (ORD.shown < ORD.total) bits.push('· ' + ORD.shown + ' of ' + ORD.total + ' shown');
+  /* one fact per span: the budget is a label + value per element, and the whole line stays in the
+     title so a reader can still see every number at once */
+  el.textContent = '';
+  el.title = bits.join(' ');
+  bits.forEach(function (b, i) {
+    const sp = document.createElement('span');
+    sp.textContent = (i ? ' ' : '') + b;
+    el.appendChild(sp);
+  });
+}
+
+/* the two lists, painted from the last answer: filter first, then the server order, then the
+   empty line of the half that the filter (or the book) emptied */
+function ordPaint() {
+  const d = ORD.data || {};
+  const sellEl = document.getElementById('ordSell'), buyEl = document.getElementById('ordBuy');
+  if (!sellEl || !buyEl) return;
+  const sellAll = d.sell || [], buyAll = d.buy || [];
+  const keep = o => !!ORD.st[String(o.status || 'offline')];
+  const sell = sellAll.filter(keep).sort((a, b) => ordSort(a, b, false));
+  const buy = buyAll.filter(keep).sort((a, b) => ordSort(a, b, true));
+  ORD.total = sellAll.length + buyAll.length;
+  ORD.shown = sell.length + buy.length;
+  sellEl.innerHTML = sell.length ? sell.map(o => ordRow(o, 'sell')).join('')
+    : `<div class="empty">${EMPTY_ICON}${escHtml(ordEmptyLine('sellers', sellAll.length))}</div>`;
+  buyEl.innerHTML = buy.length ? buy.map(o => ordRow(o, 'buy')).join('')
+    : `<div class="empty">${EMPTY_ICON}${escHtml(ordEmptyLine('buyers', buyAll.length))}</div>`;
+  ordMetaText(d);
+  markScrollers();
+}
+
+function ordTopSlug() {
+  const plan = ((TRADER || {}).plan || {}).plan || [];
+  return (plan[0] && plan[0].slug) || '';
+}
+
+/* the input opens on the top sell-plan item, once, and only while the user has not typed one */
+function ordPrefill() {
+  const q = document.getElementById('ordQ');
+  if (q && !q.value.trim()) q.value = ordTopSlug();
+}
+
+/* a deep link (#trade/orders) can land before the sell plan exists: the panel is on screen with
+   nothing behind it, so the first data load finishes the open - the same open, not a second one,
+   and never a fetch on a panel the user has not opened or while an answer is already in hand */
+function ordOpenFetch() {
+  const q = document.getElementById('ordQ'), tp = document.getElementById('tp-orders');
+  if (!q || !tp || tp.classList.contains('hidden')) return;
+  if (ORD.data || ORD.ctl || !q.value.trim()) return;
+  renderOrders();
+}
+
+function ordUrl(slug, rank) {
+  return '/api/orders?item=' + encodeURIComponent(slug) + '&rank=' + encodeURIComponent(rank)
+    + '&limit=' + ORD.limit;
+}
+
+function ordErr(txt) {
+  const el = document.getElementById('ordErr');
+  if (!el) return;
+  el.textContent = txt || '';
+  el.classList.toggle('hidden', !txt);
+}
+
+function ordHead(d, slug) {
+  const it = document.getElementById('ordItem');
+  /* the catalogue keeps the display name: 'Primed Continuity', not the slug the deep link carries */
+  const ordLbl = (d && d.name) || slug || '';
+  if (it) { it.textContent = ordLbl ? '· ' + ordLbl : ''; it.title = 'the item this book is for'; }
+  ordMetaText(d);
+}
+
+/* the ranks this item really trades at, straight from the answer */
+function ordOpts(d) {
+  const sel = document.getElementById('ordRank');
+  if (!sel) return;
+  const ranks = (d && d.ranks) || [];
+  sel.innerHTML = '<option value="all">All ranks</option>'
+    + ranks.map(r => `<option value="${escHtml(String(r))}">Rank ${escHtml(String(r))}</option>`).join('');
+  const want = String(ORD.rank);
+  sel.value = (want === 'all' || ranks.some(r => String(r) === want)) ? want : 'all';
+  ORD.rank = sel.value;
+}
+
+/* the per-rank ladder: lowest sell / highest buy / how many orders sit at each side */
+function ordLadder(d) {
+  const el = document.getElementById('ordValues');
+  if (!el) return;
+  const vals = (d && d.values) || {};
+  const ranks = Object.keys(vals).map(Number).filter(n => isFinite(n)).sort((a, b) => a - b);
+  if (!ranks.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<table class="ordtbl"><thead><tr><th scope="col">Rank</th>'
+    + '<th scope="col" class="num">Lowest sell</th><th scope="col" class="num">Highest buy</th>'
+    + '<th scope="col" class="num">Sells</th><th scope="col" class="num">Buys</th></tr></thead><tbody>'
+    + ranks.map(r => {
+      const v = vals[r] || {};
+      return `<tr><td>${r}</td><td class="num">${ordPrice(v.ask)}</td><td class="num">${ordPrice(v.bid)}</td>`
+        + `<td class="num dim">${onum(v.n_ask)}</td><td class="num dim">${onum(v.n_bid)}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+/* one row, one whisper: price, quantity, rank, the ingameName, reputation, the status dot and the
+   button. The answer line under the row is where the server speaks for itself. */
+function ordRow(o, kind) {
+  const st = String(o.status || 'offline'), user = String(o.user || '');
+  return `<div class="ordrow" data-kind="${escHtml(kind)}" data-st="${escHtml(st)}">
+    <span class="ordp" title="platinum each">${ordPrice(o.platinum)}</span>
+    <span class="ordq dim" title="quantity">x${onum(o.quantity)}</span>
+    <span class="ordr chip" title="rank">R${escHtml(String(onum(o.rank)))}</span>
+    <span class="orduser" title="${escHtml(user)}">${escHtml(user)}</span>
+    <span class="ordrep num dim" title="reputation">${onum(o.reputation)}</span>
+    <span class="ordst" title="${escHtml(st)}"><i class="orddot ${escHtml(st)}"></i>${escHtml(st)}</span>
+    <button class="ordwsp" data-user="${escHtml(user)}" data-price="${escHtml(String(o.platinum ?? ''))}"
+      data-rank="${escHtml(String(o.rank ?? ''))}" data-kind="${escHtml(kind)}"
+      title="Send this whisper in game">Whisper</button>
+    <span class="ordres" aria-live="polite"></span>
+  </div>`;
+}
+
+async function renderOrders() {
+  const q = document.getElementById('ordQ');
+  const sellEl = document.getElementById('ordSell'), buyEl = document.getElementById('ordBuy');
+  if (!q || !sellEl || !buyEl) return;
+  ordPrefill();
+  const slug = q.value.trim();
+  const rank = ((document.getElementById('ordRank') || {}).value) || 'all';
+  ORD.rank = rank;
+  if (!slug) {
+    ordErr('Orders: no item picked');
+    ORD.data = null; ORD.shown = ORD.total = 0;
+    ordHead(null, ''); ordChips(null);
+    ordPaint();
+    return;
+  }
+  if (ORD.ctl) ORD.ctl.abort();                    /* one book at a time: the new ask wins */
+  const ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+  ORD.ctl = ctl;
+  const got = await fetch(ordUrl(slug, rank), ctl ? { signal: ctl.signal } : undefined)
+    .then(res => res.json().then(j => ({ res, j })).catch(() => ({ res, j: null })))
+    .catch(err => (err && err.name === 'AbortError') ? null : { res: null, j: null });
+  if (!got || ORD.ctl !== ctl) return;             /* aborted, or a newer ask already won */
+  ORD.ctl = null;
+  const d = got.j || {};
+  const ok = got.res && got.res.ok && d.ok !== false;
+  if (!ok) {
+    const reason = d.error || d.reason || (got.res ? 'HTTP ' + got.res.status : 'no answer from the server');
+    ordErr('Orders: ' + reason);                   /* the server line verbatim, never a guess */
+    ORD.data = null; ORD.shown = ORD.total = 0;
+    ordHead(null, slug); ordChips(null);
+    document.getElementById('ordValues').innerHTML = '';
+    ordPaint();
+    return;
+  }
+  ORD.data = d; ORD.slug = d.item || slug;
+  /* an ok answer can still carry a reason (the book was cached, or read from a fallback source):
+     it is printed, and the rows that did arrive stay on screen */
+  ordErr(d.error ? 'Orders: ' + d.error : '');
+  ordChips(d); ordOpts(d); ordLadder(d); ordHead(d, ORD.slug);
+  ordPaint();
+}
+
+/* one click, one whisper. The button is disabled while the answer is in flight, so a row can never
+   be double-sent, and the answer line is written from the response only. A row the status filter
+   has hidden is out of the DOM, and even a detached button is refused here. */
+async function ordWhisper(btn) {
+  const row = btn.closest('.ordrow');
+  if (!row || !btn.isConnected) return;
+  if (!ORD.st[row.dataset.st || '']) return;       /* a hidden row may never whisper */
+  const res = row.querySelector('.ordres');
+  const item = ORD.slug || (((document.getElementById('ordQ') || {}).value) || '').trim();
+  const body = { item, user: btn.dataset.user || '', price: Number(btn.dataset.price) || 0,
+    kind: btn.dataset.kind === 'sell' ? 'sell' : 'buy', mode: 'send' };
+  const rk = Number(btn.dataset.rank);
+  if (isFinite(rk)) body.rank = rk;
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Sending';
+  let say = 'no answer from the server', ok = false;
+  try {
+    const r = await fetch('/api/whisper', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => null);
+    if (!j || j.ok === false) say = (j && (j.reason || j.error)) || ('HTTP ' + r.status);
+    else if (j.sent) { say = 'Sent to game'; ok = true; }
+    else if (j.copied) { say = 'Copied - game not running'; ok = true; }
+    else say = j.reason || 'Not sent - nothing confirmed';
+  } catch (err) { /* nothing came back: the row may not claim a send */ }
+  btn.disabled = false; btn.textContent = old;
+  if (res) { res.textContent = say; res.classList.toggle('bad', !ok); }
+}
+
 function renderTiming() {
   const T = FEAT.timing || {}, s = T.sample || {}, hours = T.hours || [], kinds = T.by_kind || {};
   const m = document.getElementById('timingMeta');
   if (!m) return;
-  m.textContent = s.sales_total ? `· ${T.verdict === 'SELL_NOW' ? 'SELL NOW' : 'HOLD'} · ${s.sales_total} sales · next ${(T.next_window || {}).label || '—'}` : '';
+  sbits(m, s.sales_total ? ['· ' + (T.verdict === 'SELL_NOW' ? 'SELL NOW' : 'HOLD'), '· ' + s.sales_total + ' sales', '· next ' + ((T.next_window || {}).label || '—')] : []);
   const el = document.getElementById('timingList');
   if (!s.sales_total) { el.innerHTML = '<div class="dim pad">Run scripts/sell_timing.py</div>'; return; }
   const peak = Math.max(1, ...hours.map(h => h.sales));
@@ -668,7 +949,7 @@ function renderWatchlist() {
   const W = FEAT.watchlist || {}, s = W.summary || {};
   const m = document.getElementById('wlMeta');
   if (!m) return;
-  m.textContent = s.total ? `· ${s.hit_buy} buy hit · ${s.hit_sell} sell hit · ${s.wait} waiting` : '';
+  sbits(m, s.total ? ['· ' + s.hit_buy + ' buy hit', '· ' + s.hit_sell + ' sell hit', '· ' + s.wait + ' waiting'] : []);
   const el = document.getElementById('wlList');
   const rows = W.entries || [], cand = W.suggested || [];
   const line = e => {
@@ -705,9 +986,9 @@ function renderMeta() {
   const M = FEAT.meta || {}, p = M.patch || {}, s = M.summary || {};
   const m = document.getElementById('metaMeta');
   if (!m) return;
-  m.textContent = M.generated_iso ? (p.post_patch_active
-    ? `· post-patch ${p.latest_version || ''} (${p.days_since_latest ?? '?'}d) · ${s.spike} up · ${s.sink} down of ${s.tracked}`
-    : `· no update in ${p.window_days || 10}d · ${s.spike} up · ${s.sink} down of ${s.tracked}`) : '';
+  sbits(m, M.generated_iso ? (p.post_patch_active
+    ? ['· post-patch ' + (p.latest_version || '') + ' (' + (p.days_since_latest ?? '?') + 'd)', '· ' + s.spike + ' up', '· ' + s.sink + ' down of ' + s.tracked]
+    : ['· no update in ' + (p.window_days || 10) + 'd', '· ' + s.spike + ' up', '· ' + s.sink + ' down of ' + s.tracked]) : []);
   const el = document.getElementById('metaList');
   const sp = (M.spike || []).slice(0, 6), sk = (M.sink || []).slice(0, 6);
   if (!sp.length && !sk.length) { el.innerHTML = '<div class="dim pad">Run scripts/meta_watcher.py</div>'; return; }
@@ -721,7 +1002,7 @@ function renderCraft() {
   const C = FEAT.craft || {}, s = C.summary || {};
   const m = document.getElementById('craftMeta');
   if (!m) return;
-  m.textContent = s.total ? `· ${s.craft} craft · ${s.buy} buy · ${s.skip} skip` : '';
+  sbits(m, s.total ? ['· ' + s.craft + ' craft', '· ' + s.buy + ' buy', '· ' + s.skip + ' skip'] : []);
   const el = document.getElementById('craftList');
   const rows = (C.rows || []).filter(r2 => r2.verdict !== 'SKIP').slice(0, 12);
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/craft.py</div>'; return; }
@@ -743,7 +1024,7 @@ function renderNotify() {
   const NLABEL = { sent: 'sent', dry_run: 'not live', held: 'not live', failed: 'failed' };
   const rows = N.slice().reverse().slice(0, 6);
   const sent = N.filter(r => r.status === 'sent').length;
-  if (m) m.textContent = N.length ? `· ${N.length} in outbox · ${sent} delivered (rest held)` : '· no outbox yet';
+  if (m) sbits(m, N.length ? ['· ' + N.length + ' in outbox', '· ' + sent + ' delivered', '· rest held'] : ['· no outbox yet']);
   el.innerHTML = rows.length ? rows.map(r => `<div class="mrow"><span class="m-name" title="${escHtml(r.title)}${r.to ? ' · ' + escHtml(r.to) : ''}">${escHtml(r.title)} <span class="dim small">${escHtml(r.to || '')}</span></span><span class="num"><span class="chip ${r.status === 'sent' ? 'act-show' : 'act-offline'}">${escHtml(NLABEL[r.status] || r.status)}</span> ${r.ts ? ago(Date.parse(r.ts) / 1000) : ''}</span></div>`).join('')
     : '<div class="dim pad">Configure a webhook in data/notify_config.json, then send a test ping.</div>';
 }
@@ -753,7 +1034,7 @@ function renderPlatLedger() {
   const L = FEAT.ledger || {}, t = L.totals || {}, rows = L.days || [], chk = L.self_check || {};
   const m = document.getElementById('ledgerMeta');
   if (!m) return;
-  m.textContent = t.windows ? `· balance ${t.current_balance}p · inferred in-game spend ${t.in_game_spent_inferred_plat}p · reconciles ${chk.reconciles ? '✓' : '✗'}` : '';
+  sbits(m, t.windows ? ['· balance ' + t.current_balance + 'p', '· inferred in-game spend ' + t.in_game_spent_inferred_plat + 'p', '· reconciles ' + (chk.reconciles ? '✓' : '✗')] : []);
   const el = document.getElementById('ledgerList');
   if (!t.windows) { el.innerHTML = '<div class="dim pad">Run scripts/plat_ledger.py</div>'; return; }
   const p = v => (v >= 0 ? '+' : '−') + Math.abs(v).toLocaleString() + 'p';
@@ -1008,8 +1289,9 @@ function markScrollers() {
   document.querySelectorAll('.tablewrap').forEach(function (el) {
     el.classList.toggle('scrolly', el.scrollHeight > el.clientHeight + 2);
   });
-  /* the Trade lists are scrollers too: same cue, only when the list really has more rows below */
-  document.querySelectorAll('#view-trade .picks').forEach(function (el) {
+  /* the Trade lists are scrollers too: same cue, only when the list really has more rows below;
+     the Orders ladder is one of them (a short window can cut its last rank) */
+  document.querySelectorAll('#view-trade .picks, #view-trade #ordValues').forEach(function (el) {
     const oy = getComputedStyle(el).overflowY;
     el.classList.toggle('scrolly', (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 2);
   });
@@ -1032,7 +1314,7 @@ function renderDojo() {
   const rowsSrc = TT ? TT.materials : (D.materials || []);    // no column -> ghost totals
   const credits = TT ? TT.credits : D.credits;
   const shortN = rowsSrc.filter(m => (m.short || 0) > 0).length;
-  if (meta) meta.textContent = `· ${dojoTierLabel(D, TT)} · ${fmt(credits)} cr · ${shortN} short`;
+  if (meta) sbits(meta, ['· ' + dojoTierLabel(D, TT), '· ' + fmt(credits) + ' cr', '· ' + shortN + ' short']);
   const rows = rowsSrc.slice().sort((a, b) => (b.short || 0) - (a.short || 0)
     || (b.needed || 0) - (a.needed || 0));
   tbody.innerHTML = rows.map(m => `
@@ -1088,6 +1370,8 @@ async function load() {
   renderChips(); renderTabs(); renderTable(); renderMaterials(); renderDojo();
   markScrollers();
   renderTodayStrip(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
+  ordPrefill();             /* Orders opens on the top sell-plan item, once the plan has landed */
+  ordOpenFetch();           /* and a deep link that landed before it is finished here */
   renderFirstRun();
   renderHomeHead(); renderNextAction();
   if (window.wfmRenderHome) wfmRenderHome();
@@ -1106,19 +1390,48 @@ async function load() {
   document.getElementById('status').textContent = s.lastdata_mtime
     ? `prices updated ${ago(s.prices_mtime)} · checked ${new Date().toLocaleTimeString()}`
     : 'No data yet — run: python scripts/setup.py';
-  document.getElementById('foot').textContent =
-    `WFM Trader · refreshed ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} · ${(tr && tr.n) || 0} history events · prices refresh every 15 min`;
+  const footEl = document.getElementById('foot');
+  footEl.textContent =
+    `WFM Trader · updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} · ${(tr && tr.n) || 0} events`;
+  /* the refresh cadence and what the count counts are help, not values: they ride in the title */
+  footEl.title = 'history events · prices refresh every 15 min';
 }
 
 /* ---------- market ---------- */
 const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pretty = s => String(s || '').replace(/_/g, ' ');
 
+/* copy diet: a status line is one <span> per fact, so every visible string is a label + a value
+   inside the 8-word / 90-char budget (the numbers never shrink, the wording does). */
+const sbits = (host, ss) => { if (host) host.innerHTML = (ss || []).filter(Boolean).map(s => '<span>' + s + '</span>').join(' '); };
+/* a long data line keeps as many whole facts on screen as the budget allows; the whole line
+   rides in the title */
+const fitSegments = (s, maxWords) => {
+  const parts = String(s == null ? '' : s).split(/\s+(?:·|;|\|)\s+/).filter(Boolean);
+  const out = [];
+  for (const p of parts) {
+    if (!out.length) { out.push(clipWords(p, maxWords)); continue; }
+    if ((out.join(' · ') + ' · ' + p).split(/\s+/).length <= maxWords) out.push(p); else break;
+  }
+  return out.join(' · ');
+};
+const clipWords = (s, maxWords) => {
+  const w = String(s == null ? '' : s).trim().split(/\s+/).filter(Boolean);
+  if (w.length <= maxWords) return w.join(' ');
+  const stop = /^(a|an|the|of|in|to|for|and|or|by|with|from|can|be|is|it|at|on)$/i;
+  let n = maxWords;
+  while (n > 1 && stop.test(w[n - 1])) n--;      /* trailing filler words go first */
+  return w.slice(0, n).join(' ') + '\u2026';
+};
+
 function renderDeals() {
   const D = FEAT.deals || {}, c = D.counts || {}, rows = (D.deals || []).slice(0, 14);
-  document.getElementById('dealsMeta').textContent = c.total
-    ? `· ${c.total} live in ${D.window_hours || 12}h (${(c.by_kind || {}).spread || 0} spreads · ${(c.by_kind || {}).undercut || 0} undercuts) · cursor ${(D.scan || {}).cursor_end ?? '—'}/${(D.scan || {}).pool_size ?? '—'}`
-    : '';
+  sbits(document.getElementById('dealsMeta'), c.total ? [
+    '· ' + c.total + ' live in ' + (D.window_hours || 12) + 'h',
+    '· ' + ((c.by_kind || {}).spread || 0) + ' spreads',
+    '· ' + ((c.by_kind || {}).undercut || 0) + ' undercuts',
+    '· cursor ' + ((D.scan || {}).cursor_end ?? '—') + '/' + ((D.scan || {}).pool_size ?? '—'),
+  ] : []);
   const el = document.getElementById('dealsList');
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/deal_scanner.py</div>'; return; }
   el.innerHTML =
@@ -1135,9 +1448,9 @@ function renderDeals() {
 
 function renderDucats() {
   const U = FEAT.ducats || {}, s = U.summary || {}, rows = U.rows || [];
-  document.getElementById('ducatsMeta').textContent = s.slugs
-    ? `· ${s.sell_count} sell (${s.total_sell_plat}p) · ${s.burn_count} burn (${s.total_burn_ducats} ducats) · ${s.hold_count} hold`
-    : '';
+  sbits(document.getElementById('ducatsMeta'), s.slugs
+    ? ['· ' + s.sell_count + ' sell (' + s.total_sell_plat + 'p)', '· ' + s.burn_count + ' burn (' + s.total_burn_ducats + ' ducats)', '· ' + s.hold_count + ' hold']
+    : []);
   const el = document.getElementById('ducatsList');
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/ducats.py</div>'; return; }
   const line = (r, mode) => {
@@ -1155,9 +1468,9 @@ function renderDucats() {
 
 function renderSets() {
   const S = FEAT.sets || {}, sm = S.summary || {}, tt = S.top_targets || [];
-  document.getElementById('setsMeta').textContent = sm.sets_total
-    ? `· ${sm.complete} complete · ${sm.near_1_missing} one away · ${sm.two_missing} two away · ${sm.targets} targets · ${sm.net_profit_build_targets}p modelled profit`
-    : '';
+  sbits(document.getElementById('setsMeta'), sm.sets_total
+    ? ['· ' + sm.complete + ' complete', '· ' + sm.near_1_missing + ' one away', '· ' + sm.two_missing + ' two away', '· ' + sm.targets + ' targets', '· ' + sm.net_profit_build_targets + 'p modelled profit']
+    : []);
   const el = document.getElementById('setsList');
   if (!tt.length) { el.innerHTML = '<div class="dim pad">Run scripts/sets.py</div>'; return; }
   el.innerHTML =
@@ -1173,9 +1486,9 @@ function renderSets() {
 
 function renderRelics() {
   const R = FEAT.relics || {}, t = R.totals || {}, rows = (R.rows || []);
-  document.getElementById('relicsMeta').textContent = t.ev_if_all_opened
-    ? `· EV ${Math.round(t.ev_if_all_opened)}p if opened vs ${t.value_if_all_sold_as_is}p sold · ${(t.actions || {}).OPEN || 0} open / ${(t.actions || {}).SELL || 0} sell / ${(t.actions || {}).HOLD || 0} hold`
-    : '';
+  sbits(document.getElementById('relicsMeta'), t.ev_if_all_opened
+    ? ['· EV ' + Math.round(t.ev_if_all_opened) + 'p opened vs ' + t.value_if_all_sold_as_is + 'p sold', '· ' + ((t.actions || {}).OPEN || 0) + ' open', '· ' + ((t.actions || {}).SELL || 0) + ' sell', '· ' + ((t.actions || {}).HOLD || 0) + ' hold']
+    : []);
   const el = document.getElementById('relicsList');
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/relic_ev.py</div>'; return; }
   const top = rows.slice().sort((a, b) => Math.abs(b.gain_if_opened_total || 0) - Math.abs(a.gain_if_opened_total || 0)).slice(0, 12);
@@ -1223,9 +1536,9 @@ function renderLimits() {
 
 function renderSessions() {
   const S = FEAT.sessions || {}, t = S.totals || {}, rows = S.sessions || [];
-  document.getElementById('sessMeta').textContent = t.sessions
-    ? `· ${t.trade_sessions} trade sessions · ${t.in_game_hours}h in game · earned ${t.gross}p · spent ${t.spent}p`
-    : '';
+  sbits(document.getElementById('sessMeta'), t.sessions
+    ? ['· ' + t.trade_sessions + ' trade sessions', '· ' + t.in_game_hours + 'h in game', '· earned ' + t.gross + 'p', '· spent ' + t.spent + 'p']
+    : []);
   const el = document.getElementById('sessList');
   const list = rows.filter(r => r.events > 0).slice(0, 8);
   if (!list.length) { el.innerHTML = '<div class="dim pad">No trade sessions yet.</div>'; return; }
@@ -1241,8 +1554,11 @@ function renderDiff() {
   const DI = FEAT.invdiff || {}, el = document.getElementById('diffList');
   if (!DI.status) { el.innerHTML = '<div class="dim pad">Run scripts/invdiff.py</div>'; document.getElementById('diffMeta').textContent = ''; return; }
   document.getElementById('diffMeta').textContent = '· ' + DI.status;
-  let html = `<div class="limrow"><b>${DI.refreshed ? 'Snapshot refreshed' : 'Snapshot unchanged'}</b>
-    <span class="dim">${DI.snapshot || ''}${DI.reference ? ' · vs ' + DI.reference : ' · first snapshot — diffs from tomorrow'}</span></div>`;
+  /* the snapshot pair shows file names (label + value); the full paths ride the row's title */
+  const fname = p => String(p || '').split(/[\\/]/).pop();
+  const snapPaths = (DI.snapshot || '') + (DI.reference ? ' · vs ' + DI.reference : '');
+  let html = `<div class="limrow"${snapPaths ? ` title="${escHtml(snapPaths)}"` : ''}><b>${DI.refreshed ? 'Snapshot refreshed' : 'Snapshot unchanged'}</b>
+    <span class="dim">${escHtml(fname(DI.snapshot))}${DI.reference ? ' · vs ' + escHtml(fname(DI.reference)) : ' · first snapshot — diffs from tomorrow'}</span></div>`;
   (DI.added || []).slice(0, 6).forEach(a => {
     html += `<div class="mrow"><span class="m-name">${escHtml(a.name)}</span><span class="num upl">+${a.delta} <span class="dim">· ${a.value || 0}p</span></span></div>`;
   });
@@ -1257,9 +1573,9 @@ function renderDiff() {
 
 function renderFlips() {
   const F = FEAT.flips || {}, c = F.counts || {}, rows = (F.flips || []).slice(0, 10);
-  document.getElementById('flipsMeta').textContent = (c.flips || c.scored)
-    ? `· ${c.flips ?? rows.length} ranked · fresh ${c.fresh ?? '?'} of ${c.deals_in ?? '?'} deals`
-    : '';
+  sbits(document.getElementById('flipsMeta'), (c.flips || c.scored)
+    ? ['· ' + (c.flips ?? rows.length) + ' ranked', '· fresh ' + (c.fresh ?? '?') + ' of ' + (c.deals_in ?? '?') + ' deals']
+    : []);
   const el = document.getElementById('flipsList');
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/flip_digest.py</div>'; return; }
   el.innerHTML =
@@ -1276,9 +1592,9 @@ function renderFlips() {
 
 function renderNudges() {
   const N = FEAT.nudges || {}, c = N.counts || {};
-  document.getElementById('nudgesMeta').textContent = (c.ready !== undefined)
-    ? `· ${c.ready} ready · ${c.one_away} one away · ${c.part_cash} part sales`
-    : '';
+  sbits(document.getElementById('nudgesMeta'), (c.ready !== undefined)
+    ? ['· ' + c.ready + ' ready', '· ' + c.one_away + ' one away', '· ' + c.part_cash + ' part sales']
+    : []);
   const el = document.getElementById('nudgesList');
   const rows = [...(N.ready || []), ...(N.one_away || []).slice(0, 5)].slice(0, 10);
   if (!rows.length) { el.innerHTML = '<div class="dim pad">Run scripts/nudges.py</div>'; return; }
@@ -1290,9 +1606,9 @@ function renderNudges() {
 
 function renderWish() {
   const W = FEAT.wishlist || {}, s = W.summary || {};
-  document.getElementById('wishMeta').textContent = (s.budget_available !== undefined)
-    ? `· buy plan ${s.affordable_subset_cost}p of ${s.budget_available}p · ${s.trades_needed} trades · ${s.buy_now_count} buy-now`
-    : '';
+  sbits(document.getElementById('wishMeta'), (s.budget_available !== undefined)
+    ? ['· buy plan ' + s.affordable_subset_cost + 'p of ' + s.budget_available + 'p', '· ' + s.trades_needed + ' trades', '· ' + s.buy_now_count + ' buy-now']
+    : []);
   const el = document.getElementById('wishList');
   const plan = W.affordable_plan || [];
   const union = W.wishlist || [];
@@ -1315,20 +1631,23 @@ function renderBaro() {
   if (!T.activation_iso) { meta.textContent = ''; el.innerHTML = '<div class="dim pad">Run scripts/baro.py</div>'; return; }
   meta.textContent = T.active ? '· AT THE RELAY NOW' : (T.starts_in_days !== undefined ? `· next visit in ${Math.round(T.starts_in_days * 10) / 10}d` : '');
   const when = `${(T.activation_iso || '').slice(0, 16).replace('T', ' ')} → ${(T.expiry_iso || '').slice(0, 16).replace('T', ' ')} UTC`;
-  let html = `<div class="limrow"><b>${escHtml(T.status_text || '')}</b></div>`;
+  /* the state line is a state + the place; the worldstate sentence stays on its title */
+  let html = `<div class="limrow"><b title="${escHtml(T.status_text || '')}">${escHtml(T.active ? 'At the relay now' : (T.location ? 'Not active · ' + T.location : 'Not active'))}</b></div>`;
   if ((B.rows || []).length) {
     html += B.rows.slice(0, 10).map(r => `<div class="mrow"><span class="m-name">${escHtml(r.item)}${r.owned ? ' <span class="dim">· owned</span>' : ''}</span><span class="num">${r.ducats} duc · ${(r.credits || 0).toLocaleString()} cr</span></div>`).join('');
   } else {
-    html += `<div class="dim pad">${escHtml((B.notes || [])[0] || 'Stock publishes only during the visit window.')} · ${escHtml(when)}</div>`;
+    /* nothing to score: two values on screen, the watcher's own note(s) ride the title */
+    html += `<div class="dim pad" title="${escHtml((B.notes || []).join(' '))}">`
+      + `<span>No preview</span> <span>· stock publishes only during a visit</span> <span>· ${escHtml(when)}</span></div>`;
   }
   el.innerHTML = html;
 }
 
 function renderTrends() {
   const T = FEAT.trends || {}, c = T.counts || {};
-  document.getElementById('trendsMeta').textContent = c.tracked
-    ? `· ${c.spike} spiking · ${c.fade} fading of ${c.tracked} tracked`
-    : '';
+  sbits(document.getElementById('trendsMeta'), c.tracked
+    ? ['· ' + c.spike + ' spiking', '· ' + c.fade + ' fading of ' + c.tracked + ' tracked']
+    : []);
   const el = document.getElementById('trendsList');
   const sp = (T.top_spikes || []).slice(0, 6), fd = (T.top_fades || []).slice(0, 6);
   if (!sp.length && !fd.length) { el.innerHTML = '<div class="dim pad">Run scripts/trends.py</div>'; return; }
@@ -1581,7 +1900,10 @@ async function loadTrader() {
 const savedTheme = localStorage.getItem('wfm.theme');
 buildThemeGrid();
 PlatChart.init();
-/* The chart opens on its default range (30d) or on the range the user last picked - the stored
+/* the footer follows whatever window is on screen (the chart reports via onView on its first draw
+   and whenever the range changes), so it can never quote totals at a window it is not showing */
+PlatChart.setViewHook(function (v) { window.__chartView = v; renderChartMeta(); });
+/* The chart opens on its default range (7d) or on the range the user last picked - the stored
    choice wins, and the pill in the card head follows whatever the chart actually opened on, so
    the control never disagrees with the line it is labelling. */
 (function syncRangePills() {
@@ -1652,6 +1974,31 @@ bind('btnWatch', () => traderAction('btnWatch', '/api/trader/watch', 'Checking�
 bind('btnRunq', () => traderAction('btnRunq', '/api/trader/runqueue', 'Scanning buyers…'));
 bind('btnHygiene', () => traderAction('btnHygiene', '/api/trader/hygiene', 'Planning…'));
 bind('btnNotify', () => traderAction('btnNotify', '/api/trader/notify', 'Sending…'));
+/* orders: the book reads on the tab, the picker and Refresh; one whisper per click */
+bind('ordRefresh', () => renderOrders());
+(function wireOrders() {
+  const q = document.getElementById('ordQ');
+  if (q) q.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); renderOrders(); } });
+  const rk = document.getElementById('ordRank');
+  if (rk) rk.addEventListener('change', () => { ORD.rank = rk.value; renderOrders(); });
+  const px = document.getElementById('tp-orders');
+  if (px) px.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('.ordwsp') : null;
+    if (b && !b.disabled) ordWhisper(b);
+  });
+  /* the status chips filter the rows already on screen: repaint only, never a fetch */
+  const st = document.getElementById('ordStatus');
+  if (st) st.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('button[data-st]') : null;
+    if (!b) return;
+    const key = b.dataset.st;
+    if (key === 'all') {
+      const on = ordStOn().length === ORD_STS.length;
+      ORD_STS.forEach(s => { ORD.st[s] = !on; });
+    } else ORD.st[key] = !ORD.st[key];
+    ordChips(ORD.data); ordPaint();
+  });
+})();
 bind('btnExportPng', () => WFMExportPicks(REPORT && REPORT.sell_now));
 bind('btnKill', async () => {
   const active = !((FEAT.killswitch || {}).active);

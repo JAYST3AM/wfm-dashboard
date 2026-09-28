@@ -177,16 +177,57 @@
     </div>
   </section>
 
-  <!-- TRADE - Sell decides, Buy hunts, History explains; the engine internals (kill switch, trade
-       limit, webhook outbox, run queue, hygiene plan) sit behind the ONE Advanced tab, one click
-       from Sell. Nothing was removed; safety stays reachable. -->
+  <!-- TRADE - Orders reads the live book, Sell decides, Buy hunts, History explains; the engine
+       internals (kill switch, trade limit, webhook outbox, run queue, hygiene plan) sit behind the
+       ONE Advanced tab, one click from Sell. Nothing was removed; safety stays reachable. -->
   <section id="view-trade" class="hidden">
     <nav id="tradeTabs" class="tabs" role="tablist" aria-label="Trade sections">
+      <button role="tab" id="tt-orders" data-tp="tp-orders" aria-selected="false" aria-controls="tp-orders">Orders</button>
       <button role="tab" id="tt-sell" data-tp="tp-sell" aria-selected="true" aria-controls="tp-sell">Sell</button>
       <button role="tab" id="tt-buy" data-tp="tp-buy" aria-selected="false" aria-controls="tp-buy">Buy</button>
       <button role="tab" id="tt-history" data-tp="tp-history" aria-selected="false" aria-controls="tp-history">History</button>
       <button role="tab" id="tt-advanced" data-tp="tp-advanced" aria-selected="false" aria-controls="tp-advanced">Advanced</button>
     </nav>
+
+    <!-- Orders (Jay 2026-09-28): the live WFM book for one item - the rank ladder, then who is
+         Selling (you would buy) and who is Buying (you would sell), one whisper per row. Its own
+         tab, first in the strip; Sell stays the selected panel (the plan is the decision surface). -->
+    <div id="tp-orders" class="tpanel hidden" role="tabpanel" aria-labelledby="tt-orders">
+      <div class="card" id="ordCard">
+        <div class="card-head">
+          <div class="card-title" data-icon="users-three">Live orders <span class="dim small" id="ordItem"></span> <span class="dim small" id="ordMeta"></span></div>
+          <div class="actions ordbar">
+            <input id="ordQ" class="invq" type="text" placeholder="Item slug" autocomplete="off" aria-label="Item for the order book" title="One slug, then Enter">
+            <select id="ordRank" aria-label="Rank filter" title="Every rank this item trades at">
+              <option value="all">All ranks</option>
+            </select>
+            <span id="ordStatus" class="ordstatus" role="group" aria-label="Filter by trader status">
+              <button class="mcd-btn" type="button" id="ordStIngame" data-st="ingame" aria-pressed="true" title="Only traders in game right now">ingame</button>
+              <button class="mcd-btn" type="button" id="ordStOnline" data-st="online" aria-pressed="true" title="Only traders online on warframe.market">online</button>
+              <button class="mcd-btn" type="button" id="ordStOffline" data-st="offline" aria-pressed="false" title="Include traders who are offline">offline</button>
+              <button class="mcd-btn" type="button" id="ordStAll" data-st="all" aria-pressed="false" title="Show every status, or clear them all">All</button>
+            </span>
+            <button class="btn" id="ordRefresh" data-icon="arrows-clockwise" title="Re-read the live order book">Refresh orders</button>
+          </div>
+        </div>
+        <div class="ordtop">
+          <div id="ordValues" class="ordvals"></div>
+          <div id="ordErr" class="orderr dim small hidden"></div>
+        </div>
+        <div class="ordlists">
+          <div class="ordcol">
+            <div class="ordhead">Selling <span class="dim">- you would buy</span></div>
+            <div class="ordrow ordrowhead"><span>Plat</span><span>Qty</span><span>Rank</span><span>User</span><span>Rep</span><span>Status</span><span></span></div>
+            <div class="picks ordscroll" id="ordSell"></div>
+          </div>
+          <div class="ordcol">
+            <div class="ordhead">Buying <span class="dim">- you would sell</span></div>
+            <div class="ordrow ordrowhead"><span>Plat</span><span>Qty</span><span>Rank</span><span>User</span><span>Rep</span><span>Status</span><span></span></div>
+            <div class="picks ordscroll" id="ordBuy"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div id="tp-sell" class="tpanel" role="tabpanel" aria-labelledby="tt-sell">
       <div class="card">

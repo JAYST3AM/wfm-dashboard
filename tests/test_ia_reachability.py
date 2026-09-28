@@ -325,7 +325,8 @@ def test_the_player_profile_is_the_tools_player_workspace():
 def test_the_trade_internals_are_one_click_from_the_sell_surface():
     """Stage 4 (2026-09-28): Trade is Sell / Buy / History + ONE Safety & advanced tab. This file's
     watch-list item ("Trade engine internals once behind Safety/Advanced - must stay 1 tap from
-    Sell") is pinned here: the fourth tab sits in #tradeTabs beside Sell, the panel it controls
+    Sell") is pinned here: the advanced tab sits in #tradeTabs beside Sell (Orders joined the strip
+    ahead of Sell later that day - see tests/test_trade_orders_tab.py), the panel it controls
     holds every internal id, the kill switch and the trade limit are plain cards (the hygiene plan
     keeps the layer's only <details>), and nothing engine-side sits on the Sell surface."""
     trade = INDEX.split('id="view-trade"', 1)[1].split('</section>', 1)[0]

@@ -31,7 +31,7 @@ Tools workspace, and More *is* the Tools launcher.
 | Destination | URL | Contents |
 |---|---|---|
 | Home | `/#home` | Today strip (earned today, sales, trades left, platinum — detail one tap below), the single **Next action** item (name, price, demand, copies, best buyer), alerts, the sell queue, recent activity. Game news lives in Tools. |
-| Trade | `/#trade` | Tabs **Sell** (`#trade/sell`) · **Buy** · **History** (`#history`), plus the run queue, the Safety kill switch and notifications below. |
+| Trade | `/#trade` | Tabs **Orders** (`#trade/orders`, first in the strip) · **Sell** (`#trade/sell`, what a fresh load opens on) · **Buy** · **History** (`#history`) · **Advanced**, plus the run queue, the Safety kill switch and notifications below. Orders is the live book for one item: sell and buy rows with trader names, reputation and status, an ingame/online/offline filter (ingame+online on by default), the per-rank price ladder, and a Whisper button per row. |
 | Inventory | `/#inventory` | Owned items table (default columns + **All columns**), Materials, Clan Dojo, inventory changes. |
 | Collection | `/collection.html` | Sections **Collection** · **Relics** (`#relics`) · **Mastery** (`#mastery`), each deep-linkable, plus a link to the Cards page. |
 | Cards | `/cards.html` | The full mod-card workspace. Reached from the Collection section row (and old `#cards` links). |
