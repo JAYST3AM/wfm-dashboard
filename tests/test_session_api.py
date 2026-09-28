@@ -287,3 +287,37 @@ def test_the_event_route_never_double_logs_the_same_event(live, seeded):
     assert first['created'] is True and again['created'] is False
     assert json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())[0]['id'] \
         == first['id']
+
+
+def test_a_lane_the_report_does_not_carry_still_gets_a_count(live, seeded):
+    """Found on the live store, not in a fixture: the plan sells an unranked lane (rank 0) while
+    report.json only carries the maxed lane (rank 10) for that item. The old lookup took the exact
+    lane or nothing, so the contact snapshotted inv_before=None and that trade could never be more
+    than UNKNOWN. Now the item's total across lanes is used, labelled as an item count."""
+    base, d = live
+    write_json(os.path.join(d, 'report.json'),
+               {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 4}]})
+    call(base, '/api/session/start', {})
+    body = call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
+                                               'price': 48, 'user': 'Wombat'})[1]
+    p = body['pending']
+    assert p['inv_before'] == 4 and p['inv_basis'] == 'item', p
+    assert p['plat_before'] == 1220
+
+    # the stacks really went down, so the check is a proposal now instead of a permanent unknown
+    write_json(os.path.join(d, 'report.json'),
+               {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 1}]})
+    write_json(os.path.join(d, 'plat_history.json'), [{'ts': 1, 'plat': 1364}])
+    check = call(base, '/api/session')[1]['proposals'][0]
+    assert check['verdict'] == 'exact' and check['copies_left'] == 3
+    assert 'basis: item total' in check['evidence']
+
+
+def test_a_lane_the_report_does_carry_is_counted_as_that_lane(live, seeded):
+    base, d = live
+    call(base, '/api/session/start', {})
+    call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
+                                        'price': 48, 'user': 'Wombat'})
+    store = json.loads(open(os.path.join(d, 'trade_session.json'), encoding='utf-8').read())
+    assert store['pending'][0]['inv_basis'] == 'lane'
+    assert store['pending'][0]['inv_before'] == 4

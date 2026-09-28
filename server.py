@@ -824,7 +824,7 @@ def whisper_post(body):
             ts = _session()
             doc = ts.load(DATA)
             if doc.get('session'):
-                inv, plat = _session_before(item, rank)
+                inv, plat, _basis = _session_before(item, rank)
                 row_qty = 1
                 for r in (doc['session'].get('queue') or []):
                     if r.get('slug') == item and (rank is None or r.get('rank') == rank):
@@ -1031,16 +1031,9 @@ def _session_before(slug, rank=None):
     guessed at later.
     """
     report = jload(os.path.join(DATA, 'report.json')) or {}
-    inv = None
-    for key in ('sell_now', 'patient'):
-        for row in (report.get(key) or []):
-            if isinstance(row, dict) and row.get('slug') == slug and \
-                    (rank is None or row.get('lane_rank') == rank):
-                inv = row.get('sellable_count')
-                break
-        if inv is not None:
-            break
-    return inv, _session_plat_now()
+    ts = _session()
+    inv, basis = ts.inv_of(report, slug, rank)
+    return inv, _session_plat_now(), basis
 
 
 def session_payload():
@@ -1091,19 +1084,21 @@ def session_post(action, body):
     if action == 'reconcile':
         # Read-only: what the game save says now vs what each contact was sent at. Nothing is
         # written and no trade is inferred - the proposal is what the user confirms (§4).
-        inv_now, cache, plat_now = {}, {}, None
+        inv_now, inv_basis, cache, plat_now = {}, {}, {}, None
         for p in (doc.get('pending') or []):
             if p.get('state') not in (ts.CONTACTED, ts.POSSIBLE):
                 continue
             key = (p.get('slug'), p.get('rank'))
             if key not in cache:
                 cache[key] = _session_before(*key)
-            inv, plat = cache[key]
+            inv, plat, basis = cache[key]
             if inv is not None:
                 inv_now[ts.row_key(*key)] = inv
+            if basis:
+                inv_basis[ts.row_key(*key)] = basis
             if plat is not None:
                 plat_now = plat
-        out = ts.propose(doc.get('pending') or [], inv_now, plat_now)
+        out = ts.propose(doc.get('pending') or [], inv_now, plat_now, inv_basis=inv_basis)
         out['ok'] = True
         out['session_payload'] = session_payload()
         return 200, out
@@ -1123,10 +1118,10 @@ def session_post(action, body):
             rank = int(rank) if rank not in (None, '') else None
         except (TypeError, ValueError):
             return 400, {'ok': False, 'error': 'rank must be a number'}
-        inv, plat = _session_before(slug, rank)
+        inv, plat, basis = _session_before(slug, rank)
         pend = ts.contact(doc, slug, rank=rank, qty=body.get('qty') or 1, price=body.get('price'),
                           buyer=body.get('user') or body.get('buyer'), inv_before=inv,
-                          plat_before=plat, note=body.get('note') or '')
+                          plat_before=plat, note=body.get('note') or '', inv_basis=basis)
         ts.save(DATA, doc)
         return 200, {'ok': True, 'pending': pend, 'session_payload': session_payload()}
     if action == 'focus':

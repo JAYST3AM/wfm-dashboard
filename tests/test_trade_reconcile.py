@@ -201,3 +201,54 @@ def test_the_payload_check_never_writes_a_trade_log(ts, data_dir):
     ts.payload(str(data_dir), report={'sell_now': [{'slug': 'x', 'lane_rank': 0,
                                                     'sellable_count': 1}]}, limits={'plat': 105})
     assert not os.path.exists(os.path.join(str(data_dir), 'trade_log.json'))
+
+
+# ------------------------------------------------- the count basis: the lane, or the whole item
+def test_inv_of_prefers_the_matching_lane(ts):
+    """report.json carries one row per lane, so a lane that is there is the number to use."""
+    report = {'sell_now': [{'slug': 'x', 'lane_rank': 10, 'sellable_count': 4},
+                           {'slug': 'x', 'lane_rank': 6, 'sellable_count': 1}]}
+    assert ts.inv_of(report, 'x', 6) == (1, 'lane')
+    assert ts.inv_of(report, 'x', 10) == (4, 'lane')
+
+
+def test_inv_of_falls_back_to_the_item_total_and_says_so(ts):
+    """The live case that forced this: the plan sells an unranked lane (rank 0) while the report
+    only carries the maxed lane (rank 10). Snapshotting None there left the trade UNKNOWN for ever,
+    so the item's total sells across lanes is used instead - labelled as an item count."""
+    report = {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 4}],
+              'patient': [{'slug': 'primed_continuity', 'lane_rank': 6, 'sellable_count': 2}]}
+    assert ts.inv_of(report, 'primed_continuity', 0) == (6, 'item')
+    assert ts.inv_of(report, 'primed_continuity') == (6, 'item')
+
+
+def test_inv_of_is_none_when_the_report_has_no_such_item(ts):
+    assert ts.inv_of({'sell_now': []}, 'nope', 0) == (None, None)
+
+
+def test_the_check_says_when_it_counted_the_whole_item(ts):
+    report = {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 4}]}
+    pending = [pend(rank=0, qty=1, inv=6)]
+    out = ts.propose(pending, ts.inv_now_map(report, pending), 1268,
+                     inv_basis=ts.inv_basis_map(report, pending))
+    p = out['proposals'][0]
+    assert p['verdict'] == ts.EXACT and p['copies_left'] == 2
+    assert 'basis: item total' in p['evidence'], p['evidence']
+
+
+def test_an_item_level_count_that_did_not_move_is_still_ambiguous(ts):
+    """Basis does not soften the verdict: if the whole-item count is unchanged, the loop says so
+    rather than claiming the sale."""
+    report = {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 4}]}
+    pending = [pend(rank=0, qty=1, inv=4)]
+    out = ts.propose(pending, ts.inv_now_map(report, pending), 1268,
+                     inv_basis=ts.inv_basis_map(report, pending))
+    assert out['proposals'][0]['verdict'] == ts.AMBIGUOUS
+
+
+def test_the_check_says_nothing_extra_when_it_counted_the_lane(ts):
+    report = {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 0, 'sellable_count': 4}]}
+    pending = [pend(rank=0, qty=1, inv=4)]
+    out = ts.propose(pending, ts.inv_now_map(report, pending), 1268,
+                     inv_basis=ts.inv_basis_map(report, pending))
+    assert not any('basis' in e for e in out['proposals'][0]['evidence'])

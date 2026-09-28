@@ -367,7 +367,7 @@ def pending_id(slug, rank, buyer, now):
 
 
 def contact(doc, slug, rank=None, qty=1, price=None, buyer=None, now=None,
-            inv_before=None, plat_before=None, kind='sell', note=''):
+            inv_before=None, plat_before=None, kind='sell', note='', inv_basis=None):
     """A whisper went out: mark the queue row CONTACTED and open one pending trade.
 
     This is the only writer of a pending row, and it is called from exactly one place in the app -
@@ -399,6 +399,7 @@ def contact(doc, slug, rank=None, qty=1, price=None, buyer=None, now=None,
             'expected_plat': _int(price) or (row or {}).get('price'), 'buyer': buyer or None,
             'kind': kind, 'ts': now, 'state': CONTACTED,
             'inv_before': _int(inv_before), 'plat_before': _int(plat_before),
+            'inv_basis': inv_basis or None,   # 'lane' or 'item': which count that snapshot is
             'note': str(note or '')[:160]}
     doc['pending'].append(pend)
     doc['pending'] = doc['pending'][-PENDING_KEEP:]
@@ -526,11 +527,38 @@ def summary(doc, now=None, limits=None):
     return out
 
 
+def inv_of(report, slug, rank=None):
+    """(copies, basis) - sellable copies of one item, from the same report.json the app renders.
+
+    The report carries one row per lane (item + rank). A lane the report does not mention would
+    otherwise snapshot as None and leave that trade UNKNOWN for ever, so this falls back to the
+    item's total sellable count across lanes - the number that really moves when a copy sells - and
+    says which of the two it used ('lane' / 'item') so the check can be honest about its basis.
+    """
+    total, seen = 0, False
+    item_total = None
+    for field in ('sell_now', 'patient'):
+        for row in ((report or {}).get(field) or []):
+            if not isinstance(row, dict) or row.get('slug') != slug:
+                continue
+            n = _int(row.get('sellable_count'))
+            if n is None:
+                continue
+            if item_total is None:
+                item_total = 0
+            item_total += n
+            if rank is not None and row.get('lane_rank') == rank:
+                total, seen = n, True
+    if seen:
+        return total, 'lane'
+    return (item_total, 'item') if item_total is not None else (None, None)
+
+
 def inv_now_map(report, pending):
     """{row_key: copies owned now} for the stacks the pending trades are about.
 
-    Same numbers the app renders (report.json sell_now/patient). A stack the report does not
-    mention is simply absent - propose() then answers UNKNOWN rather than assuming a number.
+    A stack the report does not mention is simply absent - propose() then answers UNKNOWN rather
+    than assuming a number.
     """
     out = {}
     for p in pending or []:
@@ -540,14 +568,23 @@ def inv_now_map(report, pending):
         key = row_key(slug, rank)
         if key in out:
             continue
-        for field in ('sell_now', 'patient'):
-            for row in ((report or {}).get(field) or []):
-                if isinstance(row, dict) and row.get('slug') == slug and \
-                        (rank is None or row.get('lane_rank') == rank):
-                    n = _int(row.get('sellable_count'))
-                    if n is not None:
-                        out[key] = n
-                    break
+        n, _basis = inv_of(report, slug, rank)
+        if n is not None:
+            out[key] = n
+    return out
+
+
+def inv_basis_map(report, pending):
+    """{row_key: 'lane' | 'item'} - which count inv_now_map used, so a check can say so."""
+    out = {}
+    for p in pending or []:
+        if not isinstance(p, dict) or p.get('state') not in (CONTACTED, POSSIBLE):
+            continue
+        key = row_key(p.get('slug'), p.get('rank'))
+        if key not in out:
+            _n, basis = inv_of(report, p.get('slug'), p.get('rank'))
+            if basis:
+                out[key] = basis
     return out
 
 
@@ -566,7 +603,8 @@ def payload(data_dir, plan=None, advisor=None, report=None, runqueue=None, limit
     # The check rides the payload the panel already gets, so the screen shows what happened without
     # a second ask. It is a proposal either way - nothing here writes a trade (spec §4).
     try:
-        checks = propose(pend, inv_now_map(report, pend), plat_now, now=now)
+        checks = propose(pend, inv_now_map(report, pend), plat_now, now=now,
+                         inv_basis=inv_basis_map(report, pend))
     except Exception:
         checks = {'proposals': [], 'counts': {}, 'needs_you': 0}
     return {'ok': True, 'session': s, 'focus': focus_row,
@@ -613,12 +651,15 @@ def _evidence(*pairs):
     return ['%s: %s' % (label, value) for label, value in pairs if value is not None]
 
 
-def propose(pending, inv_now, plat_now, now=None):
+def propose(pending, inv_now, plat_now, now=None, inv_basis=None):
     """Propose what happened to each pending trade. -> {proposals: [...], counts: {...}}
 
-    pending : the doc's pending rows (CONTACTED / POSSIBLE MATCH are the live ones)
-    inv_now : {row_key(slug, rank): copies owned right now} - from the same report.json the app shows
-    plat_now: platinum right now (the newest reading)
+    pending  : the doc's pending rows (CONTACTED / POSSIBLE MATCH are the live ones)
+    inv_now  : {row_key(slug, rank): copies owned right now} - from the same report.json the app shows
+    plat_now : platinum right now (the newest reading)
+    inv_basis: {row_key: 'lane' | 'item'} - 'item' means the count is the item's total across lanes
+               because the report carries no row for that exact lane; the check says so rather than
+               letting a total look like a stack count
     """
     now = int(now or time.time())
     out, counts = [], {EXACT: 0, AMBIGUOUS: 0, NOTHING: 0, UNKNOWN: 0}
@@ -656,6 +697,8 @@ def propose(pending, inv_now, plat_now, now=None):
                                                     ('that stack', 'untouched'))
             else:
                 verdict, why = NOTHING, _evidence(('copies left', left), ('platinum', delta_plat))
+        if (inv_basis or {}).get(row_key(slug, rank)) == 'item':
+            why = _evidence(('basis', 'item total')) + why
         counts[verdict] += 1
         out.append({'verdict': verdict, 'pending_id': p.get('id'), 'slug': slug, 'name': p.get('name'),
                     'rank': rank, 'qty': qty, 'buyer': p.get('buyer'), 'age_s': age,
