@@ -52,6 +52,7 @@ import io
 import json
 import os
 import re
+import sys
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -59,6 +60,9 @@ from datetime import datetime, timezone
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 AF = os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: saveio
+from saveio import normalise  # noqa: E402  (the one save reader)
 
 KEY = bytes([76, 69, 79, 45, 65, 76, 69, 67, 9, 69, 79, 45, 65, 76, 69, 67])
 IV = bytes([49, 50, 70, 71, 66, 51, 54, 45, 76, 69, 51, 45, 113, 61, 57, 0])
@@ -139,15 +143,19 @@ def decrypt(p):
 
 
 def load_save(path):
-    """(save, source): the decrypted copy, a local decrypt of lastData.dat, or ({}, 'missing')."""
+    """(save, source): the decrypted copy, a local decrypt of lastData.dat, or ({}, 'missing').
+
+    The document is normalised first - AlecaFrame moved the inventory and the player facts
+    into a JSON-encoded 'InventoryJson' string, and either source can carry that shape.
+    """
     if path and os.path.exists(path):
         with open(path, encoding='utf-8') as fh:
             doc = json.load(fh)
-        return (doc if isinstance(doc, dict) else {}), 'decrypted'
+        return normalise(doc if isinstance(doc, dict) else {}), 'decrypted'
     dat = os.path.join(AF, 'lastData.dat')
     if os.path.exists(dat):
         doc = json.loads(decrypt(dat).decode('utf-8'))
-        return (doc if isinstance(doc, dict) else {}), 'lastData.dat'
+        return normalise(doc if isinstance(doc, dict) else {}), 'lastData.dat'
     return {}, 'missing'
 
 

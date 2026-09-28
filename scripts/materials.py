@@ -38,6 +38,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 AF = os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: saveio
+from saveio import normalise  # noqa: E402  (the one save reader)
+
 KEY = bytes([76, 69, 79, 45, 65, 76, 69, 67, 9, 69, 79, 45, 65, 76, 69, 67])
 IV = bytes([49, 50, 70, 71, 66, 51, 54, 45, 76, 69, 51, 45, 113, 61, 57, 0])
 
@@ -96,14 +99,18 @@ def decrypt(p):
 
 
 def load_save(path):
-    """Save dict from the decrypted copy; decrypts lastData.dat when that is missing."""
+    """Save dict from the decrypted copy; decrypts lastData.dat when that is missing.
+
+    The document is normalised first - AlecaFrame moved the inventory into a JSON-encoded
+    'InventoryJson' string, and either source can carry that shape.
+    """
     if path and os.path.exists(path):
         with open(path, encoding='utf-8') as f:
-            return json.load(f)
+            return normalise(json.load(f))
     dat = os.path.join(AF, 'lastData.dat')
     if not os.path.exists(dat):
         raise FileNotFoundError(f'no decrypted save at {path} and no {dat}')
-    return json.loads(decrypt(dat).decode('utf-8'))
+    return normalise(json.loads(decrypt(dat).decode('utf-8')))
 
 
 def catalog_items(path):

@@ -13,9 +13,9 @@ HEARTBEAT = 1800  # seconds
 
 
 def main():
-    from refresh import decrypt
+    from saveio import decrypt, normalise
     pt = decrypt(os.path.join(AF, 'lastData.dat'))
-    save = json.loads(pt.decode('utf-8'))
+    save = normalise(json.loads(pt.decode('utf-8')))   # InventoryJson -> classic flat shape
     plat = save.get('PremiumCredits')
     credits = save.get('RegularCredits')
     if plat is None:

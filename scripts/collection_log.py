@@ -95,6 +95,9 @@ DATA = os.path.join(ROOT, 'data')
 STATIC = os.path.join(ROOT, 'static')
 AF = os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: saveio
+from saveio import normalise  # noqa: E402  (the one save reader)
+
 UA = 'WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)'
 IMG_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
           'Chrome/124.0 Safari/537.36')
@@ -134,8 +137,8 @@ CATEGORIES = [('warframes', 'Warframes'), ('primary', 'Primary'), ('secondary', 
 CAT_NAME = dict(CATEGORIES)
 STAMP = '%Y-%m-%dT%H:%M:%SZ'
 
-# AlecaFrame save decryptor (same recipe as scripts/refresh.py; kept here so this script still
-# runs when the trader/refresh helper is unavailable - e.g. the public repo, where the crypto
+# AlecaFrame save decryptor (same recipe as scripts/saveio.py; kept here so this script still
+# runs when the trader/saveio helper is unavailable - e.g. the public repo, where the crypto
 # import is optional).
 SAVE_KEY = bytes([76, 69, 79, 45, 65, 76, 69, 67, 9, 69, 79, 45, 65, 76, 69, 67])
 SAVE_IV = bytes([49, 50, 70, 71, 66, 51, 54, 45, 76, 69, 51, 45, 113, 61, 57, 0])
@@ -267,14 +270,14 @@ def local_wfcd_dir():
 
 # --------------------------------------------------------------------- save / mastery
 def _decrypt_with_helper(path):
-    """Reuse scripts/refresh.py's decrypt() when it is importable (read-only reuse)."""
+    """Reuse scripts/saveio.py's decrypt() when it is importable (read-only reuse)."""
     sys.path.insert(0, os.path.join(ROOT, 'scripts'))
-    from refresh import decrypt  # noqa: E402  (repo helper: AES-CBC + plaintext passthrough)
+    from saveio import decrypt  # noqa: E402  (repo helper: AES-CBC + plaintext passthrough)
     return decrypt(path)
 
 
 def _decrypt_local(path):
-    """Copy of refresh.decrypt's recipe, used when the helper cannot be imported.
+    """Copy of saveio.decrypt's recipe, used when the helper cannot be imported.
 
     The app itself writes either plaintext JSON (leading '{') or AES-256-CBC with a fixed
     key/IV; the plaintext branch keeps fixtures and future format changes readable.
@@ -302,13 +305,16 @@ def decrypt_save(path):
 def read_save():
     """Mastery list from the live save, else the cached decrypted snapshot.
 
+    Both sources are normalised (saveio) first, so a save carrying its inventory inside a
+    JSON-encoded 'InventoryJson' string reads exactly like the classic flat shape.
+
     Returns {'xp': set(uniqueNames), 'xp_count': int, 'source': 'live'|'cached'|None,
              'path': str|None, 'mtime_iso': str|None, 'error': str|None}
     """
     live = save_live_path()
     if os.path.exists(live):
         try:
-            save = json.loads(decrypt_save(live).decode('utf-8', 'replace'))
+            save = normalise(json.loads(decrypt_save(live).decode('utf-8', 'replace')))
             xp = xpinfo_names(save)
             if xp:
                 return {'xp': xp, 'xp_count': len(xp), 'source': 'live', 'path': live,
@@ -320,7 +326,7 @@ def read_save():
         err = 'no live save at %s' % live
     cached = save_cached_path()
     if os.path.exists(cached):
-        save = jload(cached) or {}
+        save = normalise(jload(cached) or {})
         xp = xpinfo_names(save)
         return {'xp': xp, 'xp_count': len(xp), 'source': 'cached', 'path': cached,
                 'mtime_iso': iso(os.path.getmtime(cached)), 'error': err}

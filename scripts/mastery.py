@@ -69,6 +69,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import tempfile
 import time
 import urllib.parse
@@ -79,6 +80,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.environ.get('WFM_DATA_DIR') or os.path.join(ROOT, 'data')
 STATIC = os.environ.get('WFM_STATIC_DIR') or os.path.join(ROOT, 'static')
 AF = os.environ.get('WFM_ALECA_DIR') or os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: saveio
+from saveio import normalise  # noqa: E402  (the one save reader)
 
 SCHEMA = 1
 UA = 'WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)'
@@ -194,7 +198,7 @@ def wiki_cache_dir():
 # --------------------------------------------------------------------- save / XPInfo
 def decrypt_data(path):
     """lastData.dat -> decrypted bytes.  Plaintext JSON (leading '{') passes through; otherwise
-    AES-128-CBC with the fixed key/IV the app uses (same recipe as scripts/refresh.py)."""
+    AES-128-CBC with the fixed key/IV the app uses (same recipe as scripts/saveio.py)."""
     raw = open(path, 'rb').read()
     if raw[:1] == b'{':
         return raw
@@ -210,13 +214,16 @@ def decrypt_data(path):
 def read_save():
     """({save dict} | None, meta) - live save first, cached decrypted copy as the fallback.
 
+    Both sources are normalised (saveio), so a save carrying its inventory inside a
+    JSON-encoded 'InventoryJson' string reads exactly like the classic flat shape.
+
     meta: {source: 'live'|'cached'|None, path, mtime_iso, error}
     """
     live = save_live_path()
     err = None
     if os.path.exists(live):
         try:
-            save = json.loads(decrypt_data(live).decode('utf-8', 'replace'))
+            save = normalise(json.loads(decrypt_data(live).decode('utf-8', 'replace')))
             return save, {'source': 'live', 'path': live,
                           'mtime_iso': iso_z(os.path.getmtime(live)), 'error': None}
         except Exception as exc:                        # noqa: BLE001 - read/decrypt/parse anything
@@ -227,8 +234,8 @@ def read_save():
     if os.path.exists(cached):
         save = jload(cached)
         if isinstance(save, dict):
-            return save, {'source': 'cached', 'path': cached,
-                          'mtime_iso': iso_z(os.path.getmtime(cached)), 'error': err}
+            return normalise(save), {'source': 'cached', 'path': cached,
+                                     'mtime_iso': iso_z(os.path.getmtime(cached)), 'error': err}
         err = '%s; cached save unreadable (%s)' % (err, cached)
     return None, {'source': None, 'path': None, 'mtime_iso': None,
                   'error': '%s; no cached save either (%s)' % (err, cached)}
