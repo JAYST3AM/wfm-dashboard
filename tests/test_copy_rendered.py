@@ -17,17 +17,13 @@ MAX_CHARS = 90
 
 # Rendered-copy exemptions. Keep this list tiny; every entry names its owner and the reason it is
 # out of this pass's scope. Nothing this pass owns may live here, and deleting an entry must be
-# part of landing its owner's fix.
+# part of landing its owner's fix. The three home.js rows that used to sit here (h-alert-t,
+# h-alert-d, h-l2) were deleted when the Home copy pass landed: the materials line is now
+# top mover + '+N more', the sign-in alert reads 'Cloudflare check (403)', and the parked line is
+# '19 planned listings parked'. The mechanism stays so a future pass can carve out a foreign string
+# deliberately (with a reason and a <=4-row cap) instead of weakening the budget.
 # Key: (page or '*', css class on the element) -> why.
-EXEMPT_RENDERED = {
-    # static/home.js prints the feature payload's alert rows and the recent-materials line as one
-    # data sentence (2-4 facts joined). home.js/chart.js are frozen during the gate-fix pass (the
-    # Home/chart workstream owns them, including trimming these lines). Matched on page + stable
-    # class because the counts inside the text are live data.
-    ('*', 'h-alert-t'): 'home.js alert title - payload sentence, Home/chart workstream owns',
-    ('*', 'h-alert-d'): 'home.js alert detail - payload sentence, Home/chart workstream owns',
-    ('*', 'h-l2'): 'home.js recent-materials line - payload data, Home/chart workstream owns',
-}
+EXEMPT_RENDERED = {}
 
 
 def _exempt(page, cls):
