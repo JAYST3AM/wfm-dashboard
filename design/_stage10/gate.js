@@ -15,7 +15,10 @@
  *
  * Checks:
  *   1 load      every page/state with 0 console errors, 0 failed requests outside the documented
- *               blocked-CDN class (warframe.market card / warframe art)
+ *               blocked-CDN class (warframe.market card / warframe art). The 4 index hash views,
+ *               the 12 tool workspaces, #trade/orders, #trade/session and the legacy hashes all
+ *               get their own state, so the console watch, the copy scan and the fit sweep cover
+ *               the trade surfaces a plain load does not open
  *   2 fit       pageOverX/Y == 0 on every index view at 1920x1080 / 1536x864 / 1440x900 /
  *               1366x768 / 1280x800
  *   3 rail      exactly the 6 rail entries in order, exactly one active + one aria-current per
@@ -25,7 +28,8 @@
  *   6 safety    the Not-live gate and the kill-switch file, reported as raw facts
  *   7 themes    4 themes (2 dark, 2 light) across every page: unreadable text, colours that
  *               ignore the theme vars, and console errors
- *   8 ids       every id in design/_stage1/ids_before.json still exists (sanctioned moves)
+ *   8 ids       every id in design/_stage1/ids_before.json still exists (sanctioned moves), and no
+ *               id appears twice inside any single rendered state (snapIds, per snapshot)
  * ============================================================================================ */
 'use strict';
 
@@ -102,7 +106,7 @@ const R = {
   safety: {},
   themes: [],      /* {theme, name, mode, page, state, scanned, low, literalCount, newErrors} */
   theme_cross: [], /* {page, state, escaped, sample[]} - colours identical dark vs light */
-  ids: { before: null, found: {}, missing_raw: [], sanctioned: [], missing: [] },
+  ids: { before: null, found: {}, missing_raw: [], sanctioned: [], missing: [], snapshots: [] },
   checks: [],
 };
 const addCheck = (group, title, ok, expected, rendered, note) => {
@@ -379,6 +383,16 @@ async function newPage(browser) {
   await page.setViewport({ width: 1920, height: 1080 });
   return { page, rec };
 }
+/* Every id in one rendered state, remembered so the duplicate rule can be checked where it means
+   something: a page accumulates ids across states (the same id legitimately recurs between views),
+   but two elements sharing an id INSIDE one snapshot is a bug - the audit flagged this check as
+   missing everywhere. Returns the list so the call sites keep pushing it to their page bucket. */
+function snapIds(pageName, state, list) {
+  const seen = new Set(), dup = [];
+  (list || []).forEach((id) => { if (seen.has(id)) dup.push(id); seen.add(id); });
+  R.ids.snapshots.push({ page: pageName, state: state, count: (list || []).length, duplicates: dup });
+  return list || [];
+}
 function railCheck(pageName, label, facts) {
   const order = facts.railOrder.join(',');
   /* the expectation comes from the live shell's own registry, not from a hard-coded guess:
@@ -608,7 +622,7 @@ function idsCheck() {
       planChildren: f.n.planChildren, planHeadish: f.n.planHeadish, heldChildren: f.n.heldChildren, heldHeadish: f.n.heldHeadish,
       chips: f.n.metas.chips, foot: f.n.metas.foot, notLive: f.n.notLive,
     });
-    ids.index.push(...f.ids);
+    ids.index.push(...snapIds('index', rec.state, f.ids));
     railCheck('index', 'landing #home', f);
     addCheck('load', 'index lands with a visible section', f.visibleSections.length === 1, '1 visible section', f.visibleSections.join(',') || 'none');
     const copy0 = await page.evaluate(COPY_SCAN);
@@ -622,7 +636,7 @@ function idsCheck() {
       await sleep(900);
       f = await page.evaluate(FACTS);
       rec.since(m, '#' + v, 'index');
-      ids.index.push(...f.ids);
+      ids.index.push(...snapIds('index', rec.state, f.ids));
       railCheck('index', '#' + v, f);
       addCheck('load', 'index #' + v + ' renders exactly one section', f.visibleSections.length === 1, '1 visible section', f.visibleSections.join(',') || 'none');
       const cc = await page.evaluate(COPY_SCAN);
@@ -638,7 +652,7 @@ function idsCheck() {
       await sleep(600);
       f = await page.evaluate(FACTS);
       rec.since(m, '#tools/' + w, 'index');
-      ids.index.push(...f.ids);
+      ids.index.push(...snapIds('index', rec.state, f.ids));
       railCheck('index', 'Tool ' + w, f);
       addCheck('load', 'Tools > ' + w + ' opens exactly one workspace',
         f.workspaceVisible.length === 1, '1 workspace open', f.workspaceVisible.join(',') || 'none');
@@ -680,7 +694,7 @@ function idsCheck() {
       R.orders = ord;
       const ccord = await page.evaluate(COPY_SCAN);
       ccord.forEach((c) => R.copy.push({ page: 'index', state: '#trade/orders', text: c.text, words: c.words, chars: c.chars, cls: c.cls }));
-      ids.index.push(...(await page.evaluate(FACTS)).ids);
+      ids.index.push(...snapIds('index', '#trade/orders', (await page.evaluate(FACTS)).ids));
       rec.since(m, '#trade/orders', 'index');
 
       /* the other half of the placement rule: a plain Trade load still lands on Sell, because that
@@ -696,6 +710,57 @@ function idsCheck() {
       addCheck('load', 'a plain Trade load still opens on the Sell surface', sel2 === 'tt-sell',
         'tt-sell selected', String(sel2));
       rec.since(m, '#trade (plain)', 'index');
+    }
+
+    /* Trade > Session (stage 3, 2026-09-29): the trading loop has its own panel, FIRST in the strip,
+       and its own state so the console watch, the copy scan, the fit sweep and the theme sweep all
+       cover it. Checked here: the placement rule (Session first, then Orders, Sell still the surface
+       a plain load opens on), the deep link landing on the panel itself rather than the Sell
+       fallback, that the renderer really painted from the shared session payload, and that no
+       Confirm control ships while there is no confirm/reconcile route to call. */
+    {
+      rec.state = '#trade/session';
+      m = rec.mark();
+      await page.goto(BASE + '/#trade/session', { waitUntil: 'load', timeout: 45000 });
+      await sleep(2600);
+      const tabs = await page.evaluate(() => [...document.querySelectorAll('#tradeTabs [role="tab"]')]
+        .map((e) => e.id));
+      addCheck('load', 'Trade puts Session first in the strip, then Orders, then Sell',
+        tabs[0] === 'tt-session' && tabs[1] === 'tt-orders' && tabs[2] === 'tt-sell',
+        'tt-session, tt-orders, tt-sell', tabs.slice(0, 3).join(', '));
+      const selS = await page.evaluate(() => {
+        const t = document.querySelector('#tradeTabs [aria-selected="true"]');
+        return t ? t.id : null;
+      });
+      addCheck('load', 'the #trade/session deep link opens the Session tab itself',
+        selS === 'tt-session', 'tt-session selected', String(selS));
+      const sess = await page.evaluate(() => {
+        const panel = document.getElementById('tp-session');
+        const startBtn = document.getElementById('sessionStart');
+        return {
+          visible: !!(panel && !panel.classList.contains('hidden')),
+          open: (document.querySelector('#view-trade .tpanel:not(.hidden)') || {}).id || '',
+          start: !!(startBtn && startBtn.offsetParent),
+          focus: ((document.getElementById('sessionFocus') || {}).textContent || '').trim().length,
+          queue: ((document.getElementById('sessionQueueList') || {}).textContent || '').trim().length,
+          pend: ((document.getElementById('sessionPending') || {}).textContent || '').trim().length,
+          kpis: document.querySelectorAll('#sessionKpis .kpi').length,
+          confirm: !!document.getElementById('sessionConfirm'),
+        };
+      });
+      addCheck('load', 'the #trade/session panel is the one showing, and only it',
+        sess.visible && sess.open === 'tp-session', 'tp-session visible', sess.open || 'none');
+      addCheck('load', 'the Session panel painted its loop (a focus card or the queue, never blank)',
+        sess.focus > 0 || sess.queue > 0, 'focus or queue has text',
+        'focus ' + sess.focus + 'c, queue ' + sess.queue + 'c, pending ' + sess.pend + 'c, start ' +
+          (sess.start ? 'shown' : 'hidden') + ', kpis ' + sess.kpis);
+      addCheck('load', 'the Session panel ships no Confirm control (no confirm route exists)',
+        !sess.confirm, 'no #sessionConfirm', sess.confirm ? 'found #sessionConfirm' : 'none');
+      R.session = sess;
+      const ccs = await page.evaluate(COPY_SCAN);
+      ccs.forEach((c) => R.copy.push({ page: 'index', state: '#trade/session', text: c.text, words: c.words, chars: c.chars, cls: c.cls }));
+      ids.index.push(...snapIds('index', '#trade/session', (await page.evaluate(FACTS)).ids));
+      rec.since(m, '#trade/session', 'index');
     }
 
     /* legacy hashes: each one gets a FRESH load, because some of them redirect the whole page
@@ -783,7 +848,7 @@ function idsCheck() {
         const f = await page.evaluate(FACTS);
         rec.since(m, sec, 'collection');
         m = rec.mark();
-        ids.collection.push(...f.ids);
+        ids.collection.push(...snapIds('collection', sec, f.ids));
         railCheck('collection', sec, f);
         R.collectionSubnav = f.subnav;
         addCheck('load', 'collection > ' + sec + ' section renders',
@@ -809,7 +874,7 @@ function idsCheck() {
         const f = await page.evaluate(FACTS);
         rec.since(m, cat, 'settings');
         m = rec.mark();
-        ids.settings.push(...f.ids);
+        ids.settings.push(...snapIds('settings', cat, f.ids));
         railCheck('settings', cat, f);
         addCheck('load', 'settings > ' + cat + ' shows exactly its own panel',
           f.n.catVisible.length === 1 && f.n.catVisible[0] === 'cat-' + cat, 'cat-' + cat, f.n.catVisible.join(',') || 'none');
@@ -822,7 +887,7 @@ function idsCheck() {
       const f = await page.evaluate(FACTS);
       rec.since(m, 'landing', spec.name);
       m = rec.mark();
-      ids[spec.name].push(...f.ids);
+      ids[spec.name].push(...snapIds(spec.name, 'landing', f.ids));
       if (spec.name !== 'item') railCheck(spec.name, 'landing', f);
       if (spec.name === 'cards') {
         Object.assign(rendered.cards, { chips: f.n.cardChips, chipPairs: f.n.chipPairs, tiles: f.n.gridTiles, meta: f.n.pageMeta });
@@ -864,7 +929,7 @@ function idsCheck() {
     for (const [w, h] of VIEWPORTS) {
       await page.setViewport({ width: w, height: h });
       await sleep(400);
-      for (const v of INDEX_VIEWS.concat(['trade/orders'])) {
+      for (const v of INDEX_VIEWS.concat(['trade/orders', 'trade/session'])) {
         await page.evaluate((v) => { location.hash = '#' + v; }, v);
         await sleep(700);
         const mm = await page.evaluate(FIT_SCAN);
@@ -884,7 +949,7 @@ function idsCheck() {
   /* ============ 4. themes: 4 palettes across every page ============ */
   {
     const targets = [
-      ['index', '/', INDEX_VIEWS.concat(['trade/orders'])],
+      ['index', '/', INDEX_VIEWS.concat(['trade/orders', 'trade/session'])],
       ['collection', '/collection.html', COLLECTION_SECTIONS],
       ['cards', '/cards.html', [null]],
       ['settings', '/settings.html', SETTINGS_CATS],
@@ -962,6 +1027,14 @@ function idsCheck() {
     addCheck('ids', 'every id in design/_stage1/ids_before.json still exists (sanctioned moves excepted)',
       R.ids.missing.length === 0, '0 missing', R.ids.missing.length + ' missing: ' + (R.ids.missing.join(', ') || '—'),
       R.ids.sanctioned.length + ' sanctioned move(s): ' + (R.ids.sanctioned.join(' | ') || '—'));
+    /* the rule the audit flagged as unchecked everywhere: ids must be unique, and the only place
+       that means anything is one rendered state (a page re-uses ids across its views by design, so
+       the accumulated per-page buckets can never answer this). */
+    const dupSnaps = R.ids.snapshots.filter((s) => s.duplicates.length);
+    addCheck('ids', 'no id appears twice inside one rendered state (' + R.ids.snapshots.length + ' snapshots)',
+      dupSnaps.length === 0, 'no duplicate id in any snapshot',
+      dupSnaps.length + ' snapshot(s) with a duplicate: ' +
+        (dupSnaps.slice(0, 6).map((s) => s.page + '/' + s.state + ' -> ' + [...new Set(s.duplicates)].join(',')).join(' | ') || '—'));
   }
 
   /* ============ verdict ============ */

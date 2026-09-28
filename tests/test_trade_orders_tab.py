@@ -10,9 +10,10 @@ one docstring line in tests/test_ia_reachability.py (the Advanced tab is no long
 Nothing else in an older test was touched.
 
 What is held in place here:
-  * the strip is Orders / Sell / Buy / History / Advanced, Orders is the FIRST button, and Sell is
-    still aria-selected="true" on load with #tp-sell the one panel that ships without .hidden -
-    the selected panel is the decision surface, only the strip order changed;
+  * the strip is Session / Orders / Sell / Buy / History / Advanced (the Trading Session took the
+    first slot on 2026-09-29 - see tests/test_trade_session_panel.py), Orders still sits ahead of
+    Sell, and Sell is still aria-selected="true" on load with #tp-sell the one panel that ships
+    without .hidden - the selected panel is the decision surface, only the strip order changed;
   * #tp-orders sits before #tp-sell in the markup and carries every orders id (ordQ, ordItem,
     ordRank, ordStatus, ordStIngame, ordStOnline, ordStOffline, ordStAll, ordRefresh, ordMeta,
     ordValues, ordSell, ordBuy, ordErr) plus the two list heads - Selling (you would buy) and
@@ -78,11 +79,13 @@ def orders_js(js):
 # ------------------------------------------------------------------- 1. the strip and the selection
 
 
-def test_orders_is_the_first_tab_and_sell_is_still_the_panel_that_opens():
+def test_orders_sits_ahead_of_sell_and_sell_is_still_the_panel_that_opens():
+    # 2026-09-29 (stage 3): the Trading Session took the first slot in the strip, so Orders is the
+    # second button now - what this pin still holds is that Orders comes FIRST of the two ordering
+    # decisions the 2026-09-28 pass made (ahead of Sell) and that the selection never moved with it.
     nav = tab_strip(INDEX)
-    first = nav.split('<button', 2)[1]
-    assert 'id="tt-orders"' in first and 'data-tp="tp-orders"' in first, \
-        'Orders is the first button in the strip'
+    assert nav.index('id="tt-session"') < nav.index('id="tt-orders"') < nav.index('id="tt-sell"'), \
+        'Session, then Orders, then Sell'
     assert ('<button role="tab" id="tt-orders" data-tp="tp-orders" aria-selected="false" '
             'aria-controls="tp-orders">Orders</button>') in nav
     # the selection did not move with the order: the sell plan is still the decision surface
@@ -98,14 +101,17 @@ def test_orders_is_the_first_tab_and_sell_is_still_the_panel_that_opens():
 
 def test_the_strip_keeps_every_tab_it_had():
     nav = tab_strip(INDEX)
-    assert nav.count('role="tab"') == 5
-    for tid, tp, sel in (('tt-orders', 'tp-orders', 'false'), ('tt-sell', 'tp-sell', 'true'),
+    # 2026-09-29 (stage 3): 5 -> 6 for the Trading Session tab (the loop is the primary job); every
+    # tab below kept its own exact button markup, Sell keeps the selection, nothing was dropped.
+    assert nav.count('role="tab"') == 6
+    for tid, tp, sel in (('tt-session', 'tp-session', 'false'), ('tt-orders', 'tp-orders', 'false'),
+                         ('tt-sell', 'tp-sell', 'true'),
                          ('tt-buy', 'tp-buy', 'false'), ('tt-history', 'tp-history', 'false'),
                          ('tt-advanced', 'tp-advanced', 'false')):
         assert ('id="%s" data-tp="%s" aria-selected="%s" aria-controls="%s"'
                 % (tid, tp, sel, tp)) in nav, tid
     sec = trade_section(INDEX)
-    for pid in ('tp-orders', 'tp-sell', 'tp-buy', 'tp-history', 'tp-advanced'):
+    for pid in ('tp-session', 'tp-orders', 'tp-sell', 'tp-buy', 'tp-history', 'tp-advanced'):
         assert 'id="%s"' % pid in sec, pid
 
 
@@ -284,7 +290,10 @@ def test_one_whisper_per_click_posts_the_contract_body():
     assert "fetch('/api/whisper', { method: 'POST'," in js
     assert "kind: btn.dataset.kind === 'sell' ? 'sell' : 'buy', mode: 'send' }" in js, \
         'the kind follows the list the row sits in, and the mode is always send'
-    assert 'const item = ORD.slug ||' in js
+    # 2026-09-29 (stage 3): a SESSION row states its own item (data-item), because the book keeps its
+    # last-read slug and that is not the session row's item. The book's own path is unchanged: its
+    # buttons carry no data-item, so ORD.slug still decides for every row of the book.
+    assert 'const item = btn.dataset.item || ORD.slug ||' in js
     assert 'user: btn.dataset.user || ' in js and 'price: Number(btn.dataset.price) || 0' in js
     assert 'if (isFinite(rk)) body.rank = rk;' in js
     assert 'data-kind="${escHtml(kind)}"' in js and 'data-user="${escHtml(user)}"' in js
@@ -296,8 +305,12 @@ def test_one_whisper_per_click_posts_the_contract_body():
 
 def test_a_hidden_row_may_never_whisper():
     js = orders_js(APP_JS)
-    assert 'if (!row || !btn.isConnected) return;' in js
-    assert "if (!ORD.st[row.dataset.st || '']) return;" in js, 'the filter gates the button'
+    assert 'if (!row || !btn.isConnected) return false;' in js
+    # 2026-09-29 (stage 3): the status chips filter the BOOK's rows. The session panel renders the
+    # same .ordrow/.ordwsp markup, so the filter is scoped to #tp-orders - a session row carries its
+    # buyer's own status and that buyer must never be silently refused by a filter it does not show.
+    assert "if (row.closest('#tp-orders') && !ORD.st[row.dataset.st || '']) return false;" in js, \
+        'the filter gates the book, not the session'
 
 
 def test_a_failed_whisper_shows_the_server_reason_and_never_claims_a_send():

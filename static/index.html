@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/shell.css">
 <link rel="stylesheet" href="/drawer.css">
 <link rel="stylesheet" href="/home.css">
+<link rel="stylesheet" href="/session.css">
   <link rel="stylesheet" href="/icons.css">
   <script src="/icons.js" defer></script>
 </head>
@@ -177,11 +178,13 @@
     </div>
   </section>
 
-  <!-- TRADE - Orders reads the live book, Sell decides, Buy hunts, History explains; the engine
-       internals (kill switch, trade limit, webhook outbox, run queue, hygiene plan) sit behind the
-       ONE Advanced tab, one click from Sell. Nothing was removed; safety stays reachable. -->
+  <!-- TRADE - Session is the loop (what to do right now), Orders reads the live book, Sell
+       decides, Buy hunts, History explains; the engine internals (kill switch, trade limit,
+       webhook outbox, run queue, hygiene plan) sit behind the ONE Advanced tab, one click from
+       Sell. Nothing was removed; safety stays reachable. -->
   <section id="view-trade" class="hidden">
     <nav id="tradeTabs" class="tabs" role="tablist" aria-label="Trade sections">
+      <button role="tab" id="tt-session" data-tp="tp-session" aria-selected="false" aria-controls="tp-session">Session</button>
       <button role="tab" id="tt-orders" data-tp="tp-orders" aria-selected="false" aria-controls="tp-orders">Orders</button>
       <button role="tab" id="tt-sell" data-tp="tp-sell" aria-selected="true" aria-controls="tp-sell">Sell</button>
       <button role="tab" id="tt-buy" data-tp="tp-buy" aria-selected="false" aria-controls="tp-buy">Buy</button>
@@ -189,9 +192,46 @@
       <button role="tab" id="tt-advanced" data-tp="tp-advanced" aria-selected="false" aria-controls="tp-advanced">Advanced</button>
     </nav>
 
+    <!-- Session (stage 3, 2026-09-29): the trading loop itself, first in the strip because it is the
+         primary job. The summary, the focus row, the queue and the pending trades all come from
+         GET /api/session (FEAT.session) - the queue is what the plan and the run queue already
+         produced, so this panel never recomputes a price or a buyer (§2). Buyer rows whisper through
+         the order book's own button/funnel; nothing here posts a second send path. -->
+    <div id="tp-session" class="tpanel hidden" role="tabpanel" aria-labelledby="tt-session">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title" data-icon="handshake">Trading session <span class="dim small" id="sessionMeta"></span></div>
+          <div class="actions">
+            <button class="btn" id="sessionStart" data-icon="lightning" title="Build the queue and start trading">Start trading</button>
+            <button class="btn" id="sessionNext" data-icon="arrow-right" title="Move to the next item">Next</button>
+            <button class="btn" id="sessionSkip" title="Skip this item">Skip</button>
+            <button class="btn" id="sessionHold" title="Come back to this one later">Hold</button>
+            <button class="btn" id="sessionEnd" data-icon="check" title="Close the session and keep it as history">End session</button>
+          </div>
+        </div>
+        <div class="kpis" id="sessionKpis"></div>
+        <div class="picks" id="sessionFocus"></div>
+        <div class="status" id="sessionSay" aria-live="polite"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title" data-icon="list">Queue <span class="dim small" id="sessionQueueMeta"></span></div>
+        </div>
+        <div class="picks" id="sessionQueueList"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title" data-icon="hourglass">Waiting on a confirmation <span class="dim small" id="sessionPendMeta"></span></div>
+        </div>
+        <!-- stage 5 puts the Confirm trade control here; no reconcile/confirm route ships yet -->
+        <div class="picks" id="sessionPending"></div>
+      </div>
+    </div>
+
     <!-- Orders (Jay 2026-09-28): the live WFM book for one item - the rank ladder, then who is
          Selling (you would buy) and who is Buying (you would sell), one whisper per row. Its own
-         tab, first in the strip; Sell stays the selected panel (the plan is the decision surface). -->
+         tab; Sell stays the selected panel (the plan is the decision surface). Session took the
+         first slot ahead of it in stage 3 (the loop is the primary job). -->
     <div id="tp-orders" class="tpanel hidden" role="tabpanel" aria-labelledby="tt-orders">
       <div class="card" id="ordCard">
         <div class="card-head">
@@ -695,6 +735,9 @@
 <script src="/chart.js"></script>
 <script src="/drawer.js"></script>
 <script src="/home.js"></script>
+<!-- the session panel is before app.js like home.js/drawer.js: load() and the hash router both
+     call renderSession() while app.js is still parsing, so it must already be defined -->
+<script src="/session.js"></script>
 <script src="/app.js"></script>
 <script src="/export.js"></script>
 </body>

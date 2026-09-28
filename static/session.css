@@ -1,0 +1,77 @@
+/* Trading Session panel (#trade/session) - the loop's own surface.
+
+   The panel borrows the app's existing vocabulary rather than inventing one: .picks, .kpi, .chip,
+   .l-name, .num, .dim, .empty and the .ordrow / .ordwsp / .ordres whisper row (the exact classes the
+   Orders tab renders, so one click path serves both). What is here is only the row shapes those
+   classes do not already carry: their styling lives under #tp-orders, and the queue's columns are
+   not History's session columns. Values come from the theme vars, like every other rule. */
+
+/* the summary strip sits inside the card, on the card's own inset */
+#tp-session .kpis { padding: 6px 12px 8px; gap: 8px; }
+
+/* the focus card: the item, its facts, the confidence word and the state */
+#tp-session .sess-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content max-content;
+  gap: 4px 10px; align-items: baseline; padding: 4px 0 2px;
+}
+#tp-session .sess-head .l-name { font-size: 14px; font-weight: 600; }
+#tp-session .sess-facts { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* the why facts: one span per fact, wrapping, never a sentence (spec section 7) */
+#tp-session .sess-why {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 2px 0 5px;
+  font-size: 11.5px; color: var(--muted);
+}
+#tp-session .sess-nobuyer { padding: 4px 0 2px; font-size: 12px; }
+
+/* the buyer row: the order book's row shape, one line of it plus the answer line underneath */
+#tp-session .ordrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) 64px max-content max-content;
+  gap: 8px; align-items: center; padding: 7px 10px; border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+#tp-session .ordrow .orduser { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tp-session .ordp {
+  font-weight: 700; color: var(--accent); font-family: var(--mono); font-variant-numeric: tabular-nums;
+}
+#tp-session .ordst { font-size: 11px; white-space: nowrap; }
+#tp-session .orddot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px;
+  background: var(--muted);
+}
+#tp-session .orddot.ingame { background: var(--up, #4ade80); }
+#tp-session .orddot.online { background: var(--accent); }
+#tp-session .ordwsp {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 3px 9px; cursor: pointer; font: 600 11px var(--sans);
+}
+#tp-session .ordwsp:hover { border-color: var(--accent-dim); }
+#tp-session .ordwsp:disabled { opacity: .6; cursor: default; }
+#tp-session .ordres { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
+#tp-session .ordres:empty { display: none; }
+#tp-session .ordres.bad { color: var(--down, #f87171); }
+
+/* the queue and the pending list: .sessrow's one-line shape with the session's own columns
+   (History's four columns are four different facts). The responsive rules in style.css hide
+   History's middle cells by position, so the session row re-states that it keeps all of its own. */
+#tp-session .sessrow { grid-template-columns: 116px minmax(0, 1fr) max-content max-content; font-size: 12.5px; }
+#tp-session .sesspend { grid-template-columns: 72px minmax(0, 1fr) minmax(0, 0.6fr) max-content max-content; }
+#tp-session .sessrow > span { display: block; }
+#tp-session .sessfocus {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 2px 9px; cursor: pointer; font: 600 11px var(--sans);
+}
+#tp-session .sessfocus:hover { border-color: var(--accent-dim); }
+/* the panel's own answer line (a refusal, or nothing) */
+#tp-session .status.bad { color: var(--down, #f87171); }
+
+@media (max-width: 900px) {
+  #tp-session .sess-head { grid-template-columns: minmax(0, 1fr) max-content; }
+  #tp-session .sess-facts { grid-column: 1 / -1; }
+  #tp-session .sessrow, #tp-session .sesspend { grid-template-columns: minmax(0, 1fr) max-content; }
+}
+
+/* fit: the panel scrolls as the last resort, exactly like the Advanced tab, so a long queue can
+   never stretch the window - every list inside keeps its own scroller first */
+body.shell-fit #view-trade #tp-session { overflow-y: auto; }
+body.shell-fit #view-trade #tp-session > .card { flex: 0 0 auto; }
+body.shell-fit #view-trade #tp-session .picks { max-height: 40vh; overflow-y: auto; }

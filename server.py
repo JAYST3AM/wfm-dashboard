@@ -812,8 +812,32 @@ def whisper_post(body):
         return 500, {'ok': False, 'error': 'whisper: ' + str(e)[:160]}
     _whisper_last[0] = now
     _whisper_minute.append(now)
-    return 200, {'ok': True, 'message': msg, 'line': ln, 'copied': copied,
-                 'sent': sent, 'reason': reason}
+    out = {'ok': True, 'message': msg, 'line': ln, 'copied': copied,
+           'sent': sent, 'reason': reason}
+    # Trading Session (docs/trading-session-workflow.md §3): a whisper that actually reached the
+    # game while a session is open becomes that session's CONTACTED trade - with the inventory and
+    # platinum it went out at, which is the one snapshot reconciliation needs. Copied-but-not-sent
+    # is deliberately not a contact: nothing left the clipboard. A failure here must never fail
+    # the whisper, so it is contained.
+    if sent:
+        try:
+            ts = _session()
+            doc = ts.load(DATA)
+            if doc.get('session'):
+                inv, plat = _session_before(item, rank)
+                row_qty = 1
+                for r in (doc['session'].get('queue') or []):
+                    if r.get('slug') == item and (rank is None or r.get('rank') == rank):
+                        row_qty = r.get('qty') or 1
+                        break
+                out['contact'] = ts.contact(doc, item, rank=rank, qty=row_qty, price=price,
+                                           buyer=user, inv_before=inv, plat_before=plat,
+                                           kind=kind)
+                ts.save(DATA, doc)
+        except Exception as e:
+            out['contact'] = None
+            out['contact_error'] = str(e)[:120]
+    return 200, out
 
 
 # ---------------------------------------------------------------- auto sync
@@ -935,6 +959,32 @@ def _session_inputs():
             'runqueue': jload(os.path.join(DATA, 'run_queue.json')) or {}}
 
 
+def _session_before(slug, rank=None):
+    """(sellable copies of that stack, platinum) right now - the 'before' side of reconciliation.
+
+    Read from the same payloads the app renders: report.json for the stack, the newest platinum
+    reading (plat_history.json) falling back to trader_limits.json. Both may be None when the data
+    is not there yet; None is stored as None and never guessed at later.
+    """
+    report = jload(os.path.join(DATA, 'report.json')) or {}
+    inv = None
+    for key in ('sell_now', 'patient'):
+        for row in (report.get(key) or []):
+            if isinstance(row, dict) and row.get('slug') == slug and \
+                    (rank is None or row.get('lane_rank') == rank):
+                inv = row.get('sellable_count')
+                break
+        if inv is not None:
+            break
+    plat = None
+    hist = jload(os.path.join(DATA, 'plat_history.json'))
+    if isinstance(hist, list) and hist and isinstance(hist[-1], dict):
+        plat = hist[-1].get('plat')
+    if plat is None:
+        plat = (jload(os.path.join(DATA, 'trader_limits.json')) or {}).get('plat')
+    return inv, plat
+
+
 def session_payload():
     """GET /api/session - the live session, its focus row, the pending trades and the summary."""
     ts = _session()
@@ -955,6 +1005,21 @@ def session_post(action, body):
         out = ts.start_payload(DATA, limits=limits, limit=limit, **_session_inputs())
         return (200 if out.get('ok') else 409), out
     doc = ts.load(DATA)
+    if action == 'contact':
+        slug = str(body.get('slug') or body.get('item') or '').strip().lower()
+        if not slug:
+            return 400, {'ok': False, 'error': 'slug required'}
+        rank = body.get('rank')
+        try:
+            rank = int(rank) if rank not in (None, '') else None
+        except (TypeError, ValueError):
+            return 400, {'ok': False, 'error': 'rank must be a number'}
+        inv, plat = _session_before(slug, rank)
+        pend = ts.contact(doc, slug, rank=rank, qty=body.get('qty') or 1, price=body.get('price'),
+                          buyer=body.get('user') or body.get('buyer'), inv_before=inv,
+                          plat_before=plat, note=body.get('note') or '')
+        ts.save(DATA, doc)
+        return 200, {'ok': True, 'pending': pend, 'session_payload': session_payload()}
     if action == 'focus':
         row = ts.focus(doc, index=body.get('index'), slug=body.get('slug'))
         if row is None:

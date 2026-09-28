@@ -125,7 +125,7 @@ function switchInvView(v) {
   markScrollers();
 }
 
-/* trade sub-tabs (Orders / Sell / Buy / History / Advanced) */
+/* trade sub-tabs (Session / Orders / Sell / Buy / History / Advanced) */
 function switchTradeTab(panelId) {
   const tabs = document.querySelectorAll('#tradeTabs [role="tab"]');
   if (!tabs.length) return;
@@ -135,6 +135,9 @@ function switchTradeTab(panelId) {
   document.querySelectorAll('#view-trade .tpanel').forEach(p2 => p2.classList.toggle('hidden', p2.id !== panelId));
   /* the order book reads on open (and only then): no timer, one ask at a time */
   if (panelId === 'tp-orders') renderOrders();
+  /* the session panel paints from the payload load() already fetched (FEAT.session) - reading it on
+     open is a repaint, never a second ask, and never a timer either */
+  if (panelId === 'tp-session') renderSession();
   markScrollers();
 }
 
@@ -335,6 +338,7 @@ function renderNextAction() {
         ? `<span class="next-buyer" title="${escHtml(who.slice(0, RUNQ_WHOM).map((q) => q.buyer + ' pays ' + q.buy_price + 'p').join(' · '))}">Buyer <b>${escHtml(b.buyer)}</b> pays ${b.buy_price}p</span>
            <span class="chip act-${escHtml(b.buyer_status)}">${escHtml(b.buyer_status)}</span>`
         : `<span class="next-nobuyer" title="no buyer row in the run queue">No buyer in the run queue</span>`}
+      ${sessionHomeAction()}
     </div>`;
   renderSellQueue(rows);
 }
@@ -903,13 +907,17 @@ async function renderOrders() {
 
 /* one click, one whisper. The button is disabled while the answer is in flight, so a row can never
    be double-sent, and the answer line is written from the response only. A row the status filter
-   has hidden is out of the DOM, and even a detached button is refused here. */
+   has hidden is out of the DOM, and even a detached button is refused here.
+   Returns whether a send really happened, so a caller that has to re-read state (the session panel)
+   can tell a refusal from a delivery. The status filter gates the BOOK's rows only: a session row
+   carries its buyer's own status, and that buyer is never filtered out of the loop (stage 3). */
 async function ordWhisper(btn) {
   const row = btn.closest('.ordrow');
-  if (!row || !btn.isConnected) return;
-  if (!ORD.st[row.dataset.st || '']) return;       /* a hidden row may never whisper */
+  if (!row || !btn.isConnected) return false;
+  if (row.closest('#tp-orders') && !ORD.st[row.dataset.st || '']) return false;
   const res = row.querySelector('.ordres');
-  const item = ORD.slug || (((document.getElementById('ordQ') || {}).value) || '').trim();
+  /* a session row names its own item; the book keeps its last-read slug, which is not that row's */
+  const item = btn.dataset.item || ORD.slug || (((document.getElementById('ordQ') || {}).value) || '').trim();
   const body = { item, user: btn.dataset.user || '', price: Number(btn.dataset.price) || 0,
     kind: btn.dataset.kind === 'sell' ? 'sell' : 'buy', mode: 'send' };
   const rk = Number(btn.dataset.rank);
@@ -928,6 +936,7 @@ async function ordWhisper(btn) {
   } catch (err) { /* nothing came back: the row may not claim a send */ }
   btn.disabled = false; btn.textContent = old;
   if (res) { res.textContent = say; res.classList.toggle('bad', !ok); }
+  return ok;
 }
 
 function renderTiming() {
@@ -1358,7 +1367,7 @@ async function load() {
   FEAT = {};
   /* the Trend column reads one slim series map for the whole page (state.itemhist) - never a
      fetch per row; a missing/empty file answers {} so every cell just shows a dash */
-  await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'advisor']
+  await Promise.all(['deals', 'ducats', 'sets', 'relics', 'limits', 'sessions', 'invdiff', 'movers', 'flips', 'trends', 'baro', 'wishlist', 'nudges', 'killswitch', 'flipper', 'hygiene', 'runqueue', 'timing', 'watchlist', 'rivens', 'meta', 'craft', 'notify', 'ledger', 'advisor', 'session']
     .map(async n => { FEAT[n] = await fetch('/api/feature/' + n).then(r => r.json()).catch(() => null); })
     .concat([fetch('/api/feature/itemhist').then(r => r.json())
       .then(j => { state.itemhist = (j && j.items) || {}; })
@@ -1374,6 +1383,9 @@ async function load() {
   ordOpenFetch();           /* and a deep link that landed before it is finished here */
   renderFirstRun();
   renderHomeHead(); renderNextAction();
+  /* the session panel paints from the payload above (FEAT.session): one refresh for every surface,
+     and Home's Next action has just learned whether a session is already open */
+  renderSession();
   if (window.wfmRenderHome) wfmRenderHome();
   window.addEventListener('resize', function () { window.clearTimeout(window.__wfmScrollerT); window.__wfmScrollerT = window.setTimeout(markScrollers, 180); });
   /* the trade columns settle after the first paint (details content, flex heights), and any body

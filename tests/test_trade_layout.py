@@ -37,9 +37,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 2026-09-28: Jay added the Orders tab (its own tab, first in the strip) - tt-orders / tp-orders
 # join this list here; nothing above was removed and the two new ids are also pinned in
 # tests/test_trade_orders_tab.py.
+# 2026-09-29 (stage 3): the Trading Session took the FIRST slot in the strip, ahead of Orders - the
+# loop is the primary job. Two ids joined, nothing moved or was dropped, and both tab pins in
+# tests/test_trade_orders_tab.py were re-targeted deliberately (they state the new order).
 TRADE_IDS = (
-    'view-trade', 'tradeTabs', 'tt-orders', 'tt-sell', 'tt-buy', 'tt-history', 'tt-advanced',
-    'tp-orders', 'tp-sell', 'tp-buy', 'tp-history', 'tp-advanced',
+    'view-trade', 'tradeTabs', 'tt-session', 'tt-orders', 'tt-sell', 'tt-buy', 'tt-history', 'tt-advanced',
+    'tp-session', 'tp-orders', 'tp-sell', 'tp-buy', 'tp-history', 'tp-advanced',
     'planMeta', 'btnPlan', 'btnCycle', 'planList', 'heldAcc', 'heldMeta', 'heldList',
     'attnMeta', 'btnWatch', 'attnList', 'hygieneAcc', 'hygieneMeta', 'btnHygiene', 'hygieneList',
     'flipsMeta', 'flipsList', 'wishMeta', 'wishList', 'histKpis', 'histMeta', 'hFilters',
@@ -291,9 +294,13 @@ def test_the_three_tabs_and_the_advanced_layer_are_wired_as_one_tablist():
     sec = trade_section(html)
     nav = sec.split('<nav id="tradeTabs"', 1)[1].split('</nav>', 1)[0]
     # 2026-09-28: the count moved 4 -> 5 because Jay asked for the Orders tab FIRST in the strip
-    # (it is pinned in tests/test_trade_orders_tab.py). Nothing was dropped, Sell is still the
-    # selected panel on load, and every other tab keeps its own exact button markup below.
-    assert 'role="tablist"' in nav and nav.count('role="tab"') == 5
+    # (it is pinned in tests/test_trade_orders_tab.py). 2026-09-29: 5 -> 6 for the Trading Session,
+    # which took that first slot (the loop is the primary job) - Orders is now second and the tab
+    # pins in tests/test_trade_orders_tab.py state the new positions. Nothing was dropped, Sell is
+    # still the selected panel on load, and every other tab keeps its own exact button markup below.
+    assert 'role="tablist"' in nav and nav.count('role="tab"') == 6
+    assert ('id="tt-session" data-tp="tp-session" aria-selected="false" aria-controls="tp-session">Session</button>'
+            in nav)
     assert ('id="tt-orders" data-tp="tp-orders" aria-selected="false" aria-controls="tp-orders">Orders</button>'
             in nav)
     assert 'id="tt-sell" data-tp="tp-sell" aria-selected="true" aria-controls="tp-sell">Sell</button>' in nav
@@ -301,9 +308,10 @@ def test_the_three_tabs_and_the_advanced_layer_are_wired_as_one_tablist():
                            ('tt-advanced', 'tp-advanced', 'Advanced')):
         assert ('id="%s" data-tp="%s" aria-selected="false" aria-controls="%s">%s</button>'
                 % (tid, tp, tp, label)) in nav, tid
-    # one panel shows at a time: Sell is open, the other three ship hidden
+    # one panel shows at a time: Sell is open, the other five ship hidden
     assert '<div id="tp-sell" class="tpanel" role="tabpanel" aria-labelledby="tt-sell">' in sec
-    for pid, tid in (('tp-buy', 'tt-buy'), ('tp-history', 'tt-history'), ('tp-advanced', 'tt-advanced')):
+    for pid, tid in (('tp-session', 'tt-session'), ('tp-buy', 'tt-buy'), ('tp-history', 'tt-history'),
+                     ('tp-advanced', 'tt-advanced')):
         assert ('<div id="%s" class="tpanel hidden" role="tabpanel" aria-labelledby="%s">'
                 % (pid, tid)) in sec, pid
     js = read('static/app.js')

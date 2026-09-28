@@ -100,7 +100,12 @@ def empty(now=None):
 
 
 def normalise(doc):
-    """Coerce anything half-formed into the documented shape (never raises)."""
+    """Coerce anything half-formed into the documented shape (never raises).
+
+    Returns a **new** dict: `load()` uses it. Functions that take a `doc` and are documented as
+    mutating (contact/set_state/focus/end) mutate the caller's dict in place - if this were applied
+    there instead, the caller would keep saving an untouched copy.
+    """
     if not isinstance(doc, dict):
         return empty()
     out = {'version': VERSION, 'session': None, 'pending': [], 'confirmed': [],
@@ -336,6 +341,54 @@ def build_queue(plan, advisor, report, runqueue, limit=QUEUE_LIMIT):
             add(slug, adv.get('name'), adv.get('recommended_quantity'),
                 adv.get('recommended_price'), _rank_of(adv), 'advisor')
     return rows[:max(1, int(limit))]
+
+
+# --------------------------------------------------------------------------- contact (the whisper)
+def pending_id(slug, rank, buyer, now):
+    raw = '%s|%s|%s|%d' % (slug, rank, buyer or '', int(now))
+    return 'p-%d-%s' % (int(now * 1000), hashlib.sha1(raw.encode('utf-8')).hexdigest()[:6])
+
+
+def contact(doc, slug, rank=None, qty=1, price=None, buyer=None, now=None,
+            inv_before=None, plat_before=None, kind='sell', note=''):
+    """A whisper went out: mark the queue row CONTACTED and open one pending trade.
+
+    This is the only writer of a pending row, and it is called from exactly one place in the app -
+    the /api/whisper success branch (spec §3). Whispering the same buyer again updates the row's
+    timestamp instead of stacking a second one, so reconciliation never sees a phantom twin.
+    """
+    now = int(now or time.time())
+    if not isinstance(doc, dict):                 # mutate the caller's doc: they save it, not us
+        raise TypeError('contact() needs a doc dict (see trade_session.empty())')
+    doc.setdefault('session', None)
+    if not isinstance(doc.get('pending'), list):
+        doc['pending'] = []
+    row = None
+    for r in ((doc.get('session') or {}).get('queue') or []):
+        if r.get('slug') == slug and (rank is None or r.get('rank') == rank):
+            row = r
+            break
+    key = (slug, rank, buyer)
+    for p in doc['pending']:
+        if (p.get('slug'), p.get('rank'), p.get('buyer')) == key and p.get('state') in (CONTACTED, POSSIBLE):
+            p['ts'] = now
+            p['note'] = str(note or p.get('note') or '')[:160]
+            if row is not None:
+                row['state'] = CONTACTED
+            return p
+    pend = {'id': pending_id(slug, rank, buyer, now), 'session_id': (doc.get('session') or {}).get('id'),
+            'slug': slug, 'name': (row or {}).get('name') or slug, 'rank': rank,
+            'qty': max(1, int(qty or (row or {}).get('qty') or 1)),
+            'expected_plat': _int(price) or (row or {}).get('price'), 'buyer': buyer or None,
+            'kind': kind, 'ts': now, 'state': CONTACTED,
+            'inv_before': _int(inv_before), 'plat_before': _int(plat_before),
+            'note': str(note or '')[:160]}
+    doc['pending'].append(pend)
+    doc['pending'] = doc['pending'][-PENDING_KEEP:]
+    if row is not None:
+        row['state'] = CONTACTED
+        row['contacted_ts'] = now
+    return pend
 
 
 # --------------------------------------------------------------------------- session lifecycle
