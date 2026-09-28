@@ -407,10 +407,12 @@ def test_sane_rank_guards_the_pip_cap(mc):
 # fetched data may be injected as HTML.
 PAGE = os.path.join(REPO, 'static', 'cards.html')
 SCRIPT = os.path.join(REPO, 'static', 'cards.js')
-# 2026-09-26 IA: five sections (Home / Inventory / Trade / Collection / More); Cards is a
-# Collection sub-tab, so its own pill lives in the subnav, not the primary row.
-NAV_PILLS = [('/#home', 'Home'), ('/#inventory', 'Inventory'), ('/#trade', 'Trade'),
-             ('/collection.html', 'Collection'), ('/#more', 'More')]
+# 2026-09-28 IA (stage 2): six destinations - Home / Trade / Inventory / Collection, then Tools /
+# Settings. Cards is a Collection section, so its own pill lives in the page's subnav, not the
+# primary row.
+NAV_PILLS = [('/#home', 'Home'), ('/#trade', 'Trade'), ('/#inventory', 'Inventory'),
+             ('/collection.html', 'Collection'), ('/#tools', 'Tools'),
+             ('/settings.html', 'Settings')]
 
 
 def test_page_exists_and_reuses_the_shared_shell():

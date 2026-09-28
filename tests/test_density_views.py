@@ -1,19 +1,23 @@
-"""Fit the viewport on the five index views (Jay 2026-09-27): "everything needs to fit on this
+"""Fit the viewport on the index views (Jay 2026-09-27): "everything needs to fit on this
 screen, no matter the resolution for the user".
 
-Source-level pins for the layout the QA probe measures headlessly (qa_fit_matrix.js): from 1200px
-up the shell is one window tall and does not scroll - header + nav + the active view + the footer
-fill 100vh - and each long list scrolls inside its own card, so the card head (title, meta, filter
-pills) and the card footer stay put. Under 1200px nothing changes: the page scrolls as it always
-did, one column, and the wide tables scroll inside their own .tablewrap.
+Source-level pins for the layout the QA probes measure headlessly (design/_stage1/qa_fit_matrix.js,
+design/_stage2/qa_ia.js): from 1200px up the shell is one window tall and does not scroll - header
++ rail + the active view + the footer fill 100vh - and each long list scrolls inside its own card,
+so the card head (title, meta, filter pills) and the card footer stay put. Under 1200px nothing
+changes: the page scrolls as it always did, one column, and the wide tables scroll inside their
+own .tablewrap.
 
-Also pinned here: the dense row budget (<= 28px a row, the #view-trade recipe) in each of the five
-views, the ids/controls other tests and the probe hook onto, and the one-visible-view rule that was
-broken by the home/chat id-specificity clash (a hidden view must really be hidden).
+Stage 2 (2026-09-28) left four index views: home / inventory / trade / tools. Mastery's
+window-height grid went to collection.html with its markup (its rows are pinned here, its page
+layout in tests/test_density_collection.py); the old More page is the Tools launcher plus eleven
+focused workspaces, each a 1-2 card band whose lists scroll inside their cards. Measured again for
+that IA at 1920x1080 and 1366x768: pageOver / ovfX 0 on home, trade, inventory and tools, and 0
+vertical overflow inside every one of the eleven workspaces (design/_stage2/qa_ia.js).
 
-Measured (qa_fit_matrix.js, docScroll vs window.innerHeight, 0 horizontal overflow, 0 console
-errors at every width) - all six views FIT at 1920x1080, 1600x900, 1536x864, 1440x900, 1366x768 and
-1280x800; under 1200px the page scrolls normally by design.
+Also pinned here: the dense row budget (<= 28px a row, the #view-trade recipe), the ids/controls
+other tests and the probes hook onto, and the one-visible-view rule that was broken by the
+home/chat id-specificity clash (a hidden view must really be hidden).
 """
 import os
 
@@ -123,16 +127,27 @@ def test_inventory_keeps_the_table_and_gives_the_three_cards_their_own_band():
         assert frag in band.split('</section>', 1)[0], frag
 
 
-def test_mastery_queue_and_type_bars_share_the_row():
-    css = read('static/style.css')
-    assert 'body.shell-fit #view-mastery {\n    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);' in css
-    block = css.split('/* ================= MASTERY', 1)[1].split('/* ================= PLAYER', 1)[0]
-    for frag in ('body.shell-fit #mhCard { grid-column: 1 / -1; grid-row: 1; }',
-                 'body.shell-fit #mhNextCard { grid-column: 1; grid-row: 2; }',
-                 'body.shell-fit #mhCatsCard { grid-column: 2; grid-row: 2; }',
-                 'body.shell-fit #mhNext, body.shell-fit #mhCats {\n'
-                 '    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;\n  }'):
-        assert frag in block, frag
+def test_mastery_queue_and_type_bars_share_the_row_on_its_new_page():
+    """The section moved to /collection.html in stage 2 (markup + layout together): its
+    two-column grid is now .cl-mhview in collection.css, the same queue-left / types-right split,
+    and the row recipe stays in style.css with the other page-agnostic view chrome."""
+    css = read('static/collection.css')
+    assert '.cl-mhview { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);' in css
+    for frag in ('.cl-mhview #mhCard { grid-column: 1 / -1; grid-row: 1; }',
+                 '.cl-mhview #mhNextCard { grid-column: 1; grid-row: 2; }',
+                 '.cl-mhview #mhCatsCard { grid-column: 2; grid-row: 2; }',
+                 '.cl-mhview #mhNext, .cl-mhview #mhCats {\n'
+                 '  flex: 1 1 auto; min-height: 0; max-height: min(62vh, 620px);\n'
+                 '  overflow-y: auto; overscroll-behavior: contain;\n}'):
+        assert frag in css, frag
+    # one column on a narrow page, and the lists stop capping themselves there
+    assert '@media (max-width: 1100px) {' in css
+    assert '.cl-mhview { grid-template-columns: minmax(0, 1fr); }' in css
+    assert '.cl-mhview #mhNext, .cl-mhview #mhCats { max-height: none; }' in css
+    # the mastery section is not a view any more: it is a Collection tab
+    index = read('static/index.html')
+    assert 'id="view-mastery"' not in index
+    assert 'id="view-mastery"' in read('static/collection.html')
 
 
 def test_player_card_columns_and_the_syndicate_list_scroll():
@@ -149,15 +164,27 @@ def test_player_card_columns_and_the_syndicate_list_scroll():
     assert band.count('class="card"') == 6, 'the six player cards are all still there'
 
 
-def test_more_groups_become_bands_and_every_card_list_scrolls():
+def test_the_tools_launcher_and_its_workspaces_share_the_fit_recipe():
+    """#view-tools is not one long page: the launcher lists the tools, #tools/<slug> opens exactly
+    one workspace, and the workspace's cards scroll their own lists (the same fit pattern as the
+    other views). The look of both is base CSS, the fit lives in the 1200px block."""
     css = read('static/style.css')
-    assert 'body.shell-fit #view-more { display: flex; flex-direction: column; }' in css
-    assert 'body.shell-fit #view-more details.acc[open]::details-content {' in css
-    assert 'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));' in css
-    assert ('body.shell-fit #view-more details.acc[open] > .card > div[id] {\n'
-            '    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;\n  }') in css
-    wide = css.split('/* wide windows: the same bands go three across', 1)[1]
-    assert 'body.shell-fit #view-more details.acc[open]::details-content {\n    grid-template-columns: repeat(3, minmax(0, 1fr));' in wide
+    block = css.split('/* ================= TOOLS', 1)[1].split('/* ================= TRADE', 1)[0]
+    for frag in ('body.shell-fit #view-tools { display: flex; flex-direction: column; }',
+                 'body.shell-fit #view-tools #toolsLauncher { flex: 1 1 auto; min-height: 0; overflow-y: auto; }',
+                 'body.shell-fit #view-tools #toolsLauncher.hidden { display: none; }',
+                 'body.shell-fit #view-tools .tws { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }',
+                 'body.shell-fit #view-tools .tws.hidden { display: none; }',
+                 'body.shell-fit #view-tools .tl-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }',
+                 'body.shell-fit .tws-body > .card > div[id] {\n'
+                 '    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;\n  }'):
+        assert frag in block, frag
+    # exactly one workspace is visible at a time, and the launcher hides while one is open
+    assert '#view-tools .tws.hidden { display: none; }' in css
+    assert "'hidden', !!slug" in read('static/app.js'), 'showTool toggles the launcher'
+    # a merged workspace carries two cards side by side on a wide window, one column below
+    assert '.tws-body.cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }' in css
+    assert 'body.shell-fit .tws-body.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }' in css
 
 
 def test_trade_fills_the_window_without_losing_its_own_rules():
@@ -191,12 +218,12 @@ def test_the_rows_keep_the_spaced_budget():
                  'align-items: baseline; padding: 9px 6px;',                      # .newsrow
                  'gap: 10px; align-items: center; padding: 9px 6px; font-size: 12.5px;',  # .h-ev
                  '.h-alert { padding: 10px 6px 10px 18px; position: relative;',
-                 'body.shell-fit #view-more .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
+                 'body.shell-fit #view-tools .dealrow, body.shell-fit #view-tools .srow,\n'
+                 '  body.shell-fit #view-tools .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
                  '#mhNext .mh-row { padding: 6px 12px; font-size: 12.5px; line-height: 1.45; }',
                  '#mhCats .mh-cat { padding: 6px 12px; font-size: 12.5px; line-height: 1.45; }',
                  'body.shell-fit #view-player .pc-syn { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
                  'body.shell-fit #view-player .pc-frow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
-                 'body.shell-fit #view-more .dealrow, body.shell-fit #view-more .srow,',
                  'body.shell-fit #view-inventory .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
                  'body.shell-fit #view-inventory thead th { padding: 8px 10px; font-size: 11px; }'):
         assert frag in css, frag
@@ -205,11 +232,9 @@ def test_the_rows_keep_the_spaced_budget():
 
 def test_card_chrome_is_the_shared_dense_recipe():
     css = read('static/style.css')
-    assert ('#view-home .card-head, #view-inventory .card-head, #view-mastery .card-head,\n'
-            '  #view-player .card-head, #view-more .card-head { padding: 8px 12px 5px; gap: 10px; '
-            'flex-wrap: wrap; }') in css
-    assert ('#view-home .picks, #view-inventory .picks, #view-mastery .picks,\n'
-            '  #view-player .picks, #view-more .picks { padding: 6px 12px 10px; }') in css
+    assert ('#view-home .card-head, #view-inventory .card-head, #view-tools .card-head '
+            '{ padding: 8px 12px 5px; gap: 10px; flex-wrap: wrap; }') in css
+    assert '#view-home .picks, #view-inventory .picks, #view-tools .picks { padding: 6px 12px 10px; }' in css
     # the shared shell values other tests pin are untouched
     assert '.picks { padding: 10px 16px 14px; }' in css
 
@@ -229,27 +254,36 @@ def test_every_id_and_control_survives():
                             'id="matTbl"', 'id="matRows"', 'id="matCap"', 'id="dojoCard"', 'id="dojoTier"',
                             'id="dojoTbl"', 'id="dojoRows"', 'id="dojoNote"', 'id="dojoRooms"', 'id="dojoSrc"',
                             'id="diffList"')),
-        ('view-mastery', ('id="mhCard"', 'id="mhHead"', 'id="mhStats"', 'id="mhNextCard"', 'id="mhNext"',
-                          'id="mhFilters"', 'id="mhCap"', 'id="mhCatsCard"', 'id="mhCats"')),
         ('view-player', ('id="pcHead"', 'id="pcStats"', 'id="pcTop"', 'id="pcClan"', 'id="pcSyn"',
                          'id="pcInt"', 'id="pcFocus"', 'id="pcMarket"')),
-        ('view-more', ('id="dealsList"', 'id="moversList"', 'id="trendsList"', 'id="ducatsList"',
-                       'id="craftList"', 'id="relicsList"', 'id="setsList"', 'id="nudgesList"',
-                       'id="wlList"', 'id="rivensList"', 'id="baroList"', 'id="metaList"')),
+        # the page's own footer (#foot) is a sibling of <main>, not part of the section - it is
+        # pinned by tests/test_ia_reachability.py and tests/test_app_shell.py
+        ('view-tools', ('id="toolsLauncher"', 'id="toolsWs"', 'id="setupCard"',
+                        'id="dealsList"', 'id="moversList"', 'id="trendsList"', 'id="ducatsList"',
+                        'id="craftList"', 'id="relicsList"', 'id="setsList"', 'id="nudgesList"',
+                        'id="wlList"', 'id="rivensList"', 'id="baroList"', 'id="metaList"')),
         ('view-trade', ('id="planList"', 'id="heldList"', 'id="attnList"', 'id="hygieneList"', 'id="runqList"',
                         'id="killList"', 'id="notifyList"', 'id="limList"', 'id="btnPlan"', 'id="btnCycle"',
                         'id="btnWatch"', 'id="btnHygiene"', 'id="btnRunq"', 'id="btnKill"', 'id="btnNotify"',
                         'id="killNote"')),
     ):
-        section = html.split('id="%s"' % view, 1)[1].split('</section>', 1)[0]
+        if view == 'view-player':            # the profile is a workspace inside #view-tools now
+            section = html.split('id="view-player"', 1)[1].split('</section>', 1)[0]
+        else:
+            section = html.split('id="%s"' % view, 1)[1].split('</section>', 1)[0]
         for frag in frags:
             assert frag in section, (view, frag)
+    # Mastery's markup lives on its own page now - the ids are asserted there, not here
+    col = read('static/collection.html')
+    for frag in ('id="mhCard"', 'id="mhHead"', 'id="mhStats"', 'id="mhNextCard"', 'id="mhNext"',
+                 'id="mhFilters"', 'id="mhCap"', 'id="mhCatsCard"', 'id="mhCats"'):
+        assert frag in col, frag
 
 
 def test_the_filter_pills_and_buttons_stay_outside_the_scrollers():
     """The scrolling parts are the data lists - heads, filters and action buttons are fixed."""
     html = read('static/index.html')
-    mastery = html.split('id="mhNextCard"', 1)[1].split('</section>', 1)[0]
+    mastery = read('static/collection.html').split('id="mhNextCard"', 1)[1].split('</section>', 1)[0]
     assert mastery.index('id="mhFilters"') < mastery.index('id="mhNext"'), 'filters sit in the card head'
     mat = html.split('id="matCard"', 1)[1].split('id="dojoCard"', 1)[0]
     assert mat.index('id="matQ"') < mat.index('id="matTbl"'), 'the materials toolbar stays above its table'

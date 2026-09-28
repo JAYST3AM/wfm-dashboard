@@ -3,9 +3,15 @@
          /collection_log.json (static copy), /api/feature/collection or /data/collection_log.json.
          Plus data/relics_panel.json written by scripts/relics_panel.py and served as
          /relics_panel.json - the relic store behind the 14th tab.
+         Plus data/mastery.json served read-only as /api/feature/mastery - the Mastery helper,
+         which moved off the dashboard's rail into this page in stage 2 (2026-09-28).
+   Sections: the row under the pill bar is Collection | Relics | Mastery | Cards. The first three
+   are sections of THIS page (hash-routed: /collection.html#relics, /collection.html#mastery) and
+   exactly one is visible at a time; Cards is still its own page.
    Renders ONE category tab at a time (the log can hold ~800 items - only the active tab is
    built into the DOM), with an overall completion bar, search and missing/buyable filters.
-   All injected strings are escaped/created as text nodes; no innerHTML with data. */
+   All injected strings are escaped/created as text nodes; no innerHTML with data
+   (the Mastery rows are the one exception: every value goes through escHtml() first). */
 /* Icons: static/icons.js turns every data-icon host into an inline <svg> from the self-hosted
    Phosphor sprite (no CDN, no build step). This file references data-icon="tag" (a missing
    tile's price mark), data-icon="tray" (empty state, and the Relics tab), data-icon="caret-down"
@@ -50,7 +56,9 @@
     doc: null, cat: 0, q: '', missingOnly: false, buyable: false, src: '',
     /* the Relics tab: one store (state.relics, fetched once and cached), its own view/filter/sort */
     relics: null, relErr: false, relCounts: null,
-    view: 'items', relFilter: 'all', relSort: 'name', relDir: 1
+    view: 'items', relFilter: 'all', relSort: 'name', relDir: 1,
+    /* the Mastery section (moved here from the dashboard, stage 2): one cached payload + filter */
+    mastery: null, mhReq: null, mhFilter: 'all'
   };
 
   // ---------- helpers ----------
@@ -205,7 +213,7 @@
         cat.total ? (100 * cat.obtained / cat.total) : 0,
         cat.name + ': ' + cat.obtained + ' of ' + cat.total + ' collected (' +
         pctText(cat.pct) + ')');
-      t.addEventListener('click', function () { selectCategory(i); });
+      t.addEventListener('click', function () { goSection('collection'); selectCategory(i); });
       tabs.appendChild(t);
     });
     /* One more tab after the categories: the relic store. Its count is the store's own
@@ -217,12 +225,13 @@
       st && st.all ? (100 * st.owned / st.all) : 0,
       st ? 'Relics: ' + st.owned + ' of ' + st.all + ' owned (' +
         pctText(100 * st.owned / st.all) + ')' : 'Relics: store not loaded');
-    rt.addEventListener('click', selectRelics);
+    rt.addEventListener('click', function () { goSection('relics'); });
     tabs.appendChild(rt);
   }
 
   function selectCategory(i) {
     if (i === state.cat && state.view === 'items') return;
+    hideMastery();
     state.view = 'items';
     state.cat = i;
     buildTabs();
@@ -232,6 +241,7 @@
 
   function selectRelics() {
     if (state.view === 'relics') return;
+    hideMastery();
     state.view = 'relics';
     buildTabs();
     showRelicView(true);
@@ -743,6 +753,257 @@
     paintSource();
     buildTabs();
     render();
+    paintNav(sectionFromHash());      // #mastery / #relics deep links open their section
+  }
+
+  /* ---------- sections: Collection | Relics | Mastery ----------
+     Stage 2 (2026-09-28) moved the Mastery helper out of the dashboard's rail and into this page.
+     The row under the pill bar (Collection | Relics | Mastery | Cards) is the page's own section
+     nav: the first three are sections of THIS page (hash-routed, deep-linkable), Cards is still
+     its own page. Exactly one section is visible at a time - the category tab strip (with Relics
+     as its last tab) stays the Collection section's own control. */
+  function sectionFromHash() {
+    var raw = String(location.hash || '').replace(/^#/, '').split('?')[0].split('/')[0];
+    return raw === 'relics' ? 'relics' : (raw === 'mastery' ? 'mastery' : 'collection');
+  }
+
+  function paintNav(sec) {
+    var nav = document.getElementById('collectionNav');
+    if (!nav) return;
+    var pills = nav.querySelectorAll('.navpill');
+    for (var i = 0; i < pills.length; i++) {
+      var on = pills[i].getAttribute('data-v') === sec;
+      pills[i].classList.toggle('active', on);
+      if (on) pills[i].setAttribute('aria-current', 'page');
+      else pills[i].removeAttribute('aria-current');
+    }
+  }
+
+  function hideMastery() {
+    var mh = document.getElementById('view-mastery');
+    if (mh) mh.classList.add('hidden');
+    var controls = document.querySelector('.cl-controls');
+    if (controls) controls.classList.remove('mh');
+    var tabs = document.getElementById('tabs');
+    if (tabs) tabs.classList.remove('hidden');
+    var meta = document.getElementById('meta');
+    if (meta) meta.classList.remove('hidden');
+  }
+
+  /* one visible section: the item grid (its toolbar + tab strip), the relic table, or Mastery */
+  function showSection(name) {
+    hideMastery();
+    var on = (name === 'relics' || name === 'mastery') ? name : 'collection';
+    if (on === 'mastery') {
+      state.view = 'mastery';
+      showRelicView(false);
+      document.getElementById('grid').classList.add('hidden');
+      document.getElementById('empty').classList.add('hidden');
+      var controls = document.querySelector('.cl-controls');
+      if (controls) controls.classList.add('mh');       // the search/tile filters are the grid's
+      document.getElementById('tabs').classList.add('hidden');
+      document.getElementById('meta').classList.add('hidden');
+      var mh = document.getElementById('view-mastery');
+      if (mh) mh.classList.remove('hidden');
+      renderMasteryPage();
+    } else if (on === 'relics') {
+      selectRelics();
+    } else {
+      selectCategory(state.cat);
+    }
+    paintNav(on);
+  }
+
+  /* a user action: write the hash and let the hashchange route - so #relics / #mastery are
+     deep-linkable and the back button walks the sections */
+  function goSection(name) {
+    var want = name === 'collection' ? '#collection' : '#' + name;
+    if (location.hash === want) showSection(name);
+    else location.hash = want;
+  }
+
+  /* ---------- Mastery helper (moved here from static/app.js, stage 2) ----------
+     What to master next, what it costs, how far the next rank is. The store ships already ranked
+     (owned-not-mastered first, then craftable cheapest first, MR-gated last), so next[] renders
+     in the store's own order - never re-sorted. The rank bar is NOT renderable as a percentage:
+     the save's item-derived mastery sits below the MR 22 cumulative floor (1,210,000) because
+     star chart / junction / Intrinsics mastery is not in the save file - mr.pct (0.0) is a floor,
+     not the truth - so the header prints the rank, the gap and a tooltip, and no bar. */
+  var MASTERY_SRC = '/api/feature/mastery';
+  var MH_NOTE = 'items only';
+  var MH_NOTE_TITLE = 'save data: items only, no star chart';
+  var MH_ROWS = 60;
+  var MH_FILTERS = [
+    ['all', 'All', function () { return true; }],
+    ['craft', 'Ready to build', function (r) {
+      return !!(r.build && r.build.verdict === 'CRAFT' && !(r.build.missing_parts || []).length);
+    }],
+    ['owned', 'Owned, not mastered', function (r) { return r.state === 'owned'; }],
+    ['missing', 'Missing', function (r) { return r.state === 'missing'; }]
+  ];
+
+  function pnum(v) {
+    if (v === null || v === undefined || v === '') return '—';
+    var n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n.toLocaleString() : '—';
+  }
+
+  function ago(ts) {
+    if (!ts) return '—';
+    var s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+    if (s < 90) return s + 's ago';
+    if (s < 5400) return Math.round(s / 60) + 'm ago';
+    return Math.round(s / 3600) + 'h ago';
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function mhEmpty(text) {
+    return '<div class="empty"><span class="empty-icon" data-icon="tray" data-icon-size="18">' +
+      '</span>' + escHtml(text) + '</div>';
+  }
+
+  /* one fetch, cached - opening the section again never refetches */
+  function loadMastery() {
+    if (state.mastery) return Promise.resolve(state.mastery);
+    if (!state.mhReq) {
+      state.mhReq = fetch(MASTERY_SRC).then(function (r) { return r.json(); })
+        .then(function (j) { return (j && typeof j === 'object' && !Array.isArray(j)) ? j : {}; })
+        .catch(function () { return {}; });
+    }
+    return state.mhReq.then(function (j) { state.mastery = j; return j; });
+  }
+
+  function renderMasteryPage() {
+    loadMastery().then(function (M) {
+      var ok = !!(M.mr && M.summary && Array.isArray(M.next));
+      ['mhNextCard', 'mhCatsCard'].forEach(function (id) {
+        var el2 = document.getElementById(id);
+        if (el2) el2.classList.toggle('hidden', !ok);
+      });
+      renderMasteryHead(M, ok);
+      if (ok) { renderMasteryNext(M); renderMasteryCats(M); }
+    });
+  }
+
+  function renderMasteryHead(M, ok) {
+    var head = document.getElementById('mhHead');
+    if (!head) return;
+    var meta = document.getElementById('mhMeta'), stats = document.getElementById('mhStats');
+    if (!ok) {
+      head.innerHTML = mhEmpty('No mastery data yet — run scripts/mastery.py');
+      if (stats) stats.innerHTML = '';
+      if (meta) { meta.textContent = ''; meta.title = ''; }
+      return;
+    }
+    var mr = M.mr || {}, s = M.summary || {};
+    if (meta) {
+      meta.textContent = M.updated ? '· synced ' + ago(M.updated) : '';
+      meta.title = 'live save XP + the collection log + craft verdicts';
+    }
+    head.innerHTML =
+      '<div class="pc-id">' +
+        '<span class="pc-alias">Mastery ' + pnum(mr.rank) + '</span>' +
+        '<span class="mh-gap" title="XP still needed for the next rank">to ' + pnum(mr.next_rank) +
+          ': ' + pnum(mr.xp_for_next) + ' XP</span>' +
+        '<span class="pc-mr"><span class="pc-mr-l">Item mastery</span><span class="pc-mr-v">' +
+          pnum(mr.xp_total) + '</span></span>' +
+      '</div>' +
+      '<div class="mh-note dim small" title="' + escHtml(MH_NOTE_TITLE) + '">' +
+        escHtml(MH_NOTE) + '</div>';
+    if (stats) stats.innerHTML =
+      '<div class="kpi" title="mastered of the tracked masterable items"><div class="k-label">Mastered</div>' +
+        '<div class="k-val">' + pnum(s.mastered) + '<span class="dim"> / ' + pnum(s.tracked) + '</span></div></div>' +
+      '<div class="kpi"><div class="k-label">Buildable now</div><div class="k-val">' +
+        pnum(s.buildable_now) + '</div></div>' +
+      '<div class="kpi"><div class="k-label">Owned, not mastered</div><div class="k-val">' +
+        pnum(s.owned_unmastered) + '</div></div>' +
+      '<div class="kpi"><div class="k-label">Missing</div><div class="k-val">' +
+        pnum(s.missing) + '</div></div>';
+  }
+
+  function mhCatNames(M) {
+    var map = {};
+    (M.categories || []).forEach(function (c) { map[c.key] = c.name || c.key; });
+    return map;
+  }
+
+  function mhPretty(s) { return String(s || '').replace(/_/g, ' '); }
+
+  function renderMasteryNext(M) {
+    var el2 = document.getElementById('mhNext');
+    if (!el2) return;
+    var all = Array.isArray(M.next) ? M.next : [];
+    var cats = mhCatNames(M);
+    var pick = MH_FILTERS.filter(function (f) { return f[0] === state.mhFilter; })[0] || MH_FILTERS[0];
+    var rows = all.filter(pick[2]);
+    var shown = rows.slice(0, MH_ROWS);
+    var filters = document.getElementById('mhFilters');
+    if (filters) filters.innerHTML = MH_FILTERS.map(function (f) {
+      return '<button data-f="' + f[0] + '" aria-pressed="' + (f[0] === pick[0]) + '"' +
+        (f[0] === pick[0] ? ' class="active"' : '') + '>' + f[1] +
+        ' <b>' + all.filter(f[2]).length + '</b></button>';
+    }).join('');
+    var meta = document.getElementById('mhNextMeta');
+    if (meta) meta.textContent = all.length ? '· ' + all.length : '';
+    var cap = document.getElementById('mhCap');
+    if (cap) cap.textContent = rows.length ? 'showing ' + shown.length + ' of ' + rows.length : '';
+    var head = '<div class="mh-row mh-head"><span>Name</span><span>Type</span><span>State</span>' +
+      '<span class="num">XP</span><span class="num">Cost</span><span>Where</span></div>';
+    el2.innerHTML = shown.length ? head + shown.map(function (r) {
+      var b = r.build || null, ob = r.obtain || null;
+      var priced = b && b.cost !== null && b.cost !== undefined;
+      return '<div class="mh-row" data-slug="' + escHtml(r.slug) + '" title="Click for the full item view">' +
+        '<span class="d-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
+        '<span class="dim">' + escHtml(cats[r.category] || mhPretty(r.category)) + '</span>' +
+        '<span><span class="chip mh-st-' + escHtml(r.state || 'missing') + '">' +
+          escHtml(r.state || '—') + '</span></span>' +
+        '<span class="num">' + fmtInt(r.xp_value) + '</span>' +
+        '<span class="num">' + (priced ? fmtInt(b.cost) + 'p' : '<span class="dim">—</span>') + '</span>' +
+        '<span class="d-name dim" title="' + escHtml(ob ? (ob.text || ob.short || '') : '') + '">' +
+          escHtml(ob ? (ob.short || ob.text || '—') : '—') + '</span>' +
+      '</div>';
+    }).join('') : mhEmpty('Nothing in this filter.');
+  }
+
+  function renderMasteryCats(M) {
+    var el2 = document.getElementById('mhCats');
+    if (!el2) return;
+    var cats = Array.isArray(M.categories) ? M.categories : [];
+    var meta = document.getElementById('mhCatsMeta');
+    if (meta) meta.textContent = cats.length ? '· ' + cats.length + ' types' : '';
+    el2.innerHTML = cats.length ? cats.map(function (c) {
+      var pct = Number(c.pct) || 0;
+      return '<div class="mh-cat">' +
+        '<span class="d-name" title="' + escHtml(c.name || c.key) + '">' +
+          escHtml(c.name || c.key) + '</span>' +
+        '<span class="num">' + pnum(c.mastered) + '/' + pnum(c.total) + '</span>' +
+        '<span class="pc-bar" title="' + pct + '% of this type mastered">' +
+          '<i style="width:' + pct + '%"></i></span>' +
+      '</div>';
+    }).join('') : mhEmpty('No types yet.');
+  }
+
+  /* filters re-render the window from the cached payload; a row opens the shared drawer */
+  function wireMastery() {
+    var filters = document.getElementById('mhFilters');
+    if (filters) filters.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-f]') : null;
+      if (!b) return;
+      state.mhFilter = b.getAttribute('data-f');
+      renderMasteryNext(state.mastery || {});
+    });
+    var next = document.getElementById('mhNext');
+    if (next) next.addEventListener('click', function (e) {
+      var row = e.target.closest ? e.target.closest('.mh-row[data-slug]') : null;
+      if (row && row.getAttribute('data-slug') && window.wfmOpenItem) {
+        window.wfmOpenItem(row.getAttribute('data-slug'));
+      }
+    });
   }
 
   /* The relic store: one fetch for the whole tab (805 relics, ~2.9 MB) cached on state.relics -
@@ -1099,6 +1360,22 @@
     });
   }
 
+  /* The section row (Collection | Relics | Mastery | Cards): the first three set the hash and the
+     hashchange router paints; Cards is a real page, so its pill is left alone. The Relics tab in
+     the category strip routes here too, so the row and the hash always agree. */
+  function wireSections() {
+    var nav = document.getElementById('collectionNav');
+    if (nav) nav.addEventListener('click', function (e) {
+      var a = (e.target && e.target.closest) ? e.target.closest('.navpill') : null;
+      if (!a || !a.getAttribute) return;
+      var v = a.getAttribute('data-v');
+      if (v !== 'collection' && v !== 'relics' && v !== 'mastery') return;   // Cards: a page
+      e.preventDefault();
+      goSection(v);
+    });
+    window.addEventListener('hashchange', function () { showSection(sectionFromHash()); });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var q = document.getElementById('q');
     q.addEventListener('input', function () { state.q = q.value; renderActive(); });
@@ -1111,6 +1388,9 @@
     wireDrawer();
     wireObtainTip();
     wireRelicTip();
+    wireMastery();
+    wireSections();
+    showSection(sectionFromHash());     // /collection.html#mastery / #relics open their section
 
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); return; }

@@ -175,8 +175,12 @@
 
 <div class="shellbody">
 <div class="shellcol">
-<nav class="mainnav subnav" aria-label="Collection sections">
+<!-- The page's section row (stage 2): three sections of THIS page, hash-routed, then Cards,
+     which stays its own page. #collection.html#mastery must open the Mastery section. -->
+<nav class="mainnav subnav" id="collectionNav" aria-label="Collection sections">
   <a href="/collection.html" class="navpill active" data-v="collection" aria-current="page">Collection</a>
+  <a href="/collection.html#relics" class="navpill" data-v="relics">Relics</a>
+  <a href="/collection.html#mastery" class="navpill" data-v="mastery">Mastery</a>
   <a href="/cards.html" class="navpill" data-v="cards">Cards</a>
 </nav>
 
@@ -228,6 +232,29 @@
         </div>
         <div class="cl-empty hidden" id="relNote"></div>
       </div>
+    </div>
+  </section>
+
+  <!-- Mastery (stage 2): the helper that used to be its own rail destination. Same cards, same
+       ids, same renderer behaviour (filters / categories / 60-row cap) - rendered by
+       /collection.js from /api/feature/mastery. Hidden until its section opens. -->
+  <section class="cl-mhview hidden" id="view-mastery" aria-label="Mastery helper">
+    <div class="card" id="mhCard">
+      <div class="card-head"><div class="card-title" data-icon="trophy">Mastery Helper <span class="dim small" id="mhMeta"></span></div></div>
+      <div id="mhHead"></div>
+      <div class="kpis" id="mhStats"></div>
+    </div>
+    <div class="card" id="mhNextCard">
+      <div class="card-head">
+        <div class="card-title" data-icon="target">Do this next <span class="dim small" id="mhNextMeta"></span></div>
+        <div class="ranges" id="mhFilters" role="group" aria-label="Mastery filters"></div>
+      </div>
+      <div id="mhNext"></div>
+      <div id="mhCap" class="mat-cap dim small"></div>
+    </div>
+    <div class="card" id="mhCatsCard">
+      <div class="card-head"><div class="card-title" data-icon="chart-bar">Progress by type <span class="dim small" id="mhCatsMeta"></span></div></div>
+      <div id="mhCats"></div>
     </div>
   </section>
 </main>

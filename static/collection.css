@@ -131,3 +131,41 @@
 .cl-empty b { color: var(--text); }
 .cl-empty code { font-family: var(--mono); color: var(--accent); }
 @media (max-width: 420px) { .cl-ov-num { font-size: 18px; } }
+
+/* ------------------------------------------------------------------ the section row
+   Collection | Relics | Mastery | Cards sits directly under the pill bar on the same line
+   (the page's own <style> gives .mainnav.subnav its margins). Nothing new here - the four
+   pills use the shell's .navpill recipe, "active" marks the open section. */
+
+/* ------------------------------------------------------------------ Mastery section
+   The helper that moved off the dashboard's rail (stage 2). Same cards, same ids; the row
+   recipes (#mhNext .mh-row, #mhCats .mh-cat, #mhCap) stay in style.css with the page-agnostic
+   view chrome - only the section's own layout lives here. The queue keeps the left column and
+   the type bars the right one, and both lists scroll inside their card instead of stretching
+   the page: 60 rows at 31px would otherwise be the tallest thing on the site. */
+.cl-mhview { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 0 10px; }
+.cl-mhview #mhCard { grid-column: 1 / -1; grid-row: 1; }
+.cl-mhview #mhNextCard { grid-column: 1; grid-row: 2; }
+.cl-mhview #mhCatsCard { grid-column: 2; grid-row: 2; }
+.cl-mhview #mhNextCard, .cl-mhview #mhCatsCard { display: flex; flex-direction: column; min-height: 0; }
+.cl-mhview #mhNext, .cl-mhview #mhCats {
+  flex: 1 1 auto; min-height: 0; max-height: min(62vh, 620px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.cl-mhview #mhCard .pc-id { padding: 6px 12px 2px; gap: 10px; }
+.cl-mhview #mhCard .pc-alias { font-size: 22px; }
+.cl-mhview #mhCard .mh-note { padding: 2px 12px 8px; }
+.cl-mhview #mhCard .kpis { padding: 4px 0 8px; gap: 10px; }
+@media (max-width: 1100px) {
+  .cl-mhview { grid-template-columns: minmax(0, 1fr); }
+  .cl-mhview #mhNextCard, .cl-mhview #mhCatsCard { grid-column: 1; }
+  .cl-mhview #mhNextCard { grid-row: 2; }
+  .cl-mhview #mhCatsCard { grid-row: 3; }
+  .cl-mhview #mhNext, .cl-mhview #mhCats { max-height: none; }
+}
+/* the Mastery section has no item grid: the toolbar row and the category strip are hidden
+   while it is open (collection.js toggles .mh / .hidden) */
+.cl-controls.mh { display: none; }
+/* ...and the strip really goes: style.css declares .tabs *after* .hidden, so the shared class
+   alone loses the tie on the item-type tabs (the section's own rule wins here, by id) */
+#tabs.hidden { display: none; }

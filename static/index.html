@@ -301,139 +301,283 @@
       </div>
   </section>
 
-  <!-- PLAYER - profile snapshot: mastery, clan, syndicates, intrinsics, focus, market -->
-  <section id="view-player" class="hidden">
-    <div class="p-cols">
-    <div class="p-col p-col-a">
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="user">Player <span class="dim small" id="pcMeta"></span></div></div>
-      <div id="pcHead" class="pc-id"></div>
-      <div class="kpis" id="pcStats"></div>
-      <div class="subhead" title="top 5 items by experience">Most XP</div>
-      <div class="picks" id="pcTop"></div>
+  <!-- TOOLS (stage 2): the launcher, then one focused workspace at a time.
+       #tools shows this list; #tools/<slug> shows that tool. Every list id the old
+       More page carried (dealsList .. metaList) and the moved player ids (pc*) live
+       below, in the workspace that owns them. -->
+  <section id="view-tools" class="hidden">
+    <div class="tl" id="toolsLauncher">
+      <div class="tl-head">
+        <div class="tl-title">Tools</div>
+        <div class="tl-sub" id="toolsSub">One workspace at a time</div>
+      </div>
+      <div class="tl-groups">
+        <div class="tl-group">
+          <div class="tl-ghead" data-icon="percent">Trading</div>
+          <a class="tool" href="#tools/deals" data-tool="deals">
+            <span class="tool-name" data-icon="percent">Deals</span>
+            <span class="tool-sub">Listings below the floor price</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/trends" data-tool="trends">
+            <span class="tool-name" data-icon="trend-up">Movers &amp; demand</span>
+            <span class="tool-sub">Price swings and volume</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/rivens" data-tool="rivens">
+            <span class="tool-name" data-icon="flask">Riven bands</span>
+            <span class="tool-sub">Bands by riven rank</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/wl" data-tool="wl">
+            <span class="tool-name" data-icon="eye">Watchlist</span>
+            <span class="tool-sub">Price bands and alerts</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+        </div>
+        <div class="tl-group">
+          <div class="tl-ghead" data-icon="calculator">Planning</div>
+          <a class="tool" href="#tools/ducats" data-tool="ducats">
+            <span class="tool-name" data-icon="coins">Ducats</span>
+            <span class="tool-sub">Ducat value of spare parts</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/craft" data-tool="craft">
+            <span class="tool-name" data-icon="hammer">Craft or buy</span>
+            <span class="tool-sub">Build cost against the market</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/relicev" data-tool="relicev">
+            <span class="tool-name" data-icon="cube">Relic EV</span>
+            <span class="tool-sub">Expected value per refinement</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/sets" data-tool="sets">
+            <span class="tool-name" data-icon="stack">Sets</span>
+            <span class="tool-sub">Completion and near misses</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+        </div>
+        <div class="tl-group">
+          <div class="tl-ghead" data-icon="crosshair">Warframe</div>
+          <a class="tool" href="#tools/baro" data-tool="baro">
+            <span class="tool-name" data-icon="storefront">Baro Ki'Teer</span>
+            <span class="tool-sub">Void trader stock</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/meta" data-tool="meta">
+            <span class="tool-name" data-icon="broadcast">Patch meta</span>
+            <span class="tool-sub">What moved after a patch</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/player" data-tool="player">
+            <span class="tool-name" data-icon="user">Player profile</span>
+            <span class="tool-sub">Mastery, syndicates, focus</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+        </div>
+      </div>
+      <div class="card tl-setup" id="setupCard">
+        <div class="card-head"><div class="card-title" data-icon="gear">Setup</div></div>
+        <div class="picks setup-rows">
+          <a class="movedlink setup-row" href="/settings.html">
+            <span class="srow-name" data-icon="sliders-horizontal">Settings</span>
+            <span class="srow-sub">trading rules, appearance, updates</span>
+          </a>
+          <a class="movedlink setup-row" href="/collection.html">
+            <span class="srow-name" data-icon="squares-four">Collection &amp; cards</span>
+            <span class="srow-sub">what you own and what is missing</span>
+          </a>
+          <a class="movedlink setup-row" href="/#search">
+            <span class="srow-name" data-icon="magnifying-glass">Search any item</span>
+            <span class="srow-sub">owned or not, from any page</span>
+          </a>
+        </div>
+      </div>
     </div>
-    </div>
-    <div class="p-col p-col-b">
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="shield-check">Syndicates <span class="dim small" id="pcSynMeta"></span></div></div>
-      <div id="pcSyn"></div>
-    </div>
-    </div>
-    <div class="p-col p-col-c">
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="rocket">Intrinsics</div></div>
-      <div id="pcInt" class="pc-cols"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="atom">Focus <span class="dim small" id="pcFocusMeta"></span></div></div>
-      <div id="pcFocus"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="tag">Market</div></div>
-      <div class="picks" id="pcMarket"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="users">Clan</div></div>
-      <div class="picks" id="pcClan"></div>
-    </div>
-    </div>
-    </div>
-  </section>
 
-  <!-- MASTERY - what to master next, what it costs, how far the next rank is -->
-  <section id="view-mastery" class="hidden">
-    <div class="card" id="mhCard">
-      <div class="card-head"><div class="card-title" data-icon="trophy">Mastery Helper <span class="dim small" id="mhMeta"></span></div></div>
-      <div id="mhHead"></div>
-      <div class="kpis" id="mhStats"></div>
+    <div id="toolsWs">
+      <div class="tws hidden" id="tws-deals" data-tool="deals" role="region" aria-label="Deals">
+        <div class="tws-bar">
+          <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+          <span class="tws-name">Deals</span>
+        </div>
+        <div class="tws-body cols-1">
+          <div class="card">
+            <div class="card-head"><div class="card-title" data-icon="percent">Deals <span class="dim small" id="dealsMeta"></span></div></div>
+            <div id="dealsList"></div>
+          </div>
+
+        </div>
     </div>
-    <div class="card" id="mhNextCard">
-      <div class="card-head">
-        <div class="card-title" data-icon="target">Do this next <span class="dim small" id="mhNextMeta"></span></div>
-        <div class="ranges" id="mhFilters" role="group" aria-label="Mastery filters"></div>
+    <div class="tws hidden" id="tws-trends" data-tool="trends" role="region" aria-label="Movers &amp; demand">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Movers &amp; demand</span>
       </div>
-      <div id="mhNext"></div>
-      <div id="mhCap" class="mat-cap dim small"></div>
+      <div class="tws-body cols-2">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="trend-up">Movers - price swings <span class="dim small" id="moversMeta"></span></div></div>
+          <div class="picks" id="moversList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="chart-line">Demand trends <span class="dim small" id="trendsMeta"></span></div></div>
+          <div class="picks" id="trendsList"></div>
+        </div>
+
+      </div>
     </div>
-    <div class="card" id="mhCatsCard">
-      <div class="card-head"><div class="card-title" data-icon="chart-bar">Progress by type <span class="dim small" id="mhCatsMeta"></span></div></div>
-      <div id="mhCats"></div>
+    <div class="tws hidden" id="tws-rivens" data-tool="rivens" role="region" aria-label="Riven bands">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Riven bands</span>
+      </div>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="flask">Riven bands <span class="dim small" id="rivensMeta"></span></div></div>
+          <div id="rivensList"></div>
+        </div>
+
+      </div>
     </div>
-  </section>
+    <div class="tws hidden" id="tws-wl" data-tool="wl" role="region" aria-label="Watchlist">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Watchlist</span>
+      </div>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="eye">Watchlist - bands &amp; alerts <span class="dim small" id="wlMeta"></span></div></div>
+          <div class="picks" id="wlList"></div>
+        </div>
 
-  <!-- MORE - market tools by intent + settings -->
-  <section id="view-more" class="hidden">
-    <details class="acc" open>
-      <summary>Make platinum <span class="dim small">deals, movers, demand trends</span></summary>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="percent">Deals <span class="dim small" id="dealsMeta"></span></div></div>
-        <div id="dealsList"></div>
       </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="trend-up">Movers - price swings <span class="dim small" id="moversMeta"></span></div></div>
-        <div class="picks" id="moversList"></div>
+    </div>
+    <div class="tws hidden" id="tws-ducats" data-tool="ducats" role="region" aria-label="Ducats">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Ducats</span>
       </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="chart-line">Demand trends <span class="dim small" id="trendsMeta"></span></div></div>
-        <div class="picks" id="trendsList"></div>
-      </div>
-    </details>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="coins">Ducats - sell or burn <span class="dim small" id="ducatsMeta"></span></div></div>
+          <div class="picks" id="ducatsList"></div>
+        </div>
 
-    <details class="acc">
-      <summary>Item decisions <span class="dim small">ducats, crafting, relics, sets</span></summary>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="coins">Ducats - sell or burn <span class="dim small" id="ducatsMeta"></span></div></div>
-        <div class="picks" id="ducatsList"></div>
       </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="hammer">Craft or buy <span class="dim small" id="craftMeta"></span></div></div>
-        <div id="craftList"></div>
+    </div>
+    <div class="tws hidden" id="tws-craft" data-tool="craft" role="region" aria-label="Craft or buy">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Craft or buy</span>
       </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="cube">Relic expected value <span class="dim small" id="relicsMeta"></span></div></div>
-        <div id="relicsList"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="stack">Set completion <span class="dim small" id="setsMeta"></span></div></div>
-        <div id="setsList"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="plus-circle">Almost complete <span class="dim small" id="nudgesMeta"></span></div></div>
-        <div class="picks" id="nudgesList"></div>
-      </div>
-    </details>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="hammer">Craft or buy <span class="dim small" id="craftMeta"></span></div></div>
+          <div id="craftList"></div>
+        </div>
 
-    <details class="acc">
-      <summary>Tracking <span class="dim small">watchlist price bands</span></summary>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="eye">Watchlist - bands &amp; alerts <span class="dim small" id="wlMeta"></span></div></div>
-        <div class="picks" id="wlList"></div>
       </div>
-    </details>
+    </div>
+    <div class="tws hidden" id="tws-relicev" data-tool="relicev" role="region" aria-label="Relic EV">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Relic EV</span>
+      </div>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="cube">Relic expected value <span class="dim small" id="relicsMeta"></span></div></div>
+          <div id="relicsList"></div>
+        </div>
 
-    <details class="acc">
-      <summary>Special markets <span class="dim small">rivens, Baro, patch meta</span></summary>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="flask">Riven bands <span class="dim small" id="rivensMeta"></span></div></div>
-        <div id="rivensList"></div>
       </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="storefront">Baro Ki'Teer <span class="dim small" id="baroMeta"></span></div></div>
-        <div class="picks" id="baroList"></div>
+    </div>
+    <div class="tws hidden" id="tws-sets" data-tool="sets" role="region" aria-label="Sets">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Sets</span>
       </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title" data-icon="broadcast">Post-patch meta <span class="dim small" id="metaMeta"></span></div></div>
-        <div class="picks" id="metaList"></div>
-      </div>
-    </details>
+      <div class="tws-body cols-2">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="stack">Set completion <span class="dim small" id="setsMeta"></span></div></div>
+          <div id="setsList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="plus-circle">Almost complete <span class="dim small" id="nudgesMeta"></span></div></div>
+          <div class="picks" id="nudgesList"></div>
+        </div>
 
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="gear">Setup</div></div>
-      <div class="picks">
-        <a class="movedlink" href="/settings.html">Settings - trading rules, appearance, updates →</a>
-        <a class="movedlink" href="/collection.html">Collection &amp; cards →</a>
-        <a class="movedlink" href="/#search">Search any item - owned or not →</a>
       </div>
+    </div>
+    <div class="tws hidden" id="tws-baro" data-tool="baro" role="region" aria-label="Baro Ki&#39;Teer">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Baro Ki&#39;Teer</span>
+      </div>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="storefront">Baro Ki'Teer <span class="dim small" id="baroMeta"></span></div></div>
+          <div class="picks" id="baroList"></div>
+        </div>
+
+      </div>
+    </div>
+    <div class="tws hidden" id="tws-meta" data-tool="meta" role="region" aria-label="Patch meta">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Patch meta</span>
+      </div>
+      <div class="tws-body cols-1">
+        <div class="card">
+          <div class="card-head"><div class="card-title" data-icon="broadcast">Post-patch meta <span class="dim small" id="metaMeta"></span></div></div>
+          <div class="picks" id="metaList"></div>
+        </div>
+
+      </div>
+    </div>
+    <div class="tws hidden" id="view-player" data-tool="player" role="region" aria-label="Player profile">
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Player profile</span>
+      </div>
+      <div class="tws-body cols-1">
+      <div class="p-cols">
+      <div class="p-col p-col-a">
+      <div class="card">
+        <div class="card-head"><div class="card-title" data-icon="user">Player <span class="dim small" id="pcMeta"></span></div></div>
+        <div id="pcHead" class="pc-id"></div>
+        <div class="kpis" id="pcStats"></div>
+        <div class="subhead" title="top 5 items by experience">Most XP</div>
+        <div class="picks" id="pcTop"></div>
+      </div>
+      </div>
+      <div class="p-col p-col-b">
+      <div class="card">
+        <div class="card-head"><div class="card-title" data-icon="shield-check">Syndicates <span class="dim small" id="pcSynMeta"></span></div></div>
+        <div id="pcSyn"></div>
+      </div>
+      </div>
+      <div class="p-col p-col-c">
+      <div class="card">
+        <div class="card-head"><div class="card-title" data-icon="rocket">Intrinsics</div></div>
+        <div id="pcInt" class="pc-cols"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title" data-icon="atom">Focus <span class="dim small" id="pcFocusMeta"></span></div></div>
+        <div id="pcFocus"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title" data-icon="tag">Market</div></div>
+        <div class="picks" id="pcMarket"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title" data-icon="users">Clan</div></div>
+        <div class="picks" id="pcClan"></div>
+      </div>
+      </div>
+      </div>
+      </div>
+    </div>
     </div>
   </section>
 </main>

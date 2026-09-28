@@ -79,6 +79,9 @@ header .btn, header a.btn { min-height: 32px; display: inline-flex; align-items:
 
 /* ---- sidebar rail (V1 shell) ---- */
 .shellbody { display: flex; align-items: stretch; min-height: 0; }
+/* index puts its views straight in .shellbody (no .shellcol), so the content column has to take
+   the rest of the row at EVERY window width - the fit block only re-pads it afterwards */
+.shellbody > main { flex: 1 1 auto; min-width: 0; }
 .side { flex: 0 0 206px; border-right: 1px solid var(--border); padding: 14px 10px 10px; }
 .side .sidenav {
   display: flex; flex-direction: column; align-items: stretch; gap: 2px;
@@ -96,13 +99,21 @@ header .btn, header a.btn { min-height: 32px; display: inline-flex; align-items:
   box-shadow: inset 2px 0 0 var(--accent);
 }
 .side .navpill::after { display: none; }          /* the breathing dot is a pill thing */
-.side .navpill[data-v="player"] { margin-top: 14px; }   /* main group, then you */
+/* the second group (Tools / Settings): one gap plus a hairline, so the rail reads as
+   "what you own and trade" first, then "what you reach for". The rule rides on the group class
+   the shell marks the second group with, not on a slug, so it survives a slug change. */
+.side .navpill.navsec { margin-top: 18px; }
+.side .navpill.navsec::before {
+  content: ""; position: absolute; left: 6px; right: 6px; top: -10px;
+  border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+}
 @media (max-width: 900px) {
   .shellbody { flex-direction: column; }
   .side { flex: 0 0 auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 10px; overflow-x: auto; }
   .side .sidenav { flex-direction: row; }
   .side .navpill { white-space: nowrap; }
-  .side .navpill[data-v="player"] { margin-top: 0; }
+  .side .navpill.navsec { margin-top: 0; }
+  .side .navpill.navsec::before { display: none; }
 }
 
 

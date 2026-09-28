@@ -1,12 +1,17 @@
-"""PLAYER page (#player): nav slot, view section, loader, payload contract, copy budget.
+"""PLAYER (now a Tools workspace): reachability, view section, loader, payload contract, copy budget.
+
+Stage 2 (2026-09-28): the Player profile is no longer a primary destination. Its markup moved
+into the Tools section of index.html as the `player` workspace (the wrapper keeps the old
+#view-player id, the pc* container ids are untouched), reached by #tools/player; the old #player
+hash forwards there. The renderer still lives in static/app.js.
 
 A sibling script writes data/player.json; the page reads it through the read-only
 /api/feature/player route. Nothing here reads the repo's data/ folder - the server_mod
 fixture points DATA at tmp_path and the fixtures below are the page's own stand-in.
 
 Contracts kept here (source-level, like tests/test_redesign_ia.py):
-  * the Player pill sits between Collection and More and is the fifth hash view;
-  * #player opens the section through the same VIEWS / VIEW_ALIAS path as the others;
+  * the Player workspace is reachable from the Tools launcher and by hash, and it is not a pill;
+  * #player resolves through app.js's redirect + VIEW_ALIAS to the tools view;
   * the payload is fetched once and cached on state - no polling, no second request;
   * every number the page prints goes through pnum(), so a missing field is a dash;
   * >60 chars of user copy must sit in an element marked .explain (Advanced switch).
@@ -63,31 +68,35 @@ def player_js():
 
 # ------------------------------------------------------------------ nav + view shell
 
-def test_player_pill_sits_between_collection_and_more():
+def test_player_is_not_a_primary_pill_it_is_a_tools_workspace():
+    """The rail carries six destinations and Player is not one of them. The profile is reached
+    from the Tools launcher (#tools/player) instead - see tests/test_ia_reachability.py."""
     rows = [(r[0], r[1], r[3]) for r in rail_rows()]
-    order = [v for v, _h, _l in rows]
-    assert order.index('collection') < order.index('player') < order.index('more')
-    pill = [r for r in rows if r[0] == 'player'][0]
-    assert pill[2] == 'Player'
-    assert pill[1] == '#player', 'the SPA reaches the view by hash'
+    assert 'player' not in [v for v, _h, _l in rows]
+    assert '#tools/player' not in [h for _v, h, _l in rows]
+    html = read('index.html')
+    launcher = html.split('id="toolsLauncher"', 1)[1].split('id="toolsWs"', 1)[0]
+    assert 'href="#tools/player" data-tool="player"' in launcher, 'the launcher links the profile'
+    assert 'id="toolsWs"' in html and 'data-tool="player"' in html
     assert shell_decl('index.html')[0] == 'index', 'index.html is the SPA that owns the hash views'
 
 
-def test_the_original_pills_survive_and_collection_stays_a_page():
+def test_the_original_destinations_survive_and_collection_stays_a_page():
     hrefs = [r[1] for r in rail_rows()]
-    for href in ('#home', '#inventory', '#trade', '#more'):
+    for href in ('#home', '#trade', '#inventory', '#tools', '/settings.html'):
         assert href in hrefs, href
     assert '/collection.html' in hrefs                      # still a sub-page, not a view
     assert '#collection' not in hrefs
 
 
-def test_player_view_section_exists_and_is_hidden_by_default():
+def test_player_workspace_exists_and_is_hidden_by_default():
     html = read('index.html')
-    assert 'id="view-player" class="hidden"' in html
+    assert '<div class="tws hidden" id="view-player" data-tool="player"' in html
     section = player_section()
     for node in ('pcHead', 'pcStats', 'pcTop', 'pcClan', 'pcSyn', 'pcInt', 'pcFocus', 'pcMarket'):
         assert 'id="%s"' % node in section, node
     assert section.count('class="card"') >= 6                 # player, clan, syndicates, intrinsics, focus, market
+    assert 'href="#tools" data-icon="arrow-left"' in section, 'every workspace has the way back'
 
 
 def test_every_container_the_page_renders_into_exists_in_the_markup():
@@ -99,16 +108,34 @@ def test_every_container_the_page_renders_into_exists_in_the_markup():
 
 # ------------------------------------------------------------------ hash routing + loader
 
-def test_player_hash_routes_like_the_other_views():
+def test_player_hash_routes_to_the_tools_workspace():
+    """#player is a legacy address now: applyHash() rewrites it to #tools/player, which is the
+    tools view carrying the player slug - the same path the launcher entry uses."""
     js = read('app.js')
     views = re.search(r'const VIEWS = \[([^\]]*)\]', js).group(1)
-    assert "'player'" in views, 'showView() must accept the player view'
+    assert "'tools'" in views and "'player'" not in views, 'Tools is the view; player is a workspace'
     alias = re.search(r'const VIEW_ALIAS = \{(.*?)\};', js, re.S).group(1)
-    assert "player: 'player'" in alias, '#player must resolve through VIEW_ALIAS'
+    assert "player: 'tools'" in alias, '#player must resolve through VIEW_ALIAS'
+    assert "location.replace('#tools/player')" in js, '#player rewrites to the workspace hash'
     router = js.split('function applyHash()', 1)[1].split('\n}', 1)[0]
-    assert 'VIEW_ALIAS[v]' in router and 'showView(view)' in router
-    show = js.split('function showView(v) {', 1)[1].split('\n}', 1)[0]
-    assert "v === 'player'" in show and 'renderPlayerPage()' in show
+    assert 'VIEW_ALIAS[v]' in router and 'showView(view, sub)' in router
+    show = js.split('function showView(v, sub) {', 1)[1].split('\n}', 1)[0]
+    assert "v === 'tools'" in show and 'showTool(sub' in show
+
+
+def test_the_tools_router_opens_exactly_one_workspace_and_renders_the_player():
+    js = read('app.js')
+    tool = js.split('function showTool(slug)', 1)[1].split('\n}', 1)[0]
+    assert "'player'" in js.split('const TOOL_SLUGS = [', 1)[1].split('];', 1)[0]
+    assert "renderPlayerPage()" in tool, 'opening the player workspace paints it'
+
+
+def test_the_whole_player_section_is_reachable_from_the_dom():
+    """The profile markup stayed whole: the wrapper id, the workspace hook and the launcher link."""
+    html = read('index.html')
+    assert 'id="view-player" data-tool="player"' in html
+    assert html.count('data-tool="player"') == 2, 'launcher entry + workspace wrapper'
+    assert 'href="#tools/player"' in html
 
 
 def test_loader_fetches_the_player_feature_once_and_caches_it():

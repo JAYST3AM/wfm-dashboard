@@ -121,7 +121,11 @@ def shell_decl(page):
 
 
 def rail_rows():
-    """The primary rail as shell.js declares it: one (data-v, href, icon, label) per pill."""
-    rows = re.findall(r"\['([a-z]+)',\s*'([^']+)',\s*'([a-z-]+)',\s*'([A-Za-z ]+)'\]", shell_js())
+    """The primary rail as shell.js declares it: one (data-v, href, icon, label) per pill.
+
+    Anchored to the RAIL table itself - the registry also carries RAIL_GROUPS (bare slug lists,
+    stage 2) and PAGES, whose tuples would otherwise look like rows to a bare findall."""
+    block = shell_js().split('var RAIL = [', 1)[1].split('];', 1)[0]
+    rows = re.findall(r"\['([a-z]+)',\s*'([^']+)',\s*'([a-z-]+)',\s*'([A-Za-z ]+)'\]", block)
     assert rows, 'shell.js no longer declares the rail registry'
     return rows

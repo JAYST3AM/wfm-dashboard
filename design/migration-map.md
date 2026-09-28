@@ -6,7 +6,7 @@ This file is the working map for the staged rebuild — update it as stages land
 
 ---
 
-## 1. Current user-facing destinations
+## 1. User-facing destinations (pre-migration audit; the "Where" column for the moved views is where they live now, after stage 2)
 
 | Where | What |
 |---|---|
@@ -16,7 +16,8 @@ This file is the working map for the staged rebuild — update it as stages land
 | `index.html` `#mastery` | Mastery helper (12 ids): card, next, filters, categories |
 | `index.html` `#player` | Player (11 ids): stats, syndicates, intrinsics, focus, market, clan |
 | `index.html` `#more` | 12 tool lists (25 ids): deals, movers, trends, ducats, craft, relicEV, sets, nudges, watchlist, rivens, baro, meta + setup |
-| `collection.html` | Collection grid + relics (`relicView`) + Cards subnav (28 ids) |
+| `collection.html` | Collection grid + relics (`relicView`) + the Mastery tab (`#view-mastery`, 12 `mh*` ids) + the section row (Collection / Relics / Mastery / Cards) |
+| `index.html` `#tools` | Tools launcher (three groups + `#setupCard`/`#foot`) and the 11 workspaces it opens one at a time: the 12 tool lists (25 ids: deals, movers, trends, ducats, craft, relicEV, sets, nudges, watchlist, rivens, baro, meta) and the Player profile (`#view-player`, 11 `pc*` ids) |
 | `cards.html` | Full TCG/card workspace (20 ids) |
 | `settings.html` | 5 setting cards, each save/list/status (36 ids) |
 | `item.html` | Full item analysis: pick, chart, trades, stats (25 ids) |
@@ -119,13 +120,13 @@ reshaped for the Home simplification; their tests get rewritten in the same stag
 
 | # | Stage | Owner now |
 |---|---|---|
-| 1 | Shared app shell (shell.js + shell.css) across all pages; functionality unchanged | **LANDED this wave** |
-| 2 | Primary nav rebuild: Home/Trade/Inventory/Collection … Tools/Settings; Mastery→Collection; Player→Tools; More→Tools | next wave |
+| 1 | Shared app shell (shell.js + shell.css) across all pages; functionality unchanged | **LANDED 2026-09-28** |
+| 2 | Primary nav rebuild: Home/Trade/Inventory/Collection … Tools/Settings; Mastery→Collection; Player→Tools; More→Tools | **LANDED 2026-09-28** |
 | 3 | Home simplification (today / next action / sell queue / alerts / recent; chat collapsible) | next wave |
 | 4 | Trade rework (Sell/Buy/History) + Safety/Advanced panel | next wave |
 | 5 | Inventory simplification (Items/Materials, column disclosure, dojo→Tools, history disclosure) | later |
-| 6 | Collection consolidation (Collection/Relics/Mastery/Cards) | later |
-| 7 | Tools workspaces | later |
+| 6 | Collection consolidation (Collection/Relics/Mastery/Cards) | **landed with stage 2** (Collection/Relics/Mastery sections + the four-pill row; Cards keeps its page) |
+| 7 | Tools workspaces | **landed with stage 2** (launcher + 11 focused workspaces) |
 | 8 | Settings navigation (one category at a time) | later |
 | 9 | Drawer vs full analysis normalisation | later |
 | 10 | Responsive + polish pass | last |
@@ -151,6 +152,60 @@ reshaped for the Home simplification; their tests get rewritten in the same stag
   that has none — which is how item.html's previously inert Theme button now opens the panel.
 - Regression guard: `tests/test_app_shell.py`; the pinned layout tests now read the shell registry
   (`conftest.rail_rows()`, `conftest.shell_decl()`).
+
+### Stage 2 landed (2026-09-28) — what moved, and where it lives now
+
+The rail is six destinations in two groups (`shell.js`: `RAIL` + `RAIL_GROUPS`; only the first pill
+of the second group carries `.navsec`, which draws the gap + hairline):
+
+| Pill | href | marks active when |
+|---|---|---|
+| Home | `/#home` | `#home` (the default hash) |
+| Trade | `/#trade` | `#trade` |
+| Inventory | `/#inventory` | `#inventory` |
+| Collection | `/collection.html` | any collection.html page (relics/mastery included) |
+| Tools | `/#tools` | `#tools` and every `#tools/<slug>` |
+| Settings | `/settings.html` | settings.html (it used to mark "More") |
+
+Mastery / Player / More are gone as pills. Their features:
+
+- **Mastery** → a tab of collection.html's section row (Collection / Relics / Mastery / Cards). The
+  markup moved whole (`#view-mastery`, ids `mhCard, mhMeta, mhHead, mhStats, mhNextCard, mhNextMeta,
+  mhFilters, mhNext, mhCap, mhCatsCard, mhCatsMeta, mhCats`); the renderer moved from `app.js` to
+  `collection.js` against the same `/api/feature/mastery` route, same filters/categories/cap. Its
+  window-height grid is now `.cl-mhview` in `collection.css` (a normal page, so it scrolls).
+- **Player** → the `player` Tools workspace. The `#view-player` wrapper stayed (inside `#view-tools`,
+  `class="tws hidden"`, `data-tool="player"`), so the `pc*` ids and `renderPlayerPage()` are
+  untouched; `#player` redirects to `#tools/player`.
+- **More** → `#view-tools`: a LAUNCHER (`#toolsLauncher`, three groups - Trading / Planning /
+  Warframe - plus the old foot/Setup links in `#setupCard` with `#foot` still on the page), and
+  eleven focused workspaces (`#toolsWs`) that open exactly ONE at a time via `#tools/<slug>`:
+
+| slug | workspace id | list ids |
+|---|---|---|
+| `deals` | `tws-deals` | `dealsList` |
+| `trends` | `tws-trends` | `moversList` + `trendsList` |
+| `rivens` | `tws-rivens` | `rivensList` |
+| `wl` | `tws-wl` | `wlList` |
+| `ducats` | `tws-ducats` | `ducatsList` |
+| `craft` | `tws-craft` | `craftList` |
+| `relicev` | `tws-relicev` | `relicsList` |
+| `sets` | `tws-sets` | `setsList` + `nudgesList` |
+| `baro` | `tws-baro` | `baroList` |
+| `meta` | `tws-meta` | `metaList` |
+| `player` | `#view-player` | `pc*` |
+
+Legacy hashes all resolve (nothing lands blank): `#more` → `#tools`, `#market` → `#tools`,
+`#player` → `#tools/player`, `#mastery` → `/collection.html#mastery` (a real redirect - mastery is
+not an SPA view any more), `#history`/`#trader` → `#trade`. `VIEW_ALIAS` keeps the rest.
+
+Guards: `tests/test_ia_reachability.py` (rail registry order/groups, every slug reachable and its
+lists rendered, mastery tab + ids, player workspace, legacy hashes, Settings from the rail, no id
+from the stage 1 snapshot lost) plus the re-targeted pins in `test_ui_polish`, `test_redesign_ia`,
+`test_player_page`, `test_density_views`, `test_density_collection`, `test_mod_cards`,
+`test_item_page`. Headless: `design/_stage2/qa_ia.js` (rail per page, the four fit checks, the
+click-through of all 11 workspaces, the mastery tab, the legacy redirects, id union) and
+`design/_stage2/verify_ids.py` (0 missing vs `design/_stage1/ids_before.json`).
 
 Non-negotiables (spec): backend, user data, safety behaviour, dry_run / Not Live, kill switch,
 calculations, rank-aware pricing, collection/relic/mastery/cards data, multi-account, themes,

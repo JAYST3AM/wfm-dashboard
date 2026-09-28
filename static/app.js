@@ -10,7 +10,7 @@ function buildThemeGrid() { wfmBuildThemeGrid(); }
 
 /* ---------- data ---------- */
 let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADER = null, GAMENEWS = null, FEAT = {};
-let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', dojoTier: 'ghost', player: null, cfg: null, mastery: null, mhFilter: 'all' };
+let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', dojoTier: 'ghost', player: null, cfg: null };
 /* global item search cache - declared up here because the hash router can call into
    the search before the rest of the file has run (classic script, no module scope) */
 /* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. The one
@@ -51,12 +51,22 @@ function renderChips() {
 }
 
 /* ---------- views ---------- */
-const VIEWS = ['home', 'inventory', 'trade', 'mastery', 'player', 'more'];
-/* legacy hashes from the 9-pill era still resolve: #history/#trader -> trade, #market -> more */
-const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', more: 'more',
-  player: 'player', mastery: 'mastery', history: 'trade', trader: 'trade', market: 'more' };
+/* Stage 2 (2026-09-28): four hash views on this page. Mastery moved into Collection (its own
+   tab) and the Player profile became a Tools workspace, so neither is a destination of its own
+   any more - #mastery redirects to /collection.html#mastery and #player to #tools/player. */
+const VIEWS = ['home', 'inventory', 'trade', 'tools'];
+/* legacy hashes still resolve: #history/#trader -> trade, #market/#more -> tools,
+   #player -> the Tools player workspace, #mastery -> the Collection tab */
+const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', tools: 'tools',
+  more: 'tools', market: 'tools', player: 'tools', history: 'trade', trader: 'trade' };
 
-function showView(v) {
+/* the Tools workspaces, in launcher order: slug -> the list ids it owns. Every one is reachable
+   by hash (#tools/<slug>); '' is the launcher itself. Keep in step with the markup in
+   index.html and with tests/test_ia_reachability.py. */
+const TOOL_SLUGS = ['deals', 'trends', 'rivens', 'wl', 'ducats', 'craft', 'relicev', 'sets',
+  'baro', 'meta', 'player'];
+
+function showView(v, sub) {
   if (!VIEWS.includes(v)) v = 'home';
   VIEWS.forEach(name => {
     const el2 = document.getElementById('view-' + name);
@@ -66,9 +76,23 @@ function showView(v) {
     el2.classList.toggle('active', el2.dataset.v === v));
   if (window.PlatChart) PlatChart.redraw();
   if (v === 'trade') markScrollers();
-  if (v === 'player') renderPlayerPage();
-  if (v === 'mastery') renderMasteryPage();
+  if (v === 'tools') showTool(sub || '');
   if (v === 'home' && window.wfmRenderHome) wfmRenderHome();
+}
+
+/* Tools: one focused workspace at a time. The launcher (#tools) is the default, #tools/<slug>
+   opens that tool, and the player workspace is where the old Player view lives now. */
+function showTool(slug) {
+  if (TOOL_SLUGS.indexOf(slug) < 0) slug = '';
+  const launcher = document.getElementById('toolsLauncher');
+  if (launcher) launcher.classList.toggle('hidden', !!slug);
+  TOOL_SLUGS.forEach(s => {
+    /* by data-tool, not by id: the player workspace keeps the old #view-player id so its own
+       stylesheet rules and the tests that pin them still describe the moved content */
+    const el = document.querySelector('#toolsWs [data-tool="' + s + '"]');
+    if (el) el.classList.toggle('hidden', s !== slug);
+  });
+  if (slug === 'player') renderPlayerPage();
 }
 
 /* trade sub-tabs (Sell / Buy / History) */
@@ -87,13 +111,19 @@ function applyHash() {
   const [path, query] = raw.split('?');
   const [v, sub] = path.split('/');
   if (v === 'collection' || v === 'cards') { location.replace('/' + v + '.html'); return; }
+  /* legacy destinations that are sections now: Mastery is a Collection tab, the old More page and
+     the Player view are Tools. The hash is rewritten (replaceState-style, no history entry) so the
+     address always names the surface that is showing - nothing that resolved before 404s. */
+  if (v === 'mastery') { location.replace('/collection.html#mastery'); return; }
+  if (v === 'more' || v === 'market') { location.replace('#tools'); return; }
+  if (v === 'player') { location.replace('#tools/player'); return; }
   if (v === 'search') {
     showView('home');
     globalSearchOpen((new URLSearchParams(query || '')).get('q') || '');
     return;
   }
   const view = VIEW_ALIAS[v] || 'home';
-  showView(view);
+  showView(view, sub);
   if (view === 'trade') {
     switchTradeTab(v === 'history' ? 'tp-history' : (sub ? 'tp-' + sub : 'tp-sell'));
   }
@@ -1375,145 +1405,6 @@ async function loadTrader() {
 }
 /* ---------- /player page ---------- */
 
-/* ---------- mastery helper (#mastery): data/mastery.json ---------- */
-/* What to master next, what it costs, how far the next rank is. The store ships already ranked
-   (owned-not-mastered first, then craftable cheapest first, MR-gated last), so next[] renders
-   in the store's own order - never re-sorted. The rank bar is NOT renderable as a percentage:
-   the save's item-derived mastery sits below the MR 22 cumulative floor (1,210,000) because
-   star chart / junction / Intrinsics mastery is not in the save file - mr.pct (0.0) is a floor,
-   not the truth - so the header prints the rank, the gap and a tooltip, and no bar. */
-const MH_NOTE = 'items only';
-const MH_NOTE_TITLE = 'save data: items only, no star chart';
-const MH_ROWS = 60;
-const MH_FILTERS = [
-  ['all', 'All', () => true],
-  ['craft', 'Ready to build', r => !!(r.build && r.build.verdict === 'CRAFT'
-                                       && !(r.build.missing_parts || []).length)],
-  ['owned', 'Owned, not mastered', r => r.state === 'owned'],
-  ['missing', 'Missing', r => r.state === 'missing'],
-];
-let MASTERY_REQ = null;
-
-/* one fetch, cached on state (like loadPlayer) - opening the view again never refetches */
-function loadMastery() {
-  if (state.mastery) return Promise.resolve(state.mastery);
-  if (!MASTERY_REQ) {
-    MASTERY_REQ = fetch('/api/feature/mastery').then(r => r.json())
-      .then(j => (j && typeof j === 'object' && !Array.isArray(j)) ? j : {})
-      .catch(() => ({}));
-  }
-  return MASTERY_REQ.then(j => { state.mastery = j; return j; });
-}
-
-function renderMasteryPage() {
-  loadMastery().then(M => {
-    const ok = !!(M.mr && M.summary && Array.isArray(M.next));
-    ['mhNextCard', 'mhCatsCard'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('hidden', !ok);
-    });
-    renderMasteryHead(M, ok);
-    if (ok) { renderMasteryNext(M); renderMasteryCats(M); }
-  });
-}
-
-function renderMasteryHead(M, ok) {
-  const head = document.getElementById('mhHead');
-  if (!head) return;
-  const meta = document.getElementById('mhMeta'), stats = document.getElementById('mhStats');
-  if (!ok) {
-    head.innerHTML = `<div class="empty">${EMPTY_ICON}No mastery data yet — run scripts/mastery.py</div>`;
-    if (stats) stats.innerHTML = '';
-    if (meta) { meta.textContent = ''; meta.title = ''; }
-    return;
-  }
-  const mr = M.mr || {}, s = M.summary || {};
-  if (meta) {
-    meta.textContent = M.updated ? '· synced ' + ago(M.updated) : '';
-    meta.title = 'live save XP + the collection log + craft verdicts';
-  }
-  head.innerHTML =
-    `<div class="pc-id">` +
-      `<span class="pc-alias">Mastery ${pnum(mr.rank)}</span>` +
-      `<span class="mh-gap" title="XP still needed for the next rank">to ${pnum(mr.next_rank)}: ${pnum(mr.xp_for_next)} XP</span>` +
-      `<span class="pc-mr"><span class="pc-mr-l">Item mastery</span><span class="pc-mr-v">${pnum(mr.xp_total)}</span></span>` +
-    `</div>` +
-    `<div class="mh-note dim small" title="${escHtml(MH_NOTE_TITLE)}">${escHtml(MH_NOTE)}</div>`;
-  if (stats) stats.innerHTML =
-    `<div class="kpi" title="mastered of the tracked masterable items"><div class="k-label">Mastered</div><div class="k-val">${pnum(s.mastered)}<span class="dim"> / ${pnum(s.tracked)}</span></div></div>` +
-    `<div class="kpi"><div class="k-label">Buildable now</div><div class="k-val">${pnum(s.buildable_now)}</div></div>` +
-    `<div class="kpi"><div class="k-label">Owned, not mastered</div><div class="k-val">${pnum(s.owned_unmastered)}</div></div>` +
-    `<div class="kpi"><div class="k-label">Missing</div><div class="k-val">${pnum(s.missing)}</div></div>`;
-}
-
-function mhCatNames(M) {
-  const map = {};
-  (M.categories || []).forEach(c => { map[c.key] = c.name || c.key; });
-  return map;
-}
-
-function renderMasteryNext(M) {
-  const el = document.getElementById('mhNext');
-  if (!el) return;
-  const all = Array.isArray(M.next) ? M.next : [];
-  const cats = mhCatNames(M);
-  const pick = MH_FILTERS.filter(f => f[0] === state.mhFilter)[0] || MH_FILTERS[0];
-  const rows = all.filter(pick[2]);
-  const shown = rows.slice(0, MH_ROWS);
-  const filters = document.getElementById('mhFilters');
-  if (filters) filters.innerHTML = MH_FILTERS.map(([k, label, test]) =>
-    `<button data-f="${k}" aria-pressed="${k === pick[0]}"${k === pick[0] ? ' class="active"' : ''}>` +
-    `${label} <b>${all.filter(test).length}</b></button>`).join('');
-  const meta = document.getElementById('mhNextMeta');
-  if (meta) meta.textContent = all.length ? '· ' + all.length : '';
-  const cap = document.getElementById('mhCap');
-  if (cap) cap.textContent = rows.length ? `showing ${shown.length} of ${rows.length}` : '';
-  const head = `<div class="mh-row mh-head"><span>Name</span><span>Type</span><span>State</span>` +
-    `<span class="num">XP</span><span class="num">Cost</span><span>Where</span></div>`;
-  el.innerHTML = shown.length ? head + shown.map(r => {
-    const b = r.build || null, ob = r.obtain || null;
-    const priced = b && b.cost !== null && b.cost !== undefined;
-    return `<div class="mh-row" data-slug="${escHtml(r.slug)}" title="Click for the full item view">
-      <span class="d-name" title="${escHtml(r.name)}">${escHtml(r.name)}</span>
-      <span class="dim">${escHtml(cats[r.category] || pretty(r.category))}</span>
-      <span><span class="chip mh-st-${escHtml(r.state || 'missing')}">${escHtml(r.state || '—')}</span></span>
-      <span class="num">${fmt(r.xp_value)}</span>
-      <span class="num">${priced ? fmt(b.cost) + 'p' : '<span class="dim">—</span>'}</span>
-      <span class="d-name dim" title="${escHtml(ob ? (ob.text || ob.short || '') : '')}">${escHtml(ob ? (ob.short || ob.text || '—') : '—')}</span>
-    </div>`;
-  }).join('') : `<div class="empty">${EMPTY_ICON}Nothing in this filter.</div>`;
-}
-
-function renderMasteryCats(M) {
-  const el = document.getElementById('mhCats');
-  if (!el) return;
-  const cats = Array.isArray(M.categories) ? M.categories : [];
-  const meta = document.getElementById('mhCatsMeta');
-  if (meta) meta.textContent = cats.length ? '· ' + cats.length + ' types' : '';
-  el.innerHTML = cats.length ? cats.map(c => {
-    const pct = Number(c.pct) || 0;
-    return `<div class="mh-cat">
-      <span class="d-name" title="${escHtml(c.name || c.key)}">${escHtml(c.name || c.key)}</span>
-      <span class="num">${pnum(c.mastered)}/${pnum(c.total)}</span>
-      <span class="pc-bar" title="${pct}% of this type mastered"><i style="width:${pct}%"></i></span>
-    </div>`;
-  }).join('') : `<div class="empty">${EMPTY_ICON}No types yet.</div>`;
-}
-
-/* filters re-render the 60-row window from the cached payload; a row opens the shared drawer */
-const mhFilterRow = document.getElementById('mhFilters');
-if (mhFilterRow) mhFilterRow.addEventListener('click', e => {
-  const b = e.target.closest('button[data-f]');
-  if (!b) return;
-  state.mhFilter = b.dataset.f;
-  renderMasteryNext(state.mastery || {});
-});
-const mhNextList = document.getElementById('mhNext');
-if (mhNextList) mhNextList.addEventListener('click', e => {
-  const row = e.target.closest('.mh-row[data-slug]');
-  if (row && row.dataset.slug && window.wfmOpenItem) wfmOpenItem(row.dataset.slug);
-});
-/* ---------- /mastery helper ---------- */
 
 /* ---------- init ---------- */
 const savedTheme = localStorage.getItem('wfm.theme');

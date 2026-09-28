@@ -27,19 +27,24 @@ def read(name):
 @pytest.mark.parametrize('page', PAGES)
 def test_every_page_carries_the_full_nav(page):
     """The rail lives in /shell.js now (stage 1): a page declares what it is, the shell renders
-    the same 7 pills on all of them. Both halves are pinned here - the page's declaration and the
-    shell's pill registry (order, href, icon, label), so neither can drift alone."""
+    the same six destinations on all of them. Stage 2 (2026-09-28) shrank the rail to what you
+    own and trade (Home / Trade / Inventory / Collection), a gap, then what you reach for (Tools /
+    Settings) - Mastery, Player and More left the primary row for a Collection tab / Tools
+    workspaces, so they are pinned by tests/test_ia_reachability.py instead of here."""
     key, _acts = shell_decl(page)
     assert '<script src="/shell.js"></script>' in read(page), page + ' must load the shared shell'
     rows = rail_rows()
-    assert [r[0] for r in rows] == ['home', 'inventory', 'trade', 'collection', 'mastery',
-                                    'player', 'more']
-    assert [r[1] for r in rows] == ['#home', '#inventory', '#trade', '/collection.html', '#mastery',
-                                    '#player', '#more']
-    assert [r[3] for r in rows] == ['Home', 'Inventory', 'Trade', 'Collection', 'Mastery',
-                                    'Player', 'More']
-    assert dict((r[0], r[2]) for r in rows)['mastery'] == 'trophy'    # the 7th pill is Mastery
+    assert [r[0] for r in rows] == ['home', 'trade', 'inventory', 'collection', 'tools', 'settings']
+    assert [r[1] for r in rows] == ['#home', '#trade', '#inventory', '/collection.html',
+                                    '#tools', '/settings.html']
+    assert [r[3] for r in rows] == ['Home', 'Trade', 'Inventory', 'Collection', 'Tools', 'Settings']
+    assert dict((r[0], r[2]) for r in rows)['tools'] == 'wrench'    # the 5th pill is Tools
+    assert dict((r[0], r[2]) for r in rows)['settings'] == 'gear-six'
     shell = shell_js()
+    # two groups, one gap: the split is data, so the rail cannot drift back to one flat row
+    assert "['home', 'trade', 'inventory', 'collection']," in shell
+    assert "['tools', 'settings']," in shell
+    assert 'navsec' in shell, 'the second group is marked for shell.css (gap + hairline)'
     assert "class=\"navpill' + (on ? ' active' : '')" in shell, 'exactly the active pill is marked'
     assert 'aria-current="page"' in shell, 'the page you are on announces itself'
     assert "data-v=\"' + v + '\"" in shell, 'every pill keeps its data-v (app.js routes on it)'
@@ -48,11 +53,12 @@ def test_every_page_carries_the_full_nav(page):
 
 def test_the_shell_rail_marks_the_page_that_owns_it():
     """data-shell decides the active pill: collection.html + cards.html own Collection (Cards is a
-    Collection section), settings.html sits under More, item has no pill (it is opened from a row),
-    and index follows its own hash the way app.js routes it."""
+    Collection section), settings.html owns Settings (it used to mark the removed More pill), item
+    has no pill (it is opened from a row), and index follows its own hash the way app.js routes it.
+    """
     shell = shell_js()
     for page, pill in (('collection.html', 'collection'), ('cards.html', 'collection'),
-                       ('settings.html', 'more'), ('item.html', '')):
+                       ('settings.html', 'settings'), ('item.html', '')):
         key, _acts = shell_decl(page)
         row = re.search(r'%s: \{(.*?)\n    \},' % key, shell, re.S)
         assert row, 'no shell entry for ' + key
@@ -62,12 +68,12 @@ def test_the_shell_rail_marks_the_page_that_owns_it():
     assert 'hash: true' in re.search(r'index: \{(.*?)\n    \},', shell, re.S).group(1)
 
 
-def test_settings_sits_under_more_with_its_own_subnav():
+def test_settings_sits_under_tools_with_its_own_subnav():
     html = read('settings.html')
     assert 'mainnav subnav' in html
     sub = html.split('mainnav subnav', 1)[1].split('</nav>', 1)[0]
     assert 'href="/settings.html" class="navpill active" aria-current="page"' in sub
-    assert 'href="/#more" class="navpill"' in sub
+    assert 'href="/#tools" class="navpill"' in sub
 
 
 def test_collection_and_cards_link_both_ways():

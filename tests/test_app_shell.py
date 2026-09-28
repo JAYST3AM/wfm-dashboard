@@ -53,14 +53,16 @@ def test_every_shell_page_loads_the_shared_shell_not_its_own_copy():
 
 def test_no_page_re_declares_the_chrome():
     """The whole point: header, rail and theme panel exist exactly once, in the shell. A page keeps
-    only its own sub-nav pills (collection/cards/settings use the same .navpill class for those)."""
+    only its own sub-nav pills (collection/cards use the same .navpill class for their section row,
+    which grew to Collection | Relics | Mastery | Cards in stage 2; settings keeps Tools | Settings).
+    """
     for page in SHELL_PAGES:
         html = read_static(page)
         for gone in ('<header>', 'id="mainnav"', 'id="themePanel"', 'id="themeBtn"',
                      'id="soundBtn"', 'id="chips"', 'class="brand"', '<aside class="side"',
                      'data-icon="speaker-', 'id="themeGrid"'):
             assert gone not in html, (page, gone)
-        assert html.count('class="navpill') <= 2, page + ': only the sub-nav pills may remain'
+        assert html.count('class="navpill') <= 4, page + ': only the sub-nav pills may remain'
     shell = shell_js()
     for once in ('<header>', 'id="mainnav"', 'id="themePanel"', 'id="chips"', 'id="themeGrid"'):
         assert shell.count(once) == 1, (once, shell.count(once))

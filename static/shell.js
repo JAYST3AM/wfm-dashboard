@@ -1,5 +1,10 @@
 /* WFM Trader - the shared app shell (one source for every page's chrome).
  *
+ * Stage 2 (2026-09-28): the rail carries the six primary destinations in two groups - Home /
+ * Trade / Inventory / Collection, then a gap, then Tools / Settings. Mastery lives inside
+ * Collection (its own tab), the Player profile is a Tools workspace, and the old More page is
+ * the Tools launcher. data-shell decides the active pill on every page.
+ *
  * Before this file, index.html / collection.html / cards.html / settings.html / item.html each
  * hand-declared the same header (brand, chips, global search, sound button, theme button + its
  * 60-theme panel, the settings/back link, sync state, refresh, PNG), the same left rail and their
@@ -45,7 +50,7 @@
       link: { href: '/', label: 'Dashboard', icon: 'arrow-left' },
     },
     settings: {
-      sub: 'settings', prefix: '/', active: 'more',
+      sub: 'settings', prefix: '/', active: 'settings',
       link: { href: '/', label: 'Dashboard', icon: 'arrow-left' },
     },
     item: {
@@ -54,21 +59,32 @@
     },
   };
 
-  /* the primary rail: the seven destinations, one order, the same icons on every page */
+  /* The primary rail: six destinations, one order, the same icons on every page.
+     Two groups - what you own and trade (Home / Trade / Inventory / Collection), then what you
+     configure and reach for (Tools / Settings). RAIL_GROUPS records the split; railHTML() marks
+     the second group so shell.css can hold it under a gap. Hrefs are either a hash view on the
+     SPA (prefixed per page: '#home' -> '/#home' off the SPA) or an absolute page. */
+  var RAIL_GROUPS = [
+    ['home', 'trade', 'inventory', 'collection'],
+    ['tools', 'settings'],
+  ];
   var RAIL = [
     ['home', '#home', 'house', 'Home'],
-    ['inventory', '#inventory', 'package', 'Inventory'],
     ['trade', '#trade', 'tag', 'Trade'],
+    ['inventory', '#inventory', 'package', 'Inventory'],
     ['collection', '/collection.html', 'squares-four', 'Collection'],
-    ['mastery', '#mastery', 'trophy', 'Mastery'],
-    ['player', '#player', 'user', 'Player'],
-    ['more', '#more', 'dots-three-circle', 'More'],
+    ['tools', '#tools', 'wrench', 'Tools'],
+    ['settings', '/settings.html', 'gear-six', 'Settings'],
   ];
+  var SECONDARY = RAIL_GROUPS[1];
 
-  /* the same aliases app.js routes with, so the rail pre-marks the pill the router will show */
-  var ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', more: 'more', player: 'player',
-    mastery: 'mastery', history: 'trade', trader: 'trade', market: 'more',
-    collection: 'collection', cards: 'collection' };
+  /* the same aliases app.js routes with, so the rail pre-marks the pill the router will show.
+     more/market were the old More page and player was its own view - all three are Tools now;
+     mastery lives inside Collection (its own tab). Keep this table in step with app.js
+     VIEW_ALIAS, or the rail marks one pill while the router shows another. */
+  var ALIAS = { home: 'home', trade: 'trade', inventory: 'inventory', tools: 'tools',
+    more: 'tools', market: 'tools', player: 'tools', mastery: 'collection',
+    history: 'trade', trader: 'trade', collection: 'collection', cards: 'collection' };
 
   function hashView() {
     var raw = String(location.hash || '').replace(/^#/, '').split('?')[0].split('/')[0];
@@ -134,12 +150,17 @@
 
   function railHTML(pg) {
     var active = pg.hash ? hashView() : pg.active;
+    /* only the FIRST pill of the second group is marked: the gap + hairline says "a new group
+       starts here", so Settings must not carry a second one under Tools */
+    var secOpener = SECONDARY.length ? SECONDARY[0] : '';
     var h = ['<aside class="side" aria-label="Primary">',
       '<nav class="mainnav sidenav" id="mainnav" aria-label="Primary">'];
     RAIL.forEach(function (p) {
-      var v = p[0], href = v === 'collection' ? p[1] : pg.prefix + p[1];
-      var on = v === active;
-      h.push('<a href="' + href + '" class="navpill' + (on ? ' active' : '') + '" data-v="' + v + '"' +
+      var v = p[0];
+      var href = p[1].charAt(0) === '#' ? pg.prefix + p[1] : p[1];
+      var on = v === active, sec = v === secOpener;
+      h.push('<a href="' + href + '" class="navpill' + (on ? ' active' : '') +
+        (sec ? ' navsec' : '') + '" data-v="' + v + '"' +
         ' data-icon="' + p[2] + '"' + (on ? ' aria-current="page"' : '') + '>' + p[3] + '</a>');
     });
     h.push('</nav>');
@@ -188,7 +209,7 @@
   /* public: the tests and the QA harness read the registry; pages never call this themselves.
      `mountedAt` records the document's readyState when mount() ran - it stays 'loading' because
      this script executes during parse, which is exactly the ordering the page scripts need. */
-  window.wfmShell = { PAGES: PAGES, RAIL: RAIL, ALIAS: ALIAS, mount: mount,
+  window.wfmShell = { PAGES: PAGES, RAIL: RAIL, RAIL_GROUPS: RAIL_GROUPS, ALIAS: ALIAS, mount: mount,
     headerHTML: headerHTML, railHTML: railHTML, hashView: hashView, pageKey: pageKey,
     actions: actionsFor, mountedAt: document.readyState, mounted: mount() };
 })();
