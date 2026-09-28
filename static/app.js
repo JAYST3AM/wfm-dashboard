@@ -72,8 +72,15 @@ function showView(v, sub) {
     const el2 = document.getElementById('view-' + name);
     if (el2) el2.classList.toggle('hidden', name !== v);
   });
-  document.querySelectorAll('#mainnav .navpill').forEach(el2 =>
-    el2.classList.toggle('active', el2.dataset.v === v));
+  /* The rail's mark moves with the router, in BOTH of its forms: .active is the paint and
+     aria-current="page" is the same fact for a screen reader (shell.js sets it at mount, so a
+     view switch used to leave it on Home - audit M1). The two may never disagree. */
+  document.querySelectorAll('#mainnav .navpill').forEach(el2 => {
+    const on = el2.dataset.v === v;
+    el2.classList.toggle('active', on);
+    if (on) el2.setAttribute('aria-current', 'page');
+    else el2.removeAttribute('aria-current');
+  });
   if (window.PlatChart) PlatChart.redraw();
   if (v === 'trade') markScrollers();
   if (v === 'tools') showTool(sub || '');
@@ -130,12 +137,25 @@ function applyHash() {
 }
 
 /* first run: setup has not built any data yet - say exactly what to do instead of
-   showing empty cards (a fresh clone has no data/ at all; SUMMARY comes back empty) */
+   showing empty cards (a fresh clone has no data/ at all; SUMMARY comes back empty).
+   The banner may only speak when there is genuinely NOTHING behind the page. One real reading -
+   a save file, the price feed, an inventory row, a catalogue total, a platinum snapshot - means
+   setup has already run, and then the "no data yet" card would be a lie (screenshot review,
+   2026-09-28: it showed over a 1,022p balance, a sell queue and 471 history events). */
+function hasAnyData(s) {
+  if (!s) return false;
+  if (s.lastdata_mtime || s.prices_mtime) return true;      /* a pipeline wrote a file */
+  if (s.items || s.priced || s.total_value || s.total_value_owned) return true;
+  const cats = s.by_cat || {};
+  if (Object.keys(cats).some(k => Number(cats[k]) > 0)) return true;
+  const pts = (s.plat_hist || {}).points || [];
+  return pts.length > 0;
+}
+
 function renderFirstRun() {
   const el = document.getElementById('firstRun');
   if (!el) return;
-  const s = SUMMARY || {};
-  const empty = !s.lastdata_mtime || !s.items;
+  const empty = !hasAnyData(SUMMARY);
   el.classList.toggle('hidden', !empty);
   if (!empty) { el.innerHTML = ''; return; }
   el.innerHTML = `
@@ -159,17 +179,39 @@ function renderFirstRun() {
    ride the strip's detail disclosure (home.js); nothing that used to be on Home left the app -
    game news is Tools > Game news, the session roll-up is Trade > History > Sessions. */
 
-/* the Today strip, in the order the brief gave: earned today, sales today, trades left, platinum
+/* The Today strip, in the order the brief gave: earned today, sales today, trades left, platinum
    now. The two day cells come from home.js (fed by /api/feature/progress): #todayEarned and
-   #todaySales read '-' until that answer lands, never an invented 0. One number, one place. */
+   #todaySales read '-' until that answer lands, never an invented 0. One number, one place.
+
+   The trade allowance has two possible bases, in order: the save's own TradesRemaining
+   (SUMMARY.trades) when the save carries it, else the limits reading (/api/feature/limits) - but
+   only while that reading still describes TODAY's window. The allowance resets every day, so a
+   reading from an older window is not today's number: that stays '-', never an invented value
+   (the title says why, and when the last reading was). */
+function tradesLeftReading() {
+  const s = SUMMARY || {};
+  if (s.trades !== null && s.trades !== undefined) {
+    return { v: s.trades, tip: 'trades left today (from the game save)' };
+  }
+  const L = FEAT.limits || {};
+  const now = Math.floor(Date.now() / 1000);
+  const reading = (L.trades_left !== null && L.trades_left !== undefined);
+  if (reading && L.status === 'OK' && (!L.reset_epoch || now < L.reset_epoch)) {
+    return { v: L.trades_left, tip: 'trades left in the current daily window' };
+  }
+  const last = (reading && L.ts) ? ' - last reading ' + ago(L.ts) : '';
+  return { v: null, tip: 'no reading for today: the allowance resets daily' + last };
+}
+
 function renderTodayStrip() {
   const s = SUMMARY || {}, ph = PLAT || {};
   const el = document.getElementById('kpis');
   if (!el) return;
+  const tl = tradesLeftReading();
   el.innerHTML = `
     <div class="kpi" title="platinum gained or spent today"><div class="k-label">Earned today</div><div class="k-val accent" id="todayEarned">—</div></div>
     <div class="kpi" title="sales logged today"><div class="k-label">Sales today</div><div class="k-val" id="todaySales">—</div></div>
-    <div class="kpi" title="daily trade allowance left"><div class="k-label">Trades left</div><div class="k-val" id="todayTrades">${s.trades ?? '—'}</div></div>
+    <div class="kpi" title="daily trade allowance left"><div class="k-label">Trades left</div><div class="k-val" id="todayTrades" title="${escHtml(tl.tip)}">${tl.v ?? '—'}</div></div>
     <div class="kpi" title="in-game platinum balance"><div class="k-label">Platinum now</div><div class="k-val"><span id="platinumNow">${(ph.now ?? s.plat ?? 0).toLocaleString()}</span>p</div></div>`;
 }
 

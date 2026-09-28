@@ -149,7 +149,7 @@
   const setMeta = (id, text, tip) => {
     const n = document.getElementById(id);
     if (!n) return;
-    if (!String(n.textContent || '').trim()) n.textContent = text || '';
+    if (text !== undefined && text !== null) n.textContent = text;
     if (tip) n.title = tip;
   };
 
@@ -448,10 +448,16 @@
   };
 
   /* ---------- C. recent : the last few trade events ---------- */
+  /* Newest first, whatever order the payload arrived in (the log file can hold its entries in any
+     order and a note is written when it is written). A note is not a trade: it renders as a note
+     row (three columns, no qty, no price), so a pinned "History tracking started" sitting above
+     year-old sales cannot be read as the newest sale (screenshot review, 2026-09-28). The line
+     under the title states the ordering, never a second copy of a row's own time. */
   const renderRecent = (host, d) => {
     clear(host);
-    const events = ((d.trades && d.trades.events) || []).filter((e) => e && typeof e === 'object');
-    setMeta('recentMeta', events.length && events[0].ts ? '\u00b7 latest ' + when(events[0].ts) : '');
+    const events = ((d.trades && d.trades.events) || []).filter((e) => e && typeof e === 'object')
+      .sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0));
+    setMeta('recentMeta', ' · newest first · notes are not trades');
     const body = block(host, 'Recent');
     if (!events.length) {
       const empty = add(body, 'div', 'empty');
@@ -463,10 +469,17 @@
     }
     const LABEL = { sale: 'Sold', purchase: 'Bought', listing: 'Listed', unlist: 'Unlisted', reprice: 'Repriced', note: 'Note' };
     events.slice(0, RECENT_EVENTS).forEach((e) => {
-      const row = el('div', 'h-ev');
+      const isNote = e.kind === 'note';
+      const row = el('div', isNote ? 'h-ev h-note' : 'h-ev');
       if (e.note) row.setAttribute('title', clip(e.note, 300));
       add(row, 'span', 'badge' + (e.kind ? ' ' + e.kind : ''), LABEL[e.kind] || e.kind || 'Event');
       add(row, 'span', 'h-name', clip(e.name || e.note || 'item', 60));
+      /* a note carries the log's own words, not a deal: no qty, no price - just when */
+      if (isNote) {
+        add(row, 'span', 'h-when', when(e.ts) || ago(e.ts));
+        body.appendChild(row);
+        return;
+      }
       add(row, 'span', 'h-num h-qty', e.qty === null || e.qty === undefined ? '' : e.qty + '\u00d7');
       const deal = (e.total !== null && e.total !== undefined) ? plat(e.total)
         : (e.plat !== null && e.plat !== undefined ? plat(e.plat) : null);

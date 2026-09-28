@@ -72,6 +72,41 @@ def test_the_strip_holds_every_number_once():
     assert 'renderKpis' not in js and 'renderHomeHero' not in js
 
 
+def test_trades_left_only_shows_a_reading_that_covers_today():
+    """The strip read SUMMARY.trades alone, so it printed '-' on every machine whose save does not
+    carry TradesRemaining (the local one included). It now falls back to the limits reading - but
+    only while that reading still describes TODAY's window: the allowance resets daily, so an
+    older reading is not today's number and must stay '-' (screenshot review 2026-09-28: show it
+    when the payload really carries it, never invent it)."""
+    js = read('static/app.js')
+    block = js.split('function tradesLeftReading()', 1)[1].split('function renderTodayStrip', 1)[0]
+    assert 'if (s.trades !== null && s.trades !== undefined)' in block, 'the save is the first basis'
+    assert 'const L = FEAT.limits || {};' in block
+    assert "L.status === 'OK'" in block
+    assert '(!L.reset_epoch || now < L.reset_epoch)' in block, 'an older window is not today'
+    assert "return { v: null, tip: 'no reading for today: the allowance resets daily' + last };" in block
+    assert 'last reading ' in block
+    # the cell renders the reading or the dash - nothing else, and the why is one hover away
+    assert 'id="todayTrades" title="${escHtml(tl.tip)}">${tl.v ?? ' in js
+
+
+def test_the_first_run_banner_only_speaks_when_there_is_truly_no_data():
+    """The banner read `!lastdata_mtime || !items`, so an EMPTY inventory table (items: 0) turned it
+    on while a 1,022p balance, a sell queue, 471 history events and the price feed were all
+    present (screenshot review, 2026-09-28). It may only render when every signal is absent -
+    a fresh clone with no data/ at all."""
+    js = read('static/app.js')
+    block = js.split('function hasAnyData(s)', 1)[1].split('function renderFirstRun', 1)[0]
+    for signal in ('s.lastdata_mtime', 's.prices_mtime', 's.items', 's.total_value',
+                   's.by_cat', 'plat_hist'):
+        assert signal in block, signal
+    assert 'const empty = !hasAnyData(SUMMARY);' in js
+    assert 'const empty = !s.lastdata_mtime || !s.items;' not in js, 'one empty field is not "no data"'
+    # the banner still exists, still guarded, still points at the setup entry point
+    assert 'function renderFirstRun' in js and "getElementById('firstRun')" in js
+    assert 'setup.bat' in js and 'renderFirstRun();' in js
+
+
 def test_the_band_order_is_the_markup_order():
     html = read('static/index.html')
     assert html.index('<!-- TODAY') < html.index('<!-- NEXT ACTION') < html.index('<!-- ALERTS')
@@ -155,6 +190,23 @@ def test_next_action_links_to_trade_when_no_buyer_is_known():
     assert '>No buyer in the run queue<' in js, 'the footer states the gap instead of inventing one'
 
 
+def test_next_action_is_the_one_primary_action_on_home():
+    """Screenshot review 2026-09-28: NEXT ACTION had to be the one obvious thing. Its button is the
+    page's only accent-filled control, the shell's Refresh drops to the quiet weight on the SPA
+    (it was the loudest thing on the page), and the action card's three metric cells got real
+    padding and a readable value size instead of hugging their dividers."""
+    css = read('static/home.css')
+    open_rule = css.split('#view-home .home-open {', 1)[1].split('}', 1)[0]
+    assert 'background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white 8%), var(--accent));' in open_rule
+    assert 'box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 25%, transparent);' in open_rule
+    assert 'body[data-shell="index"] header #refresh {' in css
+    assert 'body[data-shell="index"] header #refresh::after { content: none; }' in css
+    fact = css.split('#view-home .next-fact {', 1)[1].split('}', 1)[0]
+    assert 'padding: 9px 16px 10px' in fact
+    assert '#view-home .nf-v { margin-top: 4px; font-size: 15px;' in css
+    assert '#view-home .nf-l { font-size: 10.5px;' in css
+
+
 # ------------------------------------------------------------------ sell queue + alerts + recent
 
 def test_the_sell_queue_lists_different_items_with_one_action_each():
@@ -180,6 +232,22 @@ def test_recent_lists_trade_events_and_the_optional_chart_is_untouched():
     assert "((d.trades && d.trades.events) || [])" in js
     css = read('static/home.css')
     assert 'no-alerts' in css, 'the empty-alert state widens the action band'
+
+
+def test_recent_is_newest_first_and_a_note_never_reads_as_the_newest_trade():
+    """Screenshot review 2026-09-28: "History tracking started" (a log note, Sep 25) sat above
+    year-old sales and the card's line said "latest Sep 25", so the note read as the newest trade.
+    The list is sorted newest-first itself (never trusting the payload's order) and a note renders
+    as a note row - three columns, no qty/price cells - so the line under the title states the
+    ordering and never prints a second copy of a row's own time."""
+    js = read('static/home.js')
+    assert '.sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0))' in js
+    assert "setMeta('recentMeta', ' · newest first · notes are not trades');" in js
+    assert "const row = el('div', isNote ? 'h-ev h-note' : 'h-ev');" in js
+    assert "if (isNote) {" in js
+    css = read('static/home.css')
+    assert '.h-ev.h-note { grid-template-columns: max-content minmax(0, 1fr) max-content; }' in css
+    assert '.h-ev.h-note .badge { background: var(--panel2); }' in css
 
 
 # ------------------------------------------------------------------ the window fit

@@ -199,7 +199,8 @@
   .mcd-art > .mcd-type, .mcd-art > .mcd-missing-flag { z-index: 1; }
   .mcd-art > .mcd-pol, .mcd-art > .mcd-pol-name { position: relative; z-index: 1; }
   .mcd-art.has-art .mcd-pol, .mcd-art.has-art .mcd-pol-name { display: none; }
-  .mcd-art.has-art .mcd-type { color: color-mix(in srgb, white 78%, transparent); text-shadow: 0 1px 4px black; }
+  /* the type tag keeps the solid backing chip from /cards.css - it sits over bright artwork here,
+     so a bare coloured word (the old rule) could not be read (screenshot review, 2026-09-28) */
   /* the icon IS the complete in-game card (title, stat text and type banner are all baked
      into the image) - the drawn nameplate below it would print the title twice, so an icon
      card shows art only. Sibling combinator on purpose: cards built while the art probe is

@@ -217,13 +217,16 @@
     chips.textContent = '';
     var s = state.summary || {};
     var counts = countOwned();
-    chips.appendChild(chip('cards', s.cards != null ? s.cards : state.all.length, false, null,
-      'cards in the catalogue'));
-    chips.appendChild(chip('owned', s.owned != null ? s.owned : counts.owned, false, null,
+    /* Every count here comes from the cards THIS page loaded and filters over, so the chip row and
+       the "Showing X / Y mods" meta can never disagree (the build's own summary counts raw
+       catalogue rows - before the slug merge - which is a different basis). */
+    chips.appendChild(chip('cards', state.all.length || s.cards || 0, false, null,
+      'mod cards in this build'));
+    chips.appendChild(chip('owned', counts.owned, false, null,
       'mods you own at least one copy of'));
-    chips.appendChild(chip('missing', s.missing != null ? s.missing : counts.missing, false, null,
+    chips.appendChild(chip('missing', counts.missing, false, null,
       'mods you do not own'));
-    chips.appendChild(chip('dupes', s.dupes != null ? s.dupes : counts.dupes, counts.extra > 0, null,
+    chips.appendChild(chip('dupes', counts.dupes, counts.extra > 0, null,
       'mods owned more than once'));
     chips.appendChild(chip('quoted', quoteCount(), quoteCount() === 0, 'tag',
       'cards with a local price quote'));
@@ -294,6 +297,21 @@
     return line;
   }
 
+  /* Every rarity chip carries its own count, from one helper, so no chip sits count-less beside
+     its neighbours: the build's per-rarity owned/total, the local foil count for Prime/foil (foil
+     is a card trait, not a rarity key in the build) and the catalogue size for All. */
+  function foilStats() {
+    var owned = 0, total = 0;
+    state.all.forEach(function (c) { if (isFoil(c)) { total++; if (c.owned_copies > 0) owned++; } });
+    return { owned: owned, total: total, totalOnly: false };
+  }
+
+  function rarityBucket(key) {
+    if (key === '') return { owned: state.all.length, total: state.all.length, totalOnly: true };
+    if (key === 'Prime') return foilStats();
+    return ((state.summary && state.summary.rarities) || {})[key] || null;
+  }
+
   function buildRarityButtons() {
     var row = document.getElementById('rarityRow');
     row.textContent = '';
@@ -309,12 +327,13 @@
       btn.type = 'button';
       btn.setAttribute('data-rar', key);
       btn.appendChild(document.createTextNode(key === '' ? 'All' : (key === 'Prime' ? '★ Prime / foil' : key)));
-      var bucket = state.summary && state.summary.rarities ? state.summary.rarities[key] : null;
+      var bucket = rarityBucket(key);
       if (bucket) {
-        btn.appendChild(el('span', 'mcd-rank', ' ' + bucket.owned + '/' + bucket.total));
-        btn.title = bucket.owned + ' owned of ' + bucket.total;
-      } else if (key === '') {
-        btn.title = 'every rarity';
+        btn.appendChild(el('span', 'mcd-rank', ' ' +
+          (bucket.totalOnly ? bucket.total : bucket.owned + '/' + bucket.total)));
+        btn.title = bucket.totalOnly
+          ? 'every rarity · ' + bucket.total + ' cards in this build'
+          : bucket.owned + ' owned of ' + bucket.total;
       }
       btn.addEventListener('click', function () {
         state.rarity = (state.rarity === key) ? '' : key;
@@ -879,7 +898,6 @@
 
   function updateMeta() {
     var meta = document.getElementById('meta');
-    var counts = countOwned();
     var filters = [];
     if (state.rarity) filters.push(state.rarity === 'Prime' ? 'prime/foil' : state.rarity.toLowerCase());
     if (state.type) filters.push(state.type.toLowerCase());
@@ -888,22 +906,18 @@
     if (state.dupes) filters.push('dupes only');
     if (state.q) filters.push('“' + state.q + '”');
 
-    /* label + value, one line: what is on screen, then the collection's own counts. The build
-       notes and the rarity coverage live in title= (and the rarity buttons carry their counts),
-       so the visible line never turns into a paragraph. */
+    /* ONE line: what is on screen, what the filters cut it from, and which filters are on. The
+       collection's own counts live in the header chips (and the rarity buttons carry their
+       coverage) - repeating them here printed the same four numbers twice on one screen
+       (screenshot review, 2026-09-28). The build notes stay in title=. */
     meta.textContent = '';
     meta.appendChild(el('span', null, 'Showing '));
     meta.appendChild(el('b', null, state.shown + ' / ' + state.filtered.length));
     meta.appendChild(el('span', null, ' mods'));
+    if (state.filtered.length !== state.all.length) {
+      meta.appendChild(el('span', null, ' (of ' + state.all.length + ' in this build)'));
+    }
     if (filters.length) meta.appendChild(el('span', null, ' · filters: ' + filters.join(', ')));
-    meta.appendChild(el('span', null, ' · owned '));
-    meta.appendChild(el('b', null, String(counts.owned)));
-    meta.appendChild(el('span', null, ' · missing '));
-    meta.appendChild(el('b', null, String(counts.missing)));
-    meta.appendChild(el('span', null, ' · dupes '));
-    meta.appendChild(el('b', null, String(counts.dupes)));
-    meta.appendChild(el('span', null, ' · quoted '));
-    meta.appendChild(el('b', null, String(quoteCount())));
 
     var help = [];
     var s = state.summary || {};

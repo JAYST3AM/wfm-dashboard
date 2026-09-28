@@ -127,6 +127,27 @@ def test_mastery_player_and_more_are_not_primary_destinations():
     assert 'id="view-mastery"' in COLLECTION
 
 
+def test_the_spa_router_keeps_aria_current_on_the_active_pill():
+    """Audit M1 (2026-09-28): on the SPA the rail's .active followed the router while
+    aria-current="page" stayed on Home - shell.js writes it once, at mount, and showView() only
+    toggled .active. showView() now writes both from the same fact (trade / inventory / tools and
+    the workspace hashes all route through it), so the announcement can never disagree with the
+    painted pill. The multi-document pages keep the shell's mount-time mark, and their own subnav
+    setters move it the same way (collection.js / settings.js)."""
+    block = APP_JS.split('function showView(v, sub) {', 1)[1].split('if (window.PlatChart)', 1)[0]
+    assert "document.querySelectorAll('#mainnav .navpill')" in block
+    assert "const on = el2.dataset.v === v;" in block
+    assert "el2.classList.toggle('active', on);" in block
+    assert "if (on) el2.setAttribute('aria-current', 'page');" in block
+    assert 'else el2.removeAttribute(\'aria-current\');' in block
+    # one entry point: the initial route AND every hash change go through showView()
+    assert 'applyHash();' in APP_JS and "window.addEventListener('hashchange', applyHash);" in APP_JS
+    # the static pages are the shell's job, and they keep their own setters
+    assert 'aria-current="page"' in SHELL
+    assert "setAttribute('aria-current', 'page')" in read_static('collection.js')
+    assert "setAttribute('aria-current', 'page')" in read_static('settings.js')
+
+
 def test_settings_is_reachable_from_the_rail_and_links_back():
     assert ('settings', '/settings.html', 'Settings') in [(r[0], r[1], r[3]) for r in rail_rows()]
     assert "active: 'settings'" in SHELL.split('settings: {', 1)[1].split('},', 1)[0]

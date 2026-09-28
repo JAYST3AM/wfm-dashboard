@@ -85,9 +85,14 @@
 }
 .mcd-pol-name { font: 9px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .mcd-type {
-  position: absolute; top: 4px; left: 6px; font: 9px var(--mono); color: var(--muted);
-  text-transform: uppercase; letter-spacing: .5px; max-width: 62%; overflow: hidden;
+  /* a chip with a solid backing: over bright artwork the bare 9px word was unreadable
+     (screenshot review, 2026-09-28). Same recipe family as .mcd-desc, but opaque enough
+     to hold its own contrast on any art. */
+  position: absolute; top: 5px; left: 6px; font: 9px var(--mono); color: #eef2f8;
+  text-transform: uppercase; letter-spacing: .5px; max-width: 68%; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
+  background: rgba(8, 9, 12, .86); border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 999px; padding: 1px 6px; line-height: 1.6;
 }
 .mcd-missing-flag { font: 9.5px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .mcd-price {

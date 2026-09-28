@@ -61,14 +61,60 @@ def test_one_toolbar_row_is_the_only_control_block():
     assert '>Reset</button>' in html and 'title="Back to the default filters"' in html
 
 
-def test_meta_line_reads_shown_then_the_collection_counts():
+def test_the_meta_line_is_one_line_and_never_repeats_the_chips():
+    """Screenshot review 2026-09-28: the meta repeated owned/missing/dupes/quoted, which the header
+    chips already show - the same four numbers printed twice on one screen. The line is now what
+    is on screen, plus the build total only when a filter narrowed the set (and the filters)."""
     js = cards_js()
-    # one line: "Showing <b>N / M</b> mods · owned N · missing N · dupes N · quoted N"
-    for frag in ("'Showing '", "' mods'", "' · filters: '", "' · owned '", "' · missing '",
-                 "' · dupes '", "' · quoted '"):
-        assert frag in js, frag
-    assert "' of ' + state.all.length + ' mods'" not in js, 'the meta lost its third count'
+    assert "meta.appendChild(el('span', null, 'Showing '));" in js
+    assert "meta.appendChild(el('span', null, ' mods'));" in js
+    assert "meta.appendChild(el('span', null, ' · filters: ' + filters.join(', ')));" in js
+    for gone in ("' · owned '", "' · missing '", "' · dupes '", "' · quoted '",
+                 "' of ' + state.all.length + ' mods'"):
+        assert gone not in js, gone + ' is the repetition the review removed'
     assert "state.shown + ' / ' + state.filtered.length" in js
+    # the second number is only labelled when the filters narrowed the set
+    assert "if (state.filtered.length !== state.all.length) {" in js
+    assert "' (of ' + state.all.length + ' in this build)'" in js
+
+
+def test_the_chips_count_the_cards_this_page_loaded():
+    """One basis for the totals: the chips count the loaded card array (what the "Showing X / Y"
+    meta counts), so chip and header can never disagree - the build summary counts raw catalogue
+    rows, before the slug merge."""
+    js = cards_js()
+    assert "chip('cards', state.all.length || s.cards || 0, false, null," in js
+    for frag in ("chip('owned', counts.owned, false, null,",
+                 "chip('missing', counts.missing, false, null,",
+                 "chip('dupes', counts.dupes, counts.extra > 0, null,",
+                 "chip('quoted', quoteCount(), quoteCount() === 0, 'tag',"):
+        assert frag in js, frag
+    assert 'function countOwned()' in js and 'function quoteCount()' in js
+
+
+def test_every_rarity_chip_carries_a_count():
+    """The Prime / foil chip had no count while every neighbour showed owned/total (screenshot
+    review, 2026-09-28). Foil is a card trait, not a rarity key in the build, so it is counted
+    from the loaded cards; All shows the catalogue size."""
+    js = cards_js()
+    assert 'function foilStats()' in js
+    assert "if (isFoil(c)) { total++; if (c.owned_copies > 0) owned++; }" in js
+    assert "if (key === '') return { owned: state.all.length, total: state.all.length, totalOnly: true };" in js
+    assert "if (key === 'Prime') return foilStats();" in js
+    assert "bucket.totalOnly ? bucket.total : bucket.owned + '/' + bucket.total" in js
+    assert "btn.title = bucket.totalOnly" in js
+
+
+def test_the_type_tag_is_a_chip_with_a_solid_backing():
+    """Over bright artwork the bare 9px type word was unreadable (screenshot review, 2026-09-28):
+    it is now a solid-backed chip, and the per-face colour override that failed on art is gone."""
+    block = cards_css().split('.mcd-type {', 1)[1].split('}', 1)[0]
+    assert 'font: 9px var(--mono)' in block
+    assert 'background: rgba(8, 9, 12, .86)' in block
+    assert 'border: 1px solid rgba(255, 255, 255, .16)' in block
+    assert 'border-radius: 999px' in block
+    assert 'color: #eef2f8' in block
+    assert '.mcd-art.has-art .mcd-type' not in cards_html()
 
 
 # ------------------------------------------------------------------ local-only art
