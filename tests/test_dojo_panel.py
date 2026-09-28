@@ -206,7 +206,8 @@ def test_the_scope_is_a_title_tooltip_not_visible_copy():
 
 def test_the_head_counts_shout_credits_and_shortages():
     js = read('app.js')
-    assert "meta.textContent = `· ${dojoTierLabel(D, TT)} · ${fmt(credits)} cr · ${shortN} short`;" in js
+    # three values, each its own text node so the copy budget (8 words) holds on the head line
+    assert "sbits(meta, ['· ' + dojoTierLabel(D, TT), '· ' + fmt(credits) + ' cr', '· ' + shortN + ' short']);" in js
     assert "const shortN = rowsSrc.filter(m => (m.short || 0) > 0).length;" in js
     assert "const TT = (D.tier_totals || {})[state.dojoTier] || null;" in js
     assert "const rowsSrc = TT ? TT.materials : (D.materials || []);" in js   # no column -> ghost

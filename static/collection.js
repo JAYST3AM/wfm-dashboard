@@ -71,6 +71,27 @@
     return n;
   }
 
+  /* copy diet: a wiki-length data line is clipped to the 8-word budget and the caller keeps the
+     full text in the element's title. Trailing filler words go first. */
+  function clipWords(s, maxWords) {
+    var w = String(s == null ? '' : s).trim().split(/\s+/).filter(Boolean);
+    if (w.length <= maxWords) return w.join(' ');
+    var stop = /^(a|an|the|of|in|to|for|and|or|by|with|from|can|be|is|it|at|on)$/i;
+    var n = maxWords;
+    while (n > 1 && stop.test(w[n - 1])) n--;    /* trailing filler words go first */
+    return w.slice(0, n).join(' ') + '\u2026';
+  }
+
+  /* a drop label can arrive as a long wiki-style string (place + level band + mission, then the
+     rotation). The cell shows the place + rotation; the bracket detail stays in the title (set by
+     the caller), so nothing is lost. */
+  function dropLabel(lbl) {
+    var s = String(lbl == null ? '' : lbl);
+    if (s.split(/\s+/).filter(Boolean).length <= 8 && s.length <= 90) return s;
+    var cut = s.replace(/\s*\([^)]*\)/, ' ').replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim();
+    return clipWords(cut, 8);
+  }
+
   function fmtInt(v) {
     var n = Number(v);
     return isFinite(n) ? String(Math.round(n)) : '—';
@@ -305,8 +326,9 @@
 
     meta.textContent = '';
     meta.appendChild(el('b', null, cat.name));
-    meta.appendChild(document.createTextNode(' · ' + cat.obtained + '/' + cat.total + ' collected · ' +
-      missing + ' missing · ' + shown.length + ' shown'));
+    /* one value per text node: every visible string stays inside the copy budget */
+    [cat.obtained + '/' + cat.total + ' collected', missing + ' missing', shown.length + ' shown']
+      .forEach(function (s) { meta.appendChild(document.createTextNode(' · ' + s)); });
     if (state.missingOnly || state.buyable || state.q) {
       meta.appendChild(document.createTextNode(' (filtered)'));
     }
@@ -513,7 +535,7 @@
     if (kind === 'drop') {
       var line = (r.obtain.lines || [])[0];
       var lbl = (line && line.label) || '—';
-      var w = el('span', 'cl-rwheretxt', lbl);
+      var w = el('span', 'cl-rwheretxt', dropLabel(lbl));
       w.title = (line && line.detail) ? lbl + ' · ' + line.detail : lbl;
       where.appendChild(w);
     } else {
@@ -628,8 +650,9 @@
 
     meta.textContent = '';
     meta.appendChild(el('b', null, 'Relics'));
-    meta.appendChild(document.createTextNode(' · ' + counts.owned + '/' + counts.all + ' owned · ' +
-      counts.drop + ' dropping now · ' + rows.length + ' shown'));
+    /* one value per text node: every visible string stays inside the copy budget */
+    [counts.owned + '/' + counts.all + ' owned', counts.drop + ' dropping now', rows.length + ' shown']
+      .forEach(function (s) { meta.appendChild(document.createTextNode(' · ' + s)); });
     if (state.q || state.relFilter !== 'all') meta.appendChild(document.createTextNode(' (filtered)'));
   }
 
@@ -970,7 +993,7 @@
         '<span class="num">' + fmtInt(r.xp_value) + '</span>' +
         '<span class="num">' + (priced ? fmtInt(b.cost) + 'p' : '<span class="dim">—</span>') + '</span>' +
         '<span class="d-name dim" title="' + escHtml(ob ? (ob.text || ob.short || '') : '') + '">' +
-          escHtml(ob ? (ob.short || ob.text || '—') : '—') + '</span>' +
+          escHtml(ob ? clipWords(ob.short || ob.text || '—', 8) : '—') + '</span>' +
       '</div>';
     }).join('') : mhEmpty('Nothing in this filter.');
   }

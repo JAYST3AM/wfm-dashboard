@@ -103,6 +103,14 @@
   const matText = (arr) => (arr || []).filter((m) => m && m.name && num(m.delta))
     .slice(0, MATERIALS_SHOWN)
     .map((m) => clip(m.name, 24) + ' ' + signed(m.delta, '')).join(' \u00b7 ');
+  /* the visible line is a label + value: the top mover and how many follow (a full run of
+     materials read as a sentence). The whole list rides in the row title. */
+  const matShort = (arr) => {
+    const list = (arr || []).filter((m) => m && m.name && num(m.delta));
+    if (!list.length) return '';
+    const top = clip(list[0].name, 24) + ' ' + signed(list[0].delta, '');
+    return list.length > 1 ? top + ' \u00b7 +' + (list.length - 1) + ' more' : top;
+  };
 
   /* ---------- data helpers ---------- */
   const jok = (x) => (x && !x.error) ? x : null;   /* API answers can carry {error} */
@@ -294,7 +302,9 @@
     const mrow = statRow(body, 'Materials',
       mats.length ? (mtot !== null ? signed(mtot, '') : String(mats.length)) : UNKNOWN,
       noteFor(notes, /materials/i, 'No sample yet'));
-    subRow(mrow, matText(mats));
+    subRow(mrow, matShort(mats));
+    /* the whole list rides in the row title - the line keeps just the top mover */
+    if (mats.length > 1) mrow.setAttribute('title', clip(matText(mats), 220));
 
     /* the week roll-up from streaks{} (hours arrive fractional: 41.26) */
     const wp = num(st.plat_this_week), wt = num(st.trades_this_week), wh = fnum(st.hours_this_week);
@@ -336,10 +346,13 @@
     /* sign-in trouble: the planner could not reach the market site */
     const plan = (d.trader && d.trader.plan) || null;
     if (plan && typeof plan.account === 'string' && /^signin failed/i.test(plan.account)) {
+      /* the two lines are label + value; the whole sentence rides in the row title */
+      const why = String(plan.account).replace(/^signin failed:?\s*/i, '').trim();
       out.push({
         kind: 'warn',
         t: 'Could not sign in to the market site',
-        d: clip('Sign-in failed ' + plan.account.replace(/^signin failed:?\s*/i, ''), 80)
+        d: /cloudflare/i.test(why) ? 'Cloudflare check (403)' : clip(why, 40),
+        full: 'Sign-in failed: ' + why
       });
     }
 
@@ -376,12 +389,16 @@
       const live = count.hide - planned;
       const bits = [];
       if (live) bits.push(plural(live, 'listing is', 'listings are') + ' hidden while you are offline');
-      if (planned) bits.push(plural(planned, 'planned listing is', 'planned listings are') + ' parked until posting goes live');
+      /* the count is the value, the state is the info line below and the title: a full sentence
+         here read as prose on a dashboard */
+      if (planned) bits.push(plural(planned, 'planned listing parked', 'planned listings parked'));
       if (bits.length) {
         out.push({
           kind: 'info',
           t: bits.join(' \u00b7 '),
-          d: live ? '' : 'Not live - plan only'
+          d: live ? '' : 'Not live - plan only',
+          full: planned ? plural(planned, '1 planned listing is', planned + ' planned listings are')
+            + ' parked until live posting is switched on' : ''
         });
       }
     }
@@ -441,6 +458,8 @@
     const body = block(host, 'Needs attention');
     alerts.forEach((a) => {
       const row = el('div', 'h-alert h-alert-' + (a.kind || 'info'));
+      /* the two lines are label + value; the whole sentence rides in the row title */
+      if (a.full) row.setAttribute('title', clip(a.full, 220));
       add(row, 'div', 'h-alert-t', a.t);
       if (a.d) add(row, 'div', 'h-alert-d', a.d);
       body.appendChild(row);

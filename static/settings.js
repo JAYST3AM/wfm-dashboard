@@ -372,7 +372,11 @@ function fmtBytes(n) {
   return (i ? v.toFixed(1) : v) + ' ' + u[i];
 }
 
-function acctNote(text) { return el('div', 'st-acctnote', text); }
+function acctNote(text, title) {
+  var n = el('div', 'st-acctnote', text);
+  if (title) n.title = title;   /* where the detection came from is help, not a value */
+  return n;
+}
 
 function renderAccounts() {
   const box = document.getElementById('list-accounts');
@@ -399,7 +403,7 @@ function renderAccounts() {
   if (input) input.placeholder = det.name ? ('auto: ' + det.name) : 'new profile name';
   if (det.name) {
     const state = ACCT.current === det.name ? 'current' : (detProf ? 'profile exists' : 'no profile yet');
-    box.appendChild(acctNote('Detected ' + det.name + ' \u00b7 ' + (det.source || 'AlecaFrame') + ' \u00b7 ' + state));
+    box.appendChild(acctNote('Detected ' + det.name + ' · ' + state, det.source || 'AlecaFrame'));
   } else {
     box.appendChild(acctNote('No account detected (' + (det.reason || 'AlecaFrame not found') + ')'));
   }

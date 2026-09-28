@@ -126,7 +126,7 @@
   .cl-rownd, .cl-rrare, .cl-rref, .cl-rnone { font-family: var(--mono); font-size: 10.5px; }
   .cl-rownd { color: var(--text); }
   .cl-rrare { color: var(--muted); margin-left: 7px; }
-  .cl-rref { color: var(--accent-dim); margin-left: 5px; }
+  .cl-rref { color: var(--accent); margin-left: 5px; }   /* was --accent-dim: unreadable (1.85:1) on the dark-red palettes like Kuva Crimson; every palette keeps accent >= 3:1 vs panel (tests/test_themes.py) */
   .cl-rnone { color: var(--muted); }
   .cl-rbest, .cl-rwhere { overflow: hidden; }
   /* a long drop label or reward name is clipped, not wrapped: `nowrap` on a table cell beats a
@@ -264,9 +264,10 @@
 </div><!-- /shellcol -->
 </div><!-- /shellbody -->
 
-<footer class="cl-foot">
-  <span id="srcLine">Collection log built by <code>scripts/collection_log.py</code></span> · item icons from the WFCD image CDN ·
-  floor prices from this PC's local WFM snapshot (data/prices.json) · <a href="/">back to dashboard</a>
+<footer class="cl-foot" title="Collection log built by scripts/collection_log.py · item icons from the WFCD image CDN · floor prices from this PC's local WFM snapshot (data/prices.json)">
+  <span id="srcLine">Collection log built by <code>scripts/collection_log.py</code></span> ·
+  <span>item icons: WFCD CDN</span> · <span>prices: data/prices.json</span> ·
+  <a href="/">back to dashboard</a>
 </footer>
 
 <script src="/shell.js"></script>

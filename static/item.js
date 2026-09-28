@@ -133,7 +133,7 @@
     ];
     $('ipStats').innerHTML = '<table class="ip-table"><tbody>' + rows.map(function (x) {
       return '<tr><td' + (x.icon ? ' data-icon="' + x.icon + '"' : '') + '>' + esc(x.k) + '</td><td class="num"><b>' + esc(x.v) + '</b></td>' +
-        '<td class="ip-kind' + (x.wrap ? ' wrap' : '') + '" title="' + esc(x.why) + '">' + esc(x.why) + '</td></tr>';
+        '<td class="ip-kind' + (x.wrap ? ' wrap' : '') + '" title="' + esc(x.why) + '">' + esc(shortFact(x.why)) + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
 
@@ -163,11 +163,19 @@
     var span = pts > 1 ? (s.points[pts - 1][0] - s.points[0][0]) : 0;
     var days = Math.round(span / 86400 * 10) / 10;
     var src = s.salesOnly ? 'your own sales' : ((s.src && s.src.ask) === 'history' ? 'daily history backfill' : 'market snapshot');
-    $('ipMeta').textContent = pts
-      ? pts + ' points spanning ' + (span >= 86400 ? days + ' days' : Math.max(1, Math.round(span / 3600)) + ' hours') + ' · ' + src +
-        ' · newest ' + when(s.last)
-      : 'no points yet';
+    var meta = $('ipMeta');
+    /* the count and the newest reading are the values; the span and the source ride the title */
+    meta.textContent = pts ? pts + ' points · newest ' + when(s.last) : 'no points yet';
+    meta.title = pts ? 'spanning ' + (span >= 86400 ? days + ' days' : Math.max(1, Math.round(span / 3600)) + ' hours') + ' · ' + src : '';
     $('ipHint').innerHTML = series && series.auto ? 'auto 60s' : '';
+  }
+
+  /* copy diet: the kind cell shows the first fact of a data line; the whole line stays in the
+     cell's title (never dropped, never rewritten). */
+  function shortFact(s) {
+    var first = String(s == null ? '' : s).split(';')[0].trim();
+    var w = first.split(/\s+/).filter(Boolean);
+    return w.length <= 8 ? first : w.slice(0, 8).join(' ') + ' …';
   }
 
   /* ---------- data ---------- */

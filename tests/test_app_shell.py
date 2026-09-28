@@ -139,7 +139,7 @@ def test_the_subnavs_and_footers_stay_in_their_pages():
         html = read_static(page)
         assert '<nav class="mainnav subnav"' in html, page
         assert html.index('class="shellcol"') < html.index('class="mainnav subnav"'), page
-    assert '<footer class="cl-foot">' in read_static('collection.html')
+    assert '<footer class="cl-foot"' in read_static('collection.html')
     assert '<footer class="mcd-foot">' in read_static('cards.html')
     assert '<footer class="st-foot">' in read_static('settings.html')
     assert 'id="foot"' in read_static('index.html')

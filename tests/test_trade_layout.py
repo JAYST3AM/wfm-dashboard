@@ -34,9 +34,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # every trade id the stage-1 snapshot carried (design/_stage4/ids_before.json), plus the three
 # stage-4 additions. Reachability is the contract: each id is asserted somewhere in index.html.
+# 2026-09-28: Jay added the Orders tab (its own tab, first in the strip) - tt-orders / tp-orders
+# join this list here; nothing above was removed and the two new ids are also pinned in
+# tests/test_trade_orders_tab.py.
 TRADE_IDS = (
-    'view-trade', 'tradeTabs', 'tt-sell', 'tt-buy', 'tt-history', 'tt-advanced',
-    'tp-sell', 'tp-buy', 'tp-history', 'tp-advanced',
+    'view-trade', 'tradeTabs', 'tt-orders', 'tt-sell', 'tt-buy', 'tt-history', 'tt-advanced',
+    'tp-orders', 'tp-sell', 'tp-buy', 'tp-history', 'tp-advanced',
     'planMeta', 'btnPlan', 'btnCycle', 'planList', 'heldAcc', 'heldMeta', 'heldList',
     'attnMeta', 'btnWatch', 'attnList', 'hygieneAcc', 'hygieneMeta', 'btnHygiene', 'hygieneList',
     'flipsMeta', 'flipsList', 'wishMeta', 'wishList', 'histKpis', 'histMeta', 'hFilters',
@@ -144,7 +147,10 @@ def test_mark_scrollers_toggles_the_trade_lists_too():
     js = read('static/app.js')
     block = js.split('function markScrollers()', 1)[1].split('\n}', 1)[0]
     assert "document.querySelectorAll('.tablewrap').forEach" in block, 'the dojo pass stays'
-    assert "document.querySelectorAll('#view-trade .picks').forEach" in block
+    # 2026-09-28: the Orders ladder joined this pass (Jay's Orders tab, its own scroller) - the
+    # selector grew by one id, the behaviour and the cue test below are unchanged. The ladder's
+    # own pin lives in tests/test_trade_orders_tab.py.
+    assert "document.querySelectorAll('#view-trade .picks, #view-trade #ordValues').forEach" in block
     assert "(oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 2" in block, \
         'only a real scroller with more below gets the fade'
     for hook in ('markScrollers();', "if (v === 'trade') markScrollers();"):
@@ -168,7 +174,9 @@ def test_the_notes_column_has_a_real_width_budget():
     assert '#view-trade .prow .p-note > .advchip { flex: 0 1 auto; min-width: 0;' in css
     js = read('static/app.js')
     assert '<span class="p-notxt">${note}</span>${advNote(r.slug)}' in js
-    assert "const tip = escHtml(note) + (bits ? escHtml(' · advisor: ' + bits) : '');" in js
+    # the visible note keeps whole facts up to the 8-word budget; the title carries all of it
+    assert 'const note = fitSegments(noteFull, 8);' in js
+    assert "const tip = escHtml(noteFull) + (bits ? escHtml(' · advisor: ' + bits) : '');" in js
     assert 'class="p-note" title="${tip}"' in js, 'the full note + advisor line rides the title'
 
 
@@ -282,7 +290,12 @@ def test_the_three_tabs_and_the_advanced_layer_are_wired_as_one_tablist():
     html = read('static/index.html')
     sec = trade_section(html)
     nav = sec.split('<nav id="tradeTabs"', 1)[1].split('</nav>', 1)[0]
-    assert 'role="tablist"' in nav and nav.count('role="tab"') == 4
+    # 2026-09-28: the count moved 4 -> 5 because Jay asked for the Orders tab FIRST in the strip
+    # (it is pinned in tests/test_trade_orders_tab.py). Nothing was dropped, Sell is still the
+    # selected panel on load, and every other tab keeps its own exact button markup below.
+    assert 'role="tablist"' in nav and nav.count('role="tab"') == 5
+    assert ('id="tt-orders" data-tp="tp-orders" aria-selected="false" aria-controls="tp-orders">Orders</button>'
+            in nav)
     assert 'id="tt-sell" data-tp="tp-sell" aria-selected="true" aria-controls="tp-sell">Sell</button>' in nav
     for tid, tp, label in (('tt-buy', 'tp-buy', 'Buy'), ('tt-history', 'tp-history', 'History'),
                            ('tt-advanced', 'tp-advanced', 'Advanced')):
@@ -348,7 +361,7 @@ def test_every_trade_id_and_control_survives_the_layout_pass():
     html = read('static/index.html')
     for tid in TRADE_IDS:
         assert 'id="%s"' % tid in html, tid
-    # the sub-tabs keep their names and their role=tab wiring
+    # the sub-tabs keep their names and their role=tab wiring (Orders joined 2026-09-28, first)
     tabs = trade_section(html).split('</nav>', 1)[0]
-    for frag in ('role="tab"', '>Sell<', '>Buy<', '>History<', '>Advanced<'):
+    for frag in ('role="tab"', '>Orders<', '>Sell<', '>Buy<', '>History<', '>Advanced<'):
         assert frag in tabs, frag
