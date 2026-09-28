@@ -1,0 +1,152 @@
+{
+ "categories": {
+  "general": {
+   "hash": "#general",
+   "visible": [
+    "cat-general"
+   ],
+   "rows": 3,
+   "listIds": [
+    [
+     "list-updates",
+     3
+    ]
+   ],
+   "pill_active": true,
+   "pill_current": "page",
+   "active_pills": [
+    "Settings",
+    "general"
+   ],
+   "h_scroll": 0,
+   "buttons": 7
+  },
+  "trading": {
+   "hash": "#trading",
+   "visible": [
+    "cat-trading"
+   ],
+   "rows": 8,
+   "listIds": [
+    [
+     "list-trading",
+     8
+    ]
+   ],
+   "pill_active": true,
+   "pill_current": "page",
+   "active_pills": [
+    "Settings",
+    "trading"
+   ],
+   "h_scroll": 0,
+   "buttons": 1
+  },
+  "appearance": {
+   "hash": "#appearance",
+   "visible": [
+    "cat-appearance"
+   ],
+   "rows": 5,
+   "listIds": [
+    [
+     "list-appearance",
+     5
+    ]
+   ],
+   "pill_active": true,
+   "pill_current": "page",
+   "active_pills": [
+    "Settings",
+    "appearance"
+   ],
+   "h_scroll": 0,
+   "buttons": 1
+  },
+  "accounts": {
+   "hash": "#accounts",
+   "visible": [
+    "cat-accounts"
+   ],
+   "rows": 0,
+   "listIds": [
+    [
+     "list-accounts",
+     3
+    ]
+   ],
+   "pill_active": true,
+   "pill_current": "page",
+   "active_pills": [
+    "Settings",
+    "accounts"
+   ],
+   "h_scroll": 0,
+   "buttons": 1
+  },
+  "notifications": {
+   "hash": "#notifications",
+   "visible": [
+    "cat-notifications"
+   ],
+   "rows": 1,
+   "listIds": [
+    [
+     "list-notifications",
+     1
+    ]
+   ],
+   "pill_active": true,
+   "pill_current": "page",
+   "active_pills": [
+    "Settings",
+    "notifications"
+   ],
+   "h_scroll": 0,
+   "buttons": 0
+  },
+  "advanced": {
+   "hash": "#advanced",
+   "visible": [
+    "cat-advanced"
+   ],
+   "rows": 3,
+   "listIds": [
+    [
+     "list-verbose",
+     1
+    ],
+    [
+     "list-advanced",
+     2
+    ]
+   ],
+   "pill_active": true,
+   "pill_current": "page",
+   "active_pills": [
+    "Settings",
+    "advanced"
+   ],
+   "h_scroll": 0,
+   "buttons": 3
+  }
+ },
+ "ids": {
+  "rendered": 287,
+  "missing": []
+ },
+ "deep_links": {
+  "#trading": {
+   "visible": [
+    "cat-trading"
+   ],
+   "active": true,
+   "rows": 8
+  },
+  "(no hash)": [
+   "cat-general"
+  ]
+ },
+ "console_errors": [],
+ "problems": []
+}

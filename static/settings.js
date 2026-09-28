@@ -543,6 +543,38 @@ function initAccordion() {
   btn.addEventListener('click', () => setOpen(btn.getAttribute('aria-expanded') !== 'true'));
 }
 
+/* ---------- categories (stage 8): the page shows one at a time ----------
+   The section nav (#settingsCats) is the category list now. General is the default and an empty
+   or unknown hash falls back to it, so a deep link can never land on a blank page; the pills'
+   own hrefs carry the hash, and hashchange paints the nav, so Back/Forward work unchanged. */
+const CATS = ['general', 'trading', 'appearance', 'accounts', 'notifications', 'advanced'];
+
+function catFromHash() {
+  const raw = String(location.hash || '').replace(/^#/, '').split('?')[0].split('/')[0];
+  return CATS.indexOf(raw) >= 0 ? raw : CATS[0];
+}
+
+function showCat(name) {
+  const on = CATS.indexOf(name) >= 0 ? name : CATS[0];
+  CATS.forEach(c => {
+    const panel = document.getElementById('cat-' + c);
+    if (panel) panel.classList.toggle('hidden', c !== on);
+  });
+  const nav = document.getElementById('settingsCats');
+  if (!nav) return;
+  nav.querySelectorAll('[data-cat]').forEach(p => {
+    const here = p.dataset.cat === on;
+    p.classList.toggle('active', here);
+    if (here) p.setAttribute('aria-current', 'page');
+    else p.removeAttribute('aria-current');
+  });
+}
+
+function initCats() {
+  showCat(catFromHash());
+  window.addEventListener('hashchange', () => showCat(catFromHash()));
+}
+
 /* ---------- wiring ---------- */
 async function loadAll() {
   try { TRADER_CFG = await fetch('/api/trader/cfg').then(r => r.json()); } catch (e) { TRADER_CFG = null; }
@@ -552,6 +584,7 @@ async function loadAll() {
 
 initThemePanel();
 initAccordion();
+initCats();
 SAVE_GROUPS.forEach(g => {
   const btn = document.getElementById('btnSave-' + g.id);
   if (btn) btn.addEventListener('click', () => saveGroup(g));
