@@ -2,12 +2,14 @@
    Data: data/collection_log.json written by scripts/collection_log.py, served as
          /collection_log.json (static copy), /api/feature/collection or /data/collection_log.json.
          Plus data/relics_panel.json written by scripts/relics_panel.py and served as
-         /relics_panel.json - the relic store behind the 14th tab.
+         /relics_panel.json - the relic store behind the Relics section.
          Plus data/mastery.json served read-only as /api/feature/mastery - the Mastery helper,
          which moved off the dashboard's rail into this page in stage 2 (2026-09-28).
-   Sections: the row under the pill bar is Collection | Relics | Mastery | Cards. The first three
-   are sections of THIS page (hash-routed: /collection.html#relics, /collection.html#mastery) and
-   exactly one is visible at a time; Cards is still its own page.
+   Sections: the section row inside the page head is Collection | Relics | Mastery | Cards. The
+   first three are sections of THIS page (hash-routed: /collection.html#relics,
+   /collection.html#mastery, #collection for the item log) and exactly one is visible under the
+   head at a time; Cards is still its own page. The head itself (title + the log's counts + the
+   progress hairline + the row) always shows.
    Renders ONE category tab at a time (the log can hold ~800 items - only the active tab is
    built into the DOM), with an overall completion bar, search and missing/buyable filters.
    All injected strings are escaped/created as text nodes; no innerHTML with data
@@ -148,13 +150,15 @@
     c.appendChild(image(it, !got));
     c.appendChild(el('div', 'cl-name', it.name));
 
+    /* the flag row is always there, even when empty: every tile then keeps its name, its flags
+       and its price on the same three lines (an empty row is 13px of air, not a layout jump) */
     var flags = el('div', 'cl-flags');
     if (it.mastered) flags.appendChild(el('span', 'cl-flag mastered', 'mastered'));
     if (it.owned) flags.appendChild(el('span', 'cl-flag owned', 'owned'));
     if (it.mastery_req != null && it.mastery_req > 0) {
       flags.appendChild(el('span', 'cl-flag mr', 'MR' + fmtInt(it.mastery_req)));
     }
-    if (flags.childNodes.length) c.appendChild(flags);
+    c.appendChild(flags);
 
     if (!got) {
       if (it.floor) c.appendChild(floorLink(it));
@@ -174,8 +178,9 @@
        data-icon="robot"       Sentinels          data-icon="bug"       Companions
        data-icon="rocket"      Archwing           data-icon="cube"      Other
        data-icon="lightning"   K-Drives / Amps
-     The 14th tab (Relics) is not a collection_log category - it is the relic store, with the same
-     markup, count and bar treatment: data-icon="tray" */
+     Stage 6: the strip is the item log's own control again (13 categories). Relics used to ride
+     here as a 14th tab - it is a section of the page now, reached from the section row, and one
+     control per job means the strip never competes with it. */
   var TAB_ICONS = {
     'Warframes': 'user', 'Primary': 'crosshair', 'Secondary': 'crosshair', 'Melee': 'sword',
     'Sentinels': 'robot', 'Sentinel Weapons': 'crosshair', 'Companions': 'bug',
@@ -208,7 +213,7 @@
     var tabs = document.getElementById('tabs');
     tabs.textContent = '';
     state.doc.categories.forEach(function (cat, i) {
-      var on = state.view !== 'relics' && i === state.cat;
+      var on = i === state.cat;
       var t = tabShell(on, TAB_ICONS[cat.name], cat.name, cat.obtained + '/' + cat.total,
         cat.total ? (100 * cat.obtained / cat.total) : 0,
         cat.name + ': ' + cat.obtained + ' of ' + cat.total + ' collected (' +
@@ -216,17 +221,6 @@
       t.addEventListener('click', function () { goSection('collection'); selectCategory(i); });
       tabs.appendChild(t);
     });
-    /* One more tab after the categories: the relic store. Its count is the store's own
-       owned_distinct / count; before the store lands (or when it 404s) the count reads a dash
-       rather than a number nobody measured. */
-    var st = state.relCounts;
-    var rt = tabShell(state.view === 'relics', 'tray', 'Relics',
-      st ? st.owned + '/' + st.all : '—',
-      st && st.all ? (100 * st.owned / st.all) : 0,
-      st ? 'Relics: ' + st.owned + ' of ' + st.all + ' owned (' +
-        pctText(100 * st.owned / st.all) + ')' : 'Relics: store not loaded');
-    rt.addEventListener('click', function () { goSection('relics'); });
-    tabs.appendChild(rt);
   }
 
   function selectCategory(i) {
@@ -308,15 +302,11 @@
     grid.appendChild(frag);
 
     var missing = cat.total - cat.obtained;
-    var buyable = cat.items.filter(function (it) { return !isCollected(it) && it.floor; }).length;
 
     meta.textContent = '';
     meta.appendChild(el('b', null, cat.name));
-    meta.appendChild(document.createTextNode(' · ' + cat.obtained + '/' + cat.total + ' collected (' +
-      pctText(cat.pct) + ') · ' + missing + ' missing'));
-    if (buyable) meta.appendChild(document.createTextNode(' · ' + buyable + ' with a local price'));
-    meta.appendChild(document.createTextNode(' · showing ' + shown.length +
-      (shown.length === 1 ? ' item' : ' items')));
+    meta.appendChild(document.createTextNode(' · ' + cat.obtained + '/' + cat.total + ' collected · ' +
+      missing + ' missing · ' + shown.length + ' shown'));
     if (state.missingOnly || state.buyable || state.q) {
       meta.appendChild(document.createTextNode(' (filtered)'));
     }
@@ -634,14 +624,12 @@
     body.appendChild(frag);
     relNote(rows.length ? '' : (state.q.trim() || state.relFilter !== 'all'
       ? 'no relics match' : 'relic store is empty'));
+    dockFirst();                              // the dock follows the table: first row by default
 
     meta.textContent = '';
     meta.appendChild(el('b', null, 'Relics'));
-    meta.appendChild(document.createTextNode(' · ' + counts.owned + '/' + counts.all + ' owned (' +
-      pctText(counts.all ? 100 * counts.owned / counts.all : 0) + ')'));
-    meta.appendChild(document.createTextNode(' · ' + counts.drop + ' dropping now'));
-    meta.appendChild(document.createTextNode(' · showing ' + rows.length +
-      (rows.length === 1 ? ' relic' : ' relics')));
+    meta.appendChild(document.createTextNode(' · ' + counts.owned + '/' + counts.all + ' owned · ' +
+      counts.drop + ' dropping now · ' + rows.length + ' shown'));
     if (state.q || state.relFilter !== 'all') meta.appendChild(document.createTextNode(' (filtered)'));
   }
 
@@ -651,16 +639,19 @@
     var ov = doc.overall || {};
     document.getElementById('ovPct').textContent = pctText(ov.pct);
     document.getElementById('ovCount').textContent = fmtInt(ov.obtained) + ' / ' + fmtInt(ov.total) +
-      ' obtainable items collected';
+      ' collected';
     document.getElementById('ovBar').style.width = Math.max(0, Math.min(100, Number(ov.pct) || 0)) + '%';
 
+    /* the head's own counts: label + value, and the same words the mastery cards use. They are
+       exclusive buckets ("not owned" / "not mastered"), so an item that is both is in neither and
+       the four numbers never have to add up to the total. */
     var foot = document.getElementById('ovFoot');
     foot.textContent = '';
     var bits = [
-      ['mastered only', fmtInt(ov.mastered_only) + (ov.mastered_only === 1 ? ' item' : ' items')],
-      ['owned only', fmtInt(ov.owned_only)],
+      ['mastered, not owned', fmtInt(ov.mastered_only)],
+      ['owned, not mastered', fmtInt(ov.owned_only)],
       ['missing', fmtInt(ov.missing)],
-      ['missing w/ price', fmtInt(ov.missing_with_price)]
+      ['buyable', fmtInt(ov.missing_with_price)]
     ];
     bits.forEach(function (pair) {
       var s = el('span');
@@ -790,10 +781,12 @@
     if (meta) meta.classList.remove('hidden');
   }
 
-  /* one visible section: the item grid (its toolbar + tab strip), the relic table, or Mastery */
+  /* one visible section under the head: the item grid (its toolbar + tab strip), the relic table,
+     or Mastery. The head itself - title, counts, the section row - always shows. */
   function showSection(name) {
     hideMastery();
     var on = (name === 'relics' || name === 'mastery') ? name : 'collection';
+    var tabs = document.getElementById('tabs');
     if (on === 'mastery') {
       state.view = 'mastery';
       showRelicView(false);
@@ -801,17 +794,29 @@
       document.getElementById('empty').classList.add('hidden');
       var controls = document.querySelector('.cl-controls');
       if (controls) controls.classList.add('mh');       // the search/tile filters are the grid's
-      document.getElementById('tabs').classList.add('hidden');
+      if (tabs) tabs.classList.add('hidden');
       document.getElementById('meta').classList.add('hidden');
       var mh = document.getElementById('view-mastery');
       if (mh) mh.classList.remove('hidden');
       renderMasteryPage();
     } else if (on === 'relics') {
       selectRelics();
+      if (tabs) tabs.classList.add('hidden');   // the category strip belongs to the item grid
     } else {
       selectCategory(state.cat);
+      if (tabs) tabs.classList.remove('hidden');
     }
+    searchCopy(on);
     paintNav(on);
+  }
+
+  /* The one search box follows the section it filters: the item log's own categories, or the
+     relic store's names (the box has always filtered both - only the label was fixed). */
+  function searchCopy(on) {
+    var q = document.getElementById('q');
+    if (!q) return;
+    q.placeholder = on === 'relics' ? 'Search relics…' : 'Search this category…';
+    q.setAttribute('aria-label', on === 'relics' ? 'Search relics' : 'Search collection items');
   }
 
   /* a user action: write the hash and let the hashchange route - so #relics / #mastery are
@@ -1006,10 +1011,10 @@
     });
   }
 
-  /* The relic store: one fetch for the whole tab (805 relics, ~2.9 MB) cached on state.relics -
-     the tab count, the pills, the table and every hover card read that one payload. A 404 / a
-     half-written store leaves state.relErr set and the tab shows one short line instead; the log
-     tabs are untouched either way. */
+  /* The relic store: one fetch for the whole section (805 relics, ~2.9 MB) cached on
+     state.relics - the pills, the meta line, the table and every hover card read that one
+     payload. A 404 / a half-written store leaves state.relErr set and the section shows one short
+     line instead; the item log is untouched either way. */
   function loadRelics() {
     fetch(RELIC_SRC, { cache: 'no-cache' }).then(function (r) {
       if (!r.ok) throw new Error(RELIC_SRC + ' ' + r.status);
@@ -1020,11 +1025,9 @@
       }
       state.relics = json;
       state.relCounts = relCounts();
-      if (state.doc) buildTabs();                 // the tab count is the store's owned_distinct/count
       if (state.view === 'relics') renderRelics();
     }).catch(function () {
       state.relErr = true;
-      if (state.doc) buildTabs();
       if (state.view === 'relics') renderRelics();
     });
   }
@@ -1071,7 +1074,7 @@
   function tipPlaceholder() {
     var tip = tipEl();
     tip.textContent = '';
-    tip.appendChild(el('div', 'clt-note', 'Hover a relic'));
+    tip.appendChild(el('div', 'clt-note', 'No relic selected'));
     tip._rel = null; tip._chips = null; tip._list = null; tip._foot = null; tip._for = null;
   }
 
@@ -1081,7 +1084,9 @@
     var tip = tipEl();
     if (tip.parentNode !== dock) dock.appendChild(tip);
     tip.classList.add('docked');
-    if (!tip._rel) tipPlaceholder();       // nothing hovered yet: one short line, no prose
+    /* nothing hovered yet: one short line until the table renders (renderRelics docks its first
+       row, so this only shows while the store loads or when nothing matches) */
+    if (!tip._rel) tipPlaceholder();
   }
 
   function undockTip() {
@@ -1090,6 +1095,7 @@
     TIP.classList.remove('on');
     if (TIP.parentNode !== document.body) document.body.appendChild(TIP);
     TIP._rel = null; TIP._chips = null; TIP._list = null; TIP._foot = null; TIP._for = null;
+    markDockRow(null);
   }
 
   function tipRow(line) {
@@ -1256,15 +1262,44 @@
   }
 
   /* Rows of the relic table feed the docked card in place: hovering a row refills the card, and
-     leaving the table changes nothing - there is nothing to place and nothing to hide. */
+     leaving the table changes nothing - there is nothing to place and nothing to hide. The row
+     the card shows carries .sel, so the dock and the table read as one master/detail pair
+     instead of a card floating beside a list. */
+  function markDockRow(tr) {
+    var body = document.getElementById('relBody');
+    if (!body) return;
+    var rows = body.getElementsByTagName('tr');
+    for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('sel', rows[i] === tr);
+  }
+
+  function dockRow(tr) {
+    if (!tr || !tr._rel) return;
+    if (TIP && TIP._for === tr) return;            // same row: the card already shows it
+    fillRelicTip(tr).classList.add('on');
+    markDockRow(tr);
+  }
+
+  /* Nothing hovered yet (or the hovered row just left the filter): the dock shows the first row
+     on screen, so the left column is never an empty box. */
+  function dockFirst() {
+    if (!tipDocked()) return;
+    var body = document.getElementById('relBody');
+    var rows = body ? body.getElementsByTagName('tr') : [];
+    if (!rows.length || !rows[0]._rel) {
+      if (TIP && TIP._rel) tipPlaceholder();
+      markDockRow(null);
+      return;
+    }
+    dockRow(rows[0]);
+  }
+
   function wireRelicTip() {
     var table = document.getElementById('relTable');
     if (!table) return;
     table.addEventListener('mouseover', function (e) {
       var tr = (e.target && e.target.closest) ? e.target.closest('tr') : null;
       if (!tr || !tr._rel) return;
-      if (TIP && TIP._for === tr) return;            // same row: the card already shows it
-      fillRelicTip(tr).classList.add('on');
+      dockRow(tr);
     });
   }
 
@@ -1361,8 +1396,9 @@
   }
 
   /* The section row (Collection | Relics | Mastery | Cards): the first three set the hash and the
-     hashchange router paints; Cards is a real page, so its pill is left alone. The Relics tab in
-     the category strip routes here too, so the row and the hash always agree. */
+     hashchange router paints; Cards is a real page, so its pill is left alone. The row is links
+     in a nav, so Tab + Enter work with no extra wiring; arrow keys walk it and Home/End jump to
+     its ends, which is what a row of tabs is expected to do. */
   function wireSections() {
     var nav = document.getElementById('collectionNav');
     if (nav) nav.addEventListener('click', function (e) {
@@ -1372,6 +1408,19 @@
       if (v !== 'collection' && v !== 'relics' && v !== 'mastery') return;   // Cards: a page
       e.preventDefault();
       goSection(v);
+    });
+    if (nav) nav.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' &&
+          e.key !== 'Home' && e.key !== 'End') return;
+      var pills = nav.querySelectorAll('.navpill');
+      if (!pills.length) return;
+      var at = 0, i;
+      for (i = 0; i < pills.length; i++) { if (pills[i] === document.activeElement) at = i; }
+      var next = e.key === 'Home' ? 0
+        : (e.key === 'End' ? pills.length - 1
+          : (at + (e.key === 'ArrowRight' ? 1 : pills.length - 1)) % pills.length);
+      e.preventDefault();
+      pills[next].focus();
     });
     window.addEventListener('hashchange', function () { showSection(sectionFromHash()); });
   }

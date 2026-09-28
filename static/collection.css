@@ -20,19 +20,41 @@
 .cl-foot a { color: var(--muted); }
 .cl-foot a:hover { color: var(--accent); }
 
-/* ------------------------------------------------------------------ completion card
-   One row of numbers, a slimmer bar, the same four counts (111 -> ~81px). */
+/* The page's own scroll boxes get a thin, visible bar: the dock is 360px wide and a 10px
+   scrollbar inside it is a lot of chrome. Same idea the Trade list already uses. */
+.cl-relwrap, .cl-mhview #mhNext, .cl-mhview #mhCats, .cl-tip {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
+}
+.cl-relwrap::-webkit-scrollbar, .cl-mhview #mhNext::-webkit-scrollbar,
+.cl-mhview #mhCats::-webkit-scrollbar, .cl-tip::-webkit-scrollbar { width: 8px; height: 8px; }
+.cl-relwrap::-webkit-scrollbar-thumb, .cl-mhview #mhNext::-webkit-scrollbar-thumb,
+.cl-mhview #mhCats::-webkit-scrollbar-thumb, .cl-tip::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  border: 2px solid transparent; background-clip: content-box; border-radius: 8px;
+}
+
+/* ------------------------------------------------------------------ page head: title + counts +
+   the section row
+   Stage 6: the completion card became the page head. One row carries the page title, the log's
+   own percentage and counts (the foot counts right-aligned), a 3px progress hairline, then the
+   section row (Collection | Relics | Mastery | Cards) sitting flush on the head's bottom edge as
+   underlined tabs. One border style (1px var(--border)), no shadow, no second icon: the head is
+   the page's title block, not one more card in a stack of cards. */
 .cl-overall {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
-  padding: 9px 14px 10px; margin-bottom: 10px;
+  padding: 8px 14px 0; margin-bottom: 9px;
 }
 .cl-ov-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.cl-ov-title { font-size: 12px; font-weight: 600; letter-spacing: .3px; }
-.cl-ov-title::before { content: "◆"; color: var(--accent); font-size: 8px; margin-right: 7px; vertical-align: 2px; }
-.cl-ov-num { font-family: var(--mono); font-size: 19px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.cl-title {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0;
+  font-size: 14px; font-weight: 650; letter-spacing: .2px; color: var(--text);
+}
+.cl-title > .i { color: var(--accent); font-size: 14px; }
+.cl-ov-num { font-family: var(--mono); font-size: 17px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .cl-ov-sub { color: var(--muted); font-size: 11.5px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .cl-bar {
-  position: relative; height: 8px; margin-top: 8px; border-radius: 999px; overflow: hidden;
+  position: relative; height: 3px; margin-top: 7px; border-radius: 999px; overflow: hidden;
   background: var(--panel2); border: 1px solid var(--border);
 }
 .cl-bar > i {
@@ -40,9 +62,41 @@
   background: linear-gradient(90deg, var(--accent-dim), var(--accent));
   transition: width .35s ease;
 }
-.cl-ov-foot { margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 11px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cl-ov-foot {
+  margin-left: auto; display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted);
+  font-size: 11px; font-family: var(--mono); font-variant-numeric: tabular-nums;
+}
 .cl-ov-foot b { color: var(--text); font-weight: 600; }
 .cl-ov-foot .warn { color: var(--accent); }
+
+/* ------------------------------------------------------------------ the section row
+   Collection | Relics | Mastery | Cards: THE navigation for this page (stage 6 moved it out of
+   the shell column and into the head). Same anatomy for all four - icon + label + the same active
+   mark: the open section carries the accent and a 2px underline on the head's bottom edge, the
+   others stay muted. Cards is a real page (its own href), so it never becomes "active" here. */
+#collectionNav {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  margin: 5px 0 0; padding: 0; background: none; border: 0; border-radius: 0; max-width: none;
+}
+#collectionNav .navpill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px 5px;
+  border-radius: 6px 6px 0 0; color: var(--muted); font-size: 12.5px; font-weight: 600;
+}
+#collectionNav .navpill > .i-before { margin-right: 0; }   /* the flex gap owns the icon spacing */
+#collectionNav .navpill:hover { color: var(--text); background: var(--panel2); }
+#collectionNav .navpill.active {
+  color: var(--accent); background: transparent; box-shadow: inset 0 -2px 0 var(--accent);
+}
+#collectionNav .navpill::after { display: none; }          /* the breathing dot is the rail's */
+@media (max-width: 560px) {
+  /* shell.css spreads .navpill to a third of the row for the rail's folded band; the four
+     sections size to their own labels instead, so the row stays one line */
+  #collectionNav { gap: 0; }
+  #collectionNav .navpill {
+    padding: 6px 8px 5px; font-size: 12px; gap: 5px; flex: 0 0 auto; min-height: 0;
+  }
+}
+
 
 /* ------------------------------------------------------------------ search + toggle row */
 .cl-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 2px 0 8px; }
@@ -66,7 +120,7 @@
    Sixteen tabs over fourteen categories wrap to two rows either way; the rows themselves get
    tighter (6px of padding and a 3px gap to the count bar, 89 -> ~73px for the strip). */
 .cl-tabs { border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-.cl-tabs .tab { padding: 4px 11px; font-size: 12px; }
+.cl-tabs .tab { padding: 4px 8px; font-size: 12px; }   /* 13 tabs: one line at 1920 (1660 -> 1582px) */
 .cl-tab-count { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
 .cl-tab.active .cl-tab-count { color: var(--accent); }
 .cl-tab .cl-tab-bar {
@@ -75,7 +129,7 @@
 .cl-tab .cl-tab-bar > i { display: block; height: 100%; background: var(--accent); }
 
 /* ------------------------------------------------------------------ one-line meta */
-.cl-meta { color: var(--muted); font-size: 11.5px; margin: 5px 2px 8px; font-variant-numeric: tabular-nums; }
+.cl-meta { color: var(--muted); font-size: 11.5px; margin: 5px 0 8px; font-variant-numeric: tabular-nums; }
 .cl-meta b { color: var(--text); font-family: var(--mono); }
 .cl-meta .warn { color: var(--accent); }
 
@@ -110,13 +164,15 @@
   min-height: 29px; word-break: break-word;
 }
 .cl-card.miss .cl-name { color: var(--muted); }
-.cl-flags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.cl-flags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 13px; }
 .cl-flag {
   border-radius: 999px; padding: 1px 6px; font: 600 9.5px var(--mono);
   border: 1px solid var(--border); color: var(--muted); background: var(--panel2);
 }
 .cl-flag.mastered { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
-.cl-flag.owned { color: #4ade80; border-color: color-mix(in srgb, #4ade80 45%, transparent); background: color-mix(in srgb, #4ade80 12%, var(--panel2)); }
+/* owned keeps the neutral pill (the tile's own tint already says the account has it) and the
+   theme's positive tone, so a light theme never gets a dark-only green */
+.cl-flag.owned { color: var(--up); }
 .cl-flag.mr { color: var(--muted); }
 .cl-floor {
   display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
@@ -143,7 +199,7 @@
    view chrome - only the section's own layout lives here. The queue keeps the left column and
    the type bars the right one, and both lists scroll inside their card instead of stretching
    the page: 60 rows at 31px would otherwise be the tallest thing on the site. */
-.cl-mhview { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 0 10px; }
+.cl-mhview { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 0 10px; align-items: start; }
 .cl-mhview #mhCard { grid-column: 1 / -1; grid-row: 1; }
 .cl-mhview #mhNextCard { grid-column: 1; grid-row: 2; }
 .cl-mhview #mhCatsCard { grid-column: 2; grid-row: 2; }

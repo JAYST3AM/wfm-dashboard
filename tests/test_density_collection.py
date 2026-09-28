@@ -1,20 +1,30 @@
 """Collection page density (Jay 2026-09-27): "more page needs to be condensed, all pages should be
 condensed really."
 
-Source-level pins for the layout the headless probe measures (qa_collection_density.js):
-the item grid spends the horizontal room (12 tiles per row at 1920, 11 at 1440 - it was 8 inside a
+Source-level pins for the layout the headless probe measures (design/_stage6/qa_collection.js):
+the item grid spends the horizontal room (12 tiles per row at 1920, 9 at 1440 - it was 8 inside a
 1400px column at both), tiles and relic rows stay inside their budgets, and every id / control /
 column / filter the page and the other tests hook onto is still there. Nothing here removes an
 item, a tab, a count, a filter or a button - only the air between them.
 
-Measured (qa_collection_density.js, 1920x1080 / 1440x900):
-  document scrollHeight  2918 / 2918  ->  1680 / 1942
-  tiles with a top edge in the first screen  32 / 24  ->  72 / 50
-  tile height 147 -> 134 worst case (110 when a tile carries no flag row)
-  relic row 26 -> 23 (805-row table, same seven columns)
+Stage 6 (2026-09-28) consolidated the page around ONE section navigation: the head is now
+title + counts + progress hairline + the section row (Collection | Relics | Mastery | Cards), and
+the row is the only thing that switches sections. The pins below follow that: the head's own
+budget, the row as the single navigation, and the two places the sections used to be duplicated
+(the relic tab in the category strip, the blank docked card).
 
-The docked relic card is untouched in behaviour and still pinned by tests/test_relic_dock.py;
-these tests only guard that its rules stayed in the page while the density layer moved out.
+Measured (1920x1080 / 1440x900 / 390x844):
+  head (title + counts + bar + row)   79px / 79px   (the completion card alone was 86px)
+  section row                         29px / 29px (one line at 1920; the four tabs wrap below
+                                      560px only after the narrow-band padding step)
+  document scrollHeight  1733 / 2287 / 8744
+  tiles with a top edge in the first screen  72 / 45 / 4
+  tile height 127-132 - every tile carries its flag row now, so a row of tiles is one height
+  relic row 22.5 (805-row table, same seven columns); the docked card 360 / 300 / stacked
+
+The docked relic card keeps its behaviour (it is pinned by tests/test_relic_dock.py); what stage 6
+added is what it shows when nothing is hovered: the first row on screen, marked `.sel`. These
+tests only guard that the dock's rules stayed in the page while the density layer moved out.
 """
 import os
 import re
@@ -103,6 +113,13 @@ def test_one_tile_stays_inside_the_136px_budget():
     assert 2 * pad + thumb + 3 * gap + name_min + labels <= 136, 'tile grew past its budget'
 
 
+def test_every_tile_reserves_its_flag_row():
+    """A tile with no flags used to be 13px shorter than the one beside it; the row is always
+    there now, so names, flags and prices sit on the same three lines across the grid."""
+    assert 'min-height: 13px' in re.search(r'\.cl-flags \{([^}]*)\}', CSS).group(1)
+    assert 'c.appendChild(flags);' in JS
+
+
 def test_one_relic_row_stays_inside_the_28px_budget():
     line = '.cl-reltab tbody td { padding: 3px 9px; font-size: 11.5px; line-height: 1.35; }'
     assert line in HTML
@@ -115,8 +132,53 @@ def test_one_relic_row_stays_inside_the_28px_budget():
 
 def test_the_toolbar_and_tab_strip_are_one_size_down():
     assert '.cl-controls .btn { padding: 4px 12px; font-size: 11.5px; }' in CSS
-    assert '.cl-tabs .tab { padding: 4px 11px; font-size: 12px; }' in CSS
-    assert '.cl-meta { color: var(--muted); font-size: 11.5px; margin: 5px 2px 8px;' in CSS
+    # the strip is 13 categories now, so its tabs are tight enough to keep them on one line at
+    # 1920 (1660 -> 1582px) - no orphan tab on a second row
+    assert '.cl-tabs .tab { padding: 4px 8px; font-size: 12px; }' in CSS
+    assert '.cl-meta { color: var(--muted); font-size: 11.5px; margin: 5px 0 8px;' in CSS
+
+
+# ------------------------------------------------------------------ the head + the one section row
+
+def test_the_head_is_one_title_row_with_the_section_row_on_its_bottom_edge():
+    """Stage 6: the completion card became the page head - the page title and the log's counts on
+    one line, a 3px hairline, then the section row flush with the head's bottom border. One border
+    style (1px var(--border)), no shadow, no second icon."""
+    head = re.search(r'\.cl-overall \{([^}]*)\}', CSS).group(1)
+    assert 'border: 1px solid var(--border)' in head
+    assert 'box-shadow' not in head
+    assert 'padding: 8px 14px 0' in head, "the row has to reach the head's bottom edge"
+    assert '<h1 class="cl-title"' in HTML and re.search(r'\.cl-title \{[^}]*font-size: 14px', CSS)
+    # the title carries the only mark in the row; the old card's diamond + trophy pair is gone
+    assert '.cl-ov-title' not in HTML and '.cl-ov-ico' not in HTML
+    for rule in ('#collectionNav .navpill.active {', 'box-shadow: inset 0 -2px 0 var(--accent);',
+                 '#collectionNav .navpill::after { display: none; }'):
+        assert rule in CSS, rule
+
+
+def test_the_category_strip_is_the_item_grids_own_control_again():
+    """The strip used to carry Relics as a 14th tab. Relics is a section now, so the strip is the
+    log's 13 categories and closes with the section - the row is the only section navigation."""
+    body = JS[JS.index('function buildTabs'):JS.index('function selectCategory')]
+    assert 'state.doc.categories.forEach' in body
+    assert "'Relics'" not in body, 'the relic tab must not come back into the category strip'
+    assert "tabs.classList.add('hidden')" in JS
+    assert '#tabs.hidden { display: none; }' in CSS
+
+
+def test_the_one_search_box_follows_the_section_it_filters():
+    assert "q.placeholder = on === 'relics' ? 'Search relics…' : 'Search this category…';" in JS
+    assert "q.setAttribute('aria-label', on === 'relics' ? 'Search relics'" in JS
+
+
+def test_the_dock_shows_a_row_so_the_left_column_is_never_an_empty_box():
+    """Hover still drives the docked card; with nothing hovered it shows the first row on screen
+    and marks it, so the dock reads as the table's detail pane instead of a blank hole."""
+    for frag in ('function dockRow', 'function dockFirst', 'function markDockRow', 'dockFirst();',
+                 "rows[i].classList.toggle('sel'", "dockRow(tr)"):
+        assert frag in JS, frag
+    assert '.cl-reltab tbody tr.sel {' in HTML
+    assert 'No relic selected' in JS      # the only empty state left: nothing matches the filter
 
 
 # ------------------------------------------------------------------ the dock stays where it was
@@ -137,7 +199,7 @@ def test_every_id_and_control_is_still_on_the_page():
     """Pages keep every id they own; the shell ids moved to /shell.js in stage 1 (one source for
     all five pages) and are asserted there."""
     for frag in ('id="overall"', 'id="ovPct"', 'id="ovCount"', 'id="ovBar"',
-                 'id="ovFoot"', 'id="q"', 'id="clearBtn"', 'id="missBtn"',
+                 'id="ovFoot"', 'id="collectionNav"', 'id="q"', 'id="clearBtn"', 'id="missBtn"',
                  'id="priceBtn"', 'id="tabs"', 'id="meta"', 'id="grid"', 'id="empty"',
                  'id="relicView"', 'id="relPills"', 'id="relDock"', 'id="relTable"',
                  'id="relHead"', 'id="relBody"', 'id="relNote"', 'id="srcLine"'):
@@ -174,5 +236,5 @@ def test_the_toolbar_wiring_is_untouched():
 
 def test_the_copy_diet_rules_hold_in_the_page_block():
     """No sentence came back with the density pass: the page's own strings stay labels."""
-    for text in re.findall(r'el\(\'[a-z-]+\', [^,]+, \'([^\']{25,})\'\)', JS):
+    for text in re.findall(r"el\('[a-z-]+', [^,]+, '([^']{25,})'\)", JS):
         assert len(text) <= 100, text

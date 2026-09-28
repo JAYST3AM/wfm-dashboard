@@ -18,15 +18,10 @@
      /collection.css so it stays in one place; what stays here is what other tests pin in this
      file (the .cl-tip hover card + its rows, the docked relic card) and what only this page
      draws. */
-  /* The nav grows with every page the dashboard gains; once the pill row is wider than the
-     window it wraps inside its own box instead of pushing the whole document sideways.
-     Page-local override - style.css is shared and stays untouched. */
-  /* Cards is a Collection section now: the sub-tab row gets its own line directly under the
-     pill bar and reuses the same pill styling (no new colours, no new tokens) */
-  .mainnav.subnav { display: flex; width: fit-content; margin: 1px 0 0 16px; padding: 2px; }
-
-  /* The completion card, the search/toggle row, the category tab strip, the one-line meta and
-     the item grid (tiles, flags, price pill) are condensed in /collection.css. */
+  /* The page head (title + counts + the section row) and the rest of the density layer - search
+     row, category strip, one-line meta, item grid - live in /collection.css so they stay in one
+     place. The section row is inside the head now (it used to sit above the wrapper), so no
+     page-local .mainnav.subnav override is needed any more. */
 
   /* ---------- how-to-obtain hover card (Jay: "hover over for information on where to get it,
      and drop chance. and mission") ---------- */
@@ -70,7 +65,6 @@
      in and can never change a row's metrics. The rules below are the spacing the hosts cannot
      give themselves, plus the two sizes the icon-only hosts need. */
   .cl-tab-ico { margin-right: 5px; }                  /* tab label follows the icon */
-  .cl-ov-ico { color: var(--accent); font-size: 15px; }   /* trophy beside the percentage */
   .cl-floor .i-before { margin-right: 0; }            /* the pill's own flex gap spaces it */
   .cl-empty-ico {
     display: block; font-size: 30px; line-height: 1; color: var(--muted);
@@ -119,7 +113,14 @@
   /* one relic per 23px line (was 26): padding 3px 9px at 11.5px/1.35 keeps the same seven
      columns and the same honest counts - only the air between the rows goes */
   .cl-reltab tbody td { padding: 3px 9px; font-size: 11.5px; line-height: 1.35; }
+  /* the table reads column-wise: tabular figures everywhere, the Owned counts right-aligned */
+  .cl-reltab { font-variant-numeric: tabular-nums; }
+  .cl-reltab td.cl-rownd, .cl-reltab th[data-k="owned"] { text-align: right; }
   .cl-reltab tbody tr:hover { background: var(--hover); }
+  .cl-reltab tbody tr.sel {
+    background: color-mix(in srgb, var(--accent) 9%, var(--hover));
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
   .cl-rstate { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
   .cl-rstate.drop { color: var(--accent); }        /* dropping now: the one state that can be farmed */
   .cl-rownd, .cl-rrare, .cl-rref, .cl-rnone { font-family: var(--mono); font-size: 10.5px; }
@@ -175,25 +176,27 @@
 
 <div class="shellbody">
 <div class="shellcol">
-<!-- The page's section row (stage 2): three sections of THIS page, hash-routed, then Cards,
-     which stays its own page. #collection.html#mastery must open the Mastery section. -->
-<nav class="mainnav subnav" id="collectionNav" aria-label="Collection sections">
-  <a href="/collection.html" class="navpill active" data-v="collection" aria-current="page">Collection</a>
-  <a href="/collection.html#relics" class="navpill" data-v="relics">Relics</a>
-  <a href="/collection.html#mastery" class="navpill" data-v="mastery">Mastery</a>
-  <a href="/cards.html" class="navpill" data-v="cards">Cards</a>
-</nav>
 
 <main class="cl-wrap">
+  <!-- Page head (stage 6): the page title + the log's own counts, the progress hairline, then the
+       section row - Collection | Relics | Mastery | Cards. The row is THE navigation for this
+       page: the first three are sections of it (hash-routed, deep-linkable: #relics, #mastery,
+       and #collection for the default), Cards keeps its own page and is linked from the row.
+       Exactly one section renders under the head. -->
   <div class="cl-overall" id="overall">
     <div class="cl-ov-head">
-      <span class="cl-ov-title">Collection progress</span>
-      <span class="cl-ov-ico" data-icon="trophy"></span>
+      <h1 class="cl-title" data-icon="squares-four">Collection</h1>
       <span class="cl-ov-num" id="ovPct">—</span>
       <span class="cl-ov-sub" id="ovCount">loading…</span>
+      <span class="cl-ov-foot" id="ovFoot"></span>
     </div>
     <div class="cl-bar"><i id="ovBar" style="width:0%"></i></div>
-    <div class="cl-ov-foot" id="ovFoot"></div>
+    <nav class="mainnav subnav" id="collectionNav" aria-label="Collection sections">
+      <a href="/collection.html" class="navpill active" data-v="collection" data-icon="squares-four" aria-current="page">Collection</a>
+      <a href="/collection.html#relics" class="navpill" data-v="relics" data-icon="tray">Relics</a>
+      <a href="/collection.html#mastery" class="navpill" data-v="mastery" data-icon="trophy">Mastery</a>
+      <a href="/cards.html" class="navpill" data-v="cards" data-icon="stack">Cards</a>
+    </nav>
   </div>
 
   <div class="cl-controls">
