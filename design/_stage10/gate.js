@@ -662,8 +662,9 @@ function idsCheck() {
     Object.assign(rendered.index, { rowCounts: (await page.evaluate(FACTS)).n.rowCounts });
 
     /* Trade > Orders (a live order book with usernames): its own state so the console watch, the
-       copy scan and the fit sweep all cover it, plus Jay's placement rule - Orders first in the
-       strip, Sell still the surface a fresh load opens on. */
+       copy scan and the fit sweep all cover it, plus Jay's placement rule - the Trading Session
+       opens the strip (it is the loop the user is in), Orders is second, and Sell is still the
+       surface a fresh load opens on. */
     {
       rec.state = '#trade/orders';
       m = rec.mark();
@@ -671,9 +672,9 @@ function idsCheck() {
       await sleep(2800);
       const tabs = await page.evaluate(() => [...document.querySelectorAll('#tradeTabs [role="tab"]')]
         .map((e) => e.id));
-      addCheck('load', 'Trade puts Orders first in the strip, before Sell',
-        tabs[0] === 'tt-orders' && tabs[1] === 'tt-sell', 'tt-orders, tt-sell',
-        tabs.slice(0, 3).join(', '));
+      addCheck('load', 'Trade puts Session first in the strip, then Orders, and Sell still opens',
+        tabs[0] === 'tt-session' && tabs[1] === 'tt-orders' && tabs[2] === 'tt-sell',
+        'tt-session, tt-orders, tt-sell', tabs.slice(0, 3).join(', '));
       const sel = await page.evaluate(() => {
         const t = document.querySelector('#tradeTabs [aria-selected="true"]');
         return t ? t.id : null;
