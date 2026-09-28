@@ -1,44 +1,105 @@
-/* WFM Trader - HOME cards (static/home.css).
-   Styles the blocks that static/home.js renders into #homeToday / #homeAlerts /
-   #homeRecent. Cards reuse the shared .card / .card-head / .card-title / .picks
-   shells from style.css; everything below is HOME-only and uses the palette vars
-   (--panel2 --border --text --muted --accent) so all themes stay consistent.
-   Layout is single-column, mobile safe: text lines clip with an ellipsis
-   instead of overflowing. */
+/* WFM Trader - HOME (static/home.css).
+   The clean pass (Jay 2026-09-28): "the entire thing still looks like its everywhere". The
+   approved V1 mockup (design/mockups/desktop-directions.html) is one quiet column: a page
+   header, the hero number, the alert surface, one labelled KPI grid, the short "sell next"
+   list, then the chart and the three lists. Same data, same ids, calmer chrome - one row
+   anatomy everywhere (name + sub on the left, the value on the right, 1px separators, no
+   cramped 3px rows), quieter card heads and more air between the cards.
 
-/* ---- today : headline ---- */
-.h-lead { font-size: 15px; font-weight: 650; letter-spacing: .2px; color: var(--text); padding: 4px 2px 2px; }
-.h-lead2 { font-size: 11.5px; color: var(--muted); padding: 1px 2px 6px; }
-.h-pot { font-size: 11.5px; color: var(--muted); padding: 0 2px 8px; }
-.h-pot-n { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent); }
-.h-pot-x { color: var(--muted); }
+   HOME-only rules: every colour comes from the palette vars (--panel --panel2 --border --text
+   --muted --accent --hover), so all 60 themes stay consistent, and every text line clips with
+   an ellipsis instead of overflowing. From 1200px up the home column fits the window and each
+   long list scrolls inside its own card (heads and footers stay put); under 1200px the page
+   scrolls as it always did, one column. */
 
-/* ---- today : action rows (Layer 1 what to do, Layer 2 why) ---- */
-.h-row {
-  display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
-  padding: 8px 2px; font-size: 12.5px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+/* ============ the page header row (Home + the quiet date / sync line) ============ */
+.home-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-width: 0; }
+.home-title { font-size: 19px; font-weight: 700; letter-spacing: -.2px; color: var(--text); }
+.home-sub { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 12.5px; min-width: 0; }
+#homeSync:not(:empty)::before { content: "\00b7"; margin-right: 8px; color: var(--muted); }
+
+/* ============ the hero (the visual anchor) ============ */
+#view-home .hero { display: flex; align-items: center; gap: 18px; padding: 16px 20px; }
+.hero-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hero-lab { font-size: 11.5px; color: var(--muted); }
+.hero-num {
+  font: 800 38px/1.05 var(--sans); letter-spacing: -.5px; color: var(--text);
+  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 2px;
 }
+.hero-num .hero-unit { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.hero-vl { width: 1px; align-self: stretch; background: var(--border); flex: 0 0 auto; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; min-width: 0; color: var(--muted); font-size: 12.5px; }
+.hero-meta b { color: var(--text); font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+.hero-go { margin-left: auto; flex: 0 0 auto; }
+
+/* a head label that is longer than its card ellipsizes - it never bleeds past the edge */
+#view-home .card-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ the KPI grid: one quiet card, labelled cells, no hover lift ============ */
+#view-home .home-kpis { padding: 0; }
+#view-home .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 0; }
+#view-home .kpi {
+  background: none; border: 0; border-left: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  border-radius: 0; padding: 10px 12px; min-width: 0;
+  box-shadow: none; transition: none; transform: none;
+}
+#view-home .kpi:first-child { border-left: 0; }
+#view-home .kpi:hover { border-color: color-mix(in srgb, var(--border) 65%, transparent); transform: none; }
+#view-home .kpi::after { content: none; }
+#view-home .kpi:hover::after { opacity: 0; animation: none; }
+#view-home .kpi .k-label { font-size: 10px; letter-spacing: .7px; }
+#view-home .kpi .k-val { font-size: 15px; font-weight: 700; margin-top: 2px; color: var(--text); }
+#view-home .kpi .k-val.accent { color: var(--accent); }
+#view-home .kpi .k-val .upl, #view-home .kpi .k-val .downl { font-size: 13px; }
+
+/* ============ sell next: three rows, name + sub, price right, one chevron ============ */
+#view-home .home-next-list { padding: 0 8px 8px; display: flex; flex-direction: column; }
+/* the three rows share the card's height with the chart beside them - no dead space at the bottom */
+#view-home .home-next-list .hnext-row { flex: 1 1 auto; }
+#view-home .hnext-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content 12px; gap: 10px;
+  align-items: center; padding: 9px 8px; min-height: 36px; color: var(--text); text-decoration: none;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+#view-home .hnext-row:first-child { border-top: 0; }
+#view-home .hnext-row:hover { background: var(--hover); }
+#view-home .hnext-row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+#view-home .hnext-nm { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+/* the item name never yields: the sub line is the secondary hint, so it takes the squeeze */
+#view-home .hnext-t { flex: 0 0 auto; max-width: 100%; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .hnext-sub { flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-home .hnext-pr { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+#view-home .hnext-chev { color: var(--muted); font-size: 13px; text-align: right; }
+#view-home .home-open { color: var(--muted); font-size: 11.5px; text-decoration: none; white-space: nowrap; }
+#view-home .home-open:hover { color: var(--accent); }
+
+/* ============ rows: one anatomy (name + sub left, value right, 1px separators) ============ */
+.h-row {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px;
+  padding: 9px 6px; font-size: 12.5px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.h-row:first-child { border-top: 0; }
 .h-row.h-click { cursor: pointer; }
-.h-row.h-click:hover { background: var(--panel2); }
+.h-row.h-click:hover { background: var(--hover); }
 .h-row.h-click:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
-.h-l1 { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 10px; align-items: baseline; min-width: 0; }
+.h-l1 { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 12px; align-items: baseline; min-width: 0; }
 .h-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .h-act {
-  font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--accent);
-  white-space: nowrap; text-align: right;
+  font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent);
+  white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums;
 }
-.h-l2 { font-size: 11.5px; color: var(--text); opacity: .85; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h-l2 { font-size: 11px; color: var(--text); opacity: .82; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .h-l3 { font-size: 11px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .h-row.h-sm .h-name { font-weight: 500; }
 .h-row.h-sm .h-act { font-size: 12.5px; font-weight: 600; }
 .h-group-head {
-  padding: 10px 2px 2px; font-size: 10.5px; text-transform: uppercase;
+  padding: 12px 6px 2px; font-size: 10.5px; text-transform: uppercase;
   letter-spacing: .6px; color: var(--muted);
 }
 
 /* ---- today : expander ---- */
-.h-morewrap { padding: 10px 2px 2px; }
+.h-morewrap { padding: 12px 6px 2px; }
 .h-more {
   background: transparent; color: var(--muted); border: 1px solid var(--border);
   border-radius: 999px; padding: 6px 14px; cursor: pointer;
@@ -49,130 +110,157 @@
 .h-morelist[hidden] { display: none; }
 
 /* ---- alerts ---- */
-.h-alert { padding: 8px 2px 8px 16px; position: relative; border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+.h-alert { padding: 10px 6px 10px 18px; position: relative; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 .h-alert:first-child { border-top: none; }
-.h-alert::before { content: "\25c6"; position: absolute; left: 2px; top: 9px; font-size: 8px; color: var(--muted); }
+.h-alert::before { content: "\25c6"; position: absolute; left: 5px; top: 13px; font-size: 7px; color: var(--muted); }
 .h-alert-warn::before { color: var(--accent); }
 .h-alert-t { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .h-alert-warn .h-alert-t { color: var(--accent); }
-.h-alert-d { font-size: 11.5px; color: var(--muted); margin-top: 1px; line-height: 1.5; }
+.h-alert-d { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
 
 /* ---- recent : session roll-up ---- */
-.h-sess { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 8px 2px; font-size: 12.5px; }
+.h-sess { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 11px 6px; font-size: 12.5px; }
 .h-sess-t { font-weight: 600; color: var(--text); }
-.h-sess-n { font-family: var(--mono); font-size: 12px; color: var(--text); }
+.h-sess-n { font-family: var(--mono); font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
 
-/* ---- recent : trade events ---- */
+/* ---- recent : trade events + the today sessions list ---- */
 .h-ev {
   display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content max-content max-content;
-  gap: 8px; align-items: center; padding: 6.5px 2px; font-size: 12.5px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  gap: 10px; align-items: center; padding: 9px 6px; font-size: 12.5px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
-.h-ev:hover { background: var(--panel2); }
-.h-num { font-family: var(--mono); text-align: right; color: var(--text); }
+.h-ev:first-child { border-top: 0; }
+.h-ev:hover { background: var(--hover); }
+.h-num { font-family: var(--mono); text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
 .h-when { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 .h-qty { color: var(--muted); }
 
-@media (max-width: 900px) {
-  .h-act { font-size: 13px; }
-  .h-row.h-sm .h-act { font-size: 12px; }
-  .h-ev { grid-template-columns: max-content minmax(0, 1fr) max-content max-content; }
-  .h-ev .h-when { display: none; }
+/* ---- game updates ---- */
+.newsrow {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) 76px; gap: 10px;
+  align-items: baseline; padding: 9px 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
+.newsrow:first-child { border-top: 0; }
 
-/* ---- home layout (Jay 2026-09-26): platinum chart on top, then the news + recommendations column
-   beside Recent activity. Recommendations read as a tall, narrow column instead of a wide slab. ---- */
+/* ============ the three lists: two columns, collapsing to one ============ */
 .h-cols {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 16px; align-items: start;
+  gap: 16px; align-items: start;
 }
 .h-col { display: grid; gap: 0; min-width: 0; }
 @media (max-width: 1040px) {
   .h-cols { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ---- today : condensed (two lines per row, detail on hover) ---- */
-.h-lead { padding: 2px 2px 0; font-size: 14px; }
-.h-lead2 { padding: 1px 2px 6px; font-size: 11px; }
-.h-row { padding: 5px 2px; gap: 0; }
-.h-group-head { padding: 8px 2px 1px; }
-.h-l2 { font-size: 11px; }
-.h-l3 { font-size: 10.5px; line-height: 1.45; }
-.h-pot { display: inline; padding: 0; }
-
-/* ---- news + recent : one line each, tighter ---- */
-.h-cols .newsrow { padding: 6px 2px; }
-.h-cols .h-ev { padding: 5px 2px; }
+@media (max-width: 900px) {
+  .h-act { font-size: 13px; }
+  .h-row.h-sm .h-act { font-size: 12px; }
+  .h-ev { grid-template-columns: max-content minmax(0, 1fr) max-content max-content; }
+  .h-ev .h-when { display: none; }
+  .hero { flex-wrap: wrap; }
+  .hero-vl { display: none; }
+  #view-home .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+  #view-home .kpi { border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent); }
+  #view-home .kpi:nth-child(-n+2) { border-top: 0; }
+  #view-home .kpi:nth-child(odd) { border-left: 0; }
+}
 
 /* small screens: the header action cluster used to push the page wider than the viewport */
 @media (max-width: 560px) {
   header .actions { flex-wrap: wrap; justify-content: flex-end; }
 }
 
-/* ============ HOME: fit the window beside the chat rail (Jay 2026-09-27) ============
-   "everything needs to fit on this screen, no matter the resolution for the user".
-   The chat rail is chat.css's own column and is left alone; the cards take the left column and
-   fill the viewport top to bottom - KPI strip, then the chart beside Needs attention, then news /
-   What to do next / Recent activity three across, each list scrolling inside its own card so the
-   card head (title, meta) and the card footer (the expander) stay put. The dense rows below are
-   the trade recipe (<= 28px a row, was 31-34). Under 1200px the page scrolls as it always did. */
+/* ============ the window fit (Jay 2026-09-27, clean pass 2026-09-28) ============
+   From 1200px up the home column fills the left track beside the chat rail and does not
+   scroll: header row, hero, the alert surface, the KPI grid, then Sell next beside the chart,
+   then the three lists sharing the last band. Every long list scrolls inside its own card, so
+   a card head (title, meta, range pills) and a card footer stay put. The rail is chat.css's
+   own column and is left alone; chat.js measures its own height with fit(). */
 @media (min-width: 1200px) {
   body.shell-fit #view-home.chat-docked {
     height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch;
   }
-  /* The rail measures itself from its own top to the window bottom (chat.js fit()) and is allowed
-     to use all of it: the status line below is transparent and its text stays on the left, so the
-     rail runs the full height of the screen (Jay: chat can go all the way down). */
   body.shell-fit #view-home.chat-docked > #chatDock { max-height: none; }
   /* room for the floating status line under the cards */
   body.shell-fit #view-home.chat-docked #homeMain { padding-bottom: 28px; }
   body.shell-fit #view-home #homeMain {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto auto minmax(170px, 1fr); gap: 12px; min-height: 0;
+    grid-template-rows: auto auto auto auto auto minmax(112px, 1fr);
+    gap: 10px 12px; min-height: 0;
   }
-  body.shell-fit #homeMain > #firstRun, body.shell-fit #homeMain > .kpis { grid-column: 1 / -1; }
-  body.shell-fit #homeMain > #chartCard { grid-column: span 2; }
-  body.shell-fit #homeMain > #alertsCard { grid-column: span 1; }
-  /* with no alerts to show the chart takes the whole band */
-  body.shell-fit #homeMain:not(:has(#alertsCard:not(.hidden))) > #chartCard { grid-column: 1 / -1; }
+  body.shell-fit #homeMain > * { min-width: 0; }
+  body.shell-fit #homeMain > #homeHead, body.shell-fit #homeMain > #firstRun,
+  body.shell-fit #homeMain > #heroCard, body.shell-fit #homeMain > #alertsCard,
+  body.shell-fit #homeMain > #kpiCard, body.shell-fit #homeMain > .h-cols { grid-column: 1 / -1; }
+  body.shell-fit #homeMain > #homeSellNext { grid-column: 1; }
+  body.shell-fit #homeMain > #chartCard { grid-column: 2 / -1; }
+  /* the alert surface is a full-width row and a real list: it keeps its own scroller and never
+     pushes the chart or the band off the window */
+  /* a safety net, not a squeeze: three real alerts (the normal case) fit whole; a long list
+     still scrolls inside the card. Short windows use the tighter cap below. */
+  body.shell-fit #homeMain > #alertsCard { max-height: min(420px, 45vh); }
+  body.shell-fit #homeMain > #firstRun { max-height: 42vh; overflow-y: auto; }
+  body.shell-fit #chartCard, body.shell-fit #alertsCard, body.shell-fit #newsCard,
+  body.shell-fit #todayCard, body.shell-fit #recentCard, body.shell-fit #homeSellNext {
+    display: flex; flex-direction: column; min-height: 0; margin-bottom: 0;
+  }
+  body.shell-fit #homeSellNext > .picks { padding-top: 0; }
+  body.shell-fit #alertsCard > .picks, body.shell-fit #newsCard > .picks,
+  body.shell-fit #todayCard > .picks, body.shell-fit #recentCard > .picks,
+  body.shell-fit #homeSellNext > .picks {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  body.shell-fit #alertsCard > .card-head, body.shell-fit #newsCard > .card-head,
+  body.shell-fit #todayCard > .card-head, body.shell-fit #recentCard > .card-head,
+  body.shell-fit #chartCard > .card-head, body.shell-fit #homeSellNext > .card-head,
+  body.shell-fit #view-home .chartwrap, body.shell-fit #view-home #chartMeta { flex: 0 0 auto; }
+
+  /* the three lists share one band: news / today / recent side by side */
   body.shell-fit #homeMain > .h-cols {
     grid-column: 1 / -1; min-height: 0; gap: 12px; align-items: stretch;
     grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
   }
   body.shell-fit .h-cols > .h-col { display: contents; }
-  body.shell-fit #chartCard, body.shell-fit #alertsCard, body.shell-fit #newsCard,
-  body.shell-fit #todayCard, body.shell-fit #recentCard {
-    display: flex; flex-direction: column; min-height: 0; margin-bottom: 0;
-  }
-  body.shell-fit #alertsCard > .picks, body.shell-fit #newsCard > .picks,
-  body.shell-fit #todayCard > .picks, body.shell-fit #recentCard > .picks {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  }
+  /* home.js matches the news card to the recent card with an inline min-height. The band is one
+     stretched grid row here, so the match is already true - and the inline value must not pin a
+     taller row after the window shrinks (it would push the column past the window). */
+  body.shell-fit #homeMain #newsCard { min-height: 0 !important; }
 
-  /* ---- the dense rows ---- */
-  #view-home .kpis { padding: 6px 0 12px; gap: 12px; }
-  #view-home .kpi { padding: 9px 13px; }
-  #view-home .k-val { font-size: 16px; margin-top: 1px; }
-  #view-home .k-label { font-size: 10px; }
-  #view-home .chartwrap { height: clamp(120px, 15vh, 200px); margin: 10px 12px 6px; }
-  #view-home #chartMeta { padding: 8px 14px 4px; font-size: 12px; }
-  #view-home .card > .status { padding: 6px 14px; }
-  #view-home .h-lead { font-size: 13.5px; padding: 4px 2px 0; }
-  #view-home .h-lead2 { font-size: 11px; padding: 3px 2px 8px; }
-  #view-home .h-pot { padding: 3px 2px 8px; }
-  #view-home .h-row { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }
-  /* the three cards are narrower here: a long item name wraps instead of being cut short */
-  body.shell-fit #view-home .h-name, body.shell-fit #view-home .h-l2 {
-    white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
-  }
-  #view-home .h-l2 { font-size: 11px; line-height: 1.4; }
-  #view-home .h-l3 { font-size: 10.5px; line-height: 1.4; }
-  #view-home .h-group-head { padding: 9px 2px 3px; font-size: 10px; }
-  #view-home .h-alert { padding: 8px 2px 8px 15px; }
-  #view-home .h-alert::before { top: 11px; }
-  #view-home .h-alert-d { font-size: 11.5px; line-height: 1.5; margin-top: 2px; }
-  #view-home .newsrow { padding: 6px 4px; font-size: 12.5px; }
-  #view-home .h-ev { padding: 6px 4px; font-size: 12.5px; }
-  #view-home .h-sess { padding: 6px 4px; font-size: 12.5px; line-height: 1.45; }
-  #view-home .h-morewrap { padding: 8px 2px 6px; }
+  /* ---- quieter card chrome, more air between the rows ---- */
+  #view-home .card { margin-bottom: 0; }
+  #view-home .card-head { padding: 9px 14px 4px; gap: 10px; flex-wrap: wrap; }
+  #view-home .card-title { font-size: 10.5px; letter-spacing: .7px; }
+  #view-home .picks { padding: 2px 14px 10px; }
+  body.shell-fit #view-home .chartwrap { height: clamp(84px, 10vh, 140px); margin: 4px 12px 0; }
+  body.shell-fit #view-home #chartMeta { padding: 2px 14px 5px; font-size: 11px; }
+  /* the chart head carries three controls (range, style, colour): kept on one line */
+  #view-home .ranges button { padding: 2px 8px; font-size: 10.5px; min-height: 21px; }
+  #view-home .chartviews { gap: 3px; }
+  #view-home .chartbtn { font-size: 9.5px; padding: 1px 6px; }
+  #view-home .chartbtn.dot { width: 11px; height: 11px; }
+  #view-home .h-morewrap { padding: 10px 6px 4px; }
+  #view-home .h-alert { padding: 10px 6px 10px 18px; }
+  #view-home .h-alert::before { top: 12px; }
+  #view-home h1.home-title, #view-home .home-head { margin: 0; }
 }
+
+/* a short window: the chart and the hero give the lists a little more room back */
+@media (min-width: 1200px) and (max-height: 820px) {
+  body.shell-fit #view-home .chartwrap { height: 66px; }
+  body.shell-fit #homeMain > #alertsCard { max-height: 17vh; }
+  #view-home .hero-num { font-size: 25px; }
+  #view-home .hero { padding: 10px 18px; }
+  #view-home .home-kpis .kpi { padding: 8px 12px; }
+}
+
+/* narrow three-across band: News and Recent activity need ~280px for their head labels, and a
+   band card is 259-268px of text at 1200-1599px, so there the meta drops to its own line instead
+   of being ellipsised. The labels stay readable and nothing is clipped. */
+@media (min-width: 1200px) and (max-width: 1599px) {
+  #view-home #newsCard .card-title .dim.small,
+  #view-home #recentCard .card-title .dim.small { display: block; }
+}
+/* the hero is the anchor: one lifted surface, everything else stays flat */
+#view-home #heroCard { background: linear-gradient(180deg, color-mix(in srgb, var(--panel2) 92%, transparent), var(--panel)); }
+#view-home #heroCard .hero-lab { text-transform: uppercase; letter-spacing: .8px; font-size: 10.5px; }

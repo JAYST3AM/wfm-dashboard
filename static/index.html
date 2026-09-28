@@ -46,26 +46,48 @@
 </aside>
 
 <main>
-  <!-- HOME - actions first, analytics second -->
+  <!-- HOME - the clean pass (Jay 2026-09-28): page header, hero number, the alert surface,
+       one quiet KPI grid, the top of the plan, then the chart and the three lists.
+       Every id the old layout shipped is still here. -->
   <section id="view-home">
+    <div class="home-head" id="homeHead">
+      <div class="home-title">Home</div>
+      <div class="home-sub" id="homeSub"><span id="homeDate"></span><span id="homeSync"></span></div>
+    </div>
     <div id="firstRun" class="card hidden"></div>
-    <div class="kpis" id="kpis"></div>
+    <div class="card hero" id="heroCard">
+      <div class="hero-body">
+        <div class="hero-lab">Platinum</div>
+        <div class="hero-num"><span id="platinumNow">—</span><span class="hero-unit">p</span></div>
+      </div>
+      <span class="hero-vl" aria-hidden="true"></span>
+      <div class="hero-meta" id="heroMeta"></div>
+      <a class="btn primary hero-go" href="#trade">Sell next</a>
+    </div>
+    <div class="card hidden" id="alertsCard">
+      <div class="card-head"><div class="card-title" data-icon="bell">Needs attention</div></div>
+      <div id="homeAlerts" class="picks"></div>
+    </div>
+    <div class="card home-kpis" id="kpiCard"><div class="kpis" id="kpis"></div></div>
+    <div class="card home-next" id="homeSellNext">
+      <div class="card-head">
+        <div class="card-title" data-icon="tag">Sell next <span class="dim small" id="sellNextMeta"></span></div>
+        <a class="home-open" href="#trade">Open</a>
+      </div>
+      <div class="picks home-next-list" id="sellNextList"></div>
+    </div>
     <div class="card" id="chartCard">
       <div class="card-head">
         <div class="card-title" data-icon="chart-line">Platinum balance</div>
         <div class="ranges" id="ranges">
           <button data-r="24h">24h</button>
           <button data-r="7d">7d</button>
-          <button data-r="30d">30d</button>
-          <button data-r="all" class="active">All</button>
+          <button data-r="30d" class="active">30d</button>
+          <button data-r="all">All</button>
         </div>
       </div>
       <div class="chartwrap"><canvas id="platChart"></canvas><div id="chartTip" class="tip hidden"></div></div>
       <div id="chartMeta" class="status"></div>
-    </div>
-    <div class="card hidden" id="alertsCard">
-      <div class="card-head"><div class="card-title" data-icon="bell">Needs attention</div></div>
-      <div id="homeAlerts" class="picks"></div>
     </div>
     <div class="h-cols">
       <div class="h-col">

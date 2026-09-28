@@ -884,6 +884,7 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
   body.shell-fit > header, body.shell-fit > .foot { flex: 0 0 auto; }
   body.shell-fit > .shellbody { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; }
   body.shell-fit .shellbody > main { flex: 1 1 auto; min-height: 0; padding: 12px 22px; }
+  body.shell-fit .shellcol > main { flex: 1 1 auto; min-height: 0; padding: 12px 22px; }
   body.shell-fit > .foot { padding: 4px 18px 8px; }
   /* On HOME the rail owns the right column down to the window edge and the view must not be
      clipped by the status line, so the line floats over the bottom-left instead of taking a
@@ -1115,3 +1116,13 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent);
 }
+
+/* ---- rail pages (collection / settings / cards / item) + quieter header chips ---- */
+.shellcol { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.shellcol > .mainnav.subnav { flex: 0 0 auto; margin: 12px 0 0 22px; }
+header .chips { gap: 6px; }
+header .chips .chip {
+  background: transparent; border-color: color-mix(in srgb, var(--border) 75%, transparent);
+  padding: 4px 9px; font-size: 11px;
+}
+header .actions { border-left: 1px solid var(--border); padding-left: 14px; }

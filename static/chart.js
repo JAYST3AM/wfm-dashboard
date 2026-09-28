@@ -104,6 +104,10 @@
     var labels = opts.labels !== false && !mini;
     var PAD = opts.pads || (mini ? { l: 4, r: 4, t: 4, b: 4 } : { l: 58, r: 16, t: 16, b: 30 });
     var pref = prefStore(key, { style: opts.style || 'area', palette: opts.palette || 'accent', range: opts.range || 'all' });
+    /* gapS: no reading for longer than this many seconds is a gap in the data, and the line
+       breaks there instead of drawing straight through an unwatched month (0 = off, the old
+       behaviour: every point joins the one before it). */
+    var gapS = Number(opts.gapS) || 0;
     var tip = opts.tip ? (typeof opts.tip === 'string' ? document.querySelector(opts.tip) : opts.tip) : null;
     var pts = [], marks = [], hover = -1, view = null;
 
@@ -145,6 +149,17 @@
         Y: function (v) { return h - PAD.b - (v - y0) / (y1 - y0) * (h - PAD.t - PAD.b); },
         x0: x0, x1: x1, y0: y0, y1: y1,
       };
+    }
+    /* a gap in the data (no reading for longer than gapS) splits the series into runs, so the
+       line stops at the break instead of pretending the balance moved in a straight line */
+    function splitRuns(list, maxGap) {
+      var runs = [], cur = [];
+      for (var i = 0; i < list.length; i++) {
+        if (cur.length && list[i].ts - cur[cur.length - 1].ts > maxGap) { runs.push(cur); cur = []; }
+        cur.push(list[i]);
+      }
+      if (cur.length) runs.push(cur);
+      return runs;
     }
     /* monotone cubic (Fritsch-Carlson) — no fake dips on stepped data */
     function buildSegs(ps, X, Y) {
@@ -243,7 +258,7 @@
         }
       }
 
-      var g = buildSegs(ps, S.X, S.Y);
+      var runs = (gapS > 0) ? splitRuns(ps, gapS) : [ps];
       if (style === 'bars') {
         var bw = Math.max(1, Math.min(9, (w - PAD.l - PAD.r) / Math.max(ps.length, 1) * 0.7));
         for (var b = 0; b < ps.length; b++) {
@@ -251,24 +266,28 @@
           ctx.fillStyle = hexA(col, b === hover ? 0.95 : 0.6);
           ctx.fillRect(S.X(ps[b].ts) - bw / 2, by, bw, h - PAD.b - by);
         }
-      } else if (g.segs.length) {
-        if (style === 'area') {
-          var grad = ctx.createLinearGradient(0, PAD.t, 0, h - PAD.b);
-          grad.addColorStop(0, hexA(col, 0.30));
-          grad.addColorStop(1, hexA(col, 0.02));
+      } else {
+        for (var ri = 0; ri < runs.length; ri++) {
+          if (runs[ri].length < 2) continue;              /* one reading is a dot, not a line */
+          var g = buildSegs(runs[ri], S.X, S.Y);
+          if (style === 'area') {
+            var grad = ctx.createLinearGradient(0, PAD.t, 0, h - PAD.b);
+            grad.addColorStop(0, hexA(col, 0.30));
+            grad.addColorStop(1, hexA(col, 0.02));
+            path(ctx, g, style);
+            ctx.lineTo(g.px[g.px.length - 1], h - PAD.b);
+            ctx.lineTo(g.px[0], h - PAD.b);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+          }
           path(ctx, g, style);
-          ctx.lineTo(g.px[g.px.length - 1], h - PAD.b);
-          ctx.lineTo(g.px[0], h - PAD.b);
-          ctx.closePath();
-          ctx.fillStyle = grad;
-          ctx.fill();
+          ctx.save();
+          ctx.strokeStyle = col; ctx.lineWidth = mini ? 1.6 : 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+          if (!mini) { ctx.shadowColor = hexA(col, 0.5); ctx.shadowBlur = 9; }
+          ctx.stroke();
+          ctx.restore();
         }
-        path(ctx, g, style);
-        ctx.save();
-        ctx.strokeStyle = col; ctx.lineWidth = mini ? 1.6 : 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-        if (!mini) { ctx.shadowColor = hexA(col, 0.5); ctx.shadowBlur = 9; }
-        ctx.stroke();
-        ctx.restore();
       }
 
       /* your own trades as dots */
@@ -281,13 +300,14 @@
         ctx.lineWidth = 1.2; ctx.strokeStyle = cssVar('--panel') || '#14171d'; ctx.stroke();
       }
 
-      /* end dot */
+      /* end dot - the newest reading, whatever range is on screen */
+      var lp = ps[ps.length - 1], ex = S.X(lp.ts), ey = S.Y(lp.v);
       ctx.beginPath();
-      ctx.arc(g.px[g.px.length - 1], g.py[g.py.length - 1], 3.5, 0, Math.PI * 2);
+      ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
       ctx.fillStyle = col; ctx.fill();
       if (!mini) {
         ctx.beginPath();
-        ctx.arc(g.px[g.px.length - 1], g.py[g.py.length - 1], 7, 0, Math.PI * 2);
+        ctx.arc(ex, ey, 7, 0, Math.PI * 2);
         ctx.strokeStyle = hexA(col, 0.35); ctx.lineWidth = 1.5; ctx.stroke();
       }
 
@@ -442,7 +462,11 @@
         injectCss();
         api = wfmChart({
           canvas: c, tip: '#chartTip', valueKey: 'plat', key: 'plat',
-          range: 'all', style: 'area', palette: 'accent',
+          /* 30d is the honest default: the collector's own history has month-long gaps, so the
+             widest range opens on the whole story including the parts nobody watched. The range
+             buttons still override it, and a stored choice still wins. gapS breaks the line at
+             any break longer than two days instead of drawing through it. */
+          range: '30d', style: 'area', palette: 'accent', gapS: 172800,
           height: c.parentElement ? c.parentElement.clientHeight : 220,
         });
         /* the view controls mount beside the range pills in the chart card's head */

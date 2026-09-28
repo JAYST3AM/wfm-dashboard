@@ -365,7 +365,9 @@
   </div>
 </header>
 
-<nav class="mainnav" id="mainnav" aria-label="Primary">
+<div class="shellbody">
+<aside class="side" aria-label="Primary">
+<nav class="mainnav sidenav" id="mainnav" aria-label="Primary">
   <a href="/#home" class="navpill" data-v="home" data-icon="house">Home</a>
   <a href="/#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
   <a href="/#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
@@ -374,7 +376,8 @@
   <a href="/#player" class="navpill" data-v="player" data-icon="user">Player</a>
   <a href="/#more" class="navpill" data-v="more" data-icon="dots-three-circle">More</a>
 </nav>
-
+</aside>
+<div class="shellcol">
 <nav class="mainnav subnav" aria-label="Collection sections">
   <a href="/collection.html" class="navpill" data-v="collection">Collection</a>
   <a href="/cards.html" class="navpill active" data-v="cards" aria-current="page">Cards</a>
@@ -423,6 +426,8 @@
   <div class="mcd-more hidden" id="moreWrap"><button class="btn primary" type="button" id="moreBtn">Show more</button></div>
   <div class="mcd-empty hidden" id="empty"></div>
 </main>
+</div><!-- /shellcol -->
+</div><!-- /shellbody -->
 
 <footer class="mcd-foot">
   <span id="srcLine">Cards built by <code>scripts/mod_cards.py</code> → <code>data/mod_cards.json</code></span> ·

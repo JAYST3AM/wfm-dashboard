@@ -85,17 +85,26 @@ def test_home_fills_the_left_column_beside_the_chat_rail():
     assert 'body.shell-fit #view-home.chat-docked {' in css
     assert 'grid-template-rows: minmax(0, 1fr); align-items: stretch;' in css      # the chat rail owns its own column
     assert 'body.shell-fit #view-home #homeMain {' in css
-    assert 'grid-template-rows: auto auto minmax(170px, 1fr);' in css
+    # the clean pass order: header row, hero, the alert surface, the KPI grid, then sell next
+    # beside the chart, then the three lists sharing the last band
+    assert 'grid-template-rows: auto auto auto auto auto minmax(112px, 1fr);' in css
+    for band in ('#homeHead', '#heroCard', '#alertsCard', '#kpiCard'):
+        assert ('body.shell-fit #homeMain > %s' % band) in css, band
+    assert 'body.shell-fit #homeMain > #homeSellNext { grid-column: 1; }' in css
+    assert 'body.shell-fit #homeMain > #chartCard { grid-column: 2 / -1; }' in css
+    # the alert cap is a safety net (three alerts fit whole); short windows use the tighter cap
+    assert 'body.shell-fit #homeMain > #alertsCard { max-height: min(420px, 45vh); }' in css
+    assert 'body.shell-fit #homeMain > #alertsCard { max-height: 17vh; }' in css
     assert 'body.shell-fit #homeMain > .h-cols {' in css
     assert 'grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);' in css
     assert 'body.shell-fit .h-cols > .h-col { display: contents; }' in css        # news / today / recent side by side
     for card, list in (('#newsCard', '#newsCard > .picks'), ('#todayCard', '#todayCard > .picks'),
-                       ('#recentCard', '#recentCard > .picks')):
+                       ('#recentCard', '#recentCard > .picks'), ('#homeSellNext', '#homeSellNext > .picks')):
         assert card in css, card
         assert list in css, list
     # the lists scroll inside their cards; the chart keeps a readable, window-relative height
     assert 'flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;' in css
-    assert '#view-home .chartwrap { height: clamp(120px, 15vh, 200px); margin: 10px 12px 6px; }' in css
+    assert 'body.shell-fit #view-home .chartwrap { height: clamp(84px, 10vh, 140px); margin: 4px 12px 0; }' in css
 
 
 def test_inventory_keeps_the_table_and_gives_the_three_cards_their_own_band():
@@ -168,18 +177,21 @@ def test_trade_fills_the_window_without_losing_its_own_rules():
 
 def test_the_rows_keep_the_spaced_budget():
     """The fit pass bought room with 3px rows, which read as cramped once the lists scrolled
-    inside their cards. Jay 2026-09-27: "can we get better spacing for the cards?" - the row
-    scale moved to 6px padding / 1.45 line-height, measured at 1920x1080: .h-row 33.3 /
-    .newsrow 31.7 / .h-ev 33.2 / .mh-row 31.7 / .mh-cat 31.1 / .pc-syn 31.1 / .dealrow 31.1 /
-    .srow 31.1 / .mrow 31.1 / .prow 31.1 / .heldline 30.4 / .kpi 58.7, with 12px between the
-    cards (was 0). The budget is now <= 34px a row: roomier than the trade recipe, still dense
-    enough to keep every view inside the window (pageOver 0 at 1920/1536/1440/1366/1280)."""
+    inside their cards. Jay 2026-09-27: "can we get better spacing for the cards?" - the trade
+    recipe moved to 6px padding / 1.45 line-height (.prow 31.1 / .heldline 30.4 / .mh-row 31.7 /
+    .mh-cat 31.1 / .pc-syn 31.1 / .dealrow 31.1 / .srow 31.1 / .mrow 31.1, <= 34px a row).
+
+    The home clean pass (2026-09-28) then took the home rows to 9px padding / 2px sub-line gap,
+    measured at 1920x1080: .h-row 37.8 / .newsrow 36.7 / .h-ev 39.2 / .hnext 36.8, .h-alert 61.4
+    (two lines), .h-sess 77.5 (a session roll-up), .kpi 58.3. The home column still fits the
+    window at 1920/1536/1440/1366/1280 (pageOver 0, every long list scrolls inside its card)."""
     css = read('static/style.css') + read('static/home.css')
-    for frag in ('#view-home .h-row { padding: 6px 5px; font-size: 12.5px; line-height: 1.45; }',
-                 '#view-home .newsrow { padding: 6px 4px; font-size: 12.5px; }',
+    for frag in ('.h-row {\n  display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px;\n'
+                 '  padding: 9px 6px; font-size: 12.5px;',
+                 'align-items: baseline; padding: 9px 6px;',                      # .newsrow
+                 'gap: 10px; align-items: center; padding: 9px 6px; font-size: 12.5px;',  # .h-ev
+                 '.h-alert { padding: 10px 6px 10px 18px; position: relative;',
                  'body.shell-fit #view-more .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
-                 '#view-home .h-ev { padding: 6px 4px; font-size: 12.5px; }',
-                 '#view-home .h-alert { padding: 8px 2px 8px 15px; }',
                  '#mhNext .mh-row { padding: 6px 12px; font-size: 12.5px; line-height: 1.45; }',
                  '#mhCats .mh-cat { padding: 6px 12px; font-size: 12.5px; line-height: 1.45; }',
                  'body.shell-fit #view-player .pc-syn { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
@@ -207,7 +219,9 @@ def test_card_chrome_is_the_shared_dense_recipe():
 def test_every_id_and_control_survives():
     html = read('static/index.html')
     for view, frags in (
-        ('view-home', ('id="kpis"', 'id="chartCard"', 'id="platChart"', 'id="ranges"', 'id="chartMeta"',
+        ('view-home', ('id="homeHead"', 'id="homeSync"', 'id="heroCard"', 'id="platinumNow"', 'id="heroMeta"',
+                       'id="kpis"', 'id="kpiCard"', 'id="homeSellNext"', 'id="sellNextList"', 'id="sellNextMeta"',
+                       'id="chartCard"', 'id="platChart"', 'id="ranges"', 'id="chartMeta"',
                        'id="alertsCard"', 'id="homeAlerts"', 'id="newsCard"', 'id="newsList"',
                        'id="todayCard"', 'id="homeToday"', 'id="recentCard"', 'id="homeRecent"')),
         ('view-inventory', ('id="tabs"', 'id="totals"', 'id="invQ"', 'id="btnCols"', 'id="tbl"', 'id="rows"',

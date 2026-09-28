@@ -1,5 +1,9 @@
-"""Home layout (Jay 2026-09-26): chart on top, news under it with Recent activity beside it, and the
-"worth doing" card condensed into a tall, narrow column under the news.
+"""Home layout (Jay 2026-09-26, restyled 2026-09-28).
+
+The clean pass kept every id and every card and moved the column into the order the approved V1
+mockup uses (design/mockups/desktop-directions.html): page header row, hero number, the alert
+surface, one labelled KPI grid, the short sell-next list, then the chart beside it and the three
+lists (news / today / recent) sharing the last band.
 
   "this you have ### worth doing card, needs to be condensed, and virtically skewed because its
    taking up way too much realestate ... the platinum graph should be on top ... the newsletter
@@ -20,12 +24,18 @@ def read(path):
 
 # ------------------------------------------------------------------ order
 
-def test_chart_is_the_first_card_on_home():
+def test_the_chart_comes_before_the_three_lists_on_home():
     html = read('static/index.html')
     home = html.split('id="view-home"', 1)[1].split('</section>', 1)[0]
     for later in ('id="newsCard"', 'id="todayCard"', 'id="recentCard"'):
         assert home.index('id="chartCard"') < home.index(later), later
-    # the KPI strip stays above the chart (it is the header summary, not a card)
+    # the clean pass: the page header + hero lead, the KPI grid sits above the chart, and every
+    # section the old order shipped is still in the column
+    for frag in ('id="homeHead"', 'id="heroCard"', 'id="platinumNow"', 'id="alertsCard"',
+                 'id="kpiCard"', 'id="homeSellNext"'):
+        assert frag in home, frag
+    assert home.index('id="homeHead"') < home.index('id="heroCard"') < home.index('id="alertsCard"')
+    assert home.index('id="alertsCard"') < home.index('id="kpiCard"') < home.index('id="homeSellNext"')
     assert home.index('id="kpis"') < home.index('id="chartCard"')
 
 
@@ -93,11 +103,16 @@ def test_news_card_is_four_rows():
     assert '(n.items || []).slice(0, 4)' in read('static/app.js')
 
 
-def test_rows_and_cards_are_tightened_in_css():
+def test_rows_and_cards_carry_one_roomy_anatomy():
+    """The clean pass replaced the 3px rows with one anatomy: 9px padding, name + sub on the left
+    and the value on the right, a 1px separator between the rows, a 2px gap above a sub line."""
     css = read('static/home.css')
-    assert '.h-row { padding: 5px 2px; gap: 0; }' in css
-    assert 'max-width: 560px' in css                  # header action cluster wraps, no overflow
-    assert '.h-cols .newsrow { padding: 6px 2px; }' in css
+    assert '.h-row {\n  display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px;\n' \
+           '  padding: 9px 6px; font-size: 12.5px;' in css            # one row, name above the sub
+    assert 'align-items: baseline; padding: 9px 6px;' in css          # .newsrow - date / title / source
+    assert 'gap: 10px; align-items: center; padding: 9px 6px; font-size: 12.5px;' in css   # .h-ev
+    assert '.h-l1 { display: grid; grid-template-columns: minmax(0, 1fr) max-content;' in css  # name | value
+    assert 'max-width: 560px' in css                                  # header action cluster wraps, no overflow
 
 
 # ------------------------------------------------------------------ chart axis honesty
@@ -119,3 +134,19 @@ def test_axis_labels_are_readable_and_cannot_clip():
     js = read('static/chart.js')
     assert "Math.round(v).toLocaleString('en-AU')" in js           # 9,150p not 9150p
     assert "ctx.textAlign = i === 0 ? 'left' : (i === nT - 1 ? 'right' : 'center');" in js  # end ticks anchor inward
+
+
+# ------------------------------------------------------------------ the honest default range
+
+def test_the_chart_opens_on_a_clean_month_and_never_draws_through_a_gap():
+    """Jay 2026-09-28: the widest range flattened the line (175 snapshots since May 2024 with
+    month-long holes), so the Home card opens on 30d. Every range button (24h / 7d / 30d / All)
+    still overrides it, a stored choice still wins, and the renderer breaks the line where the
+    collected data has a real gap instead of drawing a straight line through the hole."""
+    chart = read('static/chart.js')
+    assert "range: '30d', style: 'area', palette: 'accent', gapS: 172800," in chart   # the Home default
+    assert "var pref = prefStore(key, { style: opts.style || 'area'," in chart        # saved choice wins
+    assert "range: opts.range || 'all' });" in chart
+    assert 'var gapS = Number(opts.gapS) || 0;' in chart                              # opt-in, other charts unchanged
+    assert 'var runs = (gapS > 0) ? splitRuns(ps, gapS) : [ps];' in chart             # the line stops at a gap
+    assert 'var lp = ps[ps.length - 1]' in chart                                      # the end dot follows the last run

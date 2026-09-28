@@ -21,6 +21,11 @@
   .st-lead b { color: var(--text); }
   .card-head h2.card-title { margin: 0; }
 
+  /* the sub-nav row (More | Settings) is a flex child of .shellcol now, which stretches it to the
+     full column width - a long empty bar with two pills at the left. Keep it content-sized, the
+     same way /collection.html and /cards.html keep theirs (page-local; style.css is shared). */
+  .mainnav.subnav { width: fit-content; }
+
   /* the two card stacks: plain blocks (DOM order, one column) until 1500px, then a 2-col grid */
   .st-band { display: block; }
   .st-col { min-width: 0; }
@@ -121,7 +126,9 @@
   </div>
 </header>
 
-<nav class="mainnav" id="mainnav" aria-label="Primary">
+<div class="shellbody">
+<aside class="side" aria-label="Primary">
+<nav class="mainnav sidenav" id="mainnav" aria-label="Primary">
   <a href="/#home" class="navpill" data-v="home" data-icon="house">Home</a>
   <a href="/#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
   <a href="/#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
@@ -130,6 +137,8 @@
   <a href="/#player" class="navpill" data-v="player" data-icon="user">Player</a>
   <a href="/#more" class="navpill active" data-v="more" data-icon="dots-three-circle" aria-current="page">More</a>
 </nav>
+</aside>
+<div class="shellcol">
 <nav class="mainnav subnav" aria-label="More sections">
   <a href="/#more" class="navpill" data-v="more">More</a>
   <a href="/settings.html" class="navpill active" aria-current="page">Settings</a>
@@ -228,6 +237,8 @@
     </div>
   </div>
 </main>
+</div><!-- /shellcol -->
+</div><!-- /shellbody -->
 
 <footer class="st-foot"><a href="/">◀ Back to the dashboard</a></footer>
 

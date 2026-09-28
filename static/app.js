@@ -46,10 +46,8 @@ function renderChips() {
   document.getElementById('chips').innerHTML = `
     <span class="chip">MR <b>${s.mr ?? '—'}</b></span>
     <span class="chip warn">Trades <b>${s.trades ?? '—'}</b>/day left</span>
-    <span class="chip">Credits <b>${(s.credits ?? 0).toLocaleString()}</b></span>
-    <span class="chip">Synced <b data-icon="check-circle-fill" data-icon-size="12">${ago(s.lastdata_mtime)}</b></span>
     <span class="chip" title="owned rows with a live sell price / owned rows · ${unquoted} no live quote">Priced <b>${s.priced ?? 0}/${s.items ?? 0}</b></span>
-    <span class="chip">Est. value <b>${(s.total_value ?? 0).toLocaleString()}p</b></span>`;
+`;
 }
 
 /* ---------- views ---------- */
@@ -137,6 +135,59 @@ function renderKpis() {
     <div class="kpi"><div class="k-label">Trades left</div><div class="k-val">${s.trades ?? '—'}</div></div>
     <div class="kpi" title="sellable only · equipped copies never count · owned basis: ${(s.total_value_owned ?? s.total_value ?? 0).toLocaleString()}p)"><div class="k-label">Inventory value</div><div class="k-val">${(s.total_value ?? 0).toLocaleString()}p</div></div>
     <div class="kpi"><div class="k-label">Credits</div><div class="k-val">${(s.credits ?? 0).toLocaleString()}</div></div>`;
+}
+
+/* ---------- home: page header row, hero and sell-next (clean pass, Jay 2026-09-28) ----------
+   All three read data the page already has (SUMMARY, PLAT, and TRADER.plan - the same plan the
+   Trade view sells from), so Home fetches nothing new. The hero number is the same reading as
+   the "Platinum now" KPI, and no Home control writes anything: the hero button and every
+   sell-next row are plain #trade links. */
+function renderHomeHead() {
+  const s = SUMMARY || {};
+  const date = document.getElementById('homeDate');
+  const sync = document.getElementById('homeSync');
+  if (date) date.textContent = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+  if (sync) sync.textContent = s.lastdata_mtime ? 'Synced ' + ago(s.lastdata_mtime) : 'Synced —';
+}
+
+function renderHomeHero() {
+  const s = SUMMARY || {}, ph = PLAT || {};
+  const num = document.getElementById('platinumNow');
+  if (num) num.textContent = (ph.now ?? s.plat ?? 0).toLocaleString();
+  const meta = document.getElementById('heroMeta');
+  if (!meta) return;
+  meta.innerHTML =
+    `<span><b>${s.trades ?? '—'}</b> trades left today</span>`
+    + `<span><b>${(s.credits ?? 0).toLocaleString()}</b> credits</span>`;
+}
+
+function renderHomeSellNext() {
+  const card = document.getElementById('homeSellNext');
+  const list = document.getElementById('sellNextList');
+  if (!card || !list) return;
+  const plan = (TRADER || {}).plan || {};
+  const all = plan.plan || [];
+  const rows = all.slice(0, 3);
+  const meta = document.getElementById('sellNextMeta');
+  if (!rows.length) {
+    /* no plan loaded on Home: the section steps out of the way rather than sweeping the market */
+    card.classList.add('hidden');
+    list.textContent = '';
+    if (meta) meta.textContent = '';
+    return;
+  }
+  card.classList.remove('hidden');
+  if (meta) {
+    /* the head stays a label: the plan's own freshness is the hover detail */
+    meta.textContent = `${all.length} ready`;
+    meta.title = plan.generated ? `plan built ${ago(plan.generated)}` : '';
+  }
+  list.innerHTML = rows.map(r => `
+    <a class="hnext-row" href="#trade" title="${escHtml(r.name || '')}${r.note ? ' · ' + escHtml(r.note) : ''}${r.qty ? ' · ' + r.qty + ' to list' : ''}">
+      <span class="hnext-nm"><span class="hnext-t">${escHtml(r.name || pretty(r.slug))}</span><span class="hnext-sub">${escHtml([r.lane, r.qty > 1 ? r.qty + ' spare' : '1 copy'].filter(Boolean).join(' · '))}</span></span>
+      <span class="hnext-pr">${r.price}p</span>
+      <span class="hnext-chev" aria-hidden="true">\u203a</span>
+    </a>`).join('');
 }
 
 /* ---- smart sell advisor (scripts/sell_advisor.py -> /api/feature/advisor) ---- */
@@ -230,7 +281,8 @@ function renderChartMeta() {
   const el = document.getElementById('chartMeta');
   if (!ph.n) { el.textContent = 'Collector: every 15 min'; return; }
   const since = new Date(ph.first_ts * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
-  el.textContent = `${ph.n} snapshots since ${since} · collector runs every 15 min`;
+  el.textContent = `${ph.n} readings · every 15 min`;
+  el.title = `snapshots since ${since}`;
 }
 
 /* ---------- history ---------- */
@@ -836,6 +888,7 @@ async function load() {
   markScrollers();
   renderKpis(); renderPicks(); renderChartMeta(); renderHistory(); renderTrader(); renderNews();
   renderFirstRun();
+  renderHomeHead(); renderHomeHero(); renderHomeSellNext();
   if (window.wfmRenderHome) wfmRenderHome();
   window.addEventListener('resize', function () { window.clearTimeout(window.__wfmScrollerT); window.__wfmScrollerT = window.setTimeout(markScrollers, 180); });
   /* the trade columns settle after the first paint (details content, flex heights), and any body
@@ -1466,6 +1519,15 @@ if (mhNextList) mhNextList.addEventListener('click', e => {
 const savedTheme = localStorage.getItem('wfm.theme');
 buildThemeGrid();
 PlatChart.init();
+/* The chart opens on its default range (30d) or on the range the user last picked - the stored
+   choice wins, and the pill in the card head follows whatever the chart actually opened on, so
+   the control never disagrees with the line it is labelling. */
+(function syncRangePills() {
+  const info = PlatChart.info ? PlatChart.info() : null;
+  if (!info || !info.range) return;
+  document.querySelectorAll('#ranges button').forEach(b =>
+    b.classList.toggle('active', b.dataset.r === info.range));
+})();
 applyTheme(savedTheme === null ? 0 : (+savedTheme || 0));
 applyHash();
 window.addEventListener('hashchange', applyHash);

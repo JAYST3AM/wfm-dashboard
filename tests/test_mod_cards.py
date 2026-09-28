@@ -423,7 +423,11 @@ def test_page_exists_and_reuses_the_shared_shell():
 
 def test_nav_has_every_pill_with_cards_active():
     html = open(PAGE, encoding='utf-8').read()
-    nav = html.split('<nav class="mainnav"', 1)[1].split('</nav>', 1)[0]
+    # 2026-09-28 rail: the primary nav is now <aside class="side"> > <nav class="mainnav sidenav"
+    # id="mainnav"> (the same shell index.html ships), so the split keys on the id - the class
+    # string carries the extra 'sidenav' token now.
+    assert '<aside class="side" aria-label="Primary">' in html
+    nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
     for href, label in NAV_PILLS:
         assert 'href="%s"' % href in nav, href
         assert '>%s</a>' % label in nav, label
