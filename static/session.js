@@ -46,6 +46,8 @@ function sessionWhyBits(why) {
   if (w.safe_copies) out.push('· ' + w.safe_copies + (w.safe_copies === 1 ? ' safe copy' : ' safe copies'));
   if (w.sales_48h !== undefined && w.sales_48h !== null) out.push('· ' + w.sales_48h + ' sales in 48h');
   if (w.buyers_online) out.push('· ' + w.buyers_online + (w.buyers_online === 1 ? ' buyer live' : ' buyers live'));
+  if (w.lowest_sell) out.push('· lowest sell ' + w.lowest_sell + 'p');
+  if (w.highest_buy) out.push('· highest buy ' + w.highest_buy + 'p');
   if (w.median !== undefined && w.median !== null) out.push('· median ' + w.median + 'p');
   if (w.week_pct !== undefined && w.week_pct !== null) out.push('· price ' + (w.week_pct > 0 ? '+' : '') + w.week_pct + '% this week');
   if (w.liquidity) out.push('· liquidity ' + w.liquidity);
@@ -53,14 +55,48 @@ function sessionWhyBits(why) {
   return out;
 }
 
+/* a duration the way a player would say it: '42m', '1h 12m', '3h' - no seconds, no fake precision */
+function sessionDur(sec) {
+  const m = Math.max(0, Math.round((Number(sec) || 0) / 60));
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60), rest = m % 60;
+  return rest ? h + 'h ' + rest + 'm' : h + 'h';
+}
+
 /* The Next-action footer control, rendered by app.js renderNextAction(). It stays at the quiet
    weight so the card keeps its one accent action (Open Trade): the card and its plan row belong to
-   app.js, the loop state to this file. */
+   app.js, the loop state to this file.
+
+   Spec section 8: the recommendation should end at a buyer, not at a price, so when the run queue
+   names one for the top plan row the footer carries the order book whisper row as well - same
+   classes and same button data as Trade > Orders, so the click goes through ordWhisper and nowhere
+   else. No buyer row, no button: the gap stays honest. */
+function sessionHomeWhisper() {
+  const plan = ((TRADER || {}).plan || {}).plan || [];
+  const top = plan[0] || null;
+  if (!top || !top.slug) return '';
+  const q = ((FEAT.runqueue || {}).queue || []).filter(r => r && r.slug === top.slug)[0];
+  if (!q || !q.buyer) return '';
+  const st = String(q.buyer_status || 'offline');
+  const rank = (top.lane || '').replace(/[^0-9]/g, '');
+  return `
+    <div class="ordrow" data-kind="buy" data-st="${escHtml(st)}">
+      <span class="orduser" title="the buyer the run queue found">${escHtml(q.buyer)}</span>
+      <span class="ordp" title="what they pay each">${ordPrice(q.buy_price)}</span>
+      <span class="ordst" title="${escHtml(q.why || 'from the run queue')}"><i class="orddot ${escHtml(st)}"></i>${escHtml(st)}</span>
+      <button class="ordwsp" data-item="${escHtml(top.slug)}" data-user="${escHtml(q.buyer)}"
+        data-price="${escHtml(String(q.my_price || top.price || ''))}" data-rank="${escHtml(rank)}" data-kind="buy"
+        title="Send this whisper in game">Whisper buyer</button>
+      <span class="ordres" aria-live="polite"></span>
+    </div>`;
+}
+
 function sessionHomeAction() {
-  const live = !!(FEAT.session || {}).session;
-  return live
+  const P = sessionPayload(), live = !!P.session;
+  return (live
     ? '<a class="btn" href="#trade/session" title="Back to the trading session">Open session</a>'
-    : '<button class="btn" id="homeStartTrading" type="button" data-icon="lightning" title="Build the queue and start trading">Start trading</button>';
+    : '<button class="btn" id="homeStartTrading" type="button" data-icon="lightning" title="Build the queue and start trading">Start trading</button>')
+    + sessionHomeWhisper();
 }
 
 function sessionEmpty(line) {
@@ -110,26 +146,59 @@ function sessionBuyerRow(f, b, say) {
 }
 
 /* the focus card: the one item the loop is on, its facts, the buyer (or the honest gap), and the
-   one action that moves it on */
+   one action that moves it on. The reasoning sits behind a Why? disclosure (spec section 7) rather
+   than in the flow, and the price block carries the three numbers the decision needs: what you list
+   at, the lowest live sell, the highest live buy */
 function sessionFocusCard(f, say) {
   const b = f.buyer || null, why = f.why || {}, conf = f.confidence || {};
   const bits = sessionWhyBits(why);
   const confWord = conf.level || 'low';
+  const reasons = (conf.reasons || []).concat(why.reasons || []);
   /* the same anatomy sbits() paints: one span per fact, so no visible string is a sentence */
   const whyHtml = bits.map(x => '<span>' + escHtml(x) + '</span>').join(' ');
   const facts = [sessionRankBit(f).trim(),
     '<span>' + (f.qty || 1) + ((f.qty || 1) === 1 ? ' copy' : ' copies') + '</span>',
-    '<span>' + escHtml(String(f.price)) + 'p list</span>'].filter(Boolean);
+    '<span>' + escHtml(String(f.price)) + 'p list</span>',
+    (why.lowest_sell ? '<span class="dim">lowest sell ' + why.lowest_sell + 'p</span>' : ''),
+    (why.highest_buy ? '<span class="dim">highest buy ' + why.highest_buy + 'p</span>' : '')].filter(Boolean);
+  const confTitle = reasons.join(' · ');
   return `
     <div class="sess-head">
       <span class="l-name" title="${escHtml(f.slug || '')}">${escHtml(f.name || pretty(f.slug))}</span>
       <span class="sess-facts">${facts.join(' ')}</span>
-      <span class="chip conf-${escHtml(confWord)}" title="${escHtml((conf.reasons || []).join(' · '))}">${escHtml(confWord)}</span>
+      <span class="chip conf-${escHtml(confWord)}" title="${escHtml(confTitle)}">${escHtml(confWord)}</span>
       <span class="dim">${escHtml(sessionStateWord(f))}</span>
     </div>
-    ${bits.length ? `<div class="sess-why" title="${escHtml((why.reasons || []).join(' · '))}">${whyHtml}</div>` : ''}
+    ${bits.length ? `<details class="acc sub sess-whyacc"${confWord === 'low' ? ' open' : ''}>
+      <summary title="${escHtml(confTitle)}">Why this trade?</summary>
+      <div class="sess-why">${whyHtml}</div>
+    </details>` : ''}
+    <div class="sess-acts">
+      <button class="btn sessorders" type="button" data-slug="${escHtml(f.slug || '')}" title="Open the live order book for this item">Open live orders</button>
+      <button class="btn sesssold" type="button" data-slug="${escHtml(f.slug || '')}" title="Log this sale and move on">Mark sold</button>
+    </div>
     ${b ? sessionBuyerRow(f, b, say)
         : `<div class="sess-nobuyer dim">${escHtml(why.rank_mismatch || 'No buyer in the run queue')}</div>`}`;
+}
+
+/* the end-of-session card (spec section 6): counted, never invented - a session with no trades says
+   so rather than showing a flattering zero */
+function sessionEndCard(sum) {
+  const done = Number(sum.trades) || 0;
+  const best = sum.best || null;
+  const bits = [
+    '<span>' + done + (done === 1 ? ' trade' : ' trades') + '</span>',
+    '<span>' + sessionPlat(sum.earned_plat) + 'p earned</span>',
+    '<span>' + escHtml(sessionDur(sum.seconds)) + '</span>'];
+  if (sum.average_plat) bits.push('<span>' + sessionPlat(sum.average_plat) + 'p average</span>');
+  if (sum.skipped) bits.push('<span>' + sum.skipped + ' skipped</span>');
+  if (sum.held) bits.push('<span>' + sum.held + ' held</span>');
+  return `
+    <div class="sess-head">
+      <span class="l-name">Session complete</span>
+      <span class="sess-facts">${bits.join(' ')}</span>
+    </div>
+    ${best ? `<div class="sess-why"><span>highest sale</span> <span>${escHtml(best.name || pretty(best.slug))}</span> <span>${sessionPlat(best.plat)}p</span></div>` : ''}`;
 }
 
 /* the pending trades: what a sent whisper is waiting on. The check that says what actually moved
@@ -225,8 +294,10 @@ function renderSession() {
 
   const focus = document.getElementById('sessionFocus');
   if (focus) {
-    focus.innerHTML = (P.live && P.focus) ? sessionFocusCard(P.focus, say)
-      : sessionEmpty(P.live ? 'Nothing left in the queue.' : 'No session open yet.');
+    const ended = !!P.session && (P.session.ended_ts || sum.complete);
+    focus.innerHTML = ended ? sessionEndCard(sum)
+      : (P.live && P.focus) ? sessionFocusCard(P.focus, say)
+        : sessionEmpty(P.live ? 'Nothing left in the queue.' : 'No session open yet.');
   }
   const ql = document.getElementById('sessionQueueList');
   if (ql) {
@@ -305,6 +376,33 @@ async function sessionAct(btn) {
   }
 }
 
+/* the focus card's two quiet actions: open the live book for the item (the same book Orders shows,
+   pointed at this item) and mark the trade sold by hand - the second one is a manual completion, so
+   it goes through the same canonical confirm as a proposal does (spec §5: one completion path) */
+async function sessionOrders(btn) {
+  const slug = btn.dataset.slug || '';
+  if (!slug) return;
+  const q = document.getElementById('ordQ');
+  if (q) q.value = slug;
+  if (typeof ORD === 'object') ORD.slug = slug;
+  if (location.hash === '#trade/orders') renderOrders();
+  else location.hash = '#trade/orders';
+}
+
+async function sessionMarkSold(btn) {
+  const f = sessionPayload().focus;
+  if (!f) return;
+  const qty = f.qty || 1;
+  btn.disabled = true;
+  try {
+    const ok = await sessionPost('confirm', { trade: { slug: f.slug, name: f.name,
+      rank: (f.rank === undefined ? null : f.rank), qty, plat: (Number(f.price) || 0) * qty,
+      user: (f.buyer || {}).user || null, source: 'manual' } });
+    if (ok && window.sfx) sfx.play('done');
+    if (ok) await load();
+  } finally { btn.disabled = false; }
+}
+
 /* one confirmation, one transaction: the draft the check came with goes to /api/session/confirm,
    which writes the trade with its id, closes the pending row and moves the session on. The page
    then refreshes the way every other action does - no local completion state, ever (spec §11) */
@@ -351,6 +449,10 @@ async function sessionClick(e) {
   if (wsp) { if (!wsp.disabled) await sessionWhisper(wsp); return; }
   const conf = t.closest('.sessconf');
   if (conf) { if (!conf.disabled) await sessionConfirm(conf); return; }
+  const ord = t.closest('.sessorders');
+  if (ord) { await sessionOrders(ord); return; }
+  const sold = t.closest('.sesssold');
+  if (sold) { if (!sold.disabled) await sessionMarkSold(sold); return; }
   const pick = t.closest('.sessfocus');
   if (pick) {
     if (await sessionPost('focus', { index: Number(pick.dataset.index) })) await load();

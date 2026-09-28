@@ -131,7 +131,10 @@ def test_the_loop_actions_use_the_endpoints_that_exist():
     assert "await load()" in SESS, 'every action re-reads through the one refresh'
     # one new endpoint, used exactly once, and no session-only poll
     assert "sessionPost('confirm', { trade: draft })" in SESS
-    assert SESS.count("sessionPost('confirm'") == 1, 'one confirmation path, one call site'
+    # one route, two call sites, both of them a human saying this trade completed: the check that
+    # came from the save, and the focus card Mark sold control (spec sections 1 and 5)
+    assert SESS.count("sessionPost('confirm'") == 2
+    assert "sessionMarkSold" in SESS and 'class="btn sesssold"' in SESS
     assert 'api/session/reconcile' not in SESS, 'the check rides the payload, never a second ask'
 
 
@@ -178,7 +181,7 @@ def test_the_panel_confirms_through_the_canonical_route_only():
     assert 'P.proposals' in SESS, 'the check rides the payload load() already fetched'
     assert "state: 'COMPLETED'" not in SESS, 'the panel never posts a completion'
     assert "state: 'POSSIBLE MATCH'" not in SESS, 'nor a maybe: completion is the server route'
-    assert "sessionPost('confirm'" in SESS and SESS.count("sessionPost('confirm'") == 1
+    assert "sessionPost('confirm'" in SESS and SESS.count("sessionPost('confirm'") == 2
     assert 'api/session/reconcile' not in SESS and 'api/session/reconcile' not in panel
     assert 'SESSION_STATE_WORD' in SESS and "'POSSIBLE MATCH'" in SESS, \
         'the state is shown, never resolved'
@@ -188,6 +191,7 @@ def test_no_proposal_ever_confirms_itself():
     """Nothing in the panel fires a confirm without a click: the only caller is the delegated
     listener, and a proposal with no verdict word offers no button at all."""
     assert SESS.count('sessionConfirm(') == 2, 'defined once, called once (delegated listener)'
+    assert SESS.count('sessionMarkSold(') == 2, 'the manual completion is a click away, never a loop'
     assert "t.closest('.sessconf')" in SESS
     assert ": '';" in SESS, 'nothing/none proposals render without a confirm button'
 
@@ -250,7 +254,7 @@ def test_the_panel_marks_stale_pending_trades_without_resolving_them():
     assert 'stale_pending' in SESS and 'class="chip">old</span>' in SESS
     assert 'sessionPendingRows(P.pending, P.stale)' in SESS
     assert 'api/session/reconcile' not in SESS, 'the check rides the payload'
-    assert SESS.count("sessionPost('confirm'") == 1, 'and a trade closes only through confirm'
+    assert SESS.count("sessionPost('confirm'") == 2, 'and a trade closes only through confirm'
     assert "sessionPost('state'" in SESS, 'the only states the panel sets are Skip and Hold'
     assert "state: 'COMPLETED'" not in SESS, 'a trade closes through confirm, not a state POST'
 
@@ -264,3 +268,53 @@ def test_the_panel_reuses_the_trade_vocabulary():
         assert cls in SESS, cls
     assert '#tp-session' in CSS, 'the panel own rules are scoped to it'
     assert 'setInterval' not in CSS
+
+
+# ------------------------------------------------------------------ 7. summary, Why?, and the buyer
+
+def test_the_why_control_is_a_disclosure_not_a_wall():
+    """Spec section 7: a small Why? control, facts only when the payload carries them."""
+    assert 'sessionWhyBits(why)' in SESS
+    assert 'Why this trade?' in SESS
+    assert 'class="acc sub sess-whyacc"' in SESS, 'the app own disclosure pattern'
+    assert "'· ' + w.safe_copies" in SESS and 'safe copies' in SESS
+    assert 'lowest sell' in SESS and 'highest buy' in SESS, 'the price block the decision needs'
+    assert "'· ' + w.sales_48h" in SESS and 'median ' in SESS
+    # a fact the payload omits prints nothing: every branch is guarded, none prints a dash
+    assert SESS.count('!== undefined && w.') >= 3
+
+
+def test_the_end_of_session_card_counts_only_what_happened():
+    """Spec section 6: trades, platinum, duration, average, highest sale - and skipped/held when
+    there are any."""
+    assert 'function sessionEndCard(' in SESS and 'Session complete' in SESS
+    assert 'function sessionDur(' in SESS and "'h ' + rest + 'm'" in SESS
+    assert 'sum.average_plat' in SESS and 'sum.best' in SESS and 'highest sale' in SESS
+    assert 'sum.skipped' in SESS and 'sum.held' in SESS
+    assert 'P.session.ended_ts || sum.complete' in SESS, 'ended OR nothing left to work'
+    assert 'sessionEndCard(sum)' in SESS
+
+
+def test_home_offers_the_buyer_not_just_the_price():
+    """Spec section 8: the Next action ends at a buyer. It reuses the book whisper row, and when the
+    run queue has no buyer for the top row it renders nothing rather than a dead button."""
+    assert 'function sessionHomeWhisper(' in SESS
+    assert 'Whisper buyer' in SESS
+    assert 'class="ordwsp" data-item=' in SESS
+    assert 'class="ordrow" data-kind="buy"' in SESS
+    assert 'class="ordres" aria-live="polite"' in SESS
+    assert 'FEAT.runqueue' in SESS, 'the buyer comes from the payload already fetched'
+    assert "if (!q || !q.buyer) return '';" in SESS, 'no buyer, no button'
+    assert 'sessionHomeAction()' in APP and 'sessionHomeAction()' in SESS
+
+
+def test_the_focus_card_carries_the_full_action_set():
+    """Spec section 1: Whisper, Open live orders, Skip, Hold - plus a manual completion. The manual
+    one goes through the same confirm route as a checkpoint does (section 5: one path)."""
+    assert 'class="btn sessorders"' in SESS and 'Open live orders' in SESS
+    assert 'class="btn sesssold"' in SESS and 'Mark sold' in SESS
+    assert "'sessionSkip'" in SESS and "'sessionHold'" in SESS
+    assert "location.hash = '#trade/orders'" in SESS, 'the live book is one click away'
+    assert 'ORD.slug = slug' in SESS, 'and it opens on this item'
+    assert "source: 'manual'" in SESS, 'the manual completion is labelled as one'
+    assert SESS.count('function sessionMarkSold(') == 1

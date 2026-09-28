@@ -249,6 +249,14 @@ def _why(report_row, adv, buyer, runqueue):
         out['buy_orders'] = report_row['n_buy']
     if isinstance(report_row.get('n_sell'), int):
         out['sell_orders'] = report_row['n_sell']
+    # the two order-book numbers the recommendation rides on, straight from the same report row:
+    # wts is the lowest live sell, wtb the highest live buy (spec §1 price block)
+    low = _int(report_row.get('wts'))
+    if low:
+        out['lowest_sell'] = low
+    high = _int(report_row.get('wtb'))
+    if high:
+        out['highest_buy'] = high
     if adv.get('lane_rank') is not None:
         out['rank'] = adv['lane_rank']
     if buyer and buyer.get('plat') and buyer.get('my_price'):

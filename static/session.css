@@ -23,32 +23,58 @@
 }
 #tp-session .sess-nobuyer { padding: 4px 0 2px; font-size: 12px; }
 
-/* the buyer row: the order book's row shape, one line of it plus the answer line underneath */
-#tp-session .ordrow {
+/* the buyer row: the order book's row shape, one line of it plus the answer line underneath.
+   Home's Next action wears the same row for its Whisper buyer control (spec section 8), so the
+   selectors name both hosts - the row is one shape in two places, not two shapes. */
+#tp-session .ordrow, #homeSellNext .ordrow {
   display: grid; grid-template-columns: minmax(0, 1fr) 64px max-content max-content;
   gap: 8px; align-items: center; padding: 7px 10px; border-top: 1px solid var(--border);
   font-size: 12.5px;
 }
-#tp-session .ordrow .orduser { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#tp-session .ordp {
+#homeSellNext .ordrow { padding: 6px 0 2px; }
+#tp-session .ordrow .orduser, #homeSellNext .ordrow .orduser {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#tp-session .ordp, #homeSellNext .ordp {
   font-weight: 700; color: var(--accent); font-family: var(--mono); font-variant-numeric: tabular-nums;
 }
-#tp-session .ordst { font-size: 11px; white-space: nowrap; }
-#tp-session .orddot {
+#tp-session .ordst, #homeSellNext .ordst { font-size: 11px; white-space: nowrap; }
+#tp-session .orddot, #homeSellNext .orddot {
   display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px;
   background: var(--muted);
 }
-#tp-session .orddot.ingame { background: var(--up, #4ade80); }
-#tp-session .orddot.online { background: var(--accent); }
-#tp-session .ordwsp {
+#tp-session .orddot.ingame, #homeSellNext .orddot.ingame { background: var(--up, #4ade80); }
+#tp-session .orddot.online, #homeSellNext .orddot.online { background: var(--accent); }
+#tp-session .ordwsp, #homeSellNext .ordwsp {
   background: var(--panel2); color: var(--text); border: 1px solid var(--border);
   border-radius: 7px; padding: 3px 9px; cursor: pointer; font: 600 11px var(--sans);
 }
-#tp-session .ordwsp:hover { border-color: var(--accent-dim); }
-#tp-session .ordwsp:disabled { opacity: .6; cursor: default; }
-#tp-session .ordres { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
-#tp-session .ordres:empty { display: none; }
-#tp-session .ordres.bad { color: var(--down, #f87171); }
+#tp-session .ordwsp:hover, #homeSellNext .ordwsp:hover { border-color: var(--accent-dim); }
+#tp-session .ordwsp:disabled, #homeSellNext .ordwsp:disabled { opacity: .6; cursor: default; }
+#tp-session .ordres, #homeSellNext .ordres { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
+#tp-session .ordres:empty, #homeSellNext .ordres:empty { display: none; }
+#tp-session .ordres.bad, #homeSellNext .ordres.bad { color: var(--down, #f87171); }
+
+/* the focus card's two quiet actions, and the Why? disclosure above them (the panel keeps one
+   obvious primary action: the whisper row) */
+#tp-session .sess-acts { display: flex; gap: 8px; padding: 2px 0 4px; }
+#tp-session .sess-acts .btn {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 3px 10px; cursor: pointer; font: 600 11px var(--sans);
+}
+#tp-session .sess-acts .btn:hover { border-color: var(--accent-dim); }
+#tp-session .sess-acts .btn:disabled { opacity: .6; cursor: default; }
+#tp-session .sess-whyacc { margin: 2px 0 4px; }
+#tp-session .sess-whyacc > summary { font-size: 11.5px; color: var(--muted); cursor: pointer; }
+#tp-session .sess-whyacc .sess-why { padding-bottom: 0; }
+
+/* the check rows carry one more fact than a queue row: the evidence of what moved */
+#tp-session .sesscheck {
+  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 0.5fr) max-content minmax(0, 1.1fr) max-content;
+  align-items: center;
+}
+#tp-session .sesscheck .sess-facts { display: flex; flex-wrap: wrap; gap: 4px; }
+#tp-session .chip.ok { border-color: var(--up, #4ade80); color: var(--up, #4ade80); }
 
 /* the queue and the pending list: .sessrow's one-line shape with the session's own columns
    (History's four columns are four different facts). The responsive rules in style.css hide

@@ -286,3 +286,23 @@ def test_stale_pending_is_reported_but_never_resolved(ts, data_dir):
     assert [p['id'] for p in out['pending']] == ['p-2']
     assert [p['id'] for p in out['stale_pending']] == ['p-1']
     assert ts.load(str(data_dir))['pending'][0]['state'] == ts.CONTACTED
+
+
+def test_why_carries_the_two_order_book_numbers(ts):
+    """Spec §1's price block: what you list at, the lowest live sell, the highest live buy."""
+    report = report_doc()
+    report['sell_now'][0]['wts'] = 90
+    report['sell_now'][0]['wtb'] = 100
+    q = ts.build_queue(plan_doc(), advisor_doc(), report, runqueue_doc())
+    why = q[0]['why']
+    assert why['lowest_sell'] == 90 and why['highest_buy'] == 100
+    assert why['sell_orders'] == 5 and why['buy_orders'] == 5
+
+
+def test_why_omits_the_order_book_numbers_when_there_are_none(ts):
+    report = report_doc()
+    report['sell_now'][0].pop('wtb')
+    report['sell_now'][0].pop('wts')
+    q = ts.build_queue(plan_doc(), advisor_doc(), report, runqueue_doc())
+    why = q[0]['why']
+    assert 'lowest_sell' not in why and 'highest_buy' not in why
