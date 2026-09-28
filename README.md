@@ -1,48 +1,76 @@
 # WFM Trader
 
-![The dashboard, the trader plan, the guardrails, the market tables, the collection log and the card grid — one tour](assets/preview.gif)
+![The dashboard tour — Home, Trade, Settings, the tools and the card grid](assets/preview.gif)
 
 A local, single-user dashboard for **your own Warframe inventory** and **warframe.market** prices,
-plus a **plan-first trader toolkit** that plans listings, watches undercuts and keeps its own
-trade log. Everything runs on your own PC: a Python 3.11 standard-library server on
-`127.0.0.1:8787`, a vanilla-JS front end (no framework, no build step) and JSON files under `data/`.
-No account is needed to start, and nothing is uploaded anywhere.
+plus a plan-first trader toolkit that plans listings, watches undercuts and keeps its own trade log.
+Everything runs on your own PC: a Python 3.11 standard-library server on `127.0.0.1:8787`, a
+vanilla-JS front end (no framework, no build step) and JSON files under `data/`.
 
-*(The preview flips the palette once mid-tour — 60 themes ship (30 dark + 30 light), this is one of them switching.)*
+**Zero AI.** No API key, no model call, no account, no telemetry. Every number is computed by local
+Python over data you already have (AlecaFrame's save + public market endpoints). See
+[What runs with what](#what-runs-with-what).
 
-## Safety: posting is Not live by default, and that is the only shipped mode
+> **Screenshot: add yours.** The images in `assets/` were captured before the 2026-09-28 navigation
+> restructure, so the rail in them is the old one (and `shot_market.png` shows the retired More
+> page). The content is real; the nav is not current. `python tools/make_preview.py` rebuilds them
+> from a running dashboard — it still targets the old `#more` hash, so it needs the new-nav pass
+> before it can be trusted again.
 
-- **Posting is Not live, and `dry_run` is locked on.** `dry_run` is the master gate; the settings
-  writer refuses to turn it off (i.e. go Live): `python scripts/trader/settings.py --set dry_run=false`
-  exits `3` and leaves the file byte-identical. Every trader engine therefore plans and checks —
-  none of them posts, relists or reprices.
-- **Kill switch.** Arm it from the Trader tab (`data/kill_switch.json`); the engines check it before
-  every cycle, which makes it the hard stop for the day the live posting path lands.
-- **Guardrails, not constants.** Daily listing cap, ceiling on live sell orders, price floor, floor
-  as a % of the 48h median, undercut size, buy budget and poll interval are validated settings with
-  atomic writes — see [Configuration](#configuration).
-- **It says what it is.** Requests go to AlecaFrame's local cache and the public warframe.market API
-  as `WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)` — it does not pretend
-  to be a browser.
+## What runs with what
 
-Honest status: the dashboard, inventory sync, trade log, market scanners, search, collection and
-cards pages are in daily use. The trader stack (plan → detector → undercut watch → hygiene → run
-queue) is Not live. `auto.py`, the supervised orchestrator, is v0: one cycle at a time, Not live. Live posting is not in this repository.
+| Works immediately — no keys, no AI, no account | Needs this on your PC | Optional, only for extras |
+|---|---|---|
+| The whole UI: rail, Home, Trade, Inventory, Collection, Tools, Settings, the 60 themes, global search, the item drawer | **Warframe** (Windows) + [AlecaFrame](https://alecaframe.com) installed and synced once — it is where the inventory comes from | A warframe.market session in `secrets.json` — only the order-touching scripts use it |
+| Everything computed from `data/` once built: prices, rank lanes, sell advice, collection, relics, mastery, cards | `pip install cryptography` — it decrypts AlecaFrame's local cache (the inventory side is Windows-only because AlecaFrame is) | A shared chat relay (`chat-relay/`, one Cloudflare Worker, free tier) if you want Home's chat dock to be more than a local log |
+| The trader *plans*: listing plan, undercut watch, hygiene plan, flip plan, the guardrail settings | A first data build: `python scripts/setup.py` (~20–40 minutes, resumable) | `scripts/snapshot_plat.py` every 15 min and `scripts/watch_save.py` for continuous history / self-syncing inventory |
 
-The UI is five sections — **Home / Inventory / Trade / Collection / More** — over the full engine
-set: anything niche lives behind a disclosure or in Advanced trading, and one shared item drawer
-(the header search, any inventory row, any collection tile) shows everything known about an item.
+Prices, statistics and order books come from public warframe.market endpoints. Requests identify
+themselves as `WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)` — it never
+pretends to be a browser.
 
-## Install
+## How you get around it
 
-**Windows, no Python needed — download the app:** grab **`WFM-Trader-<date>.zip`** from the
+The rail is the same on every page, rendered from one shared source (`static/shell.js` + `shell.css`):
+
+| Pill | Goes to | What is there |
+|---|---|---|
+| **Home** | `/#home` | Four questions and nothing else: **what to sell next, for how much, who is buying it, and what you earned today.** The Today strip (platinum, sales, trades left) with detail one tap below; alerts; the sell queue; recent activity. Game news moved to Tools. |
+| **Trade** | `/#trade` | **Sell** — today's recommended listings, held-back rows ("not recommended right now"), listings needing attention (undercut + stale), the trade limit from the game save. **Buy** — flip opportunities (margin × liquidity) and the wishlist budget planner. **History** — your own trade log (warframe.market has no public trade-history API, so the dashboard keeps the record), sessions, sell timing, the platinum ledger. Below the tabs: the run queue, the **Safety** kill switch and notifications. |
+| **Inventory** | `/#inventory` | Every tradeable you own, filtered by category or typed. Default columns stay simple (item, qty, equipped, safe to sell, sell price, value); **All columns** adds category, ducats, buyer offering, profit gap, sales / 48h, typical price, reserved. Materials and Clan Dojo panels, and the inventory-change log. |
+| **Collection** | `/collection.html` | Four sections: **Collection** (collected vs obtainable, per-category progress, how to get each item) · **Relics** (every relic: drops, reward table per refinement, EV, your copies) · **Mastery** (rank gap + the ranked do-this-next queue) · **Cards** (`/cards.html`, every mod as a trading card with full-art faces and a 3D inspect). |
+| **Tools** | `/#tools` | A launcher — one focused workspace at a time (table below). Was the old More page. |
+| **Settings** | `/settings.html` | One category at a time: General / Trading / Appearance / Accounts / Notifications / Advanced. Deep-link any of them (`/settings.html#trading`). |
+
+Tools, one workspace visible at a time (`#tools/<slug>`):
+
+| Group | Workspaces | Slugs |
+|---|---|---|
+| Trading | Deals · Movers & demand · Riven bands · Watchlist | `#tools/deals`, `#tools/trends`, `#tools/rivens`, `#tools/wl` |
+| Planning | Ducats · Craft or buy · Relic EV · Sets | `#tools/ducats`, `#tools/craft`, `#tools/relicev`, `#tools/sets` |
+| Warframe | Baro Ki'Teer · Patch meta · Game news · Player profile | `#tools/baro`, `#tools/meta`, `#tools/news`, `#tools/player` |
+
+Details worth knowing:
+
+- **Two item surfaces, on purpose.** The shared **drawer** (the header search, any inventory row,
+  any collection tile) is the quick look, with exactly one primary action — **Open full analysis ↗**
+  → `/item.html?item=<slug>` — the deep page with the chart, trades, order book and statistics.
+- **Rank-aware pricing.** The full order book per owned ranked mod is reduced to rank lanes, so the
+  UI prices the rank your save proves you own — never a rank-0 listing next to a rank-10 bid.
+- **Old links still resolve** (nothing lands blank): `#more` / `#market` → `#tools`,
+  `#player` → `#tools/player`, `#mastery` → `/collection.html#mastery`,
+  `#history` / `#trader` → `#trade`, `/lookup.html` → the header search.
+
+## Quick start
+
+**Windows, no Python — the one-click app.** Grab **`WFM-Trader-<date>.zip`** from the
 [Releases page](../../releases), unzip it anywhere and double-click **`WFM Trader.exe`**. It brings
-its own Python, checks AlecaFrame, builds your data on the first run (20-40 minutes, resumable),
-starts the dashboard and opens the browser. Nothing to install, no terminal. (`START HERE.txt` in the
-zip says the same.)
+its own Python: it checks AlecaFrame, builds your data on the first run (20–40 minutes, resumable),
+starts the dashboard and opens the browser. `START HERE.txt` in the zip says the same. To build the
+zip yourself: `python tools/build_app.py --bundle`.
 
-**Windows, from source — the one-click script:** double-click **`setup.bat`** once. It finds Python,
-installs the one dependency, checks AlecaFrame, builds the data (20-40 minutes the first time —
+**Windows, from source — the one-click script.** Double-click **`setup.bat`** once. It finds Python,
+installs the one dependency, checks AlecaFrame, builds the data (20–40 minutes the first time —
 resumable, stop it any time) and opens the dashboard. Later, **`refresh.bat`** re-prices everything
 in a few minutes.
 
@@ -50,110 +78,123 @@ Manual / any platform:
 
 ```bash
 pip install cryptography   # only for the inventory side: it decrypts AlecaFrame's local cache
-python scripts/setup.py    # first run: read AlecaFrame, build ALL the data (~20-40 min)
-start.bat                  # or: python server.py
+python scripts/setup.py    # first run: read AlecaFrame, build ALL the data (~20-40 min, resumable)
+python server.py           # or start.bat on Windows
 ```
 
-Open **http://127.0.0.1:8787**
+Open **http://127.0.0.1:8787** — the port is `data/config.json` → `port` (env `WFM_PORT` wins).
+`stop.bat` kills whatever is listening on 8787.
 
-**What you need first:** Warframe on this PC + [AlecaFrame](https://alecaframe.com) installed and
-synced once (open the game after installing it). `setup.py` tells you exactly what to do if the
-AlecaFrame cache is not found yet.
+**What you need first:** Warframe on this PC + AlecaFrame installed and synced once (open the game
+after installing it). `setup.py` tells you exactly what to do if the AlecaFrame cache is not found
+yet. The server, the UI and the market scripts are stdlib-only Python 3.11+ (3.14 works);
+`cryptography` is the one package, and only AlecaFrame's save needs it.
 
-The server, the UI and the market scripts are stdlib-only Python 3.11+ (3.14 works). `cryptography`
-is the one package, and only AlecaFrame's save needs it. `stop.bat` kills the process on port 8787.
+### Keeping it running / fresh
 
-**Keeping it running / fresh:**
-
-- `refresh.bat` — re-fetch prices/stats/rank lanes and rebuild the derived data (couple of minutes,
-  resumable). The dashboard also has a **Refresh** button, which reloads the page's data only.
+- `refresh.bat` — re-fetch prices/stats/rank lanes and rebuild the derived data (a couple of
+  minutes, resumable). The dashboard's **Refresh** button reloads the page's own data only.
 - `supervise.bat` — keeps the server alive: starts it, restarts it if it exits, restarts it when the
-  health check fails. Put a shortcut to it in your Startup folder (Win+R → `shell:startup`) to have
-  the dashboard up on every login. If something is already serving the port it just watches.
-- Schedule `scripts/snapshot_plat.py` every 15 minutes if you want the platinum chart to keep building
-  history continuously, and `scripts/watch_save.py` if you want the inventory to re-sync itself when
-  AlecaFrame rewrites the game save.
+  health check fails. If something already serves the port it just watches. Put a shortcut in your
+  Startup folder (Win+R → `shell:startup`) to have the dashboard up on every login. Offline check:
+  `python tools/supervise.py --selftest`.
+- Schedule `scripts/snapshot_plat.py` every 15 minutes if you want the platinum chart to keep
+  building history continuously, and `scripts/watch_save.py` if you want the inventory to re-sync
+  itself when AlecaFrame rewrites the game save.
 - **Multiple Warframe accounts:** Settings → **Accounts** keeps one data profile per account and
-  switches the live data between them — it shows the switch plan first, takes a safety zip, and never
-  deletes anything (the warframe.market login in `secrets.json` stays shared). Same engine on the CLI:
-  `python scripts/profiles.py --list | --create NAME | --switch NAME [--apply]`.
+  switches the live data between them — it shows the switch plan first, takes a safety zip, and
+  never deletes anything. Same engine on the CLI:
+  `python scripts/profiles.py --list | --create [NAME] | --switch NAME [--apply]`.
 
-Optional: copy `secrets.example.json` → `secrets.json` and run `python scripts/wfm_check.py` to sign
-in once and confirm your warframe.market session (needed only by the order-touching scripts).
+### Signing in (optional — and the verification step is yours)
 
-**Signing in — the verification step is yours, not the app's.** If warframe.market shows a Cloudflare
-browser check or wants a one-time code, that part is yours to complete (AlecaFrame tells its users
-the same thing). The app never asks for, fetches, stores or logs a code, and it stops with
-instructions instead of guessing. The quickest way past it is to sign in once in your own browser and
-hand the app that session: `secrets.json` → `"wfm_token": "<the JWT cookie from F12 → Application →
-Cookies → warframe.market>"`. It then uses your browser session and never needs the password sign-in.
+Nothing needs a warframe.market login except the order-touching scripts; the dashboard is fully
+useful without one. To connect an account: copy `secrets.example.json` → `secrets.json`, then run
+`python scripts/wfm_check.py` to sign in once and confirm the session.
 
-Schedule `scripts/snapshot_plat.py` every 15 minutes if you want the platinum chart to keep building
-history continuously, and `scripts/watch_save.py` if you want the inventory to re-sync itself when
-AlecaFrame rewrites the game save.
+If warframe.market shows a Cloudflare browser check or wants a one-time code, that part is yours to
+complete (AlecaFrame tells its users the same thing). The app never asks for, fetches, stores or
+logs a code, and it stops with instructions instead of guessing. The quickest way past it: sign in
+once in your own browser and hand the app that session — `secrets.json` → `"wfm_token"` = the `JWT`
+cookie from F12 → Application → Cookies → warframe.market. It then uses your browser session and
+never needs the password sign-in.
 
-## Pages
+## Safety: posting is Not live, and that is the only shipped mode
 
-Screenshots below show a real account with the account handle blurred.
+The stack these gates protect (`scripts/trader/`) is the private half — **not published with this
+repository**. A public checkout gets the dashboard, the public scripts and this safety model; when
+the stack is present, this is how it behaves.
 
-### Home — `/`
+| Gate | What it does |
+|---|---|
+| **`dry_run` — locked on** | The master gate. The settings writer refuses to turn it off: `python scripts/trader/settings.py --set dry_run=false` exits `3` and leaves the file byte-identical. Every trader engine therefore plans and checks — none of them posts, relists or reprices. `scripts/trader/auto.py` refuses all engine work unless `dry_run` is true, whatever else the file says. |
+| **Kill switch** | Armed from Trade → Safety (state in `data/kill_switch.json`). The engines check it before every cycle — the hard stop for the day a live posting path lands. `profiles.py` deliberately never copies it into another account's profile. |
+| **Guardrails, not constants** | Validated settings with atomic writes and a schema (`python scripts/trader/settings.py --schema`): `max_new_listings_per_day` **20**, `max_active_listings` **40**, `undercut_platinum` **1** (list 1p under the cheapest ask), `min_price_pct_of_median` **60** (never below 60% of the 48h median), `min_price_platinum` **3**, `buy_budget_cap_platinum` **300**, `poll_seconds` **90**. |
+| **Nothing posts automatically** | No engine has a live posting path: the lister *plans* rows, the watcher *reports* undercuts, hygiene *plans* visibility actions and executes nothing. Using any of it is explicit and local — the live posting path is not in this repository. |
+| **It says what it is** | Requests go to AlecaFrame's local cache and public warframe.market endpoints under a self-describing user agent (above) — never disguised as a browser. |
 
-KPI tiles (platinum now with 24h/7d deltas, trades left, inventory value, credits), **Today** —
-the progress tracker: platinum and credits change, items added, trades, sessions (live marker)
-and the week's totals, with the last few sessions listed — a **needs attention** card when
-something moved, the platinum chart, recent activity and the game-updates feed. The header **search** covers your inventory and
-the whole item catalogue and opens the shared item drawer.
+Honest status: the dashboard, inventory sync, trade log, market scanners, search, collection,
+relics, mastery, cards and the Tools workspaces are in daily use. The trader stack
+(plan → detector → undercut watch → hygiene → run queue) is **Not live**: `auto.py`, the supervised
+orchestrator, is v0 — one supervised cycle at a time.
 
-![Dashboard](assets/shot_home.png)
+## Privacy: what stays on this PC
 
-### Inventory — `/#inventory`
+| Stays local | Detail |
+|---|---|
+| Your game data | Everything the app writes lives in `data/` (gitignored), plus the derived files under `static/` that carry account state (`collection_log.json`, `relics_panel.json`, `mastery.json`, `progress.json`, `colimg/`) — also gitignored, because they are personal progress. |
+| Your login | `secrets.json` is gitignored; `secrets.example.json` is the only committed shape. Nothing in the app logs, prints or uploads the token or password. |
+| Your inventory | Read from a local decrypt of AlecaFrame's cache. Never uploaded. |
+| Your trade log, chat, settings | Local JSON under `data/`. |
 
-Every tradeable you own, filtered by category or by typing. Default columns stay simple (item,
-qty, equipped, safe to sell, sell price, value); **All columns** adds category, ducats, buyer
-offering, profit gap, sales / 48h, typical price and reserved. A ranked mod shows its `R#` lane
-tag, and rank-aware prices come from the order book of the rank you actually own. Click a row for
-the item drawer; the inventory-change list tracks what the game added or removed.
+| Leaves the PC | Detail |
+|---|---|
+| Price / statistics / order-book reads | Public GETs to warframe.market (no account needed). Public drop tables and the wiki for relic/mastery/collection data. |
+| Chat messages | **Only if you set `chat_relay_url`.** Then Home's chat dock posts plain text to *that* room, stamped with the name and rank from your local save. There is no default relay — left empty, the chat stays on this PC (`data/chat.json`). Rooms are open to anyone with the URL; don't post anything private. |
 
-### Trade — `/#trade`
+## Configuration
 
-**Sell** — the trade limit straight from the game save, today's recommended listings, held-back
-rows ("not recommended right now") and listings needing attention (undercut + stale). **Buy** —
-flip opportunities ranked by margin × liquidity, and the wishlist budget planner. **History** —
-your own trade log (warframe.market has no public trade-history API, so the dashboard keeps the
-record as you trade), sessions, sell timing and the platinum ledger. Below the tabs: the run
-queue, the **Safety** kill switch and notifications.
+Both files are validated before anything is written, and every write is atomic — a refused value
+changes nothing. The Settings page and the CLI do the same thing.
 
-![Trader](assets/shot_trader.png)
+- `data/config.json` — the dashboard knobs: `port` (8787), `host` (127.0.0.1), `theme` (0–29 — the
+  default palette; the in-UI picker covers all 60 and is remembered per browser),
+  `auto_refresh_seconds` (900), `currency_display` (`p`), `gifs`, `gamenews_cache_seconds` (1800),
+  `deals_shown` (60), `sessions_shown` (12), `watch_save_seconds` (20), `chat_relay_url` (empty).
+  `python scripts/config.py --show` prints the effective values, `--set theme=17` writes one.
+- `scripts/trader/settings.json` — the trader guardrails: `dry_run` (the Live/Not-live gate, locked to Not live), `max_new_listings_per_day` (20), `max_active_listings` (40),
+  `undercut_platinum` (1), `min_price_pct_of_median` (60), `min_price_platinum` (3),
+  `buy_budget_cap_platinum` (300), `poll_seconds` (90). `python scripts/trader/settings.py --schema`
+  lists them with their ranges and which engine consumes each one. A `dry_run=false` write is
+  refused (exit 3, file byte-identical).
 
-### Collection — `/collection.html` (Cards sub-tab `/cards.html`)
+## Tests
 
-**Collection** is "what has this account collected vs everything obtainable", with per-category
-progress, and a **Relics** tab listing every relic in the game — where it drops, what it contains
-(reward table per refinement), its EV and your own copies. **Cards** renders every mod as a
-trading card — owned, missing, dupes and quotes, with full-art faces and a 3D inspect view.
+```bash
+python -m pytest tests -q     # the full public suite, green on Python 3.11 in this checkout
+```
 
-![Cards](assets/shot_cards.png)
+The suite is public and self-contained: every test builds its own fixtures in `tmp_path`, so it
+passes on a clean checkout with no `data/` directory and without the private trader engines. CI runs
+it on Python 3.11 (`.github/workflows/tests.yml`).
 
-### Mastery — `/#mastery`
+## Where the code lives
 
-The Mastery Helper: your rank and the gap to the next, a ranked **do this next** queue (owned
-first, then ready to build, then missing — with craft cost and where to get it) and progress by
-item type. The item total is what the game save knows about, so it sits under the in-game bar.
+| Path | What |
+|---|---|
+| `server.py` | The whole HTTP server (stdlib): pages, `/api/*` payloads, refresh buttons, trader actions. |
+| `static/shell.js` + `static/shell.css` | **The one source of the app chrome** — header, rail, theme panel, sync state — shared by `index`, `collection`, `cards`, `settings` and `item`. A page declares `<body data-shell="…" data-shell-actions="…">` and keeps only its content, its sub-nav and its footer; adding a destination means editing the rail registry in `shell.js`, not five pages. `tests/test_app_shell.py` fails if a page re-declares chrome. |
+| `static/` | The UI: `index.html` (Home / Trade / Inventory / Tools), `collection.*`, `cards.*`, `settings.*`, `item.*` (the full analysis page, `/item.html?item=<slug>`), the shared drawer (`drawer.js` / `drawer.css`), `home.js` / `home.css`, `app.js`, `style.css`, `theme.js` (60 palettes), `chart.js`, `chat.js`, `export.js`, `icons.js` + the vendored Phosphor sprite, `lookup.html` (search redirect stub) and `lookup_items.json` (the offline item catalogue the drawer falls back to). No framework, no build step. |
+| `scripts/` | The engines (below): data fetchers, the sell/trade analysis, collection and alerting. `scripts/trader/` is the private stack — **not published with this repository**. |
+| `tools/` | `build_app.py` (freezes the one-click exe + release zip), `wfm_app.py` (the exe's entry point), `build_icons.py`, `gen_themes.py`, `make_preview.py` (the README preview assets), `supervise.py` (the keep-alive). |
+| `tests/` | The public suite. |
+| `data/` | Everything the app writes (gitignored) — and `secrets.json` lives beside it at the root (gitignored too). |
+| `chat-relay/` | Optional Cloudflare Worker + Durable Object for a shared chat room. Not needed by the app. |
+| `design/` · `docs/` | `design/migration-map.md` (the IA map + stage history), the audit output in `design/_audit/`, and `docs/navigation.md` (the navigation contract). |
+| `*.bat` | `setup.bat` one-time install · `refresh.bat` quick re-price · `supervise.bat` keep-alive · `start.bat` / `stop.bat`. |
 
-### More — `/#more`
-
-The long tail, in four groups: **Make platinum** (deals, movers, demand trends), **Item decisions**
-(ducats sell-vs-burn, craft or buy, relic EV, set completion, almost complete), **Tracking**
-(watchlist bands) and **Special markets** (riven bands, Baro, post-patch meta).
-
-![Market](assets/shot_market.png)
-
-### Settings — `/settings.html`
-
-The guardrail knobs (master gate shown **LOCKED** and on, caps, floors, poll interval) plus the
-dashboard's own `config.json` knobs, both validated by their engine before anything is written.
-
-![Settings and guardrails](assets/shot_settings.png)
+The icons are [Phosphor](https://phosphoricons.com) (MIT), vendored into `static/icons/` as one
+self-hosted sprite — no CDN, no build step; `tools/build_icons.py --check` keeps them resolving.
 
 ## Engines
 
@@ -166,16 +207,19 @@ Each engine is a script you can also run by hand; the dashboard buttons call the
 - `fetch_prices.py` — live top price for every owned sellable slug → `prices.json` (resumable).
 - `fetch_stats.py` — warframe.market item statistics (liquidity + price quality) for owned slugs.
 - `fetch_lanes.py` — the full order book per owned ranked mod, reduced to **rank lanes** →
-  `price_lanes.json`. An item-level "sell 15p / buy 55p" pair is usually a rank-0 listing next
-  to a rank-10 bid — neither prices the copy you hold. Each lane stores the cheapest sell
-  order (`ask` — undercut it by 1p to list) and the top buy order (`bid` — quick-sell price,
-  or outbid it by 1p to buy) for that rank, and the UI reads the lane of the rank the save
-  proves you own (resumable, same rate discipline as the other fetchers).
+  `price_lanes.json`. Each lane stores the cheapest sell order (`ask` — undercut it by 1p to list)
+  and the top buy order (`bid` — quick-sell price, or outbid it by 1p to buy) for that rank, and the
+  UI reads the lane of the rank the save proves you own (resumable, same rate discipline as the
+  other fetchers).
 - `snapshot_plat.py` — snapshots platinum and credits into `plat_history.json`.
 - `watch_save.py` — re-runs the refresh pipeline when AlecaFrame rewrites the game save.
 - `invdiff.py` — inventory change tracker: snapshot, then diff against the last one.
-- `price_history.py` — per-item price history logger + 24h movers (offline, stdlib only).
+- `price_history.py` — per-item daily price history logger + 24h movers (offline, stdlib only).
+- `item_history.py` — the intraday series behind the sparklines and the item page → `item_history.json`.
 - `import_aleca_stats.py` — imports an AlecaFrame stats export into the dashboard's own history.
+- `materials.py` — materials/resources store from the save → `materials.json`.
+- `dojo_costs.py` — Clan Dojo material costs, transcribed from the wiki's room tables.
+- `player.py` — player profile store (mastery, syndicates, intrinsics, focus) → `player.json`.
 - `log_trade.py` — appends an event to `data/trade_log.json`.
 - `report.py` — liquidity + margin research over the owned inventory.
 - `backup.py` — backup + export of the dashboard's data.
@@ -191,7 +235,7 @@ it is Not live)
 - `limits.py` — today's trade allowance and the next daily reset, from the game save.
 - `inuse.py` — equipped-copy detection: never sells a mod/arcane copy that is slotted in a build.
 - `killswitch.py` — kill switch + preflight gate for the engines.
-- `hygiene.py` — listing hygiene: order-visibility actions for your own listings.
+- `hygiene.py` — listing hygiene: plans order-visibility actions for your own listings (executes nothing).
 - `flipper.py` — capped buy plan from the ranked flip lanes.
 - `runqueue.py` — the buyers worth running to first, per listing.
 - `riven_lister.py` — veiled-riven orders + manual-price holds.
@@ -229,7 +273,9 @@ it is Not live)
 **Collection — `scripts/`**
 
 - `collection_log.py` — "what has this account collected vs everything obtainable".
+- `obtain_index.py` — "how do I get this item?", built from public drop tables (cached offline).
 - `mod_cards.py` — every Warframe mod as a trading card, with owned/missing/dupe state.
+- `icon_cache.py` — caches the collection icons on this PC, so the page needs no CDN.
 
 **Alerts and ops — `scripts/`**
 
@@ -240,62 +286,15 @@ it is Not live)
 - `cli.py` — read-only terminal interface to the dashboard's data.
 - `config.py` — the dashboard-side knobs in `data/config.json`.
 
-## Configuration
-
-Both files are validated before anything is written, and every write is atomic — a refused value
-changes nothing. The Settings page writes both; the CLI does the same thing.
-
-- `data/config.json` — dashboard knobs: `port` (8787), `host` (127.0.0.1), `theme` (0–29),
-  `auto_refresh_seconds` (60), `currency_display`, `gifs`, `gamenews_cache_seconds`, `deals_shown`,
-  `sessions_shown`, `watch_save_seconds`. `python scripts/config.py --show` prints the effective
-  values, `--set theme=17` writes one.
-- `scripts/trader/settings.json` — the trader guardrails: `dry_run` (the Live/Not-live gate, locked to Not live),
-  `max_new_listings_per_day` (20), `max_active_listings` (40), `undercut_platinum` (1),
-  `min_price_pct_of_median` (60), `min_price_platinum` (3), `buy_budget_cap_platinum` (300),
-  `poll_seconds` (90). `python scripts/trader/settings.py --schema` lists them with their ranges and
-  which engine consumes each one.
-
-## Tests
-
-```bash
-python -m pytest tests -q     # the full public suite, green on Python 3.11 in this checkout
-```
-
-The suite is public and self-contained: every test builds its own fixtures in `tmp_path`, so it
-passes on a clean checkout with no `data/` directory and without the private trader engines. CI runs
-it on Python 3.11 (`.github/workflows/tests.yml`).
-
-## Repo layout
-
-- `server.py` — the whole HTTP server (stdlib): pages, `/api/*` payloads, refresh buttons, trader
-  actions.
-- `static/` — the UI: `index.html` (Home / Inventory / Trade / Collection / More) plus
-  `collection.html`, `cards.html`, `settings.html` and the retired-lookup redirect stub, one
-  `app.js`, one `style.css`, one `theme.js` (30 palettes), one `chart.js`, the shared item drawer
-  (`drawer.js` / `drawer.css`) and the Home renderer (`home.js` / `home.css`). `lookup_items.json`
-  is the offline item catalogue the drawer falls back to.
-- The icons are [Phosphor](https://phosphoricons.com) (MIT), vendored into `static/icons/`
-  as one self-hosted sprite — no CDN, no build step; `tools/build_icons.py --check` keeps them resolving.
-- `scripts/` — the engines above; `tests/` — the public suite; `data/` — everything the app writes
-  (gitignored); `secrets.json` — your warframe.market login (gitignored).
-- `setup.bat` / `refresh.bat` / `supervise.bat` — Windows entry points: one-time install, quick
-  re-price, keep-alive. `start.bat` / `stop.bat` — plain start / stop.
-- `tools/supervise.py` — the keep-alive behind `supervise.bat` (starts the server, restarts it when
-  it exits or stops answering; watches instead of double-serving if the port is already taken).
-  Offline checks: `python tools/supervise.py --selftest`.
-- `tools/make_preview.py` — rebuilds `assets/preview.gif` and the page screenshots from a running
-  dashboard (headless Chrome via puppeteer-core; ffmpeg or Pillow for the assembly). Offline checks:
-  `python tools/make_preview.py --selftest`.
-
 ## Notes
 
 - Personal, local tool. Not affiliated with Digital Extremes, AlecaFrame/Overwolf or
   warframe.market.
 - It reads two things: AlecaFrame's local cache (the inventory side is Windows-only because
   AlecaFrame is) and public warframe.market endpoints for prices, statistics and — only if you
-  connect an account — your own orders. It identifies itself honestly and never disguises itself as
-  a browser. You are responsible for how you use it against warframe.market's rules.
-- Nothing is posted on your behalf: the trader engines are Not live.
+  connect an account — your own orders. You are responsible for how you use it against
+  warframe.market's rules.
+- Nothing is posted on your behalf: the trader engines are Not live, `dry_run` is locked on.
 
 ## Roadmap
 

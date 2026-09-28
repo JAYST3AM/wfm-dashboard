@@ -16,7 +16,7 @@ npx wrangler login                       # or set CLOUDFLARE_API_TOKEN + CLOUDFL
 npx wrangler deploy                      # prints https://wfm-chat.<your-subdomain>.workers.dev
 ```
 
-Then in the dashboard: **Settings → Updates → Shared chat room** (or
+Then in the dashboard: **Settings → General → Shared chat room** (or
 `python scripts/config.py --set chat_relay_url=https://wfm-chat.<you>.workers.dev`).
 Everyone who sets the same URL shares the same room. Add `/r/<name>` to the URL for a second,
 separate room (`.../r/lepub` and `.../tav` are different rooms).
