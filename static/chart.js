@@ -16,7 +16,9 @@
  */
 'use strict';
 (function () {
-  var LS_KEY = 'wfm_chart_v1';
+  var LS_KEY = 'wfm_chart_v2';   /* v2: preferences stored while the axis ignored the selected range
+                                     (the chart report, 2026-09-28) - a fresh key lets the fixed
+                                     default land instead of an old click pinning the view */
   var RANGES = [['1h', 3600], ['6h', 21600], ['24h', 86400], ['7d', 604800], ['30d', 2592000], ['all', 0]];
   var STYLES = [['area', 'Area'], ['line', 'Line'], ['bars', 'Bars'], ['steps', 'Steps']];
   var PALETTES = [['accent', 'Accent'], ['green', 'Green'], ['blue', 'Blue'], ['violet', 'Violet'], ['amber', 'Amber']];
@@ -113,19 +115,27 @@
        behaviour: every point joins the one before it). */
     var gapS = Number(opts.gapS) || 0;
     var tip = opts.tip ? (typeof opts.tip === 'string' ? document.querySelector(opts.tip) : opts.tip) : null;
-    var pts = [], marks = [], hover = -1, view = null;
+    var pts = [], marks = [], hover = -1, view = null, lastSig = '';
 
     function colour() { return HEX[pref.get().palette] || cssVar('--accent') || '#ff8a1e'; }
     function spanOf(list) { return list.length < 2 ? 0 : list[list.length - 1].ts - list[0].ts; }
+    /* The selected range is a promise about the AXIS, not only about which readings survive. With a
+       range active the axis spans that range (30d means thirty days wide) and the line shows where
+       readings actually exist - the old code let the data pick the domain, so a history with three
+       days of readings drew a three-day axis under a 30d pill. Only a genuine fallback (fewer than
+       two readings inside the window) drops the window: those two old points would sit off-plot. */
+    var winState = null;
     function filtered() {
       var p = pref.get();
+      winState = null;
       if (!pts.length || p.range === 'all') return pts;
       var span = 0;
       for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === p.range) span = RANGES[i][1];
       if (!span) return pts;
       var t1 = pts[pts.length - 1].ts;
       var out = pts.filter(function (q) { return q.ts >= t1 - span; });
-      return out.length > 1 ? out : pts.slice(-2);
+      if (out.length > 1) { winState = { span: span, end: t1 }; return out; }
+      return pts.slice(-2);
     }
     function sizeCanvas() {
       var dpr = window.devicePixelRatio || 1;
@@ -139,10 +149,14 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       return { w: w, h: h };
     }
-    function scales(ps, w, h) {
+    function scales(ps, w, h, win) {
       var xs = ps.map(function (q) { return q.ts; });
       var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
-      if (x1 === x0) { x0 -= 3600; x1 += 3600; }
+      /* an active range owns the axis: 30d is thirty days wide even when the readings inside it
+         start yesterday (and even when they are one point - the plot stays put rather than
+         rescaling to whatever is in the window) */
+      if (win && win.span > 0) { x1 = win.end; x0 = win.end - win.span; }
+      else if (x1 === x0) { x0 -= 3600; x1 += 3600; }
       var ys = ps.map(function (q) { return q.v; });
       var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
       if (y1 === y0) { y0 -= 5; y1 += 5; }
@@ -221,8 +235,8 @@
         view = null;
         return;
       }
-      var span = spanOf(ps);
-      var S = scales(ps, w, h);
+      var S = scales(ps, w, h, winState);
+      var span = winState ? winState.span : spanOf(ps);   /* label format follows the range on screen */
       var style = pref.get().style;
 
       /* y gridlines + round labels */
@@ -272,7 +286,16 @@
         }
       } else {
         for (var ri = 0; ri < runs.length; ri++) {
-          if (runs[ri].length < 2) continue;              /* one reading is a dot, not a line */
+          if (runs[ri].length < 2) {
+            /* one reading is a dot, not a line - but a lone reading did happen, and a sparse
+               history must not silently vanish (the All range is mostly lone readings) */
+            var one = runs[ri][0];
+            ctx.beginPath();
+            ctx.arc(S.X(one.ts), S.Y(one.v), 2.4, 0, Math.PI * 2);
+            ctx.fillStyle = hexA(col, 0.75);
+            ctx.fill();
+            continue;
+          }
           var g = buildSegs(runs[ri], S.X, S.Y);
           if (style === 'area') {
             var grad = ctx.createLinearGradient(0, PAD.t, 0, h - PAD.b);
@@ -331,6 +354,16 @@
         tip.classList.add('hidden');
       }
       view = { ps: ps, S: S, span: span };
+      /* tell the caller what is on screen (the Home card's footer reads it, so the footer can name
+         the window instead of the whole history). Only fires when the shape changes - hover
+         redraws must not chatter. */
+      if (typeof opts.onView === 'function') {
+        var sig = ps.length + '|' + ps[0].ts + '|' + pref.get().range;
+        if (sig !== lastSig) {
+          lastSig = sig;
+          try { opts.onView({ shown: ps.length, first_ts: ps[0].ts, last_ts: lp.ts, span_s: span, range: pref.get().range }); } catch (e) {}
+        }
+      }
     }
 
     function showTip(idx, S, w) {
@@ -458,25 +491,31 @@
 
   /* back-compat wrapper: the platinum balance chart on Home */
   window.PlatChart = (function () {
-    var api = null;
+    var api = null, chartOpts = null;
     return {
+      /* the Home card's footer reads what is on screen: set the hook before init() so the first
+         draw reports, and again after - the factory reads opts.onView at every draw */
+      setViewHook: function (fn) { if (chartOpts) chartOpts.onView = fn; return this; },
       init: function () {
         var c = document.getElementById('platChart');
         if (!c) return this;
         injectCss();
-        api = wfmChart({
+        chartOpts = {
           canvas: c, tip: '#chartTip', valueKey: 'plat', key: 'plat',
-          /* 30d is the honest default: the collector's own history has month-long gaps, so the
-             widest range opens on the whole story including the parts nobody watched. The range
-             buttons still override it, and a stored choice still wins. gapS breaks the line at
-             any break longer than two days instead of drawing through it. */
-          range: '30d', style: 'area', palette: 'accent', gapS: 172800,
+          /* 7d is the honest default (Jay 2026-09-28: 'fix the graph'): the history only holds
+             readings for the last few days, so 30d drew a three-day axis under a thirty-day pill,
+             and All opens on months of lone readings. A week shows the movement there is - the
+             drop to 1,022 and the flat after it - and every pill now owns its axis, so 30d really
+             is thirty days wide with the line where readings exist. A stored choice still wins;
+             gapS breaks the line at any gap longer than two days. */
+          range: '7d', style: 'area', palette: 'accent', gapS: 172800,
           /* no `height` on purpose (stage 3): it used to be captured once, from whatever the wrap
              measured at init, and that stale number outranked the live box forever - the canvas
              was drawn 717px tall inside a 271px card and only its top sliver showed. Sizing is
              left to sizeCanvas(), which reads the wrap at every draw, so the plot always matches
              the card it lives in (and the card can grow with the grid). */
-        });
+        };
+        api = wfmChart(chartOpts);
         /* the view controls mount beside the range pills in the chart card's head */
         var mount = document.getElementById('chartViews');
         if (!mount) {

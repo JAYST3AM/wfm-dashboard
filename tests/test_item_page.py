@@ -40,7 +40,7 @@ def test_view_variants_exist_and_persist():
         assert "'" + s + "'" in js, 'style ' + s + ' missing'
     for p in ('accent', 'green', 'blue', 'violet', 'amber'):
         assert p + ':' in js or "'" + p + "'," in js, 'palette ' + p + ' missing'
-    assert 'wfm_chart_v1' in js, 'choices are remembered per chart key'
+    assert 'wfm_chart_v2' in js, 'choices are remembered per chart key'
     assert 'setStyle' in js and 'setPalette' in js and 'setRange' in js
     assert 'buildControls' in js, 'the buttons are built from the same factory'
 

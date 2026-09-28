@@ -306,18 +306,38 @@ def test_axis_labels_are_readable_and_cannot_clip():
 
 # ------------------------------------------------------------------ the honest default range
 
-def test_the_chart_opens_on_a_clean_month_and_never_draws_through_a_gap():
-    """Jay 2026-09-28: the widest range flattened the line (175 snapshots since May 2024 with
-    month-long holes), so the Home card opens on 30d. Every range button (24h / 7d / 30d / All)
-    still overrides it, a stored choice still wins, and the renderer breaks the line where the
-    collected data has a real gap instead of drawing a straight line through the hole."""
+def test_the_chart_opens_on_the_last_week_and_never_draws_through_a_gap():
+    """Jay 2026-09-28 (evening): 'fix the graph'. The 30d default on a history that only holds
+    readings for the last three and a half days drew a three-day axis under a 30d pill, with the
+    line glued to the floor. The card opens on 7d now - the window that holds the real movement -
+    and a range pill promises its own span: with 30d selected the axis really is thirty days wide,
+    the line shows where readings exist, a lone reading draws as a dot instead of vanishing, and
+    the line still breaks at a real gap. The prefs key moved to v2 so ranges stored while the axis
+    ignored them do not pin anyone to the old view."""
     chart = read('static/chart.js')
-    assert "range: '30d', style: 'area', palette: 'accent', gapS: 172800," in chart   # the Home default
+    assert "range: '7d', style: 'area', palette: 'accent', gapS: 172800," in chart    # the Home default
+    assert "var LS_KEY = 'wfm_chart_v2';" in chart                                    # stored v1 choices retired
+    assert 'if (win && win.span > 0) { x1 = win.end; x0 = win.end - win.span; }' in chart  # the axis honours the range
+    assert 'winState = { span: span, end: t1 };' in chart                             # set only on a real clip
+    assert 'ctx.arc(S.X(one.ts), S.Y(one.v), 2.4, 0, Math.PI * 2);' in chart          # lone readings draw
     assert "var pref = prefStore(key, { style: opts.style || 'area'," in chart        # saved choice wins
     assert "range: opts.range || 'all' });" in chart
     assert 'var gapS = Number(opts.gapS) || 0;' in chart                              # opt-in, other charts unchanged
     assert 'var runs = (gapS > 0) ? splitRuns(ps, gapS) : [ps];' in chart             # the line stops at a gap
     assert 'var lp = ps[ps.length - 1]' in chart                                      # the end dot follows the last run
+
+
+def test_the_chart_footer_reports_the_window_it_is_showing():
+    """The footer used to quote the whole history at every range ('182 readings · every 15 min'
+    against a 7-day plot), which read as missing data. The chart reports its window through onView
+    and the footer names it; the cadence lives in the tooltip, where it is true."""
+    app = read('static/app.js')
+    chart = read('static/chart.js')
+    assert 'readings · from ${d(v.first_ts)}' in app          # names the window on screen
+    assert 'readings · every 15 min' not in app               # the cadence claim is gone
+    assert 'PlatChart.setViewHook(function (v) { window.__chartView = v; renderChartMeta(); });' in app
+    assert "if (typeof opts.onView === 'function') {" in chart   # the chart reports its view
+    assert 'sig !== lastSig' in chart                            # hover redraws do not chatter
 
 
 def test_the_home_chart_is_sized_by_its_box_not_by_a_stale_measurement():
