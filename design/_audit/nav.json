@@ -1,0 +1,745 @@
+{
+ "rail": {
+  "home": {
+   "href_attr": "#home",
+   "landed": "http://127.0.0.1:8787/#home",
+   "path": "/",
+   "hash": "#home",
+   "visibleSections": [
+    "view-home"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "home"
+   ],
+   "aria": [
+    "home"
+   ],
+   "activePillCount": 1,
+   "mainTextLen": 1422,
+   "mainWidth": 1394,
+   "collTab": null,
+   "viewPlayersVisible": false,
+   "pcText": 342
+  },
+  "trade": {
+   "href_attr": "#trade",
+   "landed": "http://127.0.0.1:8787/#trade",
+   "path": "/",
+   "hash": "#trade",
+   "visibleSections": [
+    "view-trade"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "trade"
+   ],
+   "aria": [
+    "home"
+   ],
+   "activePillCount": 1,
+   "mainTextLen": 4698,
+   "mainWidth": 1394,
+   "collTab": null,
+   "viewPlayersVisible": false,
+   "pcText": 342
+  },
+  "inventory": {
+   "href_attr": "#inventory",
+   "landed": "http://127.0.0.1:8787/#inventory",
+   "path": "/",
+   "hash": "#inventory",
+   "visibleSections": [
+    "view-inventory"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "inventory"
+   ],
+   "aria": [
+    "home"
+   ],
+   "activePillCount": 1,
+   "mainTextLen": 21111,
+   "mainWidth": 1394,
+   "collTab": null,
+   "viewPlayersVisible": false,
+   "pcText": 342
+  },
+  "collection": {
+   "href_attr": "/collection.html",
+   "landed": "http://127.0.0.1:8787/collection.html",
+   "path": "/collection.html",
+   "hash": "",
+   "visibleSections": [],
+   "visibleWorkspaces": [],
+   "launcherHidden": null,
+   "active": [
+    "collection"
+   ],
+   "aria": [
+    "collection"
+   ],
+   "activePillCount": 1,
+   "mainTextLen": 2226,
+   "mainWidth": 1394,
+   "collTab": null,
+   "viewPlayersVisible": null,
+   "pcText": 0
+  },
+  "tools": {
+   "href_attr": "#tools",
+   "landed": "http://127.0.0.1:8787/#tools",
+   "path": "/",
+   "hash": "#tools",
+   "visibleSections": [
+    "view-tools"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "home"
+   ],
+   "activePillCount": 1,
+   "mainTextLen": 640,
+   "mainWidth": 1394,
+   "collTab": null,
+   "viewPlayersVisible": false,
+   "pcText": 342
+  },
+  "settings": {
+   "href_attr": "/settings.html",
+   "landed": "http://127.0.0.1:8787/settings.html",
+   "path": "/settings.html",
+   "hash": "",
+   "visibleSections": [],
+   "visibleWorkspaces": [],
+   "launcherHidden": null,
+   "active": [
+    "settings"
+   ],
+   "aria": [
+    "settings"
+   ],
+   "activePillCount": 1,
+   "mainTextLen": 216,
+   "mainWidth": 974,
+   "collTab": null,
+   "viewPlayersVisible": null,
+   "pcText": 0
+  }
+ },
+ "legacy": {
+  "#more": {
+   "landed": "http://127.0.0.1:8787/#tools",
+   "path": "/",
+   "hash": "#tools",
+   "visibleSections": [
+    "view-tools"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "tools"
+   ],
+   "mainTextLen": 640,
+   "mainWidth": 1394,
+   "heading": null,
+   "pcText": 342,
+   "mhText": 0,
+   "blank": false
+  },
+  "#market": {
+   "landed": "http://127.0.0.1:8787/#tools",
+   "path": "/",
+   "hash": "#tools",
+   "visibleSections": [
+    "view-tools"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "tools"
+   ],
+   "mainTextLen": 640,
+   "mainWidth": 1394,
+   "heading": null,
+   "pcText": 342,
+   "mhText": 0,
+   "blank": false
+  },
+  "#player": {
+   "landed": "http://127.0.0.1:8787/#tools/player",
+   "path": "/",
+   "hash": "#tools/player",
+   "visibleSections": [
+    "view-tools"
+   ],
+   "visibleWorkspaces": [
+    "player"
+   ],
+   "launcherHidden": true,
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "tools"
+   ],
+   "mainTextLen": 1198,
+   "mainWidth": 1394,
+   "heading": "Player profile",
+   "pcText": 1198,
+   "mhText": 0,
+   "blank": false
+  },
+  "#mastery": {
+   "landed": "http://127.0.0.1:8787/collection.html#mastery",
+   "path": "/collection.html",
+   "hash": "#mastery",
+   "visibleSections": [
+    "view-mastery"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": null,
+   "active": [
+    "collection"
+   ],
+   "aria": [
+    "collection"
+   ],
+   "mainTextLen": 4744,
+   "mainWidth": 1394,
+   "heading": null,
+   "pcText": 0,
+   "mhText": 4608,
+   "blank": false
+  },
+  "#history": {
+   "landed": "http://127.0.0.1:8787/#history",
+   "path": "/",
+   "hash": "#history",
+   "visibleSections": [
+    "view-trade"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "trade"
+   ],
+   "aria": [
+    "trade"
+   ],
+   "mainTextLen": 33249,
+   "mainWidth": 1394,
+   "heading": null,
+   "pcText": 342,
+   "mhText": 0,
+   "blank": false
+  },
+  "#trader": {
+   "landed": "http://127.0.0.1:8787/#trader",
+   "path": "/",
+   "hash": "#trader",
+   "visibleSections": [
+    "view-trade"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "trade"
+   ],
+   "aria": [
+    "trade"
+   ],
+   "mainTextLen": 4698,
+   "mainWidth": 1394,
+   "heading": null,
+   "pcText": 342,
+   "mhText": 0,
+   "blank": false
+  },
+  "#search?q=forma": {
+   "landed": "http://127.0.0.1:8787/#search?q=forma",
+   "path": "/",
+   "hash": "#search?q=forma",
+   "visibleSections": [
+    "view-home"
+   ],
+   "visibleWorkspaces": [],
+   "launcherHidden": false,
+   "active": [
+    "home"
+   ],
+   "aria": [
+    "trade"
+   ],
+   "mainTextLen": 1422,
+   "mainWidth": 1394,
+   "heading": null,
+   "pcText": 342,
+   "mhText": 0,
+   "blank": false
+  }
+ },
+ "history": {
+  "clicked_seq": [
+   "#trade",
+   "#inventory",
+   "#tools",
+   "#tools/deals"
+  ],
+  "back_steps": [
+   {
+    "hash": "#tools",
+    "visibleSections": [
+     "view-tools"
+    ],
+    "visibleWorkspaces": [],
+    "launcherHidden": false,
+    "textLen": 640
+   },
+   {
+    "hash": "#inventory",
+    "visibleSections": [
+     "view-inventory"
+    ],
+    "visibleWorkspaces": [],
+    "launcherHidden": false,
+    "textLen": 21111
+   }
+  ],
+  "forward": [
+   {
+    "hash": "#tools",
+    "visibleSections": [
+     "view-tools"
+    ],
+    "visibleWorkspaces": [],
+    "launcherHidden": false,
+    "textLen": 640
+   }
+  ],
+  "settings_landing": "/settings.html",
+  "settings_pills": {
+   "active": [
+    "settings"
+   ],
+   "aria": [
+    "settings"
+   ]
+  },
+  "cross_page_back": "/#home",
+  "cross_page_back_sections": [
+   "view-home"
+  ],
+  "cross_page_back_textLen": 1422
+ },
+ "keyboard": {
+  "tabs_to_rail": 11,
+  "order": [
+   "INPUT#search",
+   "BUTTON#soundBtn.btn",
+   "BUTTON#themeBtn.btn",
+   "A#settingsBtn.btn",
+   "BUTTON#refresh.btn",
+   "BUTTON#btnExportPng.btn",
+   "A.navpill[home]",
+   "A.navpill[trade]",
+   "A.navpill[inventory]",
+   "A.navpill[collection]",
+   "A.navpill[tools]",
+   "A.navpill[settings]",
+   "A.tool"
+  ],
+  "rail_focus_outline": "solid 2px",
+  "tool_entry_focused": {
+   "tag": "A",
+   "id": "",
+   "cls": "tool",
+   "v": "",
+   "text": "Deals\nListings below the",
+   "outline": "auto 1px"
+  },
+  "pre_enter": {
+   "hash": "#tools",
+   "launcherHidden": false,
+   "active": [
+    "tools"
+   ]
+  },
+  "post_enter": {
+   "hash": "#tools/deals",
+   "visibleWorkspaces": [
+    "deals"
+   ],
+   "launcherHidden": true,
+   "heading": "Deals",
+   "textLen": 868,
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "home"
+   ]
+  }
+ },
+ "headings": {
+  "deals": {
+   "name": "Deals",
+   "back": "#tools",
+   "heads": [
+    "Deals · 389 live in 12h (88 spreads · 301 underc"
+   ],
+   "region": "region",
+   "label": "Deals",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "trends": {
+   "name": "Movers & demand",
+   "back": "#tools",
+   "heads": [
+    "Movers - price swings · 2026-09-26 vs 2026-09-25",
+    "Demand trends · 2 spiking · 26 fading of 250 tra"
+   ],
+   "region": "region",
+   "label": "Movers & demand",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "rivens": {
+   "name": "Riven bands",
+   "back": "#tools",
+   "heads": [
+    "Riven bands · 8 veiled families · 3 owned"
+   ],
+   "region": "region",
+   "label": "Riven bands",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "wl": {
+   "name": "Watchlist",
+   "back": "#tools",
+   "heads": [
+    "Watchlist - bands & alerts · 1 buy hit · 0 sell "
+   ],
+   "region": "region",
+   "label": "Watchlist",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "ducats": {
+   "name": "Ducats",
+   "back": "#tools",
+   "heads": [
+    "Ducats - sell or burn · 58 sell (1227p) · 29 bur"
+   ],
+   "region": "region",
+   "label": "Ducats",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "craft": {
+   "name": "Craft or buy",
+   "back": "#tools",
+   "heads": [
+    "Craft or buy · 66 craft · 7 buy · 45 skip"
+   ],
+   "region": "region",
+   "label": "Craft or buy",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "relicev": {
+   "name": "Relic EV",
+   "back": "#tools",
+   "heads": [
+    "Relic expected value · EV 3111p if opened vs 793"
+   ],
+   "region": "region",
+   "label": "Relic EV",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "sets": {
+   "name": "Sets",
+   "back": "#tools",
+   "heads": [
+    "Set completion · 5 complete · 9 one away · 24 tw",
+    "Almost complete · 5 ready · 9 one away · 10 part"
+   ],
+   "region": "region",
+   "label": "Sets",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "baro": {
+   "name": "Baro Ki'Teer",
+   "back": "#tools",
+   "heads": [
+    "Baro Ki'Teer · next visit in 7d"
+   ],
+   "region": "region",
+   "label": "Baro Ki'Teer",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "meta": {
+   "name": "Patch meta",
+   "back": "#tools",
+   "heads": [
+    "Post-patch meta · post-patch 44.0.1 (0.73d) · 6 "
+   ],
+   "region": "region",
+   "label": "Patch meta",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "news": {
+   "name": "Game news",
+   "back": "#tools",
+   "heads": [
+    "Game updates · v44.0.1 · checked 25m ago"
+   ],
+   "region": "region",
+   "label": "Game news",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  },
+  "player": {
+   "name": "Player profile",
+   "back": "#tools",
+   "heads": [
+    "Player · synced 6h ago",
+    "Syndicates · 18",
+    "Intrinsics",
+    "Focus · today 245,736",
+    "Market",
+    "Clan"
+   ],
+   "region": "region",
+   "label": "Player profile",
+   "firstFocusable": "All tools",
+   "aria_live": false
+  }
+ },
+ "subnav": {
+  "/collection.html": {
+   "active": [
+    "collection"
+   ],
+   "aria": [
+    "collection"
+   ],
+   "pills": [
+    {
+     "t": "Home",
+     "h": "/#home",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Trade",
+     "h": "/#trade",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Inventory",
+     "h": "/#inventory",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Collection",
+     "h": "/collection.html",
+     "a": true,
+     "cur": "page"
+    },
+    {
+     "t": "Tools",
+     "h": "/#tools",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Settings",
+     "h": "/settings.html",
+     "a": false,
+     "cur": null
+    }
+   ],
+   "mhVisible": false,
+   "textLen": 2226,
+   "headings": [
+    "Collection"
+   ]
+  },
+  "/collection.html#mastery": {
+   "active": [
+    "collection"
+   ],
+   "aria": [
+    "collection"
+   ],
+   "pills": [
+    {
+     "t": "Home",
+     "h": "/#home",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Trade",
+     "h": "/#trade",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Inventory",
+     "h": "/#inventory",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Collection",
+     "h": "/collection.html",
+     "a": true,
+     "cur": "page"
+    },
+    {
+     "t": "Tools",
+     "h": "/#tools",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Settings",
+     "h": "/settings.html",
+     "a": false,
+     "cur": null
+    }
+   ],
+   "mhVisible": true,
+   "textLen": 4744,
+   "headings": [
+    "Collection"
+   ]
+  },
+  "/collection.html#relics": {
+   "active": [
+    "collection"
+   ],
+   "aria": [
+    "collection"
+   ],
+   "pills": [
+    {
+     "t": "Home",
+     "h": "/#home",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Trade",
+     "h": "/#trade",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Inventory",
+     "h": "/#inventory",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Collection",
+     "h": "/collection.html",
+     "a": true,
+     "cur": "page"
+    },
+    {
+     "t": "Tools",
+     "h": "/#tools",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Settings",
+     "h": "/settings.html",
+     "a": false,
+     "cur": null
+    }
+   ],
+   "mhVisible": false,
+   "textLen": 56132,
+   "headings": [
+    "Collection"
+   ]
+  },
+  "/collection.html#cards": {
+   "active": [
+    "collection"
+   ],
+   "aria": [
+    "collection"
+   ],
+   "pills": [
+    {
+     "t": "Home",
+     "h": "/#home",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Trade",
+     "h": "/#trade",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Inventory",
+     "h": "/#inventory",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Collection",
+     "h": "/collection.html",
+     "a": true,
+     "cur": "page"
+    },
+    {
+     "t": "Tools",
+     "h": "/#tools",
+     "a": false,
+     "cur": null
+    },
+    {
+     "t": "Settings",
+     "h": "/settings.html",
+     "a": false,
+     "cur": null
+    }
+   ],
+   "mhVisible": false,
+   "textLen": 2226,
+   "headings": [
+    "Collection"
+   ]
+  }
+ }
+}

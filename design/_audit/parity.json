@@ -1,0 +1,168 @@
+{
+ "deals_shown_cfg": 60,
+ "lists": [
+  {
+   "slug": "deals",
+   "feature": "deals",
+   "dom_id": "dealsList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 14,
+   "expected_rows_raw_direct": 14,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "trends",
+   "feature": "movers",
+   "dom_id": "moversList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 8,
+   "expected_rows_raw_direct": 8,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "trends",
+   "feature": "trends",
+   "dom_id": "trendsList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 12,
+   "expected_rows_raw_direct": 12,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "rivens",
+   "feature": "rivens",
+   "dom_id": "rivensList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 11,
+   "expected_rows_raw_direct": 11,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "wl",
+   "feature": "watchlist",
+   "dom_id": "wlList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 7,
+   "expected_rows_raw_direct": 7,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "ducats",
+   "feature": "ducats",
+   "dom_id": "ducatsList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 16,
+   "expected_rows_raw_direct": 16,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "craft",
+   "feature": "craft",
+   "dom_id": "craftList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 12,
+   "expected_rows_raw_direct": 12,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "relicev",
+   "feature": "relics",
+   "dom_id": "relicsList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": null,
+   "expected_rows_raw_direct": null,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "sets",
+   "feature": "sets",
+   "dom_id": "setsList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 12,
+   "expected_rows_raw_direct": 12,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "sets",
+   "feature": "nudges",
+   "dom_id": "nudgesList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 10,
+   "expected_rows_raw_direct": 10,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "baro",
+   "feature": "baro",
+   "dom_id": "baroList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 0,
+   "expected_rows_raw_direct": 0,
+   "api_matches_raw": true
+  },
+  {
+   "slug": "meta",
+   "feature": "meta",
+   "dom_id": "metaList",
+   "api_error": null,
+   "raw_error": null,
+   "expected_rows_api": 12,
+   "expected_rows_raw_direct": 12,
+   "api_matches_raw": true
+  }
+ ],
+ "raw_files": {
+  "deals": "deals.json",
+  "movers": "price_movers.json",
+  "trends": "trends.json",
+  "rivens": "rivens.json",
+  "watchlist": "watchlist.json",
+  "ducats": "ducats.json",
+  "craft": "craft.json",
+  "relics": "relic_ev.json",
+  "sets": "sets.json",
+  "nudges": "nudges.json",
+  "baro": "baro.json",
+  "meta": "meta_watch.json"
+ },
+ "detail": {
+  "deals_payload_len": 60,
+  "deals_raw_len": 389,
+  "ducats_raw_rows": 94,
+  "sets_raw_sets": 163,
+  "sets_top_targets": 12,
+  "craft_raw_rows": 118,
+  "meta_rows": 120,
+  "meta_spike": 6,
+  "meta_sink": 6,
+  "watchlist_entries": 3,
+  "rivens_bands": 8,
+  "rivens_owned": 3,
+  "nudges_ready": 5,
+  "nudges_one_away": 9,
+  "baro_rows": 0,
+  "player_keys": [
+   "alias",
+   "clan",
+   "focus",
+   "intrinsics",
+   "mastery",
+   "schema",
+   "stats",
+   "syndicates",
+   "updated",
+   "updated_iso"
+  ]
+ }
+}

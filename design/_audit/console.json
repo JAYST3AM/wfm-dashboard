@@ -1,0 +1,166 @@
+{
+ "index#home": {
+  "url": "/#home",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#home"
+  }
+ },
+ "index#trade": {
+  "url": "/#trade",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#trade"
+  }
+ },
+ "index#inventory": {
+  "url": "/#inventory",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#inventory"
+  }
+ },
+ "index#tools": {
+  "url": "/#tools",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#tools"
+  }
+ },
+ "index#tools/deals": {
+  "url": "/#tools/deals",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#tools/deals"
+  }
+ },
+ "index#tools/player": {
+  "url": "/#tools/player",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#tools/player"
+  }
+ },
+ "index#tools/news": {
+  "url": "/#tools/news",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#tools/news"
+  }
+ },
+ "collection": {
+  "url": "/collection.html",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": ""
+  }
+ },
+ "collection#mastery": {
+  "url": "/collection.html#mastery",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#mastery"
+  }
+ },
+ "collection#relics": {
+  "url": "/collection.html#relics",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#relics"
+  }
+ },
+ "cards": {
+  "url": "/cards.html",
+  "errs": [
+   {
+    "kind": "console",
+    "text": "Failed to load resource: net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin",
+    "loc": "https://warframe.market/static/assets/items/images/en/archon_continuity.87c2dd792556d1699f6954461197d83e.png:undefined"
+   },
+   {
+    "kind": "console",
+    "text": "Failed to load resource: net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin",
+    "loc": "https://warframe.market/static/assets/items/images/en/primed_bane_of_infested.dfb6994085d676b00ca85cf63a082a61.png:undefined"
+   },
+   {
+    "kind": "console",
+    "text": "Failed to load resource: net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin",
+    "loc": "https://warframe.market/static/assets/items/images/en/primed_bane_of_corrupted.b273d5d38532bdb777d830ce87a84d9e.png:undefined"
+   }
+  ],
+  "failed": [
+   {
+    "url": "https://warframe.market/static/assets/items/images/en/archon_continuity.87c2dd792556d1699f6954461197d83e.png",
+    "err": "net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin"
+   },
+   {
+    "url": "https://warframe.market/static/assets/items/images/en/primed_bane_of_infested.dfb6994085d676b00ca85cf63a082a61.png",
+    "err": "net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin"
+   },
+   {
+    "url": "https://warframe.market/static/assets/items/images/en/primed_bane_of_corrupted.b273d5d38532bdb777d830ce87a84d9e.png",
+    "err": "net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin"
+   }
+  ],
+  "http": [],
+  "extra": {
+   "hash": ""
+  }
+ },
+ "settings": {
+  "url": "/settings.html",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": ""
+  }
+ },
+ "settings#trading": {
+  "url": "/settings.html#trading",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#trading"
+  }
+ },
+ "item": {
+  "url": "/item.html",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": ""
+  }
+ },
+ "lookup": {
+  "url": "/lookup.html",
+  "errs": [],
+  "failed": [],
+  "http": [],
+  "extra": {
+   "hash": "#search"
+  }
+ }
+}

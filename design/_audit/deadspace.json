@@ -1,0 +1,1198 @@
+{
+ "index#home": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1002,
+   "rightGap": 22,
+   "widest": {
+    "w": 774,
+    "sel": "section#view-home"
+   },
+   "cardsMax": 774,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1178,
+   "rightGap": 22,
+   "widest": {
+    "w": 950,
+    "sel": "section#view-home"
+   },
+   "cardsMax": 940,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1478,
+   "rightGap": 22,
+   "widest": {
+    "w": 1250,
+    "sel": "section#view-home"
+   },
+   "cardsMax": 1240,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1578,
+   "rightGap": 22,
+   "widest": {
+    "w": 1350,
+    "sel": "section#view-home"
+   },
+   "cardsMax": 1340,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1898,
+   "rightGap": 22,
+   "widest": {
+    "w": 1670,
+    "sel": "section#view-home"
+   },
+   "cardsMax": 1660,
+   "cardsCount": 6,
+   "grids": []
+  }
+ },
+ "index#trade": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1002,
+   "rightGap": 22,
+   "widest": {
+    "w": 774,
+    "sel": "section#view-trade"
+   },
+   "cardsMax": 774,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1377,
+   "rightGap": -177,
+   "widest": {
+    "w": 950,
+    "sel": "section#view-trade"
+   },
+   "cardsMax": 940,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1577,
+   "rightGap": -77,
+   "widest": {
+    "w": 1250,
+    "sel": "section#view-trade"
+   },
+   "cardsMax": 1240,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1644,
+   "rightGap": -44,
+   "widest": {
+    "w": 1350,
+    "sel": "section#view-trade"
+   },
+   "cardsMax": 1340,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1898,
+   "rightGap": 22,
+   "widest": {
+    "w": 1670,
+    "sel": "section#view-trade"
+   },
+   "cardsMax": 1660,
+   "cardsCount": 6,
+   "grids": []
+  }
+ },
+ "index#inventory": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1002,
+   "rightGap": 22,
+   "widest": {
+    "w": 774,
+    "sel": "section#view-inventory"
+   },
+   "cardsMax": 774,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1178,
+   "rightGap": 22,
+   "widest": {
+    "w": 950,
+    "sel": "section#view-inventory"
+   },
+   "cardsMax": 305,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1478,
+   "rightGap": 22,
+   "widest": {
+    "w": 1250,
+    "sel": "section#view-inventory"
+   },
+   "cardsMax": 405,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1578,
+   "rightGap": 22,
+   "widest": {
+    "w": 1350,
+    "sel": "section#view-inventory"
+   },
+   "cardsMax": 439,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1898,
+   "rightGap": 22,
+   "widest": {
+    "w": 1670,
+    "sel": "section#view-inventory"
+   },
+   "cardsMax": 545,
+   "cardsCount": 3,
+   "grids": []
+  }
+ },
+ "index#tools": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1002,
+   "rightGap": 22,
+   "widest": {
+    "w": 774,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 774,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1178,
+   "rightGap": 22,
+   "widest": {
+    "w": 950,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1478,
+   "rightGap": 22,
+   "widest": {
+    "w": 1250,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1578,
+   "rightGap": 22,
+   "widest": {
+    "w": 1350,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1898,
+   "rightGap": 22,
+   "widest": {
+    "w": 1670,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  }
+ },
+ "index#tools/deals": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1002,
+   "rightGap": 22,
+   "widest": {
+    "w": 774,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 774,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1178,
+   "rightGap": 22,
+   "widest": {
+    "w": 950,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 940,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1478,
+   "rightGap": 22,
+   "widest": {
+    "w": 1250,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 1240,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1578,
+   "rightGap": 22,
+   "widest": {
+    "w": 1350,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 1340,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1898,
+   "rightGap": 22,
+   "widest": {
+    "w": 1670,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 1660,
+   "cardsCount": 1,
+   "grids": []
+  }
+ },
+ "index#tools/player": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1002,
+   "rightGap": 22,
+   "widest": {
+    "w": 774,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 774,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1178,
+   "rightGap": 22,
+   "widest": {
+    "w": 950,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 465,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1478,
+   "rightGap": 22,
+   "widest": {
+    "w": 1250,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 407,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1578,
+   "rightGap": 22,
+   "widest": {
+    "w": 1350,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 440,
+   "cardsCount": 6,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1898,
+   "rightGap": 22,
+   "widest": {
+    "w": 1670,
+    "sel": "section#view-tools"
+   },
+   "cardsMax": 547,
+   "cardsCount": 6,
+   "grids": []
+  }
+ },
+ "collection": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 369,
+   "mainW": 492,
+   "colW": 818,
+   "colRight": 1024,
+   "contentRight": 845,
+   "rightGap": 179,
+   "widest": {
+    "w": 460,
+    "sel": "div#meta.cl-meta"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": 994,
+   "colRight": 1200,
+   "contentRight": 1184,
+   "rightGap": 16,
+   "widest": {
+    "w": 962,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": 1294,
+   "colRight": 1500,
+   "contentRight": 1484,
+   "rightGap": 16,
+   "widest": {
+    "w": 1262,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": 1394,
+   "colRight": 1600,
+   "contentRight": 1584,
+   "rightGap": 16,
+   "widest": {
+    "w": 1362,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 255,
+   "mainW": 1616,
+   "colW": 1714,
+   "colRight": 1920,
+   "contentRight": 1855,
+   "rightGap": 65,
+   "widest": {
+    "w": 1584,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  }
+ },
+ "collection#relics": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": 818,
+   "colRight": 1024,
+   "contentRight": 1008,
+   "rightGap": 16,
+   "widest": {
+    "w": 786,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": 994,
+   "colRight": 1200,
+   "contentRight": 1184,
+   "rightGap": 16,
+   "widest": {
+    "w": 962,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": 1294,
+   "colRight": 1500,
+   "contentRight": 1484,
+   "rightGap": 16,
+   "widest": {
+    "w": 1262,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": 1394,
+   "colRight": 1600,
+   "contentRight": 1584,
+   "rightGap": 16,
+   "widest": {
+    "w": 1362,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 347,
+   "mainW": 1432,
+   "colW": 1714,
+   "colRight": 1920,
+   "contentRight": 1763,
+   "rightGap": 157,
+   "widest": {
+    "w": 1400,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  }
+ },
+ "collection#mastery": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": 818,
+   "colRight": 1024,
+   "contentRight": 1008,
+   "rightGap": 16,
+   "widest": {
+    "w": 786,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": 786,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": 994,
+   "colRight": 1200,
+   "contentRight": 1184,
+   "rightGap": 16,
+   "widest": {
+    "w": 962,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": 962,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": 1294,
+   "colRight": 1500,
+   "contentRight": 1484,
+   "rightGap": 16,
+   "widest": {
+    "w": 1262,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": 1262,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": 1394,
+   "colRight": 1600,
+   "contentRight": 1584,
+   "rightGap": 16,
+   "widest": {
+    "w": 1362,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": 1362,
+   "cardsCount": 3,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 223,
+   "mainW": 1680,
+   "colW": 1714,
+   "colRight": 1920,
+   "contentRight": 1887,
+   "rightGap": 33,
+   "widest": {
+    "w": 1648,
+    "sel": "div#overall.cl-overall"
+   },
+   "cardsMax": 1648,
+   "cardsCount": 3,
+   "grids": []
+  }
+ },
+ "cards": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": 818,
+   "colRight": 1024,
+   "contentRight": 1006,
+   "rightGap": 18,
+   "widest": {
+    "w": 782,
+    "sel": "div.mcd-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": 994,
+   "colRight": 1200,
+   "contentRight": 1182,
+   "rightGap": 18,
+   "widest": {
+    "w": 958,
+    "sel": "div.mcd-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": 1294,
+   "colRight": 1500,
+   "contentRight": 1482,
+   "rightGap": 18,
+   "widest": {
+    "w": 1258,
+    "sel": "div.mcd-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": 1394,
+   "colRight": 1600,
+   "contentRight": 1582,
+   "rightGap": 18,
+   "widest": {
+    "w": 1358,
+    "sel": "div.mcd-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1714,
+   "colW": 1714,
+   "colRight": 1920,
+   "contentRight": 1902,
+   "rightGap": 18,
+   "widest": {
+    "w": 1678,
+    "sel": "div.mcd-tools"
+   },
+   "cardsMax": null,
+   "cardsCount": 0,
+   "grids": []
+  }
+ },
+ "settings": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 572,
+   "colW": 818,
+   "colRight": 1024,
+   "contentRight": 1006,
+   "rightGap": 18,
+   "widest": {
+    "w": 572,
+    "sel": "div#cat-general.st-cat"
+   },
+   "cardsMax": 572,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 748,
+   "colW": 994,
+   "colRight": 1200,
+   "contentRight": 1182,
+   "rightGap": 18,
+   "widest": {
+    "w": 748,
+    "sel": "div#cat-general.st-cat"
+   },
+   "cardsMax": 748,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 974,
+   "colW": 1294,
+   "colRight": 1500,
+   "contentRight": 1408,
+   "rightGap": 92,
+   "widest": {
+    "w": 974,
+    "sel": "div#cat-general.st-cat"
+   },
+   "cardsMax": 974,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 974,
+   "colW": 1394,
+   "colRight": 1600,
+   "contentRight": 1408,
+   "rightGap": 192,
+   "widest": {
+    "w": 974,
+    "sel": "div#cat-general.st-cat"
+   },
+   "cardsMax": 974,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 974,
+   "colW": 1714,
+   "colRight": 1920,
+   "contentRight": 1408,
+   "rightGap": 512,
+   "widest": {
+    "w": 974,
+    "sel": "div#cat-general.st-cat"
+   },
+   "cardsMax": 974,
+   "cardsCount": 1,
+   "grids": []
+  }
+ },
+ "settings#trading": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 572,
+   "colW": 818,
+   "colRight": 1024,
+   "contentRight": 1006,
+   "rightGap": 18,
+   "widest": {
+    "w": 572,
+    "sel": "div#cat-trading.st-cat"
+   },
+   "cardsMax": 572,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 748,
+   "colW": 994,
+   "colRight": 1200,
+   "contentRight": 1182,
+   "rightGap": 18,
+   "widest": {
+    "w": 748,
+    "sel": "div#cat-trading.st-cat"
+   },
+   "cardsMax": 748,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 974,
+   "colW": 1294,
+   "colRight": 1500,
+   "contentRight": 1408,
+   "rightGap": 92,
+   "widest": {
+    "w": 974,
+    "sel": "div#cat-trading.st-cat"
+   },
+   "cardsMax": 974,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 974,
+   "colW": 1394,
+   "colRight": 1600,
+   "contentRight": 1408,
+   "rightGap": 192,
+   "widest": {
+    "w": 974,
+    "sel": "div#cat-trading.st-cat"
+   },
+   "cardsMax": 974,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 434,
+   "mainW": 974,
+   "colW": 1714,
+   "colRight": 1920,
+   "contentRight": 1408,
+   "rightGap": 512,
+   "widest": {
+    "w": 974,
+    "sel": "div#cat-trading.st-cat"
+   },
+   "cardsMax": 974,
+   "cardsCount": 1,
+   "grids": []
+  }
+ },
+ "item": {
+  "1024": {
+   "innerWidth": 1024,
+   "scrollWidth": 1024,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 818,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1006,
+   "rightGap": 18,
+   "widest": {
+    "w": 782,
+    "sel": "section#ipPickCard.card"
+   },
+   "cardsMax": 782,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1200": {
+   "innerWidth": 1200,
+   "scrollWidth": 1200,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 994,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1182,
+   "rightGap": 18,
+   "widest": {
+    "w": 958,
+    "sel": "section#ipPickCard.card"
+   },
+   "cardsMax": 958,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1500": {
+   "innerWidth": 1500,
+   "scrollWidth": 1500,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1294,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1482,
+   "rightGap": 18,
+   "widest": {
+    "w": 1258,
+    "sel": "section#ipPickCard.card"
+   },
+   "cardsMax": 1258,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1600": {
+   "innerWidth": 1600,
+   "scrollWidth": 1600,
+   "railW": 206,
+   "mainX": 206,
+   "mainW": 1394,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1582,
+   "rightGap": 18,
+   "widest": {
+    "w": 1358,
+    "sel": "section#ipPickCard.card"
+   },
+   "cardsMax": 1358,
+   "cardsCount": 1,
+   "grids": []
+  },
+  "1920": {
+   "innerWidth": 1920,
+   "scrollWidth": 1920,
+   "railW": 206,
+   "mainX": 303,
+   "mainW": 1520,
+   "colW": null,
+   "colRight": null,
+   "contentRight": 1805,
+   "rightGap": 115,
+   "widest": {
+    "w": 1484,
+    "sel": "section#ipPickCard.card"
+   },
+   "cardsMax": 1484,
+   "cardsCount": 1,
+   "grids": []
+  }
+ }
+}

@@ -1,0 +1,130 @@
+{
+ "index": {
+  "panelOpens": true,
+  "closes": true,
+  "items": 60,
+  "filters": [
+   "All 60*",
+   "Dark 30",
+   "Light 30"
+  ],
+  "railHrefs": [
+   "home=#home",
+   "trade=#trade",
+   "inventory=#inventory",
+   "collection=/collection.html",
+   "tools=#tools",
+   "settings=/settings.html"
+  ],
+  "subHrefs": [],
+  "pillFocusOutline": "solid 2px color(srgb 1 0.541176 0.117647 / 0.7)",
+  "themeBtnAria": "false",
+  "panelRole": null,
+  "gridScrollable": "0/0"
+ },
+ "collection": {
+  "panelOpens": true,
+  "closes": true,
+  "items": 60,
+  "filters": [
+   "All 60*",
+   "Dark 30",
+   "Light 30"
+  ],
+  "railHrefs": [
+   "home=/#home",
+   "trade=/#trade",
+   "inventory=/#inventory",
+   "collection=/collection.html",
+   "tools=/#tools",
+   "settings=/settings.html"
+  ],
+  "subHrefs": [
+   "collection=/collection.html",
+   "relics=/collection.html#relics",
+   "mastery=/collection.html#mastery",
+   "cards=/cards.html"
+  ],
+  "pillFocusOutline": "solid 2px color(srgb 1 0.541176 0.117647 / 0.7)",
+  "themeBtnAria": "false",
+  "panelRole": null,
+  "gridScrollable": "0/0"
+ },
+ "cards": {
+  "panelOpens": true,
+  "closes": true,
+  "items": 60,
+  "filters": [
+   "All 60*",
+   "Dark 30",
+   "Light 30"
+  ],
+  "railHrefs": [
+   "home=/#home",
+   "trade=/#trade",
+   "inventory=/#inventory",
+   "collection=/collection.html",
+   "tools=/#tools",
+   "settings=/settings.html"
+  ],
+  "subHrefs": [
+   "collection=/collection.html",
+   "relics=/collection.html#relics",
+   "mastery=/collection.html#mastery",
+   "cards=/cards.html"
+  ],
+  "pillFocusOutline": "solid 2px color(srgb 1 0.541176 0.117647 / 0.7)",
+  "themeBtnAria": "false",
+  "panelRole": null,
+  "gridScrollable": "0/0"
+ },
+ "settings": {
+  "panelOpens": true,
+  "closes": true,
+  "items": 60,
+  "filters": [
+   "All 60*",
+   "Dark 30",
+   "Light 30"
+  ],
+  "railHrefs": [
+   "home=/#home",
+   "trade=/#trade",
+   "inventory=/#inventory",
+   "collection=/collection.html",
+   "tools=/#tools",
+   "settings=/settings.html"
+  ],
+  "subHrefs": [
+   "tools=/#tools",
+   "Settings=/settings.html"
+  ],
+  "pillFocusOutline": "solid 2px color(srgb 1 0.541176 0.117647 / 0.7)",
+  "themeBtnAria": "false",
+  "panelRole": null,
+  "gridScrollable": "0/0"
+ },
+ "item": {
+  "panelOpens": true,
+  "closes": true,
+  "items": 60,
+  "filters": [
+   "All 60*",
+   "Dark 30",
+   "Light 30"
+  ],
+  "railHrefs": [
+   "home=/#home",
+   "trade=/#trade",
+   "inventory=/#inventory",
+   "collection=/collection.html",
+   "tools=/#tools",
+   "settings=/settings.html"
+  ],
+  "subHrefs": [],
+  "pillFocusOutline": "solid 2px color(srgb 1 0.541176 0.117647 / 0.7)",
+  "themeBtnAria": "false",
+  "panelRole": null,
+  "gridScrollable": "0/0"
+ }
+}

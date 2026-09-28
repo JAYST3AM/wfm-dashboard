@@ -1,0 +1,1259 @@
+{
+ "themes_total": 60,
+ "mode_counts": {
+  "dark": 30,
+  "light": 30
+ },
+ "pages": {
+  "index": {
+   "url": "/#home",
+   "info": {
+    "themes": 60,
+    "counts": {
+     "dark": 30,
+     "light": 30
+    },
+    "stylesheets": [
+     "style.css:394",
+     "shell.css:70",
+     "drawer.css:101",
+     "home.css:87",
+     "icons.css:5",
+     "chat.css:26",
+     "inline:4",
+     "inline:9"
+    ],
+    "shell": true,
+    "mountedAt": "loading",
+    "rail": [
+     "home",
+     "trade",
+     "inventory",
+     "collection",
+     "tools",
+     "settings"
+    ],
+    "active": [
+     "home"
+    ],
+    "aria": [
+     "home"
+    ],
+    "headerFirst": "DIV",
+    "railFirst": "ASIDE.side",
+    "themeSaved": "0",
+    "themeName": "Vor Orange · dark",
+    "inlineBg": "#0d0f13",
+    "bodyBg": "rgb(13, 15, 19)",
+    "themeBtnWired": true,
+    "sfx": true
+   },
+   "saved_theme": 0,
+   "saved_theme_name": {
+    "name": "Vor Orange",
+    "bg": "#0d0f13",
+    "mode": "dark"
+   },
+   "flash_frames": 0,
+   "flash_sample": [],
+   "frames_total": 41,
+   "first_inline_theme_ms": 109,
+   "paints": [
+    {
+     "name": "first-paint",
+     "t": 140
+    },
+    {
+     "name": "first-contentful-paint",
+     "t": 140
+    }
+   ],
+   "domReady_ms": 121,
+   "cycle": [
+    {
+     "i": 0,
+     "name": "Vor Orange",
+     "mode": "dark",
+     "want_bg": "#0d0f13",
+     "bodyBg": "rgb(13, 15, 19)",
+     "headerBg": "color(srgb 0.0784314 0.0901961 0.113725 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(24, 29, 38)",
+     "cardBg": "rgb(20, 23, 29)",
+     "textColor": "rgb(232, 234, 240)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 5,
+     "name": "Sentient Teal",
+     "mode": "dark",
+     "want_bg": "#0a1211",
+     "bodyBg": "rgb(10, 18, 17)",
+     "headerBg": "color(srgb 0.0627451 0.101961 0.0980392 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(19, 31, 29)",
+     "cardBg": "rgb(16, 26, 25)",
+     "textColor": "rgb(227, 242, 239)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 13,
+     "name": "Solar Amber",
+     "mode": "dark",
+     "want_bg": "#131008",
+     "bodyBg": "rgb(19, 16, 8)",
+     "headerBg": "color(srgb 0.105882 0.0901961 0.0470588 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(33, 28, 16)",
+     "cardBg": "rgb(27, 23, 12)",
+     "textColor": "rgb(245, 239, 220)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 14,
+     "name": "Frost Light",
+     "mode": "light",
+     "want_bg": "#eef2f7",
+     "bodyBg": "rgb(238, 242, 247)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(232, 238, 246)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 32, 44)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 28,
+     "name": "Cephalon White",
+     "mode": "light",
+     "want_bg": "#f6f6f3",
+     "bodyBg": "rgb(246, 246, 243)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(240, 239, 233)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(29, 28, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 34,
+     "name": "Ostron Ochre",
+     "mode": "light",
+     "want_bg": "#f7f2e7",
+     "bodyBg": "rgb(247, 242, 231)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(236, 231, 221)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(27, 22, 15)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 47,
+     "name": "Vox Azure",
+     "mode": "light",
+     "want_bg": "#eef6fb",
+     "bodyBg": "rgb(238, 246, 251)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(227, 235, 240)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(19, 24, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 59,
+     "name": "Umbra Silver",
+     "mode": "light",
+     "want_bg": "#f2f3f5",
+     "bodyBg": "rgb(242, 243, 245)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(231, 232, 234)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 20, 18)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    }
+   ],
+   "console_errors": [],
+   "failed": [],
+   "http_errors": []
+  },
+  "collection": {
+   "url": "/collection.html",
+   "info": {
+    "themes": 60,
+    "counts": {
+     "dark": 30,
+     "light": 30
+    },
+    "stylesheets": [
+     "style.css:394",
+     "shell.css:70",
+     "collection.css:84",
+     "drawer.css:101",
+     "inline:66",
+     "icons.css:5",
+     "inline:4"
+    ],
+    "shell": true,
+    "mountedAt": "loading",
+    "rail": [
+     "home",
+     "trade",
+     "inventory",
+     "collection",
+     "tools",
+     "settings"
+    ],
+    "active": [
+     "collection"
+    ],
+    "aria": [
+     "collection"
+    ],
+    "headerFirst": "DIV",
+    "railFirst": "ASIDE.side",
+    "themeSaved": "0",
+    "themeName": "Vor Orange · dark",
+    "inlineBg": "#0d0f13",
+    "bodyBg": "rgb(13, 15, 19)",
+    "themeBtnWired": true,
+    "sfx": true
+   },
+   "saved_theme": 0,
+   "saved_theme_name": {
+    "name": "Vor Orange",
+    "bg": "#0d0f13",
+    "mode": "dark"
+   },
+   "flash_frames": 0,
+   "flash_sample": [],
+   "frames_total": 41,
+   "first_inline_theme_ms": 50,
+   "paints": [
+    {
+     "name": "first-paint",
+     "t": 60
+    },
+    {
+     "name": "first-contentful-paint",
+     "t": 60
+    }
+   ],
+   "domReady_ms": 56,
+   "cycle": [
+    {
+     "i": 0,
+     "name": "Vor Orange",
+     "mode": "dark",
+     "want_bg": "#0d0f13",
+     "bodyBg": "rgb(13, 15, 19)",
+     "headerBg": "color(srgb 0.0784314 0.0901961 0.113725 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(24, 29, 38)",
+     "cardBg": "rgb(20, 23, 29)",
+     "textColor": "rgb(232, 234, 240)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 5,
+     "name": "Sentient Teal",
+     "mode": "dark",
+     "want_bg": "#0a1211",
+     "bodyBg": "rgb(10, 18, 17)",
+     "headerBg": "color(srgb 0.0627451 0.101961 0.0980392 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(19, 31, 29)",
+     "cardBg": "rgb(16, 26, 25)",
+     "textColor": "rgb(227, 242, 239)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 13,
+     "name": "Solar Amber",
+     "mode": "dark",
+     "want_bg": "#131008",
+     "bodyBg": "rgb(19, 16, 8)",
+     "headerBg": "color(srgb 0.105882 0.0901961 0.0470588 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(33, 28, 16)",
+     "cardBg": "rgb(27, 23, 12)",
+     "textColor": "rgb(245, 239, 220)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 14,
+     "name": "Frost Light",
+     "mode": "light",
+     "want_bg": "#eef2f7",
+     "bodyBg": "rgb(238, 242, 247)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(232, 238, 246)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 32, 44)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 28,
+     "name": "Cephalon White",
+     "mode": "light",
+     "want_bg": "#f6f6f3",
+     "bodyBg": "rgb(246, 246, 243)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(240, 239, 233)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(29, 28, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 34,
+     "name": "Ostron Ochre",
+     "mode": "light",
+     "want_bg": "#f7f2e7",
+     "bodyBg": "rgb(247, 242, 231)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(236, 231, 221)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(27, 22, 15)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 47,
+     "name": "Vox Azure",
+     "mode": "light",
+     "want_bg": "#eef6fb",
+     "bodyBg": "rgb(238, 246, 251)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(227, 235, 240)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(19, 24, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 59,
+     "name": "Umbra Silver",
+     "mode": "light",
+     "want_bg": "#f2f3f5",
+     "bodyBg": "rgb(242, 243, 245)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(231, 232, 234)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 20, 18)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    }
+   ],
+   "console_errors": [],
+   "failed": [],
+   "http_errors": []
+  },
+  "cards": {
+   "url": "/cards.html",
+   "info": {
+    "themes": 60,
+    "counts": {
+     "dark": 30,
+     "light": 30
+    },
+    "stylesheets": [
+     "style.css:394",
+     "shell.css:70",
+     "cards.css:48",
+     "drawer.css:101",
+     "inline:103",
+     "icons.css:5",
+     "inline:4"
+    ],
+    "shell": true,
+    "mountedAt": "loading",
+    "rail": [
+     "home",
+     "trade",
+     "inventory",
+     "collection",
+     "tools",
+     "settings"
+    ],
+    "active": [
+     "collection"
+    ],
+    "aria": [
+     "collection"
+    ],
+    "headerFirst": "DIV",
+    "railFirst": "ASIDE.side",
+    "themeSaved": "0",
+    "themeName": "Vor Orange · dark",
+    "inlineBg": "#0d0f13",
+    "bodyBg": "rgb(13, 15, 19)",
+    "themeBtnWired": true,
+    "sfx": true
+   },
+   "saved_theme": 0,
+   "saved_theme_name": {
+    "name": "Vor Orange",
+    "bg": "#0d0f13",
+    "mode": "dark"
+   },
+   "flash_frames": 0,
+   "flash_sample": [],
+   "frames_total": 41,
+   "first_inline_theme_ms": 52,
+   "paints": [
+    {
+     "name": "first-paint",
+     "t": 60
+    },
+    {
+     "name": "first-contentful-paint",
+     "t": 60
+    }
+   ],
+   "domReady_ms": 58,
+   "cycle": [
+    {
+     "i": 0,
+     "name": "Vor Orange",
+     "mode": "dark",
+     "want_bg": "#0d0f13",
+     "bodyBg": "rgb(13, 15, 19)",
+     "headerBg": "color(srgb 0.0784314 0.0901961 0.113725 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(24, 29, 38)",
+     "cardBg": null,
+     "textColor": "rgb(232, 234, 240)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 5,
+     "name": "Sentient Teal",
+     "mode": "dark",
+     "want_bg": "#0a1211",
+     "bodyBg": "rgb(10, 18, 17)",
+     "headerBg": "color(srgb 0.0627451 0.101961 0.0980392 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(19, 31, 29)",
+     "cardBg": null,
+     "textColor": "rgb(227, 242, 239)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 13,
+     "name": "Solar Amber",
+     "mode": "dark",
+     "want_bg": "#131008",
+     "bodyBg": "rgb(19, 16, 8)",
+     "headerBg": "color(srgb 0.105882 0.0901961 0.0470588 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(33, 28, 16)",
+     "cardBg": null,
+     "textColor": "rgb(245, 239, 220)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 14,
+     "name": "Frost Light",
+     "mode": "light",
+     "want_bg": "#eef2f7",
+     "bodyBg": "rgb(238, 242, 247)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(232, 238, 246)",
+     "cardBg": null,
+     "textColor": "rgb(22, 32, 44)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 28,
+     "name": "Cephalon White",
+     "mode": "light",
+     "want_bg": "#f6f6f3",
+     "bodyBg": "rgb(246, 246, 243)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(240, 239, 233)",
+     "cardBg": null,
+     "textColor": "rgb(29, 28, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 34,
+     "name": "Ostron Ochre",
+     "mode": "light",
+     "want_bg": "#f7f2e7",
+     "bodyBg": "rgb(247, 242, 231)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(236, 231, 221)",
+     "cardBg": null,
+     "textColor": "rgb(27, 22, 15)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 47,
+     "name": "Vox Azure",
+     "mode": "light",
+     "want_bg": "#eef6fb",
+     "bodyBg": "rgb(238, 246, 251)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(227, 235, 240)",
+     "cardBg": null,
+     "textColor": "rgb(19, 24, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 59,
+     "name": "Umbra Silver",
+     "mode": "light",
+     "want_bg": "#f2f3f5",
+     "bodyBg": "rgb(242, 243, 245)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(231, 232, 234)",
+     "cardBg": null,
+     "textColor": "rgb(22, 20, 18)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    }
+   ],
+   "console_errors": [],
+   "failed": [],
+   "http_errors": []
+  },
+  "settings": {
+   "url": "/settings.html",
+   "info": {
+    "themes": 60,
+    "counts": {
+     "dark": 30,
+     "light": 30
+    },
+    "stylesheets": [
+     "style.css:394",
+     "shell.css:70",
+     "inline:80",
+     "icons.css:5",
+     "inline:4"
+    ],
+    "shell": true,
+    "mountedAt": "loading",
+    "rail": [
+     "home",
+     "trade",
+     "inventory",
+     "collection",
+     "tools",
+     "settings"
+    ],
+    "active": [
+     "settings"
+    ],
+    "aria": [
+     "settings"
+    ],
+    "headerFirst": "DIV",
+    "railFirst": "ASIDE.side",
+    "themeSaved": "0",
+    "themeName": "Vor Orange · dark",
+    "inlineBg": "#0d0f13",
+    "bodyBg": "rgb(13, 15, 19)",
+    "themeBtnWired": true,
+    "sfx": true
+   },
+   "saved_theme": 0,
+   "saved_theme_name": {
+    "name": "Vor Orange",
+    "bg": "#0d0f13",
+    "mode": "dark"
+   },
+   "flash_frames": 0,
+   "flash_sample": [],
+   "frames_total": 41,
+   "first_inline_theme_ms": 44,
+   "paints": [
+    {
+     "name": "first-paint",
+     "t": 52
+    },
+    {
+     "name": "first-contentful-paint",
+     "t": 52
+    }
+   ],
+   "domReady_ms": 50,
+   "cycle": [
+    {
+     "i": 0,
+     "name": "Vor Orange",
+     "mode": "dark",
+     "want_bg": "#0d0f13",
+     "bodyBg": "rgb(13, 15, 19)",
+     "headerBg": "color(srgb 0.0784314 0.0901961 0.113725 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(24, 29, 38)",
+     "cardBg": "rgb(20, 23, 29)",
+     "textColor": "rgb(232, 234, 240)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 5,
+     "name": "Sentient Teal",
+     "mode": "dark",
+     "want_bg": "#0a1211",
+     "bodyBg": "rgb(10, 18, 17)",
+     "headerBg": "color(srgb 0.0627451 0.101961 0.0980392 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(19, 31, 29)",
+     "cardBg": "rgb(16, 26, 25)",
+     "textColor": "rgb(227, 242, 239)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 13,
+     "name": "Solar Amber",
+     "mode": "dark",
+     "want_bg": "#131008",
+     "bodyBg": "rgb(19, 16, 8)",
+     "headerBg": "color(srgb 0.105882 0.0901961 0.0470588 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(33, 28, 16)",
+     "cardBg": "rgb(27, 23, 12)",
+     "textColor": "rgb(245, 239, 220)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 14,
+     "name": "Frost Light",
+     "mode": "light",
+     "want_bg": "#eef2f7",
+     "bodyBg": "rgb(238, 242, 247)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(232, 238, 246)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 32, 44)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 28,
+     "name": "Cephalon White",
+     "mode": "light",
+     "want_bg": "#f6f6f3",
+     "bodyBg": "rgb(246, 246, 243)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(240, 239, 233)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(29, 28, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 34,
+     "name": "Ostron Ochre",
+     "mode": "light",
+     "want_bg": "#f7f2e7",
+     "bodyBg": "rgb(247, 242, 231)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(236, 231, 221)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(27, 22, 15)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 47,
+     "name": "Vox Azure",
+     "mode": "light",
+     "want_bg": "#eef6fb",
+     "bodyBg": "rgb(238, 246, 251)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(227, 235, 240)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(19, 24, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 59,
+     "name": "Umbra Silver",
+     "mode": "light",
+     "want_bg": "#f2f3f5",
+     "bodyBg": "rgb(242, 243, 245)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": "rgb(231, 232, 234)",
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 20, 18)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    }
+   ],
+   "console_errors": [],
+   "failed": [],
+   "http_errors": []
+  },
+  "item": {
+   "url": "/item.html",
+   "info": {
+    "themes": 60,
+    "counts": {
+     "dark": 30,
+     "light": 30
+    },
+    "stylesheets": [
+     "style.css:394",
+     "shell.css:70",
+     "inline:35",
+     "icons.css:5",
+     "inline:4"
+    ],
+    "shell": true,
+    "mountedAt": "loading",
+    "rail": [
+     "home",
+     "trade",
+     "inventory",
+     "collection",
+     "tools",
+     "settings"
+    ],
+    "active": [],
+    "aria": [],
+    "headerFirst": "DIV",
+    "railFirst": "ASIDE.side",
+    "themeSaved": "0",
+    "themeName": "Vor Orange · dark",
+    "inlineBg": "#0d0f13",
+    "bodyBg": "rgb(13, 15, 19)",
+    "themeBtnWired": true,
+    "sfx": true
+   },
+   "saved_theme": 0,
+   "saved_theme_name": {
+    "name": "Vor Orange",
+    "bg": "#0d0f13",
+    "mode": "dark"
+   },
+   "flash_frames": 0,
+   "flash_sample": [],
+   "frames_total": 41,
+   "first_inline_theme_ms": 39,
+   "paints": [
+    {
+     "name": "first-paint",
+     "t": 48
+    },
+    {
+     "name": "first-contentful-paint",
+     "t": 48
+    }
+   ],
+   "domReady_ms": 33,
+   "cycle": [
+    {
+     "i": 0,
+     "name": "Vor Orange",
+     "mode": "dark",
+     "want_bg": "#0d0f13",
+     "bodyBg": "rgb(13, 15, 19)",
+     "headerBg": "color(srgb 0.0784314 0.0901961 0.113725 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(20, 23, 29)",
+     "textColor": "rgb(232, 234, 240)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 5,
+     "name": "Sentient Teal",
+     "mode": "dark",
+     "want_bg": "#0a1211",
+     "bodyBg": "rgb(10, 18, 17)",
+     "headerBg": "color(srgb 0.0627451 0.101961 0.0980392 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(16, 26, 25)",
+     "textColor": "rgb(227, 242, 239)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 13,
+     "name": "Solar Amber",
+     "mode": "dark",
+     "want_bg": "#131008",
+     "bodyBg": "rgb(19, 16, 8)",
+     "headerBg": "color(srgb 0.105882 0.0901961 0.0470588 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(27, 23, 12)",
+     "textColor": "rgb(245, 239, 220)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 14,
+     "name": "Frost Light",
+     "mode": "light",
+     "want_bg": "#eef2f7",
+     "bodyBg": "rgb(238, 242, 247)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 32, 44)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 28,
+     "name": "Cephalon White",
+     "mode": "light",
+     "want_bg": "#f6f6f3",
+     "bodyBg": "rgb(246, 246, 243)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(29, 28, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 34,
+     "name": "Ostron Ochre",
+     "mode": "light",
+     "want_bg": "#f7f2e7",
+     "bodyBg": "rgb(247, 242, 231)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(27, 22, 15)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 47,
+     "name": "Vox Azure",
+     "mode": "light",
+     "want_bg": "#eef6fb",
+     "bodyBg": "rgb(238, 246, 251)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(19, 24, 24)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    },
+    {
+     "i": 59,
+     "name": "Umbra Silver",
+     "mode": "light",
+     "want_bg": "#f2f3f5",
+     "bodyBg": "rgb(242, 243, 245)",
+     "headerBg": "color(srgb 1 1 1 / 0.86)",
+     "railBg": "rgba(0, 0, 0, 0)",
+     "pillActiveBg": null,
+     "cardBg": "rgb(255, 255, 255)",
+     "textColor": "rgb(22, 20, 18)",
+     "esc": {
+      "white_bg_on_dark": [],
+      "black_bg_on_light": [],
+      "white_text_on_light": [],
+      "dark_text_on_dark": [],
+      "transparent_card": 0,
+      "transparent_header": 0,
+      "transparent_rail": 1
+     }
+    }
+   ],
+   "console_errors": [],
+   "failed": [],
+   "http_errors": []
+  }
+ },
+ "persistence": {
+  "click_theme": {
+   "panelHidden": false,
+   "inlineBg": "#eef2f7",
+   "saved": "14",
+   "name": "Frost Light · light"
+  },
+  "sound_after_click": {
+   "saved": "off",
+   "pressed": "false",
+   "sfx": false
+  },
+  "index": {
+   "saved": "14",
+   "inlineBg": "#eef2f7",
+   "bodyBg": "rgb(238, 242, 247)",
+   "name": "Frost Light · light",
+   "soundSaved": "off",
+   "soundPressed": "false",
+   "soundClass": "btn icon muted",
+   "sfxEnabled": false,
+   "themeBtnWired": true
+  },
+  "collection": {
+   "saved": "14",
+   "inlineBg": "#eef2f7",
+   "bodyBg": "rgb(238, 242, 247)",
+   "name": "Frost Light · light",
+   "soundSaved": "off",
+   "soundPressed": "false",
+   "soundClass": "btn icon muted",
+   "sfxEnabled": false,
+   "themeBtnWired": true
+  },
+  "cards": {
+   "saved": "14",
+   "inlineBg": "#eef2f7",
+   "bodyBg": "rgb(238, 242, 247)",
+   "name": "Frost Light · light",
+   "soundSaved": "off",
+   "soundPressed": "false",
+   "soundClass": "btn icon muted",
+   "sfxEnabled": false,
+   "themeBtnWired": true
+  },
+  "settings": {
+   "saved": "14",
+   "inlineBg": "#eef2f7",
+   "bodyBg": "rgb(238, 242, 247)",
+   "name": "Frost Light · light",
+   "soundSaved": "off",
+   "soundPressed": "false",
+   "soundClass": "btn icon muted",
+   "sfxEnabled": false,
+   "themeBtnWired": true
+  },
+  "item": {
+   "saved": "14",
+   "inlineBg": "#eef2f7",
+   "bodyBg": "rgb(238, 242, 247)",
+   "name": "Frost Light · light",
+   "soundSaved": "off",
+   "soundPressed": "false",
+   "soundClass": "btn icon muted",
+   "sfxEnabled": false,
+   "themeBtnWired": true
+  },
+  "restored": {
+   "theme": "0",
+   "sound": "on"
+  }
+ }
+}

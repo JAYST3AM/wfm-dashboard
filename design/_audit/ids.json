@@ -1,0 +1,602 @@
+{
+ "chrome": {
+  "index": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#trade": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#inventory": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/deals": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/trends": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/rivens": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/wl": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/ducats": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/craft": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/relicev": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/sets": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/baro": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/meta": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/news": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "index#tools/player": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  },
+  "collection": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6",
+    "collectionNav:4"
+   ]
+  },
+  "collection#relics": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6",
+    "collectionNav:4"
+   ]
+  },
+  "collection#mastery": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6",
+    "collectionNav:4"
+   ]
+  },
+  "cards": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6",
+    "(no id):4"
+   ]
+  },
+  "settings": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6",
+    "settingsCats:2"
+   ]
+  },
+  "item": {
+   "headers": 1,
+   "rails": 1,
+   "mains": 1,
+   "mainnavHosts": 1,
+   "navs": [
+    "mainnav:6"
+   ]
+  }
+ },
+ "declared": {
+  "index": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#trade": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#inventory": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/deals": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/trends": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/rivens": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/wl": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/ducats": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/craft": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/relicev": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/sets": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/baro": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/meta": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/news": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "index#tools/player": {
+   "shell": "index",
+   "actions": "search syncState refresh png",
+   "present": {
+    "search": true,
+    "syncState": true,
+    "refresh": true,
+    "btnExportPng": true,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "collection": {
+   "shell": "collection",
+   "actions": "",
+   "present": {
+    "search": false,
+    "syncState": false,
+    "refresh": false,
+    "btnExportPng": false,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "collection#relics": {
+   "shell": "collection",
+   "actions": "",
+   "present": {
+    "search": false,
+    "syncState": false,
+    "refresh": false,
+    "btnExportPng": false,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "collection#mastery": {
+   "shell": "collection",
+   "actions": "",
+   "present": {
+    "search": false,
+    "syncState": false,
+    "refresh": false,
+    "btnExportPng": false,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "cards": {
+   "shell": "cards",
+   "actions": "",
+   "present": {
+    "search": false,
+    "syncState": false,
+    "refresh": false,
+    "btnExportPng": false,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "settings": {
+   "shell": "settings",
+   "actions": "",
+   "present": {
+    "search": false,
+    "syncState": false,
+    "refresh": false,
+    "btnExportPng": false,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  },
+  "item": {
+   "shell": "item",
+   "actions": "",
+   "present": {
+    "search": false,
+    "syncState": false,
+    "refresh": false,
+    "btnExportPng": false,
+    "chips": true,
+    "soundBtn": true,
+    "themeBtn": true,
+    "themePanel": true,
+    "themeGrid": true,
+    "themeName": true,
+    "mainnav": true
+   }
+  }
+ },
+ "union": {
+  "size": 529
+ },
+ "snapshot_keys": [
+  "index",
+  "collection",
+  "cards",
+  "settings",
+  "item",
+  "lookup"
+ ],
+ "snapshot_ids": 246,
+ "missing_from_dom": [
+  "homeSync",
+  "heroCard",
+  "heroMeta",
+  "kpiCard",
+  "view-more"
+ ]
+}

@@ -1,0 +1,85 @@
+{
+ "tools_roundtrip": {
+  "at_launcher": {
+   "hash": "#tools",
+   "entries": 12,
+   "launcherHidden": false
+  },
+  "at_deals": {
+   "hash": "#tools/deals",
+   "rows": 14,
+   "name": "Deals",
+   "launcherHidden": true
+  },
+  "back": {
+   "hash": "#tools",
+   "launcherHidden": false,
+   "entries": 12
+  }
+ },
+ "mastery_payload": {
+  "keys": [
+   "schema",
+   "updated",
+   "updated_iso",
+   "source",
+   "mr",
+   "summary",
+   "categories",
+   "next",
+   "items"
+  ],
+  "statsKeys": null,
+  "cats": 13,
+  "next": 517
+ },
+ "mastery_dom": {
+  "visible": true,
+  "stats": {
+   "rows": 12,
+   "chars": 68,
+   "first": "MASTERED | 317 / 834"
+  },
+  "cats": {
+   "kids": 13,
+   "chars": 189,
+   "sample": [
+    "Warframes\n56/120",
+    "Primary\n85/197",
+    "Secondary\n59/153"
+   ]
+  },
+  "head": "Mastery 22\nto 23: 112,500 XP\nITEM MASTERY\n1,160,000\nitems only",
+  "next": 4131,
+  "filters": 8,
+  "cap": "showing 60 of 517",
+  "active": [
+   "collection"
+  ]
+ },
+ "cards_hop": {
+  "on_cards": {
+   "path": "/cards.html",
+   "active": [
+    "collection"
+   ],
+   "textLen": 2680,
+   "cards": 0
+  },
+  "back": {
+   "path": "/collection.html",
+   "hash": "",
+   "active": [
+    "collection"
+   ],
+   "sub": [
+    "collection*",
+    "relics",
+    "mastery",
+    "cards"
+   ],
+   "textLen": 2226
+  }
+ },
+ "console": []
+}

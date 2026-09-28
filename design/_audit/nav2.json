@@ -1,0 +1,342 @@
+{
+ "hard_loads": {
+  "/#home": {
+   "landed": "/#home",
+   "active": [
+    "home"
+   ],
+   "ara": [
+    "home=page"
+   ]
+  },
+  "/#trade": {
+   "landed": "/#trade",
+   "active": [
+    "trade"
+   ],
+   "ara": [
+    "trade=page"
+   ]
+  },
+  "/#inventory": {
+   "landed": "/#inventory",
+   "active": [
+    "inventory"
+   ],
+   "ara": [
+    "inventory=page"
+   ]
+  },
+  "/#tools": {
+   "landed": "/#tools",
+   "active": [
+    "tools"
+   ],
+   "ara": [
+    "tools=page"
+   ]
+  },
+  "/#tools/deals": {
+   "landed": "/#tools/deals",
+   "active": [
+    "tools"
+   ],
+   "ara": [
+    "tools=page"
+   ]
+  },
+  "/#more": {
+   "landed": "/#tools",
+   "active": [
+    "tools"
+   ],
+   "ara": [
+    "tools=page"
+   ]
+  },
+  "/#market": {
+   "landed": "/#tools",
+   "active": [
+    "tools"
+   ],
+   "ara": [
+    "tools=page"
+   ]
+  },
+  "/#player": {
+   "landed": "/#tools/player",
+   "active": [
+    "tools"
+   ],
+   "ara": [
+    "tools=page"
+   ]
+  },
+  "/#history": {
+   "landed": "/#history",
+   "active": [
+    "trade"
+   ],
+   "ara": [
+    "trade=page"
+   ]
+  },
+  "/collection.html": {
+   "landed": "/collection.html",
+   "active": [
+    "collection"
+   ],
+   "ara": [
+    "collection=page"
+   ]
+  },
+  "/cards.html": {
+   "landed": "/cards.html",
+   "active": [
+    "collection"
+   ],
+   "ara": [
+    "collection=page"
+   ]
+  },
+  "/settings.html": {
+   "landed": "/settings.html",
+   "active": [
+    "settings"
+   ],
+   "ara": [
+    "settings=page"
+   ]
+  },
+  "/item.html": {
+   "landed": "/item.html",
+   "active": [],
+   "ara": []
+  }
+ },
+ "click_walk": [
+  {
+   "clicked": "trade",
+   "hash": "#trade",
+   "active": [
+    "trade"
+   ],
+   "aria": [
+    "home"
+   ]
+  },
+  {
+   "clicked": "inventory",
+   "hash": "#inventory",
+   "active": [
+    "inventory"
+   ],
+   "aria": [
+    "home"
+   ]
+  },
+  {
+   "clicked": "tools",
+   "hash": "#tools",
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "home"
+   ]
+  },
+  {
+   "clicked": "home",
+   "hash": "#home",
+   "active": [
+    "home"
+   ],
+   "aria": [
+    "home"
+   ]
+  },
+  {
+   "clicked": "tool:ducats",
+   "hash": "#tools/ducats",
+   "active": [
+    "tools"
+   ],
+   "aria": [
+    "home"
+   ]
+  }
+ ],
+ "subnav": {
+  "/collection.html": [
+   {
+    "v": "collection",
+    "t": "Collection",
+    "href": "/collection.html",
+    "active": true,
+    "cur": "page"
+   },
+   {
+    "v": "relics",
+    "t": "Relics",
+    "href": "/collection.html#relics",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "mastery",
+    "t": "Mastery",
+    "href": "/collection.html#mastery",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "cards",
+    "t": "Cards",
+    "href": "/cards.html",
+    "active": false,
+    "cur": null
+   }
+  ],
+  "/collection.html#relics": [
+   {
+    "v": "collection",
+    "t": "Collection",
+    "href": "/collection.html",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "relics",
+    "t": "Relics",
+    "href": "/collection.html#relics",
+    "active": true,
+    "cur": "page"
+   },
+   {
+    "v": "mastery",
+    "t": "Mastery",
+    "href": "/collection.html#mastery",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "cards",
+    "t": "Cards",
+    "href": "/cards.html",
+    "active": false,
+    "cur": null
+   }
+  ],
+  "/collection.html#mastery": [
+   {
+    "v": "collection",
+    "t": "Collection",
+    "href": "/collection.html",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "relics",
+    "t": "Relics",
+    "href": "/collection.html#relics",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "mastery",
+    "t": "Mastery",
+    "href": "/collection.html#mastery",
+    "active": true,
+    "cur": "page"
+   },
+   {
+    "v": "cards",
+    "t": "Cards",
+    "href": "/cards.html",
+    "active": false,
+    "cur": null
+   }
+  ],
+  "/collection.html#cards": [
+   {
+    "v": "collection",
+    "t": "Collection",
+    "href": "/collection.html",
+    "active": true,
+    "cur": "page"
+   },
+   {
+    "v": "relics",
+    "t": "Relics",
+    "href": "/collection.html#relics",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "mastery",
+    "t": "Mastery",
+    "href": "/collection.html#mastery",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "cards",
+    "t": "Cards",
+    "href": "/cards.html",
+    "active": false,
+    "cur": null
+   }
+  ]
+ },
+ "collection_keyboard": {
+  "tabs_to_mastery": 12,
+  "order": [
+   "BUTTON",
+   "BUTTON",
+   "A(/)",
+   "A[home](/#home)",
+   "A[trade](/#trade)",
+   "A[inventory](/#inventory)",
+   "A[collection](/collection.html)",
+   "A[tools](/#tools)",
+   "A[settings](/settings.html)",
+   "A[collection](/collection.html)",
+   "A[relics](/collection.html#relics)",
+   "A[mastery](/collection.html#mastery)"
+  ],
+  "after_hash": "#mastery",
+  "after_active": [
+   "collection"
+  ],
+  "sub": [
+   {
+    "v": "collection",
+    "t": "Collection",
+    "href": "/collection.html",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "relics",
+    "t": "Relics",
+    "href": "/collection.html#relics",
+    "active": false,
+    "cur": null
+   },
+   {
+    "v": "mastery",
+    "t": "Mastery",
+    "href": "/collection.html#mastery",
+    "active": true,
+    "cur": "page"
+   },
+   {
+    "v": "cards",
+    "t": "Cards",
+    "href": "/cards.html",
+    "active": false,
+    "cur": null
+   }
+  ]
+ }
+}

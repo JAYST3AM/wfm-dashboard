@@ -19,7 +19,7 @@ This file is the working map for the staged rebuild — update it as stages land
 | `collection.html` | Collection grid + relics (`relicView`) + the Mastery tab (`#view-mastery`, 12 `mh*` ids) + the section row (Collection / Relics / Mastery / Cards) |
 | `index.html` `#tools` | Tools launcher (three groups + `#setupCard`/`#foot`) and the 11 workspaces it opens one at a time: the 12 tool lists (25 ids: deals, movers, trends, ducats, craft, relicEV, sets, nudges, watchlist, rivens, baro, meta) and the Player profile (`#view-player`, 11 `pc*` ids) |
 | `cards.html` | Full TCG/card workspace (20 ids) |
-| `settings.html` | 5 setting cards, each save/list/status (36 ids) |
+| `settings.html` | 6 category panels, one at a time (36 ids): General (the old Updates card), Trading, Appearance, Accounts, Notifications, Advanced + the page's section nav as the category list |
 | `item.html` | Full item analysis: pick, chart, trades, stats (25 ids) |
 | `lookup.html` | Stub — search moved (no ids) |
 
@@ -127,8 +127,8 @@ reshaped for the Home simplification; their tests get rewritten in the same stag
 | 5 | Inventory simplification (Items/Materials, column disclosure, dojo→Tools, history disclosure) | later |
 | 6 | Collection consolidation (Collection/Relics/Mastery/Cards) | **landed with stage 2** (Collection/Relics/Mastery sections + the four-pill row; Cards keeps its page) |
 | 7 | Tools workspaces | **landed with stage 2** (launcher + 11 focused workspaces) |
-| 8 | Settings navigation (one category at a time) | later |
-| 9 | Drawer vs full analysis normalisation | later |
+| 8 | Settings navigation (one category at a time) | **LANDED 2026-09-28** |
+| 9 | Drawer vs full analysis normalisation | **LANDED 2026-09-28** |
 | 10 | Responsive + polish pass | last |
 
 ### Stage 1 landed (2026-09-28) — how the chrome works now
@@ -206,6 +206,65 @@ from the stage 1 snapshot lost) plus the re-targeted pins in `test_ui_polish`, `
 `test_item_page`. Headless: `design/_stage2/qa_ia.js` (rail per page, the four fit checks, the
 click-through of all 11 workspaces, the mastery tab, the legacy redirects, id union) and
 `design/_stage2/verify_ids.py` (0 missing vs `design/_stage1/ids_before.json`).
+
+### Stage 8 landed (2026-09-28) — settings is one category at a time
+
+`static/settings.html` no longer stacks five cards. The page's own section nav (still
+`<nav class="mainnav subnav" id="settingsCats">`, still inside `.shellcol`, Tools | Settings pills
+kept at its top) is the category list now: **General / Trading / Appearance / Accounts /
+Notifications / Advanced**, one `.st-cat` panel in the flow at a time, `#general` by default, and
+`/settings.html#trading` (any of the six) deep-links one — an unknown or empty hash falls back to
+General, so nothing lands blank. The nav stands up as the settings sidebar from 1000px (a wrapping
+pill row below that); the six category pills carry a page-local `.st-catpill` class (the shell test
+caps a page at four `.navpill` hosts, and the Tools | Settings pair spends two).
+
+Where the cards went: the old **Updates** card IS General (h-updates/btnSave-updates/list-updates,
+its rows untouched); Trading / Appearance / Accounts / Advanced keep their cards and ids, the
+Advanced category carrying both its explanation switch and the Advanced-settings card (host/port +
+the raw-key table, still behind its accordion). **Notifications** has no notify keys in the
+schemas, so it is one link row to where they live (`/#trade`, the webhook/test-ping card) — no
+invented controls. Saved payloads, routes, validation, the Live / Not-live gate and the raw-key
+renderer are all unchanged.
+
+Guards: `tests/test_settings_nav.py` (the six categories in order, one panel in the flow, per-panel
+id sets, deep links + the hash fallback run under node, every Save button present and wired to its
+group — it never clicks one). Headless: `design/_stage8/qa_settings.js` (click-through of all six,
+row counts, id union, deep links, console), `qa_settings_widths.js` (1440/1100/900/390, no
+overflow), `qa_raw_probe.js` (the raw-key table + accordion), `verify_ids.py` (0 ids missing vs
+`design/_stage8/ids_before.json`). Screenshots: `s8-settings-general.png`, `s8-settings-trading.png`
+(1920x1080, `C:/Users/jayde/AppData/Local/Temp/shotkit/shots/`).
+
+### Stage 9 landed (2026-09-28) — drawer is the quick look, item.html is the analysis
+
+The two item surfaces now say what they are instead of reading as rivals (§3's last row):
+
+- **Drawer** (`static/drawer.js` + `drawer.css`): unchanged summary (recommended action, your copies
+  + four market tiles, the mini price graph, the three collapsed sections) plus **one** new control on
+  the footer row - `Open full analysis ↗`, an anchor whose href is
+  `/item.html?item=<resolved slug>` for the item on screen (hidden when a key resolves to no local
+  record, because there is then no page to open). It is the only primary-weight control in the panel
+  (Wiki / Market prices were demoted to plain `btn`), and a `Quick look` pill sits at the head of the
+  same row, so role and next step are one glance. No other control was added and no drawer id, hook
+  or block was removed. The pre-existing inline `Price page ▸` link in the graph card stays
+  (pinned by `test_item_page.py`); it is now quiet (muted) so the footer action is the loud path.
+- **Page** (`static/item.js` + `item.html`): reads the deep link on load - `?item=<slug>` first, then
+  `#item=<slug>`, then the older `?slug=<slug>` - and preselects that item (chart, trades, snapshot
+  book render; the picker card stays hidden). No parameter: the picker, byte-for-byte the old behaviour.
+  The picker's own hits and the page title link now use the canonical `?item=` form. Nothing is written:
+  every request on the page is a GET. A `Full analysis · quick look in the drawer` line sits under the
+  H1 (`#ipRole`), the page's side of the role split.
+- Found and fixed on the way: `chart.js` only injected its control CSS from Home's `PlatChart`, so
+  item.html's colour dots rendered as raw UA buttons - the factory (`wfmChart`) injects now, which is
+  what its own comment promised. Home already had the sheet, so nothing there changes.
+- Ids: all 18 `ip*` ids (25 with the shell's) and every drawer id/hook survive; nothing was removed.
+
+Guards: `tests/test_drawer_analysis.py` (one action only, its label/href/slug wiring, the role pair on
+both surfaces, deep-link parsing order, GET-only page, ids kept, the factory injection). Headless:
+`design/_stage9/probe_s9.js` (drawer opened from a plain inventory-row click, href vs the clicked row's
+slug, deep link + hash + legacy forms, bare `/item.html` picker, console errors). Screenshots:
+`s9-drawer.png`, `s9-item-analysis.png` (1920x1080, same shots folder).
+
+---
 
 Non-negotiables (spec): backend, user data, safety behaviour, dry_run / Not Live, kill switch,
 calculations, rank-aware pricing, collection/relic/mastery/cards data, multi-account, themes,

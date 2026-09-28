@@ -1,0 +1,1875 @@
+{
+ "slugs": {
+  "deals": {
+   "slug": "deals",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 781,
+     "h": 474,
+     "desc": "KIND"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Deals",
+   "heads": [
+    "Deals",
+    "Deals · 389 live in 12h (88 spreads · 301 undercut"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": true,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/deals",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "trends": {
+   "slug": "trends",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 196,
+     "h": 269,
+     "desc": "Abating Link"
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 556,
+     "h": 440,
+     "desc": "DEMAND RISING"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Movers & demand",
+   "heads": [
+    "Movers & demand",
+    "Movers - price swings · 2026-09-26 vs 2026-09-25",
+    "Demand trends · 2 spiking · 26 fading of 250 track"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": true,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/trends",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "rivens": {
+   "slug": "rivens",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 536,
+     "h": 447,
+     "desc": "VEILED BANDS — FLOOR / 48H MEDIAN (UNREVEALED)"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Riven bands",
+   "heads": [
+    "Riven bands",
+    "Riven bands · 8 veiled families · 3 owned"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": true,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/rivens",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "wl": {
+   "slug": "wl",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 371,
+     "h": 301,
+     "desc": "TRIGGERED NOW"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Watchlist",
+   "heads": [
+    "Watchlist",
+    "Watchlist - bands & alerts · 1 buy hit · 0 sell hi"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": true,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/wl",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "ducats": {
+   "slug": "ducats",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 700,
+     "h": 558,
+     "desc": "BURN FOR DUCATS"
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Ducats",
+   "heads": [
+    "Ducats",
+    "Ducats - sell or burn · 58 sell (1227p) · 29 burn "
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": true,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/ducats",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "craft": {
+   "slug": "craft",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 955,
+     "h": 678,
+     "desc": "ITEM"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Craft or buy",
+   "heads": [
+    "Craft or buy",
+    "Craft or buy · 66 craft · 7 buy · 45 skip"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": true,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/craft",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "relicev": {
+   "slug": "relicev",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 562,
+     "h": 410,
+     "desc": "RELIC"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Relic EV",
+   "heads": [
+    "Relic EV",
+    "Relic expected value · EV 3111p if opened vs 7935p"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": true,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/relicev",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "sets": {
+   "slug": "sets",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 625,
+     "h": 333,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 608,
+     "h": 446,
+     "desc": "SET"
+    }
+   },
+   "bar": true,
+   "barName": "Sets",
+   "heads": [
+    "Sets",
+    "Set completion · 5 complete · 9 one away · 24 two ",
+    "Almost complete · 5 ready · 9 one away · 10 part s"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": true,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/sets",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "baro": {
+   "slug": "baro",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 370,
+     "h": 104,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Baro Ki'Teer",
+   "heads": [
+    "Baro Ki'Teer",
+    "Baro Ki'Teer · next visit in 7d"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": true,
+    "meta": false,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/baro",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "meta": {
+   "slug": "meta",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 723,
+     "h": 440,
+     "desc": "POST-PATCH SURGES"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Patch meta",
+   "heads": [
+    "Patch meta",
+    "Post-patch meta · post-patch 44.0.1 (0.73d) · 6 up"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": true,
+    "news": false,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/meta",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "news": {
+   "slug": "news",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Game news",
+   "heads": [
+    "Game news",
+    "Game updates · v44.0.1 · checked 22m ago"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": true,
+    "player": false
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/news",
+   "backLink": true,
+   "console": [],
+   "failed": []
+  },
+  "player": {
+   "slug": "player",
+   "lists": {
+    "dealsList": {
+     "present": true,
+     "rows": 14,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 1345,
+     "h": 0,
+     "desc": "KindItemFloor → targetProfit48h volOwn"
+    },
+    "moversList": {
+     "present": true,
+     "rows": 8,
+     "first_level_children": 8,
+     "placeholder": false,
+     "text_len": 329,
+     "h": 0,
+     "desc": "Abating Link "
+    },
+    "trendsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 755,
+     "h": 0,
+     "desc": "Demand rising"
+    },
+    "wlList": {
+     "present": true,
+     "rows": 7,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 376,
+     "h": 0,
+     "desc": "Triggered nowPrimed Target Cracker BUY"
+    },
+    "ducatsList": {
+     "present": true,
+     "rows": 16,
+     "first_level_children": 18,
+     "placeholder": false,
+     "text_len": 667,
+     "h": 0,
+     "desc": "Burn for ducatsOrthos Prime Blade ×145 duc · 22.5d/pCobra & "
+    },
+    "nudgesList": {
+     "present": true,
+     "rows": 10,
+     "first_level_children": 10,
+     "placeholder": false,
+     "text_len": 784,
+     "h": 0,
+     "desc": "Hydroid Prime Set READY"
+    },
+    "baroList": {
+     "present": true,
+     "rows": 0,
+     "first_level_children": 2,
+     "placeholder": true,
+     "text_len": 369,
+     "h": 0,
+     "desc": "NOT active -- next visit Fri 2026-10-02 13:00 UTC at Kronia "
+    },
+    "metaList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 14,
+     "placeholder": false,
+     "text_len": 782,
+     "h": 0,
+     "desc": "Post-patch surgesMeso R4 Relic 48h 60 · base 5.57/d · post-p"
+    },
+    "rivensList": {
+     "present": true,
+     "rows": 11,
+     "first_level_children": 15,
+     "placeholder": false,
+     "text_len": 483,
+     "h": 0,
+     "desc": "Veiled bands — floor / 48h median (unrevealed)FamilyFloorMed"
+    },
+    "craftList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1144,
+     "h": 0,
+     "desc": "ItemMissing partsBuilt floorProfitHydroid Prime Set 3 owned"
+    },
+    "relicsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 974,
+     "h": 0,
+     "desc": "RelicEV eachSell eachRatio"
+    },
+    "setsList": {
+     "present": true,
+     "rows": 12,
+     "first_level_children": 13,
+     "placeholder": false,
+     "text_len": 1019,
+     "h": 0,
+     "desc": "SetPartsCost to finishSet valueProfit"
+    }
+   },
+   "bar": true,
+   "barName": "Player profile",
+   "heads": [
+    "Player profile",
+    "Player · synced 5h ago",
+    "Syndicates · 18",
+    "Intrinsics",
+    "Focus · today 245,736",
+    "Market",
+    "Clan"
+   ],
+   "launcherHidden": true,
+   "wsVisible": {
+    "deals": false,
+    "trends": false,
+    "rivens": false,
+    "wl": false,
+    "ducats": false,
+    "craft": false,
+    "relicev": false,
+    "sets": false,
+    "baro": false,
+    "meta": false,
+    "news": false,
+    "player": true
+   },
+   "activePills": [
+    "tools"
+   ],
+   "ariaCurrent": [
+    "tools"
+   ],
+   "viewToolsVisible": true,
+   "hash": "#tools/player",
+   "backLink": true,
+   "pc": {
+    "pcMeta": {
+     "text_len": 15,
+     "kids": 0
+    },
+    "pcHead": {
+     "text_len": 21,
+     "kids": 2
+    },
+    "pcStats": {
+     "text_len": 80,
+     "kids": 5
+    },
+    "pcTop": {
+     "text_len": 124,
+     "kids": 5
+    },
+    "pcSynMeta": {
+     "text_len": 4,
+     "kids": 0
+    },
+    "pcSyn": {
+     "text_len": 511,
+     "kids": 19
+    },
+    "pcInt": {
+     "text_len": 125,
+     "kids": 2
+    },
+    "pcFocusMeta": {
+     "text_len": 15,
+     "kids": 0
+    },
+    "pcFocus": {
+     "text_len": 45,
+     "kids": 3
+    },
+    "pcMarket": {
+     "text_len": 68,
+     "kids": 4
+    },
+    "pcClan": {
+     "text_len": 100,
+     "kids": 5
+    }
+   },
+   "console": [],
+   "failed": []
+  }
+ },
+ "legacy": {
+  "lists": {
+   "dealsList": {
+    "present": true,
+    "rows": 14,
+    "total_chars": 1345
+   },
+   "moversList": {
+    "present": true,
+    "rows": 8,
+    "total_chars": 329
+   },
+   "trendsList": {
+    "present": true,
+    "rows": 12,
+    "total_chars": 755
+   },
+   "wlList": {
+    "present": true,
+    "rows": 7,
+    "total_chars": 376
+   },
+   "ducatsList": {
+    "present": true,
+    "rows": 16,
+    "total_chars": 667
+   },
+   "nudgesList": {
+    "present": true,
+    "rows": 10,
+    "total_chars": 784
+   },
+   "baroList": {
+    "present": true,
+    "rows": 0,
+    "total_chars": 369
+   },
+   "metaList": {
+    "present": true,
+    "rows": 12,
+    "total_chars": 782
+   },
+   "rivensList": {
+    "present": true,
+    "rows": 11,
+    "total_chars": 483
+   },
+   "craftList": {
+    "present": true,
+    "rows": 12,
+    "total_chars": 1144
+   },
+   "relicsList": {
+    "present": true,
+    "rows": 12,
+    "total_chars": 974
+   },
+   "setsList": {
+    "present": true,
+    "rows": 12,
+    "total_chars": 1019
+   }
+  },
+  "setup": {
+   "setupCard": {
+    "present": true,
+    "chars": 145
+   },
+   "foot": {
+    "present": true,
+    "chars": 79
+   }
+  },
+  "launcherEntries": 12
+ },
+ "pages": {},
+ "legacy_console": [],
+ "legacy_failed": []
+}
