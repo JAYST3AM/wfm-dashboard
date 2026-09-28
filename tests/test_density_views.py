@@ -39,7 +39,9 @@ def test_index_ships_the_fit_shell_class():
 def test_the_shell_is_one_window_tall_and_does_not_scroll():
     css = read('static/style.css')
     assert 'body.shell-fit { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }' in css
-    assert 'body.shell-fit > main { flex: 1 1 auto; min-height: 0; padding: 8px 18px; }' in css
+    assert ('body.shell-fit > .shellbody { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; }'
+            in css)
+    assert 'body.shell-fit .shellbody > main { flex: 1 1 auto; min-height: 0; padding: 12px 22px; }' in css
     assert ('body.shell-fit main > section:not(.hidden) {\n'
             '    height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable;\n'
             '  }') in css

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WFM Trader - three clean directions</title>
+<style>
+  :root {
+    --bg: #0d0f13; --panel: #14171d; --panel2: #191d25; --border: #232833;
+    --text: #e8eaf0; --muted: #8b93a4; --accent: #ff8a1e; --accent-dim: #7a4713;
+    --r: 10px;
+    --sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: #07080b; color: var(--text); font: 14px/1.45 var(--sans); padding: 28px; }
+  .sheet { display: flex; flex-direction: column; gap: 34px; max-width: 1180px; }
+  .variant { display: flex; gap: 26px; align-items: flex-start; }
+  .caption { width: 300px; flex: 0 0 300px; padding-top: 12px; }
+  .caption h2 { margin: 0 0 4px; font-size: 17px; }
+  .caption .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .4px;
+    color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 999px; padding: 2px 9px; margin-bottom: 8px; }
+  .caption p { margin: 0 0 6px; color: var(--muted); font-size: 12.5px; }
+  .caption ul { margin: 6px 0 0; padding-left: 16px; color: var(--muted); font-size: 12.5px; }
+  .caption li { margin: 3px 0; }
+  .phones { display: flex; gap: 22px; }
+  .phone {
+    width: 340px; height: 700px; border-radius: 42px; background: var(--bg);
+    border: 1px solid #2a3040; box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 8px #05060a;
+    position: relative; overflow: hidden; flex: 0 0 340px;
+  }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .notch { height: 26px; flex: 0 0 26px; display: flex; align-items: center; justify-content: center; }
+  .notch b { width: 84px; height: 18px; background: #05060a; border-radius: 999px; display: block; }
+  .body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 6px 16px 12px; }
+  .tabbar { flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--panel) 92%, black); padding: 8px 4px 10px; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--muted); font-size: 10.5px; }
+  .tab.on { color: var(--accent); }
+  .tab svg { width: 22px; height: 22px; }
+  .homebar { height: 6px; display: flex; justify-content: center; padding: 4px 0 2px; }
+  .homebar i { width: 104px; height: 4px; border-radius: 999px; background: #2a3040; display: block; }
+
+  /* iOS-ish primitives */
+  .lg-title { font-size: 26px; font-weight: 700; letter-spacing: -.2px; margin: 6px 2px 10px; }
+  .grp { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 14px; }
+  .grp .h { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); padding: 12px 16px 6px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; min-height: 52px; border-top: 1px solid var(--border); }
+  .grp .row:first-of-type { border-top: 0; }
+  .row .t { flex: 1 1 auto; min-width: 0; }
+  .row .t b { font-weight: 600; }
+  .row .t span { display: block; color: var(--muted); font-size: 12px; }
+  .row .v { color: var(--muted); font-family: "Cascadia Mono", ui-monospace, monospace; }
+  .chev { color: #3a4152; font-size: 15px; }
+  .cbtn { display: block; width: 100%; border: 0; border-radius: 16px; background: var(--accent); color: #180d02;
+    font: 700 16px var(--sans); padding: 16px; min-height: 54px; }
+  .gbtn { display: block; width: 100%; border: 1px solid var(--border); border-radius: 16px; background: var(--panel2);
+    color: var(--text); font: 600 15px var(--sans); padding: 15px; min-height: 52px; }
+  .hero { border-radius: 22px; background: linear-gradient(180deg, #1a1f28, var(--panel)); border: 1px solid var(--border); padding: 18px 18px 16px; margin-bottom: 14px; }
+  .hero .lab { color: var(--muted); font-size: 12px; }
+  .hero .big { font: 800 40px/1.1 var(--sans); letter-spacing: -.6px; margin: 4px 0 2px; }
+  .hero .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px var(--sans); color: var(--accent);
+    border: 1px solid var(--accent-dim); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 999px; padding: 3px 10px; }
+  .chip.g { color: #7ee0a3; border-color: #2c5a3d; background: #12261b; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 4px; margin: 6px 0 14px; }
+  .seg b { text-align: center; padding: 9px 0; border-radius: 11px; font-weight: 600; color: var(--muted); }
+  .seg b.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 0 rgba(255,255,255,.04); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 14px 15px; margin-bottom: 12px; }
+  .card .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .card .top b { font-size: 15px; }
+  .card .bits { display: flex; gap: 10px; color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+  .card .bits i { font-style: normal; font-family: "Cascadia Mono", ui-monospace, monospace; color: var(--text); }
+  .q { font-size: 25px; font-weight: 700; letter-spacing: -.3px; margin: 34px 6px 22px; }
+  .bigchoice { display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 0 18px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--panel); margin-bottom: 12px; font-size: 17px; font-weight: 600; }
+  .bigchoice .ic { width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid var(--accent-dim); display: grid; place-items: center; color: var(--accent); }
+  .oneitem { text-align: center; padding: 40px 8px 0; }
+  .oneitem .nm { font-size: 22px; font-weight: 700; }
+  .oneitem .pr { font-size: 44px; font-weight: 800; color: var(--accent); margin: 12px 0 2px; letter-spacing: -.5px; }
+  .oneitem .mt { color: var(--muted); font-size: 12.5px; margin-bottom: 30px; }
+  .steps { color: var(--muted); font-size: 11.5px; text-align: center; margin-top: 14px; }
+  .back { color: var(--accent); font-size: 14px; padding: 6px 2px; }
+  .dim { color: var(--muted); }
+  .fade { position: absolute; left: 0; right: 0; bottom: 0; height: 40px;
+    background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<!-- ===================== A ===================== -->
+<div class="variant">
+  <div class="caption">
+    <span class="tag">A · tabs + hero</span>
+    <h2>One screen, one job</h2>
+    <p>Home answers "how am I doing" and "what do I sell next". Five tabs at the bottom, everything else behind a row.</p>
+    <ul>
+      <li>Bottom tab bar with icons - thumb reach, nothing to hunt for</li>
+      <li>Big plat number, then the next action with one giant button</li>
+      <li>Rows with chevrons open the deep screens (inventory, mastery...)</li>
+    </ul>
+  </div>
+  <div class="phones">
+    <div class="phone"><div class="screen">
+      <div class="notch"><b></b></div>
+      <div class="body">
+        <div class="lg-title">Home</div>
+        <div class="hero">
+          <div class="lab">Platinum</div>
+          <div class="big">1,022p</div>
+          <div class="sub">22 trades left today · 4,491,490 cr</div>
+          <div class="btnrow">
+            <button class="gbtn">Refresh</button>
+            <button class="cbtn">Sell next</button>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="h">Up next</div>
+          <div class="row">
+            <div class="t"><b>Primed Continuity</b><span>rank 8 · 2 spare copies</span></div>
+            <span class="v">12p</span><span class="chev">›</span>
+          </div>
+          <div class="row">
+            <div class="t"><b>Trinity Prime Systems</b><span>blueprint · 1 copy</span></div>
+            <span class="v">9p</span><span class="chev">›</span>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="h">Go to</div>
+          <div class="row"><div class="t"><b>Inventory</b><span>863 items priced</span></div><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>Collection</b><span>834 of 834 found</span></div><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>Mastery</b><span>MR 22 · 316 mastered</span></div><span class="chev">›</span></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>Home</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v3H4zM4 12h16v3H4z"/></svg>Inventory</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8-4 12-4-12z"/></svg>Sell</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Collection</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+
+    <div class="phone"><div class="screen">
+      <div class="notch"><b></b></div>
+      <div class="body">
+        <div class="lg-title">Sell</div>
+        <div class="seg"><b class="on">Sell</b><b>Buy</b><b>History</b></div>
+        <div class="card">
+          <div class="top"><b>Primed Continuity</b><span class="chip">rank 8</span></div>
+          <div class="bits"><span>list <i>12p</i></span><span>market <i>13p</i></span><span>2 spare</span></div>
+          <button class="cbtn">List it</button>
+        </div>
+        <div class="card">
+          <div class="top"><b>Trinity Prime Systems</b><span class="chip">bp</span></div>
+          <div class="bits"><span>list <i>9p</i></span><span>market <i>10p</i></span><span>1 copy</span></div>
+          <button class="cbtn">List it</button>
+        </div>
+        <div class="card" style="opacity:.55">
+          <div class="top"><b>Wukong Prime Neuroptics</b></div>
+          <div class="bits"><span>list <i>14p</i></span><span>in use</span></div>
+          <button class="gbtn">Held</button>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>Home</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v3H4zM4 12h16v3H4z"/></svg>Inventory</div>
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8-4 12-4-12z"/></svg>Sell</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Collection</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ===================== B ===================== -->
+<div class="variant">
+  <div class="caption">
+    <span class="tag">B · one question at a time</span>
+    <h2>It asks, you tap</h2>
+    <p>No dashboard. The app asks one question per screen and walks you through it, one item at a time.</p>
+    <ul>
+      <li>Never more than three choices on screen</li>
+      <li>Big type, giant buttons, nothing to read</li>
+      <li>Best for "just tell me what to do", weakest for browsing</li>
+    </ul>
+  </div>
+  <div class="phones">
+    <div class="phone"><div class="screen">
+      <div class="notch"><b></b></div>
+      <div class="body">
+        <div class="q">What do you want to do?</div>
+        <div class="bigchoice"><span class="ic">▲</span>Sell something</div>
+        <div class="bigchoice"><span class="ic">≡</span>Check my stuff</div>
+        <div class="bigchoice"><span class="ic">◔</span>See how I'm doing</div>
+        <div class="steps">1,022p · 22 trades left</div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+    <div class="phone"><div class="screen">
+      <div class="notch"><b></b></div>
+      <div class="body">
+        <div class="back">‹ Back</div>
+        <div class="oneitem">
+          <div class="nm">Primed Continuity</div>
+          <div class="pr">12p</div>
+          <div class="mt">market 13p · 2 spare copies · rank 8</div>
+          <button class="cbtn">List it</button>
+          <div style="height:10px"></div>
+          <button class="gbtn">Skip</button>
+          <div class="steps">3 of 20</div>
+        </div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ===================== C ===================== -->
+<div class="variant">
+  <div class="caption">
+    <span class="tag">C · list of rows</span>
+    <h2>Everything is a row</h2>
+    <p>The whole app is grouped rows like iOS Settings. Data lives in a sheet that slides up when you tap a row.</p>
+    <ul>
+      <li>Calmest of the three - mostly labels and numbers</li>
+      <li>Detail only when asked (tap → sheet)</li>
+      <li>Tables still exist, but inside the sheet</li>
+    </ul>
+  </div>
+  <div class="phones">
+    <div class="phone"><div class="screen">
+      <div class="notch"><b></b></div>
+      <div class="body">
+        <div class="lg-title">Home</div>
+        <div class="grp">
+          <div class="h">Today</div>
+          <div class="row"><div class="t"><b>Platinum</b></div><span class="v">1,022p</span><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>Trades left</b></div><span class="v">22</span><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>Inventory value</b></div><span class="v">25,548p</span><span class="chev">›</span></div>
+        </div>
+        <div class="grp">
+          <div class="h">Needs you · 2</div>
+          <div class="row"><div class="t"><b>Market sign-in</b><span>blocked by the site check</span></div><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>19 listings parked</b><span>posting is off</span></div><span class="chev">›</span></div>
+        </div>
+        <div class="grp">
+          <div class="h">Sell</div>
+          <div class="row"><div class="t"><b>Primed Continuity</b><span>2 spare</span></div><span class="v">12p</span><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>Trinity Prime Systems</b><span>1 copy</span></div><span class="v">9p</span><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>All 20 recommendations</b></div><span class="chev">›</span></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>Home</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v3H4zM4 12h16v3H4z"/></svg>Inventory</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8-4 12-4-12z"/></svg>Sell</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Collection</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+
+    <div class="phone"><div class="screen">
+      <div class="notch"><b></b></div>
+      <div class="body" style="filter:brightness(.55)">
+        <div class="lg-title">Home</div>
+        <div class="grp">
+          <div class="h">Today</div>
+          <div class="row"><div class="t"><b>Platinum</b></div><span class="v">1,022p</span><span class="chev">›</span></div>
+          <div class="row"><div class="t"><b>Trades left</b></div><span class="v">22</span><span class="chev">›</span></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:74%;background:var(--panel);
+        border-radius:26px 26px 42px 42px;border:1px solid var(--border);padding:10px 16px 16px;">
+        <div style="width:44px;height:5px;border-radius:999px;background:#3a4152;margin:2px auto 14px;"></div>
+        <div style="font-size:12px;color:var(--muted)">List Primed Continuity</div>
+        <div style="font-size:30px;font-weight:800;margin:6px 0 2px;">12p</div>
+        <div class="dim" style="font-size:12.5px;margin-bottom:16px;">market 13p · undercut by 1p · 2 spare copies</div>
+        <div class="seg"><b>10p</b><b class="on">12p</b><b>14p</b></div>
+        <button class="cbtn">List it</button>
+        <div style="height:10px"></div>
+        <button class="gbtn">Cancel</button>
+        <div class="steps">posting is off · nothing goes live</div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

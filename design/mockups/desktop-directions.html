@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WFM Trader - clean desktop directions</title>
+<style>
+  :root {
+    --bg: #0d0f13; --panel: #14171d; --panel2: #191d25; --border: #232833;
+    --text: #e8eaf0; --muted: #8b93a4; --accent: #ff8a1e; --accent-dim: #7a4713;
+    --sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    --mono: "Cascadia Mono", ui-monospace, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: #06070a; color: var(--text); font: 13.5px/1.45 var(--sans); padding: 30px; }
+  .wrap { display: flex; gap: 26px; align-items: flex-start; max-width: 1560px; }
+  .notes { width: 240px; flex: 0 0 240px; padding-top: 8px; position: sticky; top: 30px; }
+  .notes h2 { font-size: 15px; margin: 0 0 2px; }
+  .notes .k { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .5px; color: var(--accent);
+    border: 1px solid var(--accent-dim); border-radius: 999px; padding: 2px 8px; margin-bottom: 8px; }
+  .notes p { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+  .notes ul { margin: 0; padding-left: 15px; color: var(--muted); font-size: 12px; }
+  .notes li { margin: 4px 0; }
+  .shots { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+
+  /* browser window chrome */
+  .win { width: 1180px; background: #05060a; border: 1px solid #262c38; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 22px 70px rgba(0,0,0,.5); }
+  .chrome { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #0a0c11; border-bottom: 1px solid #1a1f28; }
+  .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #2a3140; display: block; }
+  .chrome .url { flex: 1 1 auto; height: 20px; border-radius: 6px; background: #10131a; border: 1px solid #1c222c;
+    color: #5d6675; font: 11px var(--mono); display: flex; align-items: center; padding: 0 10px; }
+  .app { height: 700px; background: var(--bg); display: flex; flex-direction: column; }
+
+  /* shared app pieces */
+  .topbar { flex: 0 0 auto; height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 20px; border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 700; font-size: 14px; letter-spacing: .2px; }
+  .brand span { color: var(--accent); }
+  .spacer { flex: 1 1 auto; }
+  .synced { color: var(--muted); font-size: 12px; }
+  .chipwarn { display: inline-flex; align-items: center; gap: 6px; font: 600 11.5px var(--sans); color: #ffb454;
+    background: #241a0c; border: 1px solid #4a3513; border-radius: 999px; padding: 4px 10px; }
+  .chipwarn svg { width: 12px; height: 12px; }
+  .btn { border: 0; border-radius: 9px; background: var(--accent); color: #180d02; font: 700 12.5px var(--sans);
+    padding: 8px 14px; cursor: default; }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 600; }
+  .btn.mini { padding: 5px 11px; font-size: 12px; border-radius: 8px; }
+  .main { flex: 1 1 auto; min-height: 0; display: flex; }
+  .col { flex: 1 1 auto; min-width: 0; padding: 22px 26px; overflow: hidden; }
+  .ptitle { font-size: 21px; font-weight: 700; letter-spacing: -.2px; margin: 0 0 2px; }
+  .psub { color: var(--muted); font-size: 12.5px; margin-bottom: 18px; }
+  .sec { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 22px 0 8px; }
+  .hero { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px;
+    display: flex; align-items: center; gap: 22px; }
+  .hero .lab { color: var(--muted); font-size: 12px; }
+  .hero .big { font: 800 34px/1.05 var(--sans); letter-spacing: -.5px; margin: 3px 0 0; }
+  .hero .meta { color: var(--muted); font-size: 12.5px; }
+  .hero .meta b { color: var(--text); font-weight: 600; font-family: var(--mono); }
+  .vl { width: 1px; align-self: stretch; background: var(--border); }
+  .list { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 14px; padding: 0 18px; height: 50px; border-top: 1px solid var(--border); }
+  .list .row:first-child { border-top: 0; }
+  .row .nm { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 13.5px; }
+  .row .nm span { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .row .pr { font: 700 13.5px var(--mono); }
+  .row .pr span { color: var(--muted); font-weight: 400; display: block; font-size: 11px; text-align: right; }
+  .row.sel { background: #171b23; box-shadow: inset 3px 0 0 var(--accent); }
+  .quiet .row .nm { font-weight: 500; color: #c6cbd6; }
+  .stat3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .stat .lab { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .stat .num { font: 800 27px/1 var(--sans); letter-spacing: -.4px; }
+  .stat .num i { font: 400 13px var(--sans); color: var(--muted); font-style: normal; letter-spacing: 0; margin-left: 4px; }
+  /* sidebar variant */
+  .side { flex: 0 0 212px; border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .nav { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; color: #aeb5c2; font-weight: 500; font-size: 13.5px; }
+  .nav svg { width: 17px; height: 17px; opacity: .8; }
+  .nav.on { background: #1c2129; color: var(--text); box-shadow: inset 2px 0 0 var(--accent); font-weight: 600; }
+  .nav.on svg { color: var(--accent); opacity: 1; }
+  .navfoot { margin-top: auto; border-top: 1px solid var(--border); padding-top: 10px; }
+  /* two-pane variant */
+  .pane { display: flex; flex: 1 1 auto; min-height: 0; }
+  .paneL { flex: 0 0 46%; border-right: 1px solid var(--border); padding: 18px 0 0; overflow: hidden; }
+  .paneL .hd { padding: 0 20px 12px; display: flex; align-items: center; gap: 10px; }
+  .paneR { flex: 1 1 auto; padding: 22px 24px; }
+  .seg { display: inline-flex; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+  .seg b { font: 600 12px var(--sans); color: var(--muted); padding: 5px 12px; border-radius: 6px; }
+  .seg b.on { background: var(--panel); color: var(--text); }
+  .dt { font-size: 17px; font-weight: 700; margin: 0 0 2px; }
+  .dsub { color: var(--muted); font-size: 12.5px; }
+  .dprice { font: 800 38px/1 var(--sans); letter-spacing: -.6px; margin: 18px 0 2px; }
+  .dmeta { color: var(--muted); font-size: 12.5px; margin-bottom: 18px; }
+  .dmeta b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+  .facts { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); margin-bottom: 18px; }
+  .facts .row { height: 42px; padding: 0 14px; font-size: 12.5px; }
+  .facts .row .k2 { color: var(--muted); flex: 1 1 auto; }
+  .facts .row .v2 { font-family: var(--mono); font-weight: 600; }
+  .actions { display: flex; gap: 10px; }
+  .actions .btn { flex: 1 1 auto; padding: 11px 14px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="notes">
+    <span class="k">DESKTOP</span>
+    <h2>Clean, not mobile</h2>
+    <p>Same app, same 1920 screen. Just: one obvious thing per screen, quiet everything else, consistent rows, real breathing room.</p>
+    <ul>
+      <li>V1 keeps the workspace feel with a sidebar</li>
+      <li>V2 keeps the current top nav, decluttered</li>
+      <li>V3 is the comparing view: list left, detail right, nothing buried</li>
+    </ul>
+  </div>
+
+  <div class="shots">
+
+  <!-- ================= V1 : sidebar + one column ================= -->
+  <div class="win">
+    <div class="chrome"><i></i><i></i><i></i><div class="url">127.0.0.1:8787/#home</div></div>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">WFM <span>Trader</span></div>
+        <div class="spacer"></div>
+        <span class="synced">Synced 4 min ago</span>
+        <button class="btn ghost mini">Refresh</button>
+        <span class="chipwarn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/></svg>Posting off</span>
+      </div>
+      <div class="main">
+        <div class="side">
+          <div class="nav on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>Home</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v3H4zM4 12h16v3H4z"/></svg>Inventory</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8-4 12-4-12z"/></svg>Sell</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Collection</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>Mastery</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6z"/></svg>Player</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</div>
+          <div class="navfoot"><div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z"/></svg>Settings</div></div>
+        </div>
+        <div class="col">
+          <div class="ptitle">Home</div>
+          <div class="psub">Tuesday, 28 September</div>
+          <div class="hero">
+            <div>
+              <div class="lab">Platinum</div>
+              <div class="big">1,022p</div>
+            </div>
+            <div class="vl"></div>
+            <div class="meta"><b>22</b> trades left today<br><b>4,491,490</b> credits</div>
+            <div class="spacer"></div>
+            <button class="btn">Sell next</button>
+          </div>
+          <div class="sec">Sell next &middot; 20 ready</div>
+          <div class="list">
+            <div class="row"><div class="nm">Primed Continuity<span>rank 8 &middot; 2 spare copies</span></div><div class="pr">12p<span>market 13p</span></div><button class="btn mini">List</button></div>
+            <div class="row"><div class="nm">Trinity Prime Systems<span>blueprint &middot; 1 copy</span></div><div class="pr">9p<span>market 10p</span></div><button class="btn mini">List</button></div>
+            <div class="row"><div class="nm">Fanged Fusillade<span>rank 0 &middot; 1 spare</span></div><div class="pr">14p<span>market 15p</span></div><button class="btn mini">List</button></div>
+          </div>
+          <div class="sec">Needs you</div>
+          <div class="list quiet">
+            <div class="row"><div class="nm">Market sign-in blocked</div><button class="btn ghost mini">Open</button></div>
+            <div class="row"><div class="nm">19 listings parked &middot; posting is off</div><button class="btn ghost mini">Review</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= V2 : top nav + stat cards ================= -->
+  <div class="win">
+    <div class="chrome"><i></i><i></i><i></i><div class="url">127.0.0.1:8787/#home</div></div>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">WFM <span>Trader</span></div>
+        <div style="display:flex;gap:4px;margin-left:16px;">
+          <div class="nav on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>Home</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v3H4zM4 12h16v3H4z"/></svg>Inventory</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8-4 12-4-12z"/></svg>Sell</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Collection</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>Mastery</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</div>
+        </div>
+        <div class="spacer"></div>
+        <span class="synced">Synced 4 min ago</span>
+        <span class="chipwarn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/></svg>Posting off</span>
+      </div>
+      <div class="main"><div class="col">
+        <div class="ptitle">Home</div>
+        <div class="psub">Tuesday, 28 September</div>
+        <div class="stat3">
+          <div class="stat"><div class="lab">Platinum</div><div class="num">1,022<i>p</i></div></div>
+          <div class="stat"><div class="lab">Trades left</div><div class="num">22<i>today</i></div></div>
+          <div class="stat"><div class="lab">Inventory</div><div class="num">863<i>priced</i></div></div>
+        </div>
+        <div class="sec">Sell next &middot; 20 ready</div>
+        <div class="list">
+          <div class="row"><div class="nm">Primed Continuity<span>rank 8 &middot; 2 spare copies</span></div><div class="pr">12p<span>market 13p</span></div><button class="btn mini">List</button></div>
+          <div class="row"><div class="nm">Trinity Prime Systems<span>blueprint &middot; 1 copy</span></div><div class="pr">9p<span>market 10p</span></div><button class="btn mini">List</button></div>
+          <div class="row"><div class="nm">Fanged Fusillade<span>rank 0 &middot; 1 spare</span></div><div class="pr">14p<span>market 15p</span></div><button class="btn mini">List</button></div>
+          <div class="row"><div class="nm">Axi A5 Relic<span>radiant &middot; 6 owned</span></div><div class="pr">7p<span>market 8p</span></div><button class="btn mini">List</button></div>
+        </div>
+        <div class="sec">Needs you</div>
+        <div class="list quiet">
+          <div class="row"><div class="nm">Market sign-in blocked</div><button class="btn ghost mini">Open</button></div>
+          <div class="row"><div class="nm">19 listings parked &middot; posting is off</div><button class="btn ghost mini">Review</button></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ================= V3 : two-pane sell ================= -->
+  <div class="win">
+    <div class="chrome"><i></i><i></i><i></i><div class="url">127.0.0.1:8787/#trade</div></div>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">WFM <span>Trader</span></div>
+        <div style="display:flex;gap:4px;margin-left:16px;">
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>Home</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v3H4zM4 12h16v3H4z"/></svg>Inventory</div>
+          <div class="nav on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8-4 12-4-12z"/></svg>Sell</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>Collection</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>Mastery</div>
+          <div class="nav"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</div>
+        </div>
+        <div class="spacer"></div>
+        <span class="chipwarn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/></svg>Posting off</span>
+      </div>
+      <div class="pane">
+        <div class="paneL">
+          <div class="hd"><div class="ptitle" style="font-size:18px;margin:0;">Sell</div><div class="spacer"></div><div class="seg"><b class="on">Sell</b><b>Buy</b><b>History</b></div></div>
+          <div class="list" style="border-radius:0;border-left:0;border-right:0;border-bottom:0;">
+            <div class="row sel"><div class="nm">Primed Continuity<span>rank 8 &middot; 2 spare copies</span></div><div class="pr">12p</div></div>
+            <div class="row"><div class="nm">Trinity Prime Systems<span>blueprint &middot; 1 copy</span></div><div class="pr">9p</div></div>
+            <div class="row"><div class="nm">Fanged Fusillade<span>rank 0 &middot; 1 spare</span></div><div class="pr">14p</div></div>
+            <div class="row"><div class="nm">Axi A5 Relic<span>radiant &middot; 6 owned</span></div><div class="pr">7p</div></div>
+            <div class="row"><div class="nm">Trinity Prime Neuroptics<span>blueprint &middot; 1 copy</span></div><div class="pr">11p</div></div>
+            <div class="row"><div class="nm">Wukong Prime Neuroptics<span>in use &middot; held</span></div><div class="pr">14p</div></div>
+          </div>
+        </div>
+        <div class="paneR">
+          <div class="dt">Primed Continuity</div>
+          <div class="dsub">Warframe mod &middot; max rank 10</div>
+          <div class="dprice">12p</div>
+          <div class="dmeta">market <b>13p</b> &middot; undercut by 1p &middot; floor <b>8p</b></div>
+          <div class="facts">
+            <div class="row"><div class="k2">Your copies</div><div class="v2">rank 8 &times;2 &middot; rank 5 &times;1</div></div>
+            <div class="row"><div class="k2">Listed already</div><div class="v2">none</div></div>
+            <div class="row"><div class="k2">Sold in 48h</div><div class="v2">3 sellers &middot; 11-14p</div></div>
+          </div>
+          <div class="actions">
+            <button class="btn">List for 12p</button>
+            <button class="btn ghost">Hold</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -4,7 +4,7 @@
   --hover: #181d26;
   --mono: "Cascadia Mono", ui-monospace, Consolas, monospace;
   --sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --r: 10px;
+  --r: 13px;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -69,7 +69,7 @@ header .btn, header a.btn { min-height: 32px; display: inline-flex; align-items:
 }
 .btn {
   background: var(--panel2); color: var(--text); border: 1px solid var(--border);
-  border-radius: 999px; padding: 6px 14px; cursor: pointer; font: 600 12px var(--sans);
+  border-radius: 9px; padding: 7px 13px; cursor: pointer; font: 600 12px var(--sans);
   transition: border-color .2s ease, background-color .2s ease, transform .1s ease, filter .2s ease;
 }
 .btn:hover { border-color: var(--accent-dim); }
@@ -100,18 +100,46 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
   box-shadow: inset 0 -2px 0 var(--accent), 0 1px 6px color-mix(in srgb, black 25%, transparent);
 }
 
+/* ---- sidebar rail (V1 shell) ---- */
+.shellbody { display: flex; align-items: stretch; min-height: 0; }
+.side { flex: 0 0 206px; border-right: 1px solid var(--border); padding: 14px 10px 10px; }
+.side .sidenav {
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  margin: 0; padding: 0; background: none; border: 0; border-radius: 0;
+  max-width: none; flex-wrap: nowrap;
+}
+.side .navpill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 9px;
+  color: var(--muted); font-weight: 500; font-size: 13.5px;
+}
+.side .navpill:hover { color: var(--text); background: var(--hover); }
+.side .navpill.active {
+  color: var(--text); font-weight: 600; background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.side .navpill::after { display: none; }          /* the breathing dot is a pill thing */
+.side .navpill[data-v="player"] { margin-top: 14px; }   /* main group, then you */
+@media (max-width: 900px) {
+  .shellbody { flex-direction: column; }
+  .side { flex: 0 0 auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 10px; overflow-x: auto; }
+  .side .sidenav { flex-direction: row; }
+  .side .navpill { white-space: nowrap; }
+  .side .navpill[data-v="player"] { margin-top: 0; }
+}
+
 /* ---- cards + KPIs ---- */
-main { padding: 10px 18px 48px; }
+main { padding: 14px 22px 48px; }
 .card {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
   box-shadow: 0 8px 28px color-mix(in srgb, black 18%, transparent);
   margin-bottom: 16px; overflow: hidden;
 }
-.card-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; }
-.card-title { font-size: 12.5px; font-weight: 600; letter-spacing: .3px; }
-.card-title::before { content: "◆"; color: var(--accent); font-size: 8px; margin-right: 7px; vertical-align: 2px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 8px; }
+.card-title { font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.card-title::before { content: none; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 6px 0 16px; }
-.kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 11px 15px; transition: border-color .2s ease, transform .15s ease; }
+.kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 13px; padding: 13px 16px; transition: border-color .2s ease, transform .15s ease; }
 .kpi:hover { border-color: var(--accent-dim); transform: translateY(-1px); }
 .k-label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 .k-val { font-family: var(--mono); font-size: 18px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
@@ -853,8 +881,9 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
 @media (min-width: 1200px) {
   /* ---- the shell: one window tall, the view takes what is left ---- */
   body.shell-fit { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-  body.shell-fit > header, body.shell-fit > .mainnav, body.shell-fit > .foot { flex: 0 0 auto; }
-  body.shell-fit > main { flex: 1 1 auto; min-height: 0; padding: 8px 18px; }
+  body.shell-fit > header, body.shell-fit > .foot { flex: 0 0 auto; }
+  body.shell-fit > .shellbody { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; }
+  body.shell-fit .shellbody > main { flex: 1 1 auto; min-height: 0; padding: 12px 22px; }
   body.shell-fit > .foot { padding: 4px 18px 8px; }
   /* On HOME the rail owns the right column down to the window edge and the view must not be
      clipped by the status line, so the line floats over the bottom-left instead of taking a
