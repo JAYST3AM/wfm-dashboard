@@ -111,7 +111,10 @@ def test_written_files_match_server_contract(imp):
 
     assert [e['ts'] for e in log] == sorted(e['ts'] for e in log)          # ascending
     for entry in log:
-        assert set(entry) == {'ts', 'kind', 'name', 'qty', 'plat', 'total', 'note', 'src'}
+        # 'id' joined the shape in the trading-session work: every event the dashboard writes now
+        # carries a stable local id, which is what makes a retry or a double click safe to repeat
+        assert set(entry) == {'id', 'ts', 'kind', 'name', 'qty', 'plat', 'total', 'note', 'src'}
+        assert entry['id'].startswith('t-') and len(entry['id'].split('-')) == 3
         assert entry['kind'] in ('sale', 'purchase', 'note')
         assert isinstance(entry['ts'], int) and entry['ts'] > 0
         assert isinstance(entry['qty'], int) and isinstance(entry['total'], int)

@@ -69,6 +69,15 @@ def _atomic_write(path, doc):
     os.replace(tmp, path)
 
 
+def write_json_atomic(path, obj):
+    """The public atomic writer for the stores this workflow and the importers rewrite wholesale.
+
+    Same file shape the repo already uses (indent 1, unescaped names - item names carry Japanese
+    characters), written through a tmp file so a crash cannot leave a half store behind.
+    """
+    _atomic_write(path, obj)
+
+
 def load(data_dir):
     """The stored doc, or a fresh one. A corrupt/partial file is quarantined, not clobbered."""
     path = _path(data_dir)

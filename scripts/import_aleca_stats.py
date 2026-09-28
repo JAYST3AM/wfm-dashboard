@@ -23,6 +23,25 @@ def jload(name, default=None):
         return default
 
 
+def jwrite(name, obj):
+    """Atomic write for the two stores this importer rewrites wholesale (spec §11: a store is never
+    left half-written). scripts/ is on sys.path when this runs as a script, and the module is a
+    plain stdlib import either way; a missing module falls back to the old in-place write rather
+    than failing the import."""
+    path = os.path.join(DATA, name)
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import trade_session
+        trade_session.write_json_atomic(path, obj)
+        return
+    except Exception:
+        pass
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, indent=1, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
 def iso(ts):
     return int(datetime.fromisoformat(ts.replace('Z', '+00:00')).timestamp())
 
@@ -101,8 +120,17 @@ def main(path):
 
     log.sort(key=lambda e: e.get('ts') or 0)
     hist.sort(key=lambda p: p.get('ts') or 0)
-    json.dump(log, open(os.path.join(DATA, 'trade_log.json'), 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
-    json.dump(hist, open(os.path.join(DATA, 'plat_history.json'), 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
+    # every imported event gets a stable id too, so a re-run that does not match on ts+item still
+    # cannot double-log it (the append path in scripts/trade_session.py refuses a known id)
+    try:
+        import trade_session
+        for e in log:
+            if not e.get('id'):
+                e['id'] = trade_session.trade_id(e)
+    except Exception:
+        pass
+    jwrite('trade_log.json', log)
+    jwrite('plat_history.json', hist)
 
     ts_all = [iso(t['ts']) for t in (exp.get('trades') or [])]
     if ts_all:
