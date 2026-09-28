@@ -959,12 +959,32 @@ def _session_inputs():
             'runqueue': jload(os.path.join(DATA, 'run_queue.json')) or {}}
 
 
+def _session_plat_now():
+    """The newest platinum reading: plat_history's last entry, or trader_limits, whichever is newer.
+
+    Both come from the same game save; plat_history carries the timeline, trader_limits the live
+    read. Reconciliation must compare against the same 'now' the contact snapshot was taken with,
+    or a sale looks like it never arrived.
+    """
+    hist = jload(os.path.join(DATA, 'plat_history.json'))
+    limits = jload(os.path.join(DATA, 'trader_limits.json')) or {}
+    best, best_ts = None, -1
+    if isinstance(hist, list) and hist and isinstance(hist[-1], dict):
+        v = hist[-1].get('plat')
+        if isinstance(v, (int, float)):
+            best, best_ts = int(v), int(hist[-1].get('ts') or 0)
+    v = limits.get('plat')
+    if isinstance(v, (int, float)) and int(limits.get('ts') or 0) >= best_ts:
+        best = int(v)
+    return best
+
+
 def _session_before(slug, rank=None):
     """(sellable copies of that stack, platinum) right now - the 'before' side of reconciliation.
 
     Read from the same payloads the app renders: report.json for the stack, the newest platinum
-    reading (plat_history.json) falling back to trader_limits.json. Both may be None when the data
-    is not there yet; None is stored as None and never guessed at later.
+    reading. Both may be None when the data is not there yet; None is stored as None and never
+    guessed at later.
     """
     report = jload(os.path.join(DATA, 'report.json')) or {}
     inv = None
@@ -976,20 +996,39 @@ def _session_before(slug, rank=None):
                 break
         if inv is not None:
             break
-    plat = None
-    hist = jload(os.path.join(DATA, 'plat_history.json'))
-    if isinstance(hist, list) and hist and isinstance(hist[-1], dict):
-        plat = hist[-1].get('plat')
-    if plat is None:
-        plat = (jload(os.path.join(DATA, 'trader_limits.json')) or {}).get('plat')
-    return inv, plat
+    return inv, _session_plat_now()
 
 
 def session_payload():
     """GET /api/session - the live session, its focus row, the pending trades and the summary."""
     ts = _session()
-    limits = jload(os.path.join(DATA, 'trader_limits.json')) or {}
+    limits = dict(jload(os.path.join(DATA, 'trader_limits.json')) or {})
+    plat = _session_plat_now()
+    if plat is not None:
+        limits['plat'] = plat                   # the same 'now' the contact snapshots use
     return ts.payload(DATA, limits=limits, **_session_inputs())
+
+
+def _kick_sync(reason='trade confirmed'):
+    """Recompute the derived stores in the background after a confirmation (spec §5).
+
+    Today's strip, the session history, the inventory diff and the ledger all read what the local
+    pipeline writes, so one confirmation has to set that pipeline going - without making the user
+    wait ~30s on the POST. It records into the same SYNC block the UI already polls, so the header's
+    sync pill tells the truth while it runs.
+    """
+    def run():
+        SYNC['running'] = True
+        try:
+            ok, ms, notes = sync_run()
+            SYNC.update(last_sync=int(time.time()), last_ok=ok, last_ms=ms, error=('; '.join(notes) or None))
+            sync_log_write()
+            print('session %s: sync %s %dms' % (reason, 'ok' if ok else 'FAILED', ms), flush=True)
+        except Exception as e:                               # never kill the caller
+            SYNC.update(last_sync=int(time.time()), last_ok=False, error=str(e)[:200])
+        finally:
+            SYNC['running'] = False
+    threading.Thread(target=run, daemon=True).start()
 
 
 def session_post(action, body):
@@ -1005,6 +1044,32 @@ def session_post(action, body):
         out = ts.start_payload(DATA, limits=limits, limit=limit, **_session_inputs())
         return (200 if out.get('ok') else 409), out
     doc = ts.load(DATA)
+    if action == 'reconcile':
+        # Read-only: what the game save says now vs what each contact was sent at. Nothing is
+        # written and no trade is inferred - the proposal is what the user confirms (§4).
+        inv_now, cache, plat_now = {}, {}, None
+        for p in (doc.get('pending') or []):
+            if p.get('state') not in (ts.CONTACTED, ts.POSSIBLE):
+                continue
+            key = (p.get('slug'), p.get('rank'))
+            if key not in cache:
+                cache[key] = _session_before(*key)
+            inv, plat = cache[key]
+            if inv is not None:
+                inv_now[ts.row_key(*key)] = inv
+            if plat is not None:
+                plat_now = plat
+        out = ts.propose(doc.get('pending') or [], inv_now, plat_now)
+        out['ok'] = True
+        out['session_payload'] = session_payload()
+        return 200, out
+    if action == 'confirm':
+        rec = body.get('trade') if isinstance(body.get('trade'), dict) else body
+        out = ts.confirm_payload(DATA, rec)
+        if out.get('ok') and out.get('created'):
+            _kick_sync()                     # derived stores catch up in the background
+            out['session_payload'] = session_payload()
+        return (200 if out.get('ok') else 400), out
     if action == 'contact':
         slug = str(body.get('slug') or body.get('item') or '').strip().lower()
         if not slug:
@@ -1258,11 +1323,14 @@ class H(BaseHTTPRequestHandler):
                 if ev.get('kind') not in ('sale', 'purchase', 'listing', 'unlist', 'reprice', 'note'):
                     return self._send(400, {'ok': False, 'error': 'bad kind'})
                 ev.setdefault('ts', int(time.time()))
-                path = os.path.join(DATA, 'trade_log.json')
-                hist = jload(path) or []
-                hist.append(ev)
-                json.dump(hist, open(path, 'w', encoding='utf-8'), indent=1)
-                return self._send(200, {'ok': True, 'n': len(hist), 'totals': trades_payload()['totals']})
+                # one writer for trade_log (stage 5): atomic, and every new event carries an id so
+                # a retry cannot double-log it. This route logs an event; a *completion* goes
+                # through POST /api/session/confirm, which is the one path that moves the session.
+                ts = _session()
+                rec, created = ts.append_event(DATA, ev)
+                hist = jload(os.path.join(DATA, 'trade_log.json')) or []
+                return self._send(200, {'ok': True, 'n': len(hist), 'id': rec.get('id'),
+                                        'created': created, 'totals': trades_payload()['totals']})
             except Exception as e:
                 return self._send(500, {'ok': False, 'error': str(e)})
         if p in ('/api/trader/plan', '/api/trader/cycle', '/api/trader/watch'):

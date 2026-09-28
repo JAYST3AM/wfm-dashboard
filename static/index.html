@@ -223,8 +223,16 @@
         <div class="card-head">
           <div class="card-title" data-icon="hourglass">Waiting on a confirmation <span class="dim small" id="sessionPendMeta"></span></div>
         </div>
-        <!-- stage 5 puts the Confirm trade control here; no reconcile/confirm route ships yet -->
         <div class="picks" id="sessionPending"></div>
+      </div>
+      <!-- Stage 5: what the game save says moved against what each whisper asked for. The check
+           rides GET /api/session (proposals), one Confirm per proposal, and the only writer behind
+           it is POST /api/session/confirm - the one canonical completion path. -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title" data-icon="check">Checks <span class="dim small" id="sessionChecksMeta"></span></div>
+        </div>
+        <div class="picks" id="sessionChecks"></div>
       </div>
     </div>
 

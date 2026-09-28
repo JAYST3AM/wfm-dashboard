@@ -129,9 +129,10 @@ def test_the_loop_actions_use_the_endpoints_that_exist():
     assert "'SKIPPED'" in SESS and "'HELD'" in SESS, 'the two states the panel sets'
     assert "fetch('/api/session/' + action" in SESS and "method: 'POST'" in SESS
     assert "await load()" in SESS, 'every action re-reads through the one refresh'
-    # nothing invents an endpoint: no reconcile, no confirm, no session-only poll
-    for gone in ('api/session/confirm', 'api/session/reconcile'):
-        assert gone not in SESS and gone not in APP and gone not in session_panel(INDEX), gone
+    # one new endpoint, used exactly once, and no session-only poll
+    assert "sessionPost('confirm', { trade: draft })" in SESS
+    assert SESS.count("sessionPost('confirm'") == 1, 'one confirmation path, one call site'
+    assert 'api/session/reconcile' not in SESS, 'the check rides the payload, never a second ask'
 
 
 def test_the_whisper_goes_through_the_order_books_one_funnel():
@@ -162,19 +163,33 @@ def test_start_trading_rides_home_next_action_and_adds_no_seventh_card():
     assert 'btn primary' not in SESS, 'the card keeps its one accent action (Open Trade)'
 
 
-# ------------------------------------------------------------------ 5. no control for a missing route
+# ------------------------------------------------------------------ 5. one confirmation path
 
-def test_the_panel_ships_no_confirm_control_while_no_confirm_route_exists():
-    """Stage 5 owns reconciliation and the confirm transaction. Until then a Confirm button would
-    call nothing, so what ships is the commented hook in the markup."""
+def test_the_panel_confirms_through_the_canonical_route_only():
+    """Stage 5 shipped reconciliation and the confirm transaction. What the panel may do is send the
+    draft the payload handed it to POST /api/session/confirm - one button per proposal, one call
+    site, and nothing that resolves a trade locally."""
     panel = session_panel(INDEX)
-    assert 'no reconcile/confirm route ships yet' in panel, 'the placeholder hook is there'
-    assert 'id="sessionConfirm"' not in panel and 'sessionConfirm' not in SESS
-    assert panel.count('<button') == 5, 'Start / Next / Skip / Hold / End session - nothing confirms'
-    for gone in ('api/session/confirm', 'api/session/reconcile'):
-        assert gone not in panel and gone not in SESS, gone
+    assert 'id="sessionChecks"' in panel and 'id="sessionChecksMeta"' in panel
+    assert 'SESSION_DRAFTS' in SESS, 'the draft behind each Confirm comes from the payload'
+    assert 'class="btn sessconf" data-pending=' in SESS
+    assert SESS.count('sessconf') >= 2, 'exact and ambiguous both offer the click'
+    assert "p.verdict === 'exact'" in SESS and "p.verdict === 'ambiguous'" in SESS
+    assert 'P.proposals' in SESS, 'the check rides the payload load() already fetched'
+    assert "state: 'COMPLETED'" not in SESS, 'the panel never posts a completion'
+    assert "state: 'POSSIBLE MATCH'" not in SESS, 'nor a maybe: completion is the server route'
+    assert "sessionPost('confirm'" in SESS and SESS.count("sessionPost('confirm'") == 1
+    assert 'api/session/reconcile' not in SESS and 'api/session/reconcile' not in panel
     assert 'SESSION_STATE_WORD' in SESS and "'POSSIBLE MATCH'" in SESS, \
         'the state is shown, never resolved'
+
+
+def test_no_proposal_ever_confirms_itself():
+    """Nothing in the panel fires a confirm without a click: the only caller is the delegated
+    listener, and a proposal with no verdict word offers no button at all."""
+    assert SESS.count('sessionConfirm(') == 2, 'defined once, called once (delegated listener)'
+    assert "t.closest('.sessconf')" in SESS
+    assert ": '';" in SESS, 'nothing/none proposals render without a confirm button'
 
 
 # ------------------------------------------------------------------ 6. copy
@@ -231,11 +246,13 @@ def test_the_empty_states_use_the_shared_pattern():
 
 def test_the_panel_marks_stale_pending_trades_without_resolving_them():
     """A pending trade is a whisper that went out: the panel shows it (and marks the old ones) so the
-    user can find it again - nothing here writes a state, because the panel has no confirm route."""
+    user can find it again. The only way it ever closes is the canonical confirm, on a click."""
     assert 'stale_pending' in SESS and 'class="chip">old</span>' in SESS
     assert 'sessionPendingRows(P.pending, P.stale)' in SESS
-    assert 'api/session/confirm' not in SESS and 'api/session/reconcile' not in SESS
+    assert 'api/session/reconcile' not in SESS, 'the check rides the payload'
+    assert SESS.count("sessionPost('confirm'") == 1, 'and a trade closes only through confirm'
     assert "sessionPost('state'" in SESS, 'the only states the panel sets are Skip and Hold'
+    assert "state: 'COMPLETED'" not in SESS, 'a trade closes through confirm, not a state POST'
 
 
 def test_the_panel_reuses_the_trade_vocabulary():

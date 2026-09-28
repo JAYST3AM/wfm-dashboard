@@ -22,18 +22,34 @@ import pytest
 from conftest import load_script, write_json
 
 
-@pytest.fixture
-def live(monkeypatch, tmp_path, data_dir):
-    """A real server on 127.0.0.1:<ephemeral>, DATA/ROOT redirected into tmp_path."""
+def _boot(monkeypatch, tmp_path, data_dir):
+    """A real server on 127.0.0.1:<ephemeral>, DATA/ROOT/STATIC redirected into tmp_path."""
     mod = load_script('server', monkeypatch=monkeypatch, env={'WFM_PORT': '0'})
     monkeypatch.setattr(mod, 'DATA', str(data_dir))
     monkeypatch.setattr(mod, 'ROOT', str(tmp_path))
     monkeypatch.setattr(mod, 'STATIC', os.path.join(str(tmp_path), 'static'))
     srv = ThreadingHTTPServer(('127.0.0.1', 0), mod.H)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    base = 'http://127.0.0.1:%d' % srv.server_address[1]
+    return mod, srv, 'http://127.0.0.1:%d' % srv.server_address[1]
+
+
+@pytest.fixture
+def live(monkeypatch, tmp_path, data_dir):
+    """(base url, data dir). The module object is not needed by most tests - see live_mod."""
+    mod, srv, base = _boot(monkeypatch, tmp_path, data_dir)
     try:
         yield base, str(data_dir)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+@pytest.fixture
+def live_mod(monkeypatch, tmp_path, data_dir):
+    """(base url, data dir, module) for tests that must watch what the routes call."""
+    mod, srv, base = _boot(monkeypatch, tmp_path, data_dir)
+    try:
+        yield base, str(data_dir), mod
     finally:
         srv.shutdown()
         srv.server_close()
@@ -181,3 +197,93 @@ def test_a_session_survives_a_server_restart(live, seeded, monkeypatch, tmp_path
     assert again['session']['totals']['held'] == 1
     assert len(again['queue']) == 2
     assert time.time() - again['session']['started_ts'] < 60
+
+
+# --------------------------------------------------------------------------- stage 4: the check
+def test_the_check_rides_the_session_payload(live, seeded):
+    base, _ = live
+    call(base, '/api/session/start', {})
+    call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
+                                        'price': 48, 'user': 'Wombat'})
+    # the stack went from 4 to 1 and platinum from 1220 to 1364: exactly the 3 x 48 that was asked
+    write_json(os.path.join(base and live[1], 'report.json'),
+               {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 0, 'sellable_count': 1}]})
+    write_json(os.path.join(live[1], 'plat_history.json'), [{'ts': 1, 'plat': 1364}])
+    body = call(base, '/api/session')[1]
+    assert body['needs_you'] == 1 and body['checks']['exact'] == 1
+    p = body['proposals'][0]
+    assert p['verdict'] == 'exact' and p['copies_left'] == 3 and p['plat_delta'] == 144
+    assert p['trade']['plat'] == 144 and p['trade']['pending_id'] == body['pending'][0]['id']
+
+
+def test_the_reconcile_route_answers_and_writes_nothing(live, seeded):
+    base, d = live
+    call(base, '/api/session/start', {})
+    call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
+                                        'price': 48, 'user': 'Wombat'})
+    store = os.path.join(d, 'trade_session.json')
+    before = open(store, 'rb').read()
+    code, body = call(base, '/api/session/reconcile', {})
+    assert code == 200 and body['ok'] is True
+    assert body['proposals'][0]['verdict'] in ('none', 'unknown')
+    assert open(store, 'rb').read() == before
+    assert not os.path.exists(os.path.join(d, 'trade_log.json'))
+
+
+# --------------------------------------------------------------------------- stage 5: the confirm
+def test_the_confirm_route_logs_one_trade_and_moves_the_session(live_mod, seeded):
+    base, d, mod = live_mod
+    kicked = []
+    mod._kick_sync = lambda *a, **k: kicked.append(a)
+    call(base, '/api/session/start', {})
+    call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
+                                        'price': 48, 'user': 'Wombat'})
+    code, body = call(base, '/api/session/confirm',
+                      {'slug': 'primed_continuity', 'rank': 0, 'qty': 3, 'plat': 144,
+                       'user': 'Wombat'})
+    assert code == 200 and body['created'] is True and body['ok'] is True
+    log = json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())
+    assert len(log) == 1 and log[0]['id'] == body['trade']['id'] and log[0]['plat'] == 144
+    assert body['session_payload']['summary']['earned_plat'] == 144.0
+    assert body['session_payload']['summary']['trades'] == 1
+    assert body['session_payload']['pending'] == []
+    assert kicked, 'a confirmation must set the local pipeline going'
+
+
+def test_confirming_twice_over_http_logs_one_trade(live, seeded):
+    base, d = live
+    call(base, '/api/session/start', {})
+    call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
+                                        'price': 48, 'user': 'Wombat'})
+    rec = {'slug': 'primed_continuity', 'rank': 0, 'qty': 3, 'plat': 144, 'user': 'Wombat'}
+    first = call(base, '/api/session/confirm', rec)[1]
+    again = call(base, '/api/session/confirm', first['trade'])[1]
+    assert again['already'] is True and again['trade']['id'] == first['trade']['id']
+    log = json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())
+    assert len(log) == 1
+
+
+def test_a_bad_confirmation_is_refused_not_500(live, seeded):
+    base, d = live
+    code, body = call(base, '/api/session/confirm', {'slug': ''})
+    assert code == 400 and body['ok'] is False
+    assert not os.path.exists(os.path.join(d, 'trade_log.json'))
+
+
+def test_the_event_route_uses_the_same_writer(live, seeded):
+    base, d = live
+    code, body = call(base, '/api/trades', {'kind': 'listing', 'slug': 'x', 'qty': 1, 'plat': 5})
+    assert code == 200 and body['ok'] is True and body['created'] is True and body['id']
+    log = json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())
+    assert len(log) == 1 and log[0]['id'] == body['id']
+    assert call(base, '/api/trades', {'kind': 'shouting', 'slug': 'x'})[1]['ok'] is False
+
+
+def test_the_event_route_never_double_logs_the_same_event(live, seeded):
+    base, d = live
+    rec = {'kind': 'sale', 'slug': 'x', 'qty': 1, 'plat': 5, 'ts': 1000}
+    first = call(base, '/api/trades', rec)[1]
+    again = call(base, '/api/trades', rec)[1]
+    assert first['created'] is True and again['created'] is False
+    assert json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())[0]['id'] \
+        == first['id']

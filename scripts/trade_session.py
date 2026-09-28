@@ -509,19 +509,55 @@ def summary(doc, now=None, limits=None):
     return out
 
 
+def inv_now_map(report, pending):
+    """{row_key: copies owned now} for the stacks the pending trades are about.
+
+    Same numbers the app renders (report.json sell_now/patient). A stack the report does not
+    mention is simply absent - propose() then answers UNKNOWN rather than assuming a number.
+    """
+    out = {}
+    for p in pending or []:
+        if not isinstance(p, dict) or p.get('state') not in (CONTACTED, POSSIBLE):
+            continue
+        slug, rank = p.get('slug'), p.get('rank')
+        key = row_key(slug, rank)
+        if key in out:
+            continue
+        for field in ('sell_now', 'patient'):
+            for row in ((report or {}).get(field) or []):
+                if isinstance(row, dict) and row.get('slug') == slug and \
+                        (rank is None or row.get('lane_rank') == rank):
+                    n = _int(row.get('sellable_count'))
+                    if n is not None:
+                        out[key] = n
+                    break
+    return out
+
+
 def payload(data_dir, plan=None, advisor=None, report=None, runqueue=None, limits=None, now=None):
     """The /api/session body: the session, its focus row, the pending trades and the summary."""
     now = int(now or time.time())
     doc = load(data_dir)
     s = doc.get('session')
     focus_row = focus(doc, now=now) if s else None
-    pend = [p for p in doc.get('pending') if p.get('state') in (CONTACTED, POSSIBLE)]
+    pend = [p for p in doc['pending'] if p.get('state') in (CONTACTED, POSSIBLE)]
     fresh = [p for p in pend if now - int(p.get('ts') or 0) <= STALE_PENDING_S]
     stale = [p for p in pend if now - int(p.get('ts') or 0) > STALE_PENDING_S]
+    plat_now = None
+    if isinstance(limits, dict) and isinstance(limits.get('plat'), (int, float)):
+        plat_now = int(limits['plat'])
+    # The check rides the payload the panel already gets, so the screen shows what happened without
+    # a second ask. It is a proposal either way - nothing here writes a trade (spec §4).
+    try:
+        checks = propose(pend, inv_now_map(report, pend), plat_now, now=now)
+    except Exception:
+        checks = {'proposals': [], 'counts': {}, 'needs_you': 0}
     return {'ok': True, 'session': s, 'focus': focus_row,
             'focus_index': (s or {}).get('cursor'),
             'summary': summary(doc, now, limits),
             'pending': fresh, 'stale_pending': stale,
+            'proposals': checks['proposals'], 'checks': checks['counts'],
+            'needs_you': checks['needs_you'],
             'queue': (s or {}).get('queue') or [],
             'states': list(STATES),
             'suggested': build_queue(plan or {}, advisor or {}, report or {}, runqueue or {}) if not s else []}
@@ -545,3 +581,216 @@ def start_payload(data_dir, plan, advisor, report, runqueue, limits=None, limit=
     save(data_dir, doc)
     return {'ok': True, 'started': started, 'session': doc['session'],
             'summary': summary(doc, now, limits)}
+# --------------------------------------------------------------------------- reconciliation (spec §4)
+# The one place a pending trade is compared against what actually moved. It NEVER writes a trade:
+# it returns a proposal the user confirms (or does not), because the repo already has a private,
+# auto-confirming detector and the public loop is deliberately not that (docs/.../§4, §11).
+EXACT = 'exact'
+AMBIGUOUS = 'ambiguous'
+NOTHING = 'none'
+UNKNOWN = 'unknown'
+
+
+def _evidence(*pairs):
+    """Short player-language facts, 'label: value' - the UI shows them, it never invents them."""
+    return ['%s: %s' % (label, value) for label, value in pairs if value is not None]
+
+
+def propose(pending, inv_now, plat_now, now=None):
+    """Propose what happened to each pending trade. -> {proposals: [...], counts: {...}}
+
+    pending : the doc's pending rows (CONTACTED / POSSIBLE MATCH are the live ones)
+    inv_now : {row_key(slug, rank): copies owned right now} - from the same report.json the app shows
+    plat_now: platinum right now (the newest reading)
+    """
+    now = int(now or time.time())
+    out, counts = [], {EXACT: 0, AMBIGUOUS: 0, NOTHING: 0, UNKNOWN: 0}
+    for p in pending or []:
+        if not isinstance(p, dict) or p.get('state') not in (CONTACTED, POSSIBLE):
+            continue
+        slug, rank = p.get('slug'), p.get('rank')
+        qty = max(1, int(p.get('qty') or 1))
+        expected = _int(p.get('expected_plat'))
+        total = (expected or 0) * qty
+        now_inv = _int((inv_now or {}).get(row_key(slug, rank)))
+        before = _int(p.get('inv_before'))
+        plat_before = _int(p.get('plat_before'))
+        age = now - int(p.get('ts') or now)
+        if before is None or plat_before is None or now_inv is None or plat_now is None:
+            verdict, why = UNKNOWN, _evidence(('before', 'no snapshot'),
+                                             ('now', 'platinum unknown' if plat_now is None else None))
+            left = delta_plat = None
+        else:
+            left = before - now_inv                    # copies that left your inventory
+            delta_plat = int(plat_now) - plat_before    # platinum that arrived
+            if left <= 0 and delta_plat < (total or 1):
+                verdict, why = NOTHING, _evidence(('copies left', 0), ('platinum', delta_plat))
+            elif left >= qty and total and delta_plat >= total:
+                verdict, why = EXACT, _evidence(('copies left', left), ('platinum', '+%d' % delta_plat),
+                                                ('asked', total), ('extra', delta_plat - total or None))
+            elif left >= qty and total and delta_plat < total:
+                verdict, why = AMBIGUOUS, _evidence(('copies left', left),
+                                                    ('platinum', '+%d' % delta_plat),
+                                                    ('asked', total))
+            elif 0 < left < qty:
+                verdict, why = AMBIGUOUS, _evidence(('copies left', left), ('asked', qty))
+            elif left <= 0 < delta_plat:
+                verdict, why = AMBIGUOUS, _evidence(('copies left', 0), ('platinum', '+%d' % delta_plat),
+                                                    ('that stack', 'untouched'))
+            else:
+                verdict, why = NOTHING, _evidence(('copies left', left), ('platinum', delta_plat))
+        counts[verdict] += 1
+        out.append({'verdict': verdict, 'pending_id': p.get('id'), 'slug': slug, 'name': p.get('name'),
+                    'rank': rank, 'qty': qty, 'buyer': p.get('buyer'), 'age_s': age,
+                    'expected_plat': expected, 'total_plat': total or None,
+                    'inv_before': before, 'inv_now': now_inv,
+                    'plat_before': plat_before, 'plat_now': _int(plat_now),
+                    'copies_left': left, 'plat_delta': delta_plat, 'evidence': why,
+                    'stale': age > STALE_PENDING_S,
+                    'trade': trade_draft(p, plat=(expected or 0) * qty if verdict == EXACT else None)})
+    order = {EXACT: 0, AMBIGUOUS: 1, UNKNOWN: 2, NOTHING: 3}
+    out.sort(key=lambda r: (order.get(r['verdict'], 9), -(r['plat_delta'] or 0)))
+    return {'proposals': out, 'counts': counts,
+            'needs_you': counts[EXACT] + counts[AMBIGUOUS]}
+
+
+def trade_draft(pending, plat=None, quote=None):
+    """The record a confirmation would write, ready for confirm(). Never written by propose()."""
+    slug, rank = pending.get('slug'), pending.get('rank')
+    qty = max(1, int(pending.get('qty') or 1))
+    plat = _int(plat)
+    if plat is None:
+        plat = (quote or {}).get('plat')
+    draft = {'kind': 'sale', 'slug': slug, 'item': slug, 'name': pending.get('name'),
+             'rank': rank, 'qty': qty, 'plat': plat or (pending.get('expected_plat') or 0) * qty,
+             'user': pending.get('buyer'), 'buyer': pending.get('buyer'),
+             'source': 'session', 'session_id': pending.get('session_id'),
+             'pending_id': pending.get('id'), 'ts': int(pending.get('ts') or time.time())}
+    draft['id'] = trade_id(draft)
+    return draft
+
+
+def trade_id(rec):
+    """A stable id for a trade record: same content -> same id, so a retry cannot double-log it."""
+    if isinstance(rec, dict) and rec.get('id'):
+        return str(rec['id'])
+    rec = rec or {}
+    raw = '|'.join(str(rec.get(k) or '') for k in ('kind', 'slug', 'rank', 'qty', 'plat', 'user', 'ts'))
+    return 't-%d-%s' % (int(rec.get('ts') or time.time()) * 1000,
+                        hashlib.sha1(raw.encode('utf-8')).hexdigest()[:6])
+
+
+# --------------------------------------------------------------------------- confirm (spec §5, §11)
+# The one canonical completion path: one idempotent transaction that appends the trade, closes the
+# pending record, moves the session on and lets the derived stores (Home today, sessions, inventory,
+# ledger) recompute from the same event. Nothing else in the public tree writes a trade record with
+# an id, and no other code path may mark a trade complete.
+TRADE_LOG = 'trade_log.json'
+KINDS = ('sale', 'purchase', 'listing', 'unlist', 'reprice', 'note')
+
+
+def append_event(data_dir, rec):
+    """Append one event to trade_log.json atomically, refusing a duplicate id.
+
+    trade_log had four writers and none of them used tmp+os.replace (design/_session/audit-backend).
+    Returns (record, created_bool).
+    """
+    path = os.path.join(data_dir, TRADE_LOG)
+    hist = jload(path)
+    if not isinstance(hist, list):
+        if hist is not None or os.path.exists(path):
+            try:
+                os.replace(path, path + '.corrupt-' + time.strftime('%Y%m%d-%H%M%S'))
+            except Exception:
+                pass
+        hist = []
+    rec = dict(rec or {})
+    rec.setdefault('ts', int(time.time()))
+    rec['id'] = trade_id(rec)
+    for old in hist:
+        if isinstance(old, dict) and old.get('id') == rec['id']:
+            return old, False
+    hist.append(rec)
+    _atomic_write(path, hist)
+    return rec, True
+
+
+def confirm(data_dir, rec, now=None, source='user'):
+    """Complete a trade: append it, close the pending row, move the session on. Idempotent.
+
+    rec is either a proposal's `trade` draft, a manual sale ({'slug','qty','plat',...}) or a
+    correction (an explicit 'id' updates nothing - a new id is a new record). -> (result, created)
+    """
+    now = int(now or time.time())
+    doc = load(data_dir)
+    if not isinstance(rec, dict) or not (rec.get('slug') or rec.get('item')):
+        return {'ok': False, 'error': 'slug required'}, False
+    rec = dict(rec)
+    rec['slug'] = str(rec.get('slug') or rec.get('item')).strip().lower()
+    rec['item'] = rec['slug']
+    rec['kind'] = rec.get('kind') if rec.get('kind') in KINDS else 'sale'
+    try:
+        rec['qty'] = max(1, int(rec.get('qty') or 1))
+    except (TypeError, ValueError):
+        return {'ok': False, 'error': 'qty must be a number'}, False
+    plat = _int(rec.get('plat') if rec.get('plat') is not None else rec.get('price'))
+    if plat is None or plat < 0:
+        return {'ok': False, 'error': 'plat must be a number'}, False
+    rec['plat'] = plat
+    rec['rank'] = _int(rec.get('rank'))
+    rec.setdefault('ts', now)
+    rec['source'] = str(rec.get('source') or source)[:24]
+    rec['confirmed_ts'] = now
+    if rec.get('id') and str(rec['id']) in doc.get('confirmed', []):
+        return {'ok': True, 'already': True, 'trade': rec, 'session_payload': None,
+                'summary': summary(doc, now)}, False
+    written, created = append_event(data_dir, rec)
+    if not created:
+        doc.setdefault('confirmed', []).append(str(written['id']))
+        save(data_dir, doc)
+        return {'ok': True, 'already': True, 'trade': written, 'summary': summary(doc, now)}, False
+
+    # close the pending trade this came from, if any
+    pend_id = rec.get('pending_id')
+    for p in doc.get('pending', []):
+        if (pend_id and p.get('id') == pend_id) or \
+           (not pend_id and p.get('slug') == rec['slug'] and p.get('rank') == rec['rank']
+                and p.get('state') in (CONTACTED, POSSIBLE)):
+            p['state'] = COMPLETED
+            p['completed_ts'] = now
+            p['completed_trade'] = written['id']
+
+    # move the session on and count it
+    s = doc.get('session')
+    if s:
+        for r in (s.get('queue') or []):
+            if r.get('slug') == rec['slug'] and (rec['rank'] is None or r.get('rank') == rec['rank']):
+                r['state'] = COMPLETED
+                r['completed_ts'] = now
+                break
+        t = s.setdefault('totals', {'trades': 0, 'earned_plat': 0, 'skipped': 0, 'held': 0})
+        t['trades'] = int(t.get('trades') or 0) + 1
+        t['earned_plat'] = round(float(t.get('earned_plat') or 0) + plat, 2)
+        s.setdefault('done', []).insert(0, {'id': written['id'], 'slug': rec['slug'],
+                                           'name': rec.get('name'), 'rank': rec['rank'],
+                                           'qty': rec['qty'], 'plat': plat,
+                                           'buyer': rec.get('user') or rec.get('buyer'),
+                                           'ts': now})
+        s['done'] = s['done'][:200]
+        advance(doc, now)
+    doc.setdefault('confirmed', []).append(str(written['id']))
+    save(data_dir, doc)
+    return {'ok': True, 'already': False, 'trade': written, 'summary': summary(doc, now)}, True
+
+
+def confirm_payload(data_dir, rec, now=None, source='user'):
+    """The route's body: the trade, the moved session and the proposal list it came from."""
+    out, created = confirm(data_dir, rec, now=now, source=source)
+    if out.get('ok'):
+        doc = load(data_dir)
+        out['session_payload'] = None
+        out['session'] = doc.get('session')
+        out['created'] = created
+    return out
+
+

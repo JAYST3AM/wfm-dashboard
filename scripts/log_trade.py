@@ -27,6 +27,17 @@ def main(argv):
     note = ' '.join(args)
     ev = dict(ts=int(time.time()), kind=kind, name=name, qty=qty, plat=plat,
               total=round(total, 2), note=note)
+    # one writer for trade_log: scripts/trade_session.py appends atomically and gives the event an
+    # id, so a retried command cannot log the same trade twice. Falls back to the old inline append
+    # only if the module is missing (a stripped checkout), never to a different file shape.
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import trade_session
+        rec, _ = trade_session.append_event(DATA, ev)
+        print(json.dumps(rec))
+        return 0
+    except Exception:
+        pass
     path = os.path.join(DATA, 'trade_log.json')
     hist = json.load(open(path, encoding='utf-8')) if os.path.exists(path) else []
     hist.append(ev)

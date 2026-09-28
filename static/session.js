@@ -132,8 +132,9 @@ function sessionFocusCard(f, say) {
         : `<div class="sess-nobuyer dim">${escHtml(why.rank_mismatch || 'No buyer in the run queue')}</div>`}`;
 }
 
-/* the pending trades: what a sent whisper is waiting on. Nothing here resolves anything - the
-   confirmation arrives in a later stage (there is no confirm route yet) */
+/* the pending trades: what a sent whisper is waiting on. The check that says what actually moved
+   rides the same payload (proposals), so this list never resolves anything on its own - see the
+   Checks card, which puts one confirm in front of the user and no automation behind it */
 function sessionPendingRows(pend, stale) {
   const all = (pend || []).concat(stale || []);
   if (!all.length) return sessionEmpty('Nothing waiting on a confirmation.');
@@ -147,6 +148,34 @@ function sessionPendingRows(pend, stale) {
       <span class="num">${p.qty || 1}<span class="dim"> @ ${escHtml(String(p.expected_plat || ''))}p</span></span>
       <span>${old[p.id] ? '<span class="chip">old</span>' : ''}</span>
     </div>`).join('');
+}
+
+/* the checks: one row per pending trade, with what the save says moved against what was asked.
+   'exact' is a confirmation waiting for a click; 'ambiguous' says why it is not certain and still
+   leaves the click to the user; nothing and unknown never offer one (spec sections 4 and 7). */
+const SESSION_DRAFTS = {};
+
+function sessionCheckRows(props) {
+  if (!props.length) return sessionEmpty('Nothing to check yet.');
+  return props.map(p => {
+    const act = (p.verdict === 'exact')
+      ? '<button class="btn sessconf" data-pending="' + escHtml(p.pending_id) + '" title="Log this sale">Confirm</button>'
+      : (p.verdict === 'ambiguous'
+        ? '<button class="btn sessconf" data-pending="' + escHtml(p.pending_id) + '" title="Log it as your sale">Looks right</button>'
+        : '');
+    const word = p.verdict === 'exact' ? 'sold' : (p.verdict === 'ambiguous' ? 'check'
+      : (p.verdict === 'unknown' ? 'no snapshot' : 'nothing moved'));
+    const facts = (p.evidence || []).map(e => '<span class="chip">' + escHtml(e) + '</span>').join('');
+    return `
+    <div class="sessrow sesscheck">
+      <span class="chip ${p.verdict === 'exact' ? 'ok' : ''}">${escHtml(word)}</span>
+      <span class="l-name" title="${escHtml(p.slug || '')}">${escHtml(p.name || pretty(p.slug))}${sessionRankBit(p)}</span>
+      <span class="dim">${escHtml(p.buyer || '—')}</span>
+      <span class="num">${p.qty || 1}<span class="dim"> @ ${escHtml(String((p.expected_plat || '') + (p.qty > 1 ? 'p each' : 'p')))}</span></span>
+      <span class="sess-facts">${facts}</span>
+      <span>${act}</span>
+    </div>`;
+  }).join('');
 }
 
 /* how many of each state the queue holds - the counts the summary line rides on (the state word is
@@ -214,6 +243,18 @@ function renderSession() {
       n ? ['· ' + (P.pending || []).length + ' waiting']
         .concat((P.stale || []).length ? ['· ' + P.stale.length + ' old'] : []) : []);
   }
+  /* the checks ride the payload the panel already painted from: the draft behind every Confirm is
+     kept here (one click sends it) and the proposals themselves are never re-asked for */
+  const ck = document.getElementById('sessionChecks');
+  if (ck) {
+    const props = P.proposals || [];
+    Object.keys(SESSION_DRAFTS).forEach(k => { delete SESSION_DRAFTS[k]; });
+    props.forEach(p => { if (p.trade) SESSION_DRAFTS[p.pending_id] = p.trade; });
+    ck.innerHTML = sessionCheckRows(props);
+    sbits(document.getElementById('sessionChecksMeta'),
+      props.length ? (P.needs_you ? ['· ' + P.needs_you + ' to confirm'] : ['· nothing to confirm'])
+        : []);
+  }
   markScrollers();      /* the queue and the pending list wear the same fade as every trade list */
 }
 
@@ -264,6 +305,21 @@ async function sessionAct(btn) {
   }
 }
 
+/* one confirmation, one transaction: the draft the check came with goes to /api/session/confirm,
+   which writes the trade with its id, closes the pending row and moves the session on. The page
+   then refreshes the way every other action does - no local completion state, ever (spec §11) */
+async function sessionConfirm(btn) {
+  const id = btn.dataset.pending || '';
+  const draft = SESSION_DRAFTS[id];
+  if (!draft) { sessionSay('that check is out of date', true); return; }
+  btn.disabled = true;
+  try {
+    const ok = await sessionPost('confirm', { trade: draft });
+    if (ok && window.sfx) sfx.play('done');
+    if (ok) await load();
+  } finally { btn.disabled = false; }
+}
+
 /* the whisper is the order book's own funnel (ordWhisper: one send path, one set of guards, the
    answer printed in the row). A sent whisper is already recorded server-side as CONTACTED, so this
    never posts /api/session/contact - it keeps the answer across the refresh it triggers */
@@ -293,6 +349,8 @@ async function sessionClick(e) {
   if (!t || !t.closest) return;
   const wsp = t.closest('.ordwsp');
   if (wsp) { if (!wsp.disabled) await sessionWhisper(wsp); return; }
+  const conf = t.closest('.sessconf');
+  if (conf) { if (!conf.disabled) await sessionConfirm(conf); return; }
   const pick = t.closest('.sessfocus');
   if (pick) {
     if (await sessionPost('focus', { index: Number(pick.dataset.index) })) await load();
