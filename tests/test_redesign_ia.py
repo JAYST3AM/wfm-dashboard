@@ -10,7 +10,7 @@ No test reads the repo's data/ folder: the catalogue fixture is built under tmp_
 """
 import os
 
-from conftest import REPO, write_json
+from conftest import REPO, rail_rows, shell_decl, shell_js, write_json
 
 STATIC = os.path.join(REPO, 'static')
 
@@ -22,16 +22,20 @@ def read(name):
 
 # ------------------------------------------------------------------ shell: nav + views
 def test_index_has_the_five_section_nav():
-    html = read('index.html')
-    nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
+    """The rail is shell chrome now: index declares itself the SPA and /shell.js renders the 7
+    pills, in this order, with these hrefs (bare hashes on the SPA, /#… on the sub-pages)."""
+    key, _acts = shell_decl('index.html')
+    assert key == 'index'
+    rows = [(r[1], r[3]) for r in rail_rows()]
     for href, label in (('#home', 'Home'), ('#inventory', 'Inventory'), ('#trade', 'Trade'),
                         ('/collection.html', 'Collection'), ('#mastery', 'Mastery'),
                         ('#player', 'Player'), ('#more', 'More')):
-        assert 'href="%s"' % href in nav, href
-        assert '>%s</a>' % label in nav, label
-    assert nav.count('class="navpill') == 7
-    # Mastery sits between the Collection sub-page and Player: nav.index('/collection.html') < nav.index('#mastery') < nav.index('#player') < nav.index('#more')
-    assert nav.index('/collection.html') < nav.index('#mastery') < nav.index('#player') < nav.index('#more')
+        assert (href, label) in rows, href
+    assert len(rows) == 7
+    order = [href for href, _label in rows]
+    # Mastery sits between the Collection sub-page and Player
+    assert order.index('/collection.html') < order.index('#mastery') < order.index('#player') < order.index('#more')
+    assert "pg.prefix + p[1]" in shell_js(), 'the sub-pages get the /#… form from the page prefix'
 
 
 def test_index_has_four_view_sections_and_real_trade_tabs():
@@ -42,15 +46,20 @@ def test_index_has_four_view_sections_and_real_trade_tabs():
         assert 'id="%s"' % panel in html, panel
     assert 'id="tradeTabs"' in html and 'role="tab"' in html
     assert 'details class="acc"' in html                       # progressive disclosure shells
-    assert 'id="searchDrop"' in html                           # global-search dropdown
+    # the global-search dropdown is shell chrome: index asks for it, the shell ships it
+    key, acts = shell_decl('index.html')
+    assert 'search' in acts, 'index declares the header search'
+    assert 'id="searchDrop"' in shell_js()
 
 
 def test_drawer_and_home_scripts_ship_with_the_shell():
     html = read('index.html')
-    for asset in ('/drawer.css', '/home.css', '/drawer.js', '/home.js'):
+    for asset in ('/drawer.css', '/home.css', '/drawer.js', '/home.js', '/shell.css', '/shell.js'):
         assert asset in html, asset
-    # drawer/home define the globals app.js calls, so they must load first
-    assert html.index('/drawer.js') < html.index('/home.js') < html.index('/app.js')
+    # the shell renders the chrome the page scripts bind to, so it loads first (classic script,
+    # runs during parse - not deferred); drawer/home define the globals app.js calls
+    assert html.index('/shell.js') < html.index('/drawer.js') < html.index('/home.js') < html.index('/app.js')
+    assert '<script src="/shell.js"></script>' in html, 'the shell is a plain script, never defer'
 
 
 def test_app_wires_drawer_search_and_legacy_hashes():

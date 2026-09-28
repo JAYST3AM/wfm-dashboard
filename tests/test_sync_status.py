@@ -22,6 +22,8 @@ import subprocess
 
 import pytest
 
+from conftest import shell_decl, shell_js
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NODE = shutil.which('node')
 
@@ -34,13 +36,18 @@ def read(rel):
 # ------------------------------------------------------------------ the host
 
 def test_the_header_host_is_beside_the_refresh_button():
-    html = read('static/index.html')
-    assert '<span id="syncState" class="dim small" data-icon="arrows-clockwise"></span>' in html, \
+    """Stage 1: the header is shell chrome. The sync host is still one compact span inside the
+    action cluster, still before the Refresh button - now pinned at the shell that renders it."""
+    shell = shell_js()
+    assert '<span id="syncState" class="dim small" data-icon="arrows-clockwise"></span>' in shell, \
         'a compact status, icon on the host span'
-    assert html.index('id="syncState"') < html.index('id="refresh"')
+    assert shell.index('id="syncState"') < shell.index('id="refresh"')
     # it is not a block of its own: one line in the header action cluster
-    actions = html.split('<div class="actions">', 1)[1].split('</header>', 1)[0]
+    actions = shell.split('<div class="actions">', 1)[1].split('</header>', 1)[0]
     assert 'id="syncState"' in actions
+    # and index.html is the page that asks for it (the sub-pages have no sync state today)
+    assert 'syncState' in shell_decl('index.html')[1]
+    assert 'syncState' not in shell_decl('collection.html')[1]
 
 
 # ------------------------------------------------------------------ the labels

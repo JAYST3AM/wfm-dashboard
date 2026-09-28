@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from conftest import REPO, load_script, read_json, write_json
+from conftest import REPO, load_script, rail_rows, read_json, shell_js, write_json
 
 CARD_KEYS = {'slug', 'name', 'rarity', 'type', 'polarity', 'base_drain', 'max_rank',
              'is_prime', 'owned_copies', 'owned_rank', 'floor', 'median', 'stats_text', 'icon',
@@ -418,21 +418,28 @@ def test_page_exists_and_reuses_the_shared_shell():
     assert '<script src="/theme.js"></script>' in html
     assert 'wfmInitThemeUI()' in html
     assert '<link rel="stylesheet" href="/style.css">' in html
-    assert 'id="themePanel"' in html and 'id="themeGrid"' in html and 'id="chips"' in html
+    assert '<link rel="stylesheet" href="/shell.css">' in html
+    assert '<script src="/shell.js"></script>' in html
+    # the theme panel is shell chrome now: cards.html declares what it is, the shell ships the panel
+    assert '<body data-shell="cards"' in html
+    shell = shell_js()
+    for frag in ('id="themePanel"', 'id="themeGrid"', 'id="chips"'):
+        assert frag in shell, frag
 
 
 def test_nav_has_every_pill_with_cards_active():
     html = open(PAGE, encoding='utf-8').read()
-    # 2026-09-28 rail: the primary nav is now <aside class="side"> > <nav class="mainnav sidenav"
-    # id="mainnav"> (the same shell index.html ships), so the split keys on the id - the class
-    # string carries the extra 'sidenav' token now.
-    assert '<aside class="side" aria-label="Primary">' in html
-    nav = html.split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
+    # 2026-09-28 rail: the primary nav is <aside class="side"> > <nav class="mainnav sidenav"
+    # id="mainnav"> and the pills are rendered by /shell.js (stage 1: one source, five pages).
+    # shell.js stores the hash views without a leading slash and prefixes them per page, so
+    # cards.html (a sub-page) gets the /#… form every pill below is listed in.
+    rows = [('/' + r[1] if r[1].startswith('#') else r[1], r[3]) for r in rail_rows()]
     for href, label in NAV_PILLS:
-        assert 'href="%s"' % href in nav, href
-        assert '>%s</a>' % label in nav, label
-    assert 'href="/collection.html" class="navpill active"' in nav   # section = Collection
-    assert nav.count('navpill active') == 1
+        assert (href, label) in rows, href
+    # Cards is a Collection section: the rail marks the Collection pill, and the page's own
+    # sub-nav keeps Cards as the active tab
+    assert "active: 'collection'" in shell_js().split('cards: {', 1)[1].split('},', 1)[0]
+    assert '<aside class="side" aria-label="Primary">' in shell_js()
     subnav = html.split('<nav class="mainnav subnav"', 1)[1].split('</nav>', 1)[0]
     assert 'href="/cards.html"' in subnav and '>Cards</a>' in subnav
     assert 'aria-current="page"' in subnav

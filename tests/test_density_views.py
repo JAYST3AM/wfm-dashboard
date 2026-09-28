@@ -33,7 +33,7 @@ def media_blocks(css, query):
 
 def test_index_ships_the_fit_shell_class():
     html = read('static/index.html')
-    assert '<body class="shell-fit">' in html
+    assert '<body class="shell-fit" data-shell="index"' in html
 
 
 def test_the_shell_is_one_window_tall_and_does_not_scroll():

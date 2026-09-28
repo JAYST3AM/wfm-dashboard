@@ -15,6 +15,7 @@ import importlib.util
 import itertools
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -82,3 +83,45 @@ def server_mod(tmp_path, monkeypatch, data_dir):
     monkeypatch.setattr(mod, 'DATA', str(data_dir))
     monkeypatch.setattr(mod, 'ROOT', str(tmp_path))
     return mod
+
+
+# ------------------------------------------------------------------ the shared app shell
+# Stage 1 (2026-09-28): the header, the rail and the theme panel are ONE source now
+# (static/shell.js + static/shell.css) and each page only declares what it is. The tests that
+# used to read a page's own markup for the chrome read the shell instead - the ids, the pill
+# order, the actions a page supports and the chrome's CSS are still pinned, one level up.
+STATIC = os.path.join(REPO, 'static')
+
+
+def read_static(name):
+    with open(os.path.join(STATIC, name), encoding='utf-8') as fh:
+        return fh.read()
+
+
+def shell_js():
+    return read_static('shell.js')
+
+
+def shell_css():
+    return read_static('shell.css')
+
+
+def shell_css_all():
+    """The chrome's rules: stage 1 moved them out of style.css into shell.css - a rule that the
+    tests pin as 'shipped' is either side of that split, so the sheets are read together."""
+    return read_static('style.css') + '\n' + shell_css()
+
+
+def shell_decl(page):
+    """(data-shell value, the header actions the page declares) for static/<page>."""
+    html = read_static(page)
+    m = re.search(r'<body[^>]*\bdata-shell="([a-z]+)"[^>]*\bdata-shell-actions="([^"]*)"', html)
+    assert m, page + ' must declare data-shell + data-shell-actions'
+    return m.group(1), set(m.group(2).split())
+
+
+def rail_rows():
+    """The primary rail as shell.js declares it: one (data-v, href, icon, label) per pill."""
+    rows = re.findall(r"\['([a-z]+)',\s*'([^']+)',\s*'([a-z-]+)',\s*'([A-Za-z ]+)'\]", shell_js())
+    assert rows, 'shell.js no longer declares the rail registry'
+    return rows

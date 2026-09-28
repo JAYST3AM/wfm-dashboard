@@ -14,7 +14,7 @@ Contracts kept here (source-level, like tests/test_redesign_ia.py):
 import os
 import re
 
-from conftest import REPO, write_json
+from conftest import REPO, rail_rows, shell_decl, shell_js, write_json
 
 STATIC = os.path.join(REPO, 'static')
 
@@ -42,7 +42,12 @@ def read(name, root=STATIC):
 
 
 def nav_block():
-    return read('index.html').split('id="mainnav"', 1)[1].split('</nav>', 1)[0]
+    """The primary rail as shell.js declares + renders it (stage 1: one source for all pages).
+
+    The source text is the RAIL registry plus the renderer, so the markup fragments the tests
+    look for (`data-v="player"`, `href="#player"`, the label) live here now.
+    """
+    return shell_js()
 
 
 def player_section():
@@ -59,23 +64,21 @@ def player_js():
 # ------------------------------------------------------------------ nav + view shell
 
 def test_player_pill_sits_between_collection_and_more():
-    nav = nav_block()
-    collection, player, more = (nav.index('data-v="collection"'),
-                                nav.index('data-v="player"'),
-                                nav.index('data-v="more"'))
-    assert collection < player < more
-    pill = re.search(r'<a\b[^>]*data-v="player"[^>]*>([^<]+)</a>', nav)
-    assert pill, 'no Player pill in the primary nav'
-    assert pill.group(1) == 'Player'
-    assert 'href="#player"' in pill.group(0)
+    rows = [(r[0], r[1], r[3]) for r in rail_rows()]
+    order = [v for v, _h, _l in rows]
+    assert order.index('collection') < order.index('player') < order.index('more')
+    pill = [r for r in rows if r[0] == 'player'][0]
+    assert pill[2] == 'Player'
+    assert pill[1] == '#player', 'the SPA reaches the view by hash'
+    assert shell_decl('index.html')[0] == 'index', 'index.html is the SPA that owns the hash views'
 
 
 def test_the_original_pills_survive_and_collection_stays_a_page():
-    nav = nav_block()
+    hrefs = [r[1] for r in rail_rows()]
     for href in ('#home', '#inventory', '#trade', '#more'):
-        assert 'href="%s"' % href in nav, href
-    assert 'href="/collection.html" class="navpill" data-v="collection"' in nav
-    assert 'href="#collection"' not in nav                    # still a sub-page, not a view
+        assert href in hrefs, href
+    assert '/collection.html' in hrefs                      # still a sub-page, not a view
+    assert '#collection' not in hrefs
 
 
 def test_player_view_section_exists_and_is_hidden_by_default():

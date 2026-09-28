@@ -1774,6 +1774,7 @@ document.addEventListener('click', e => {
   if (!tPanel.classList.contains('hidden') && !tPanel.contains(e.target) && e.target !== tBtn) { tPanel.classList.add('hidden'); tSync(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { tPanel.classList.add('hidden'); tSync(); } });
+window.wfmThemeUI = true;      /* the panel is wired here: the shell leaves it alone */
 
 document.getElementById('refresh').addEventListener('click', async e => {
   const b = e.target; b.disabled = true; b.textContent = 'Refreshing…'; iconRepaint(b);

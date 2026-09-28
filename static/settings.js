@@ -523,6 +523,7 @@ function initThemePanel() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !panel.classList.contains('hidden')) { setOpen(false); btn.focus(); }
   });
+  window.wfmThemeUI = true;      /* the panel is wired here: the shell leaves it alone */
 }
 
 /* ---------- advanced accordion (collapsed by default; a developer who opens it stays open) ---------- */

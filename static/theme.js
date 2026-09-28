@@ -157,6 +157,7 @@ window.WFM_THEMES = [
   window.wfmInitThemeUI = function () {
     const btn = document.getElementById('themeBtn'), panel = document.getElementById('themePanel');
     if (!btn || !panel) return;
+    window.wfmThemeUI = true;      /* the shell reads this: a wired page is left alone */
     window.wfmBuildThemeGrid();
     btn.addEventListener('click', () => panel.classList.toggle('hidden'));
     document.addEventListener('click', e => {

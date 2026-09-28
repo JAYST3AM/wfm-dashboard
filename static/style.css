@@ -27,46 +27,10 @@ main > section.hidden { display: none !important; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
-header {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 10px 18px;
-  background: color-mix(in srgb, var(--panel) 86%, transparent);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 20;
-}
-.brand { font-weight: 700; font-size: 15px; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; }
-.brand .logo {
-  color: var(--accent); font-size: 17px;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
-}
-.brand .logo img {
-  width: 20px; height: 20px; border-radius: 5px; display: block;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-.brand .sub { color: var(--muted); font-weight: 400; font-size: 12px; }
-.chips { display: flex; gap: 7px; flex-wrap: wrap; flex: 1; }
-.chip {
-  background: color-mix(in srgb, var(--panel2) 80%, transparent);
-  border: 1px solid var(--border); border-radius: 999px;
-  padding: 4px 11px; font-size: 11.5px; color: var(--muted); white-space: nowrap;
-}
-.chip b { color: var(--text); font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
-.chip.warn b { color: var(--accent); }
-.actions { display: flex; gap: 8px; align-items: center; }
-/* one control height across the header row: search box, icon buttons, text buttons */
-header .btn, header a.btn { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }
-.search {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--panel2); border: 1px solid var(--border); border-radius: 999px;
-  padding: 5px 12px;
-}
-.search:focus-within { border-color: var(--accent-dim); }
-.search .si { color: var(--muted); font-size: 14px; }
-.search input {
-  background: transparent; border: none; outline: none; color: var(--text);
-  width: 180px; font: 12.5px var(--sans);
-}
+/* ============ the app shell's own CSS lives in /shell.css ============
+   header + brand + chips + actions + global search, the theme panel, .mainnav/.navpill, the .side
+   rail and its <=900px fold, .shellbody/.shellcol and the <=560px compact header. One source,
+   loaded by every page right after this file. The view, card and table recipes stay here. */
 .btn {
   background: var(--panel2); color: var(--text); border: 1px solid var(--border);
   border-radius: 9px; padding: 7px 13px; cursor: pointer; font: 600 12px var(--sans);
@@ -85,48 +49,6 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .btn.primary:disabled { opacity: .55; cursor: wait; filter: none; }
 
 /* ---- main nav (views) ---- */
-.mainnav {
-  display: inline-flex; gap: 4px; margin: 12px 18px 0; padding: 4px;
-  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-  max-width: calc(100% - 36px); flex-wrap: wrap;   /* wraps instead of overflowing narrow windows */
-}
-.navpill {
-  padding: 6px 18px; border-radius: 9px; color: var(--muted); text-decoration: none;
-  font-size: 12.5px; font-weight: 600;
-}
-.navpill:hover { color: var(--text); background: var(--panel2); }
-.navpill.active {
-  color: var(--accent); background: var(--panel2);
-  box-shadow: inset 0 -2px 0 var(--accent), 0 1px 6px color-mix(in srgb, black 25%, transparent);
-}
-
-/* ---- sidebar rail (V1 shell) ---- */
-.shellbody { display: flex; align-items: stretch; min-height: 0; }
-.side { flex: 0 0 206px; border-right: 1px solid var(--border); padding: 14px 10px 10px; }
-.side .sidenav {
-  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
-  margin: 0; padding: 0; background: none; border: 0; border-radius: 0;
-  max-width: none; flex-wrap: nowrap;
-}
-.side .navpill {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: 9px;
-  color: var(--muted); font-weight: 500; font-size: 13.5px;
-}
-.side .navpill:hover { color: var(--text); background: var(--hover); }
-.side .navpill.active {
-  color: var(--text); font-weight: 600; background: var(--hover);
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-.side .navpill::after { display: none; }          /* the breathing dot is a pill thing */
-.side .navpill[data-v="player"] { margin-top: 14px; }   /* main group, then you */
-@media (max-width: 900px) {
-  .shellbody { flex-direction: column; }
-  .side { flex: 0 0 auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 10px; overflow-x: auto; }
-  .side .sidenav { flex-direction: row; }
-  .side .navpill { white-space: nowrap; }
-  .side .navpill[data-v="player"] { margin-top: 0; }
-}
 
 /* ---- cards + KPIs ---- */
 main { padding: 14px 22px 48px; }
@@ -316,32 +238,9 @@ thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort 
 .status { padding: 10px 2px; color: var(--muted); font-size: 12px; }
 .card > .status { padding: 10px 16px; }   /* inside a card, sit on the title/content inset */
 
-/* ---- theme panel ---- */
-.theme-panel {
-  position: absolute; right: 18px; top: 54px; z-index: 30;
-  width: 560px; max-width: calc(100vw - 36px);
-  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  box-shadow: 0 18px 50px color-mix(in srgb, black 45%, transparent);
-  padding: 14px;
-}
-.tp-head { font-size: 12px; font-weight: 600; margin-bottom: 10px; color: var(--text); }
-.tp-head .dim { font-weight: 400; margin-left: 6px; }
-.tp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 420px; overflow: auto; padding-right: 4px; }
-.theme-item {
-  display: flex; align-items: center; gap: 9px; padding: 7px 10px;
-  border: 1px solid var(--border); border-radius: 9px; cursor: pointer;
-  background: var(--panel2); font-size: 12px; color: var(--text);
-}
-.theme-item:hover { border-color: var(--accent-dim); }
-.theme-item.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.theme-item .dots { display: flex; gap: 3px; flex: none; }
-.theme-item .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; border: 1px solid color-mix(in srgb, black 25%, transparent); }
-.theme-item .tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
 @media (max-width: 900px) {
   .hide-s { display: none; }
-  .search input { width: 120px; }
-  .tp-grid { grid-template-columns: repeat(2, 1fr); }
+
   .pick { grid-template-columns: 22px minmax(92px, 1fr) 44px 60px 56px 70px; }
   .pick-head .c-act, .pick .c-act, .pick-head .c-soldfor, .pick .c-soldfor { display: none; }
   .log-head, .lrow { grid-template-columns: 96px 80px minmax(120px, 1fr) 44px 78px; }
@@ -427,8 +326,6 @@ thead th:not([data-k]) { cursor: default; }   /* Trend is a picture, not a sort 
 
 /* ============ redesign 2026-09-26: sub-nav, trade tabs, disclosures, search ============ */
 /* Collection | Cards sub-tabs (used on collection.html + cards.html) */
-.mainnav.subnav { margin-top: -6px; }
-.mainnav.subnav .navpill { padding: 4px 14px; font-size: 12px; }
 
 /* trade section tabs (Sell | Buy | History) - real role=tab buttons */
 #tradeTabs { padding: 2px 0 12px; }
@@ -471,23 +368,6 @@ details.acc.sub .card { margin: 0 6px 8px; }
 /* advanced inventory columns stay hidden until "All columns" turns them on */
 .hide-a { display: none; }
 body.show-a .hide-a { display: table-cell; }
-
-/* global item search dropdown */
-.search { position: relative; }
-.sdrop {
-  position: absolute; top: calc(100% + 6px); left: 0; min-width: 290px; max-width: min(440px, 92vw);
-  z-index: 40; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-  overflow: hidden; box-shadow: 0 14px 40px color-mix(in srgb, black 45%, transparent);
-}
-.sdrop.hidden { display: none; }
-.srowx {
-  display: flex; justify-content: space-between; gap: 12px; width: 100%; text-align: left;
-  background: none; border: none; border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-  padding: 8px 12px; color: var(--text); cursor: pointer; font: 12.5px var(--sans);
-}
-.srowx:first-child { border-top: none; }
-.srowx:hover { background: var(--hover); }
-.srowx .s-own { color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
 
 /* advanced: raw action output */
 .rawout {
@@ -542,27 +422,8 @@ main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .3
 .card { transition: border-color .22s ease, box-shadow .22s ease; }
 .card:hover { border-color: color-mix(in srgb, var(--accent) 20%, var(--border)); }
 
-/* nav: the active pill carries a quiet accent dot that breathes */
-.mainnav .navpill { position: relative; }
-.navpill::after {
-  content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px;
-  border-radius: 50%; background: var(--accent); opacity: 0; transform: scale(.3);
-  transition: opacity .18s ease, transform .18s ease;
-}
-.navpill:hover::after { opacity: .45; transform: none; }
-.navpill.active { box-shadow: 0 1px 6px color-mix(in srgb, black 25%, transparent); }
-.navpill.active::after { opacity: 1; transform: none; animation: wfm-glow 3.4s ease-in-out infinite; }
-
 /* drawer scrim fades behind the panel (the panel itself already rises) */
 .dw-scrim { animation: wfm-fade .2s ease both; }
-
-/* the header sound toggle: muted dims the host, and a clean strike stays the fallback mark
-   for hosts that carry a single weight (index.html swaps in i-speaker-slash instead) */
-#soundBtn.muted { opacity: .55; }
-#soundBtn.muted::before {
-  content: ""; position: absolute; left: 22%; right: 22%; top: 50%; height: 1.5px;
-  background: currentColor; border-radius: 2px; transform: rotate(-28deg);
-}
 
 /* status lines fade in instead of popping */
 .status:not(:empty), .st-status:not(:empty), #advErr:not(:empty) { animation: wfm-fade .22s ease both; }
@@ -704,18 +565,7 @@ html[data-adv="on"] .explain { display: revert !important; }
    136px wider. Now: chips are one scrollable strip, the controls get their own row, the pills
    wrap 3+3 at 34px (>= the 32px touch minimum) and every data row keeps its numbers on screen. */
 @media (max-width: 560px) {
-  header { padding: 8px 12px 6px; gap: 8px; }
-  .brand { flex: 0 0 auto; }
-  .chips { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
-  .chips::-webkit-scrollbar { height: 3px; }
-  header .actions { flex: 1 1 100%; justify-content: flex-end; }
-  .search { flex: 1 1 128px; min-width: 0; }
-  .search input { width: 100%; min-width: 0; }
-  .mainnav { display: flex; margin: 10px 12px 0; max-width: calc(100% - 24px); gap: 6px; padding: 5px; }
-  .navpill {
-    flex: 1 1 calc(33.333% - 4px); min-height: 34px; padding: 7px 8px;
-    display: inline-flex; align-items: center; justify-content: center; text-align: center;
-  }
+
   main { padding: 8px 12px 40px; }
   /* data rows: keep every column inside the card instead of clipping the numbers away */
   .plan-head, .prow { grid-template-columns: 18px minmax(0, 1fr) 30px 52px 62px; gap: 8px; }
@@ -749,18 +599,6 @@ html[data-adv="on"] .explain { display: revert !important; }
 .card-title[data-icon]::before { content: none; }
 .card-title .i { color: var(--muted); }
 .card-title > .i { margin-right: 6px; }
-
-/* header controls: the flex row owns the icon-to-label gap (never .i-before plus a gap) */
-header .btn, header a.btn { gap: 6px; }
-header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
-
-/* the sound toggle: -high while audible, -slash while muted (sfx.js toggles .muted).
-   The swap only engages when the host carries both weights, so a page that keeps one weight
-   (or just the glyph) keeps the CSS strike below it. */
-#soundBtn > [data-icon="speaker-slash"] { display: none; }
-#soundBtn.muted:has(> [data-icon="speaker-slash"]) > [data-icon="speaker-high"] { display: none; }
-#soundBtn.muted:has(> [data-icon="speaker-slash"]) > [data-icon="speaker-slash"] { display: inline-flex; }
-#soundBtn:has(> [data-icon="speaker-slash"]).muted::before { display: none; }  /* the slash icon carries it */
 
 /* empty / idle states: one quiet 18px icon above the line */
 .empty-icon { display: block; margin: 0 auto 7px; color: var(--muted); opacity: .8; }
@@ -866,9 +704,6 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
    the recorded why/when line. The pair centres in the card so the card never reads as a hole. */
 #view-trade .killline { padding: 2px 8px 8px; font-size: 11.5px; }
 .trade-ops > .card > #killList { margin-bottom: auto; }
-
-/* header auto-sync status: one dim line beside Refresh, never a block */
-#syncState { white-space: nowrap; }
 
 /* ============ fit the viewport (Jay 2026-09-27) ============
    "everything needs to fit on this screen, no matter the resolution for the user".
@@ -1116,13 +951,3 @@ header .btn > .i-before, header a.btn > .i-before { margin-right: 0; }
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent);
 }
-
-/* ---- rail pages (collection / settings / cards / item) + quieter header chips ---- */
-.shellcol { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-.shellcol > .mainnav.subnav { flex: 0 0 auto; margin: 12px 0 0 22px; }
-header .chips { gap: 6px; }
-header .chips .chip {
-  background: transparent; border-color: color-mix(in srgb, var(--border) 75%, transparent);
-  padding: 4px 9px; font-size: 11px;
-}
-header .actions { border-left: 1px solid var(--border); padding-left: 14px; }

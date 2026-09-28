@@ -12,6 +12,8 @@ and the item page itself (graph first, trades and book beside it, auto refresh).
 import os
 import re
 
+from conftest import rail_rows
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -104,8 +106,12 @@ def test_item_page_shell():
     assert 'id="ipViews"' in html, 'the view buttons mount'
     assert '/chart.js' in html and '/item.js' in html
     assert '/theme.js' in html and '/sfx.js' in html, 'same chrome as every other page'
+    # the rail is shell chrome now (stage 1): the page declares what it is and /shell.js renders
+    # the same 7 pills every other page gets
+    assert '<script src="/shell.js"></script>' in html and '/shell.css' in html
+    assert '<body data-shell="item"' in html
     for pill in ('Home', 'Inventory', 'Trade', 'Collection', 'More'):
-        assert '>' + pill + '<' in html, 'nav pill ' + pill + ' missing'
+        assert any(pill == label for _v, _h, _i, label in rail_rows()), 'nav pill ' + pill
     assert 'id="ipTrades"' in html and 'id="ipStats"' in html, 'trade details and the book'
     assert 'id="ipPick"' in html, 'a picker for a bare /item.html'
 

@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/shell.css">
 <style>
   /* ---- item price page (page-specific, built on the dashboard's CSS vars) ----
      Density (Jay 2026-09-27): same cards, same rows, same graph - only the air between them goes,
@@ -59,33 +60,12 @@
   <link rel="stylesheet" href="/icons.css">
   <script src="/icons.js" defer></script>
 </head>
-<body>
-<header>
-  <div class="brand"><span class="logo"><img src="/favicon.png" alt=""></span> WFM Trader <span class="sub">item price</span></div>
-  <div class="chips" id="chips"></div>
-  <div class="actions">
-    <button id="soundBtn" class="btn icon" title="Click sounds" aria-label="Click sounds" aria-pressed="true" data-icon="speaker-high"></button>
-    <button id="themeBtn" class="btn icon" title="Change theme" aria-expanded="false" aria-controls="themePanel" data-icon="palette">Theme</button>
-    <a class="btn" href="/#inventory">&#9664; Inventory</a>
-  </div>
-  <div id="themePanel" class="theme-panel hidden">
-    <div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>
-    <div id="themeGrid" class="tp-grid"></div>
-  </div>
-</header>
+<body data-shell="item" data-shell-actions="">
+<!-- The chrome (header: brand, #chips, search, sound, theme + panel, the settings/back
+     link, #syncState, #refresh, PNG, and the left rail #mainnav) is rendered by /shell.js
+     from this page's data-shell declaration. -->
 
 <div class="shellbody">
-<aside class="side" aria-label="Primary">
-<nav class="mainnav sidenav" id="mainnav" aria-label="Primary">
-  <a href="/#home" class="navpill" data-v="home" data-icon="house">Home</a>
-  <a href="/#inventory" class="navpill" data-v="inventory" data-icon="package">Inventory</a>
-  <a href="/#trade" class="navpill" data-v="trade" data-icon="tag">Trade</a>
-  <a href="/collection.html" class="navpill" data-v="collection" data-icon="squares-four">Collection</a>
-  <a href="/#mastery" class="navpill" data-v="mastery" data-icon="trophy">Mastery</a>
-  <a href="/#player" class="navpill" data-v="player" data-icon="user">Player</a>
-  <a href="/#more" class="navpill" data-v="more" data-icon="dots-three-circle">More</a>
-</nav>
-</aside>
 
 <main class="ip-wrap">
   <h1 class="ip-h1" id="ipTitle">Item price</h1>
@@ -127,6 +107,7 @@
 </main>
 </div><!-- /shellbody -->
 
+<script src="/shell.js"></script>
 <script src="/adv.js"></script>
 <script src="/sfx.js"></script>
 <script src="/theme.js"></script>

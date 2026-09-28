@@ -19,6 +19,8 @@ these tests only guard that its rules stayed in the page while the density layer
 import os
 import re
 
+from conftest import shell_js
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -132,13 +134,16 @@ def test_the_docked_relic_card_did_not_move_to_the_stylesheet():
 # ------------------------------------------------------------------ nothing lost
 
 def test_every_id_and_control_is_still_on_the_page():
-    for frag in ('id="mainnav"', 'id="overall"', 'id="ovPct"', 'id="ovCount"', 'id="ovBar"',
-                 'id="ovFoot"', 'id="chips"', 'id="q"', 'id="clearBtn"', 'id="missBtn"',
+    """Pages keep every id they own; the shell ids moved to /shell.js in stage 1 (one source for
+    all five pages) and are asserted there."""
+    for frag in ('id="overall"', 'id="ovPct"', 'id="ovCount"', 'id="ovBar"',
+                 'id="ovFoot"', 'id="q"', 'id="clearBtn"', 'id="missBtn"',
                  'id="priceBtn"', 'id="tabs"', 'id="meta"', 'id="grid"', 'id="empty"',
                  'id="relicView"', 'id="relPills"', 'id="relDock"', 'id="relTable"',
-                 'id="relHead"', 'id="relBody"', 'id="relNote"', 'id="srcLine"',
-                 'id="themeBtn"', 'id="themePanel"', 'id="soundBtn"'):
+                 'id="relHead"', 'id="relBody"', 'id="relNote"', 'id="srcLine"'):
         assert frag in HTML, frag
+    for frag in ('id="mainnav"', 'id="chips"', 'id="themeBtn"', 'id="themePanel"', 'id="soundBtn"'):
+        assert frag in shell_js(), frag
 
 
 def test_the_relic_table_keeps_its_seven_columns_and_four_pills():
