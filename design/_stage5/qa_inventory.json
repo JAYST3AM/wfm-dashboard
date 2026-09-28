@@ -1,0 +1,379 @@
+{
+  "errors": [],
+  "clicks": {
+    "itemsDefault": {
+      "hash": "#inventory",
+      "invTabs": [
+        [
+          "items",
+          "true",
+          true
+        ],
+        [
+          "materials",
+          "false",
+          false
+        ]
+      ],
+      "itemsVis": true,
+      "matsVis": false,
+      "itemsDisp": "flex",
+      "matsDisp": "none",
+      "itemsHid": false,
+      "matsHid": true,
+      "matEmpty": "No material data yet.",
+      "itemRows": 400,
+      "totals": "876 stacks (showing 400)\n     Filtered value 31,057p",
+      "thVisible": 4,
+      "thTotal": 14,
+      "tdVisible": 4,
+      "tdTotal": 14,
+      "showA": false,
+      "advOpen": false,
+      "btnCols": "Show advanced columns",
+      "btnPressed": "false",
+      "diffOpen": false,
+      "diffMeta": "· ok",
+      "diffRows": 3,
+      "matRows": 0,
+      "matMeta": "",
+      "matFirst": [],
+      "matSort": "Sort: Count",
+      "matView": [
+        [
+          "personal",
+          "true"
+        ],
+        [
+          "dojo",
+          "false"
+        ]
+      ],
+      "drawerOpen": false,
+      "drawerDom": false,
+      "scr": {
+        "h": 10205,
+        "c": 778,
+        "scrolly": true
+      }
+    },
+    "disclosureOpen": {
+      "hash": "#inventory",
+      "invTabs": [
+        [
+          "items",
+          "true",
+          true
+        ],
+        [
+          "materials",
+          "false",
+          false
+        ]
+      ],
+      "itemsVis": true,
+      "matsVis": false,
+      "itemsDisp": "flex",
+      "matsDisp": "none",
+      "itemsHid": false,
+      "matsHid": true,
+      "matEmpty": "No material data yet.",
+      "itemRows": 400,
+      "totals": "876 stacks (showing 400)\n     Filtered value 31,057p",
+      "thVisible": 14,
+      "thTotal": 14,
+      "tdVisible": 14,
+      "tdTotal": 14,
+      "showA": true,
+      "advOpen": true,
+      "btnCols": "Hide advanced columns",
+      "btnPressed": "true",
+      "diffOpen": false,
+      "diffMeta": "· ok",
+      "diffRows": 3,
+      "matRows": 0,
+      "matMeta": "",
+      "matFirst": [],
+      "matSort": "Sort: Count",
+      "matView": [
+        [
+          "personal",
+          "true"
+        ],
+        [
+          "dojo",
+          "false"
+        ]
+      ],
+      "drawerOpen": false,
+      "drawerDom": false,
+      "scr": {
+        "h": 10449,
+        "c": 746,
+        "scrolly": true
+      }
+    },
+    "diff": {
+      "rows": 3,
+      "meta": "· ok"
+    },
+    "materials": {
+      "rows": 0,
+      "meta": "",
+      "sort": "Sort: Count"
+    },
+    "materialsEmptyStore": {
+      "sort": "Sort: Count",
+      "empty": "No material data yet.",
+      "note": "data/materials.json has 0 rows"
+    },
+    "nonFit": {
+      "itemsFirst": {
+        "items": "block",
+        "mats": "none"
+      },
+      "matsFirst": {
+        "items": "none",
+        "mats": "block"
+      }
+    },
+    "dojo": {
+      "hash": "#tools/dojo",
+      "wsVis": true,
+      "wsOthers": [
+        "dojo"
+      ],
+      "launcherHidden": true,
+      "title": "Clan Dojo · ghost clan · 108,000 cr · 7 short",
+      "meta": "· ghost clan · 108,000 cr · 7 short",
+      "rows": 7,
+      "tier": [
+        [
+          "ghost",
+          "true"
+        ],
+        [
+          "shadow",
+          "false"
+        ],
+        [
+          "storm",
+          "false"
+        ],
+        [
+          "mountain",
+          "false"
+        ],
+        [
+          "moon",
+          "false"
+        ]
+      ],
+      "roomsVis": false,
+      "roomsMeta": "· 9",
+      "roomsList": 9,
+      "src": "wiki.warframe.com",
+      "scrolly": false,
+      "cold": {
+        "hash": "#tools/dojo",
+        "wsVis": true,
+        "rows": 7,
+        "rooms": 9
+      }
+    }
+  },
+  "parity": {
+    "items": {
+      "expected": 876,
+      "rendered": 400,
+      "totals": "876 stacks (showing 400) Filtered value 31,057p"
+    },
+    "materials": {
+      "fileEntries": 0,
+      "distinct": 0,
+      "apiCount": 0,
+      "rendered": 0,
+      "meta": ""
+    },
+    "dojo": {
+      "tier": "ghost",
+      "research": {
+        "expected": 7,
+        "rendered": 7,
+        "fileTierTotal": 7
+      },
+      "rooms": {
+        "expected": 9,
+        "rendered": 9
+      }
+    }
+  },
+  "fit": {
+    "1920x1080": {
+      "home": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "trade": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory/materials": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools/dojo": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      }
+    },
+    "1536x864": {
+      "home": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "trade": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory/materials": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools/dojo": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      }
+    },
+    "1440x900": {
+      "home": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "trade": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory/materials": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools/dojo": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      }
+    },
+    "1366x768": {
+      "home": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "trade": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory/materials": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools/dojo": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      }
+    },
+    "1280x800": {
+      "home": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "trade": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "inventory/materials": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      },
+      "tools/dojo": {
+        "pageOverX": 0,
+        "pageOverY": 0,
+        "ovfX": 0
+      }
+    }
+  },
+  "shots": {
+    "s5-inventory-items.png": 4,
+    "s5-inventory-disclosure.png": 14,
+    "s5-inventory-materials.png": 0,
+    "s5-tools-dojo.png": 7
+  }
+}

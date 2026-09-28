@@ -96,7 +96,9 @@ def test_index_puts_the_trend_header_just_before_value():
 # ------------------------------------------------------------------ app.js: cell + fetch + helper
 def test_app_renders_a_spark_cell_between_price_and_value():
     js = read('app.js')
-    assert js.index('<td class="spark">') < js.index('<td class="num v">')   # cell order = header
+    # stage 5: the cell carries hide-a too - it is one of the advanced columns behind the
+    # Columns disclosure, paired with the Trend header (which carries the same class)
+    assert js.index('<td class="spark hide-a">') < js.index('<td class="num v">')  # cell order = header
     assert 'colspan="14"' in js and 'colspan="13"' not in js                 # Trend adds a column
 
 
@@ -136,7 +138,7 @@ def test_itemhist_is_fetched_once_per_page_load_into_state():
 
 def test_rows_read_the_series_from_state_and_blank_to_a_dash():
     js = read('app.js')
-    cell = js.split('<td class="spark">', 1)[1].split('</td>', 1)[0]
+    cell = js.split('<td class="spark hide-a">', 1)[1].split('</td>', 1)[0]
     assert 'sparkline(state.itemhist[r.slug])' in cell
     assert cell.count("'<span class=\"dim\">-</span>'") == 2   # both the no-state and empty paths
     assert '<td class="spark">-</td>' not in js                # never a bare dash cell

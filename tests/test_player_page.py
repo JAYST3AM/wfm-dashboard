@@ -56,7 +56,10 @@ def nav_block():
 
 
 def player_section():
-    return read('index.html').split('id="view-player"', 1)[1].split('</section>', 1)[0]
+    """The player workspace: its card ids run from #view-player to the next workspace wrapper
+    (stage 5 put #tws-dojo after it, still inside #view-tools, with its own dojo* ids)."""
+    return (read('index.html').split('id="view-player"', 1)[1]
+            .split('<div class="tws hidden" id="tws-dojo"', 1)[0])
 
 
 def player_js():
@@ -155,7 +158,7 @@ def test_the_clan_card_writes_the_name_through_the_config_route():
     assert "fetch('/api/config'" in block
     assert "JSON.stringify({ pairs: { clan_name: name } })" in block
     assert 'id="pcClanName"' in block and "for=\"pcClanName\"" in block   # labelled inline input
-    assert '>Dojo materials →</a>' in block and 'href="#inventory"' in block
+    assert '>Dojo materials →</a>' in block and 'href="#tools/dojo"' in block
 
 
 # ------------------------------------------------------------------ payload contract

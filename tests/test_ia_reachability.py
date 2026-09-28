@@ -6,13 +6,14 @@ their features. Re-home them properly."
 
 The site is static, so these are source-level contracts on the shipped files. The same properties
 are measured in a real browser by design/_stage2/qa_ia.js (the rail on every page, a click-through
-of all eleven Tools workspaces, the mastery tab, the legacy hashes, and the rendered id union
+of every Tools workspace, the mastery tab, the legacy hashes, and the rendered id union
 against design/_stage1/ids_before.json - 0 missing). Reachability is pinned here so a later edit
 cannot quietly orphan a feature:
 
   * the rail is exactly the six destinations, in order, in two groups;
   * every Tools slug in app.js's TOOL_SLUGS has a launcher entry AND a workspace in index.html;
-  * all twelve list ids that lived on the old More page are still rendered by their workspace;
+  * all twelve list ids that lived on the old More page are still rendered by their workspace,
+    and the Clan Dojo card that stage 5 moved off Inventory renders in the `dojo` workspace;
   * Mastery is a tab of collection.html's section row, with its ids and its renderer;
   * the Player profile is the `player` workspace (pc* ids) reached from the launcher;
   * the legacy hashes resolve (#more/#market -> tools, #player -> tools/player,
@@ -51,11 +52,12 @@ WORKSPACES = [
     ('meta', ['metaList']),
     ('news', ['newsList']),                            # moved off Home in stage 3 (its old card id)
     ('player', ['pcHead', 'pcStats', 'pcTop', 'pcSyn', 'pcInt', 'pcFocus', 'pcMarket', 'pcClan']),
+    ('dojo', ['dojoTbl', 'dojoRows']),                 # moved off Inventory in stage 5
 ]
 SLUGS = [slug for slug, _lists in WORKSPACES]
 GROUPS = {'Trading': ['deals', 'trends', 'rivens', 'wl'],
           'Planning': ['ducats', 'craft', 'relicev', 'sets'],
-          'Warframe': ['baro', 'meta', 'news', 'player']}
+          'Warframe': ['baro', 'meta', 'news', 'player', 'dojo']}
 
 
 def tool_slugs_from_app():
@@ -168,6 +170,7 @@ def test_every_tool_slug_has_a_launcher_entry_and_a_workspace():
         assert 'class="tws hidden" id="' in ws, 'every workspace starts hidden'
         assert 'data-tool="%s"' % slug in ws, slug
     assert INDEX.count('data-tool="player"') == 2, 'launcher entry + workspace wrapper'
+    assert INDEX.count('data-tool="dojo"') == 2, 'launcher entry + workspace wrapper (stage 5)'
     assert 'id="tws-player"' not in INDEX, 'the player workspace keeps the moved #view-player id'
 
 
@@ -178,9 +181,10 @@ def test_the_launcher_groups_the_tools_trading_planning_warframe():
     for group, slugs in GROUPS.items():
         chunk = launcher.split('>%s</div>' % group, 1)[1].split('tl-group', 1)[0]
         assert re.findall(r'data-tool="([a-z]+)"', chunk) == slugs, group
-    # 12 entries in three groups, and the launcher is a list, not a wall of live lists: no data
+    # 13 entries in three groups, and the launcher is a list, not a wall of live lists: no data
     # list renders up here (they are all inside the workspaces below)
     assert launcher.count('class="tool"') == len(SLUGS)
+    assert 'id="dojoCard"' not in launcher, 'the launcher entry links the dojo - the card stays in its workspace'
     for _slug, lists in WORKSPACES:
         for list_id in lists:
             assert 'id="%s"' % list_id not in launcher, list_id
@@ -203,6 +207,12 @@ def test_every_tool_list_id_is_still_rendered_by_its_workspace():
         block = workspace_block(slug)
         for list_id in lists:
             assert 'id="%s"' % list_id in block, (slug, list_id)
+    # stage 5: the Clan Dojo ids travelled with the card - inside #tws-dojo, out of Inventory
+    inv = INDEX.split('id="view-inventory"', 1)[1].split('</section>', 1)[0]
+    for dojo_id in ('dojoCard', 'dojoTitle', 'dojoMeta', 'dojoTier', 'dojoTbl', 'dojoRows',
+                    'dojoNote', 'dojoRooms', 'dojoRoomsMeta', 'dojoRoomsList', 'dojoSrc'):
+        assert 'id="%s"' % dojo_id not in inv, dojo_id
+        assert 'id="%s"' % dojo_id in workspace_block('dojo'), dojo_id
     # and each workspace has its own way back to the launcher
     assert INDEX.count('class="tws-back" href="#tools"') == len(SLUGS)
 

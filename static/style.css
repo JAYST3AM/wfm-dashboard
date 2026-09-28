@@ -445,14 +445,21 @@ main > section:not(.hidden) { animation: wfm-rise .26s cubic-bezier(.22, .61, .3
 .explain { display: none !important; }
 html[data-adv="on"] .explain { display: revert !important; }
 
+/* ---- inventory subviews: Items | Materials (stage 5) ---- */
+#invViews { padding: 2px 0 12px; }
+#invViews button.tab { background: none; font: 500 12.5px var(--sans); padding: 6px 16px; }
+#invViews button.tab.active { background: var(--panel); }
+/* the Columns switch rides the tablebar: no accordion margins, and the disclosure reads as a
+   control, not a card */
+#invAdv { margin: 0; }
+#invDiff { margin: 6px 0 4px; }
+#invDiff #diffList { max-height: 320px; overflow-y: auto; }
+
 /* ---- inventory panels: materials + clan dojo (app.js renderMaterials / renderDojo) ----
-/* the tier chips sit clear of the rule under them */
-.invpanels .card-head { padding-bottom: 10px; }
-   Two cards in one row inside the inventory view; under 1040px they stack. Rows keep the
-   inventory table's condensed density, and both tables scroll inside their own .tablewrap
-   so the 14-column inventory table above is untouched. */
-.invpanels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.invpanels > .card { margin-bottom: 0; }
+   Materials is the inventory's second subview; the Clan Dojo card is a Tools workspace now
+   (#tools/dojo, stage 5). Rows keep the inventory table's condensed density, and each table
+   scrolls inside its own .tablewrap so the 14-column inventory table above is untouched. */
+#matCard .card-head, #dojoCard .card-head { padding-bottom: 10px; }
 .mat-head { flex-wrap: wrap; gap: 8px; }
 .mat-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .mat-tools .invq { min-width: 150px; }
@@ -465,11 +472,11 @@ html[data-adv="on"] .explain { display: revert !important; }
 }
 .matview button:hover { color: var(--text); background: var(--panel2); }
 .matview button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-.invpanels .tablewrap { max-height: 420px; }
+#matCard .tablewrap { max-height: 420px; }
 /* the rooms breakdown is chrome, not another table row */
 #dojoCard details.acc { border-top: 1px solid var(--border); background: var(--panel2); }
 #dojoCard details.acc > summary { padding: 9px 10px; font-weight: 600; }
-.invpanels .dojowrap { max-height: 320px; }
+#dojoCard .tablewrap { max-height: 320px; }
 .mat-row td, .dojo-row td { padding: 3.5px 10px; font-size: 12px; }
 .dojobadge {
   font-size: 9px; font-weight: 700; color: var(--accent); vertical-align: 1px;
@@ -480,9 +487,6 @@ html[data-adv="on"] .explain { display: revert !important; }
 .mat-empty { padding: 12px 10px; }
 .rcosts { padding: 0 10px 6px; }
 .dojo-src { padding: 0 10px 12px; }
-@media (max-width: 1040px) {
-  .invpanels { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 560px) {
   /* all three columns stay readable on a phone - the name ellipsizes, never scrolls sideways */
   .mat-row td.name { max-width: 150px; }
@@ -804,32 +808,45 @@ html[data-adv="on"] .explain { display: revert !important; }
   #view-home .picks, #view-inventory .picks, #view-tools .picks { padding: 6px 12px 10px; }
   #view-inventory details.acc > summary { padding: 8px 12px; }
 
-  /* ================= INVENTORY: table on top, three cards filling the rest ================= */
-  body.shell-fit #view-inventory {
-    display: grid; grid-template-rows: auto auto minmax(150px, 1fr) auto minmax(150px, 0.62fr);
-  }
-  body.shell-fit #view-inventory > .tablewrap { max-height: none; min-height: 0; }
+  /* ================= INVENTORY: one subview at a time - Items (the table plus its two
+     disclosures) or Materials (its own card). Every long part is the scroller, so the pill rows,
+     the toolbar, the status line and the disclosure summaries never give up their height. ===== */
+  body.shell-fit #view-inventory { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  body.shell-fit #invViews { padding: 0 0 8px; }
   body.shell-fit #view-inventory #tabs { padding: 0 0 8px; }
   body.shell-fit #view-inventory .tab { padding: 6px 14px; font-size: 12.5px; }
-  body.shell-fit #view-inventory .tablebar { padding: 0 0 8px; gap: 10px; }
-  body.shell-fit #view-inventory .totals { padding: 4px 2px; gap: 16px; font-size: 12px; }
+  body.shell-fit #invItems:not(.hidden), body.shell-fit #invMaterials:not(.hidden) {
+    min-height: 0; display: flex; flex-direction: column;
+  }
+  body.shell-fit #invItems > .tablebar { padding: 0 0 8px; gap: 10px; }
+  body.shell-fit #invItems .tablebar .totals { padding: 4px 2px; gap: 16px; font-size: 12px; }
   body.shell-fit #view-inventory thead th { padding: 8px 10px; font-size: 11px; }
-  body.shell-fit #view-inventory > #status { padding: 6px 2px; font-size: 12px; }
+  body.shell-fit #invItems > .tablewrap { flex: 1 1 auto; min-height: 0; max-height: none; }
+  body.shell-fit #invItems > #status { padding: 6px 2px; font-size: 12px; }
   body.shell-fit #view-inventory .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }
-  body.shell-fit .inv-lower {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 0;
+  /* inventory changes: a collapsed summary is a strip; open, the list is the scroller */
+  body.shell-fit #invItems > #invDiff {
+    flex: 0 0 auto; min-height: 0; max-height: 42%; display: flex; flex-direction: column;
   }
-  body.shell-fit .inv-lower > .invpanels { display: contents; }
-  body.shell-fit .inv-lower .card {
-    margin-bottom: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  body.shell-fit #invDiff > summary { flex: 0 0 auto; padding: 7px 10px; }
+  body.shell-fit #invDiff > .card { display: flex; flex-direction: column; min-height: 0; }
+  body.shell-fit #invDiff #diffList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* materials: the card fills the subview, the table scrolls under the fixed toolbar */
+  body.shell-fit #invMaterials > .card {
+    flex: 1 1 auto; min-height: 0; margin-bottom: 0; overflow: hidden;
+    display: flex; flex-direction: column;
   }
-  body.shell-fit .inv-lower .card-head { flex: 0 0 auto; }
-  body.shell-fit .inv-lower .tablewrap { max-height: none; flex: 1 1 auto; min-height: 0; }
-  body.shell-fit .inv-lower #matCap, body.shell-fit .inv-lower .dojo-note,
-  body.shell-fit .inv-lower .dojo-src { flex: 0 0 auto; }
-  body.shell-fit .inv-lower #dojoRooms { flex: 0 1 auto; min-height: 0; max-height: 45%; overflow-y: auto; }
-  body.shell-fit .inv-lower #diffList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  body.shell-fit .inv-lower details.acc > summary { padding: 7px 10px; }
+  body.shell-fit #invMaterials .card-head { flex: 0 0 auto; }
+  body.shell-fit #invMaterials .tablewrap { flex: 1 1 auto; max-height: none; }
+  body.shell-fit #invMaterials #matCap { flex: 0 0 auto; }
+  /* clan dojo (Tools > Clan Dojo): the table takes the room, the note and the rooms breakdown
+     keep theirs - the generic .tws-body > .card > div[id] rule would make #dojoNote the scroller */
+  body.shell-fit #tws-dojo > .tws-body > .card > .tablewrap {
+    flex: 1 1 auto; min-height: 0; max-height: none;
+  }
+  body.shell-fit #tws-dojo #dojoNote { flex: 0 0 auto; overflow: visible; }
+  body.shell-fit #tws-dojo #dojoRooms { flex: 0 1 auto; min-height: 0; max-height: 45%; overflow-y: auto; }
+  body.shell-fit #tws-dojo details.acc > summary { padding: 7px 10px; }
 
   /* ================= MASTERY (row budget) =================
      The section itself lives on collection.html now (layout: /collection.css .cl-mhview); the row
@@ -966,20 +983,21 @@ html[data-adv="on"] .explain { display: revert !important; }
   body.shell-fit #view-player .card > .card-head,
   body.shell-fit #view-tools .card > .card-head, body.shell-fit #view-trade .card > .card-head,
   body.shell-fit #view-inventory .tablebar, body.shell-fit #view-inventory #tabs,
-  body.shell-fit #view-inventory > #status, body.shell-fit #view-inventory .card > .status,
+  body.shell-fit #invItems > #status, body.shell-fit #view-inventory .card > .status,
   body.shell-fit #view-home .card > .status,
   body.shell-fit #view-player .card > .status, body.shell-fit #view-tools .card > .status,
-  body.shell-fit #view-trade .card > .status, body.shell-fit .inv-lower #matCap,
+  body.shell-fit #view-trade .card > .status, body.shell-fit #invMaterials #matCap,
   body.shell-fit .tws-bar, body.shell-fit #view-home .chartwrap,
-  body.shell-fit .inv-lower #dojoRooms {
+  body.shell-fit #tws-dojo #dojoRooms {
     flex: 0 0 auto;
   }
-  body.shell-fit .inv-lower .tablewrap { min-height: 56px; }
+  body.shell-fit #invItems .tablewrap, body.shell-fit #invMaterials .tablewrap { min-height: 56px; }
 }
 
 /* the same fit recipe on a shorter window: the bands give the lists a little more room */
 @media (min-width: 1200px) and (max-height: 820px) {
   body.shell-fit #view-home .chartwrap { height: clamp(96px, 13vh, 150px); }
+  body.shell-fit #invViews, body.shell-fit #view-inventory #tabs { padding: 0 0 4px; }
   body.shell-fit .tws-bar { padding: 0 2px 3px; }
   body.shell-fit #view-tools .tl-group { padding: 7px 8px 4px; }
   body.shell-fit #view-tools .tool { padding: 5px 9px; }

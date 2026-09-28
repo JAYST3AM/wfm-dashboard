@@ -10,10 +10,11 @@ own .tablewrap.
 
 Stage 2 (2026-09-28) left four index views: home / inventory / trade / tools. Mastery's
 window-height grid went to collection.html with its markup (its rows are pinned here, its page
-layout in tests/test_density_collection.py); the old More page is the Tools launcher plus eleven
-focused workspaces, each a 1-2 card band whose lists scroll inside their cards. Measured again for
+layout in tests/test_density_collection.py); the old More page is the Tools launcher plus one
+focused workspace per tool (thirteen at stage 5 - the Clan Dojo card moved into one), each a 1-2
+card band whose lists scroll inside their cards. Measured again for
 that IA at 1920x1080 and 1366x768: pageOver / ovfX 0 on home, trade, inventory and tools, and 0
-vertical overflow inside every one of the eleven workspaces (design/_stage2/qa_ia.js).
+vertical overflow inside every workspace (design/_stage2/qa_ia.js).
 
 Also pinned here: the dense row budget (<= 28px a row, the #view-trade recipe), the ids/controls
 other tests and the probes hook onto, and the one-visible-view rule that was broken by the
@@ -117,20 +118,37 @@ def test_home_fills_the_window_in_five_bands():
     assert 'body.shell-fit #view-home .chartwrap { flex: 1 1 auto; height: auto; min-height: 56px; margin: 4px 12px 0; }' in css
 
 
-def test_inventory_keeps_the_table_and_gives_the_three_cards_their_own_band():
+def test_inventory_is_items_and_materials_with_changes_behind_a_disclosure():
+    """Stage 5 (Jay 2026-09-28): basic inventory info only. #view-inventory is a two-row grid -
+    the subview pills, then the active panel - and each panel is a flex column whose long part
+    scrolls (the items table, the materials table, the open changes list). The Clan Dojo card is
+    not part of this view any more (it is a Tools workspace, see test_ia_reachability)."""
     css = read('static/style.css')
     html = read('static/index.html')
-    assert 'body.shell-fit #view-inventory {\n    display: grid;' in css
-    assert 'grid-template-rows: auto auto minmax(150px, 1fr) auto minmax(150px, 0.62fr);' in css
-    assert 'body.shell-fit #view-inventory > .tablewrap { max-height: none; min-height: 0; }' in css
-    assert 'body.shell-fit .inv-lower {\n    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 0;\n  }' in css
-    assert 'body.shell-fit .inv-lower > .invpanels { display: contents; }' in css
-    assert 'body.shell-fit .inv-lower .tablewrap { max-height: none; flex: 1 1 auto; min-height: 0; }' in css
-    assert 'body.shell-fit .inv-lower #diffList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }' in css
-    # the Materials / Clan Dojo / Inventory changes cards share one band (one wrapper, cards first)
-    band = html.split('<div class="inv-lower">', 1)[1]
-    for frag in ('<div class="invpanels">', 'id="matCard"', 'id="dojoCard"', 'id="diffList"'):
-        assert frag in band.split('</section>', 1)[0], frag
+    assert 'body.shell-fit #view-inventory { display: grid; grid-template-rows: auto minmax(0, 1fr); }' in css
+    for frag in ('body.shell-fit #invItems:not(.hidden), body.shell-fit #invMaterials:not(.hidden) {\n'
+                 '    min-height: 0; display: flex; flex-direction: column;\n  }',
+                 'body.shell-fit #invItems > .tablewrap { flex: 1 1 auto; min-height: 0; max-height: none; }',
+                 'body.shell-fit #invDiff #diffList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }'):
+        assert frag in css, frag
+    # the display recipe must not beat .hidden: a switched-off panel has to be display:none, or the
+    # two subviews stack (an id rule outranks .hidden - the stage 5 bug the screenshot caught)
+    assert 'body.shell-fit #invItems:not(.hidden)' in css and 'body.shell-fit #invMaterials:not(.hidden)' in css
+    assert 'body.shell-fit #invItems {' not in css and 'body.shell-fit #invMaterials {' not in css
+    # the Items band holds the category pills, the toolbar, the table and the changes disclosure
+    items = html.split('id="invItems"', 1)[1].split('id="invMaterials"', 1)[0]
+    for frag in ('id="tabs"', 'id="invAdv"', 'id="tbl"', 'id="rows"', 'id="status"',
+                 'id="invDiff"', 'id="diffList"'):
+        assert frag in items, frag
+    assert 'id="matCard"' not in items, 'materials moved to its own subview'
+    # materials is the second subview and ships hidden (Items is the landing panel)
+    mats = html.split('id="invMaterials"', 1)[1].split('</section>', 1)[0]
+    for frag in ('id="matCard"', 'id="matTbl"', 'id="matRows"', 'id="matView"', 'id="matSort"'):
+        assert frag in mats, frag
+    assert '<div id="invMaterials" role="tabpanel" aria-label="Materials" class="hidden">' in html
+    # the dojo card left the view: it lives in the Tools section now
+    view = html.split('id="view-inventory"', 1)[1].split('</section>', 1)[0]
+    assert 'id="dojoCard"' not in view
 
 
 def test_mastery_queue_and_type_bars_share_the_row_on_its_new_page():
@@ -163,7 +181,7 @@ def test_player_card_columns_and_the_syndicate_list_scroll():
     assert 'body.shell-fit #view-player #pcSyn { flex: 1 1 auto; min-height: 0; overflow-y: auto; }' in css
     assert 'body.shell-fit #view-player #pcTop { flex: 1 1 auto; min-height: 0; overflow-y: auto; }' in css
     assert 'body.shell-fit #view-player .p-col { min-height: 0; overflow-y: auto; overflow-x: hidden; }' in css
-    band = html.split('<div class="p-cols">', 1)[1].split('</section>', 1)[0]
+    band = html.split('<div class="p-cols">', 1)[1].split('<div class="tws hidden" id="tws-dojo"', 1)[0]
     assert band.count('class="p-col') == 3
     for frag in ('id="pcHead"', 'id="pcClan"', 'id="pcSyn"', 'id="pcInt"', 'id="pcFocus"', 'id="pcMarket"'):
         assert frag in band, frag
@@ -191,6 +209,13 @@ def test_the_tools_launcher_and_its_workspaces_share_the_fit_recipe():
     # a merged workspace carries two cards side by side on a wide window, one column below
     assert '.tws-body.cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }' in css
     assert 'body.shell-fit .tws-body.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }' in css
+    # stage 5: the moved Clan Dojo card keeps its table as the scroller - the generic
+    # .tws-body > .card > div[id] rule must not turn the note or the rooms list into it
+    for frag in ('body.shell-fit #tws-dojo > .tws-body > .card > .tablewrap {\n'
+                 '    flex: 1 1 auto; min-height: 0; max-height: none;\n  }',
+                 'body.shell-fit #tws-dojo #dojoNote { flex: 0 0 auto; overflow: visible; }',
+                 'body.shell-fit #tws-dojo #dojoRooms { flex: 0 1 auto; min-height: 0; max-height: 45%; overflow-y: auto; }'):
+        assert frag in css, frag
 
 
 def test_trade_fills_the_window_without_losing_its_own_rules():
@@ -248,6 +273,11 @@ def test_the_rows_keep_the_spaced_budget():
                  'body.shell-fit #view-inventory .mrow { padding: 6px 10px; font-size: 12.5px; line-height: 1.45; }',
                  'body.shell-fit #view-inventory thead th { padding: 8px 10px; font-size: 11px; }'):
         assert frag in css, frag
+    # stage 5: the dojo rooms' .mrow blocks moved into #tws-dojo, so they ride the tools rule
+    # above; the inventory .mrow rule now feeds the changes list under the items table
+    html = read('static/index.html')
+    assert 'id="dojoRoomsList"' in html.split('id="tws-dojo"', 1)[1].split('</section>', 1)[0]
+    assert 'id="diffList"' in html.split('id="invDiff"', 1)[1].split('</details>', 1)[0]
     # the phone rows keep their own sizing (nothing in this pass touched the 560px block)
 
 
@@ -272,11 +302,11 @@ def test_every_id_and_control_survives():
                        'id="alertsCard"', 'id="homeAlerts"', 'id="chartTip"',
                        'id="sellQueueCard"', 'id="sellQueueList"', 'id="sellQueueMeta"',
                        'id="recentCard"', 'id="recentMeta"', 'id="homeRecent"')),
-        ('view-inventory', ('id="tabs"', 'id="totals"', 'id="invQ"', 'id="btnCols"', 'id="tbl"', 'id="rows"',
-                            'id="status"', 'id="matCard"', 'id="matQ"', 'id="matView"', 'id="matSort"',
-                            'id="matTbl"', 'id="matRows"', 'id="matCap"', 'id="dojoCard"', 'id="dojoTier"',
-                            'id="dojoTbl"', 'id="dojoRows"', 'id="dojoNote"', 'id="dojoRooms"', 'id="dojoSrc"',
-                            'id="diffList"')),
+        ('view-inventory', ('id="invViews"', 'id="invItems"', 'id="invMaterials"', 'id="invAdv"',
+                            'id="tabs"', 'id="totals"', 'id="invQ"', 'id="btnCols"', 'id="tbl"', 'id="rows"',
+                            'id="status"', 'id="matCard"', 'id="matMeta"', 'id="matQ"', 'id="matView"',
+                            'id="matSort"', 'id="matTbl"', 'id="matHead"', 'id="matRows"', 'id="matCap"',
+                            'id="invDiff"', 'id="diffCard"', 'id="diffMeta"', 'id="diffList"')),
         ('view-player', ('id="pcHead"', 'id="pcStats"', 'id="pcTop"', 'id="pcClan"', 'id="pcSyn"',
                          'id="pcInt"', 'id="pcFocus"', 'id="pcMarket"')),
         # the page's own footer (#foot) is a sibling of <main>, not part of the section - it is
@@ -285,7 +315,11 @@ def test_every_id_and_control_survives():
                         'id="newsList"', 'id="tws-news"',
                         'id="dealsList"', 'id="moversList"', 'id="trendsList"', 'id="ducatsList"',
                         'id="craftList"', 'id="relicsList"', 'id="setsList"', 'id="nudgesList"',
-                        'id="wlList"', 'id="rivensList"', 'id="baroList"', 'id="metaList"')),
+                        'id="wlList"', 'id="rivensList"', 'id="baroList"', 'id="metaList"',
+                        # stage 5: the whole Clan Dojo card moved in here from Inventory
+                        'id="tws-dojo"', 'id="dojoCard"', 'id="dojoTitle"', 'id="dojoMeta"',
+                        'id="dojoTier"', 'id="dojoTbl"', 'id="dojoRows"', 'id="dojoNote"',
+                        'id="dojoRooms"', 'id="dojoRoomsMeta"', 'id="dojoRoomsList"', 'id="dojoSrc"')),
         ('view-trade', ('id="planList"', 'id="heldList"', 'id="attnList"', 'id="hygieneList"', 'id="runqList"',
                         'id="killList"', 'id="notifyList"', 'id="limList"', 'id="btnPlan"', 'id="btnCycle"',
                         'id="btnWatch"', 'id="btnHygiene"', 'id="btnRunq"', 'id="btnKill"', 'id="btnNotify"',
@@ -309,8 +343,11 @@ def test_the_filter_pills_and_buttons_stay_outside_the_scrollers():
     html = read('static/index.html')
     mastery = read('static/collection.html').split('id="mhNextCard"', 1)[1].split('</section>', 1)[0]
     assert mastery.index('id="mhFilters"') < mastery.index('id="mhNext"'), 'filters sit in the card head'
-    mat = html.split('id="matCard"', 1)[1].split('id="dojoCard"', 1)[0]
-    assert mat.index('id="matQ"') < mat.index('id="matTbl"'), 'the materials toolbar stays above its table'
+    mats = html.split('id="invMaterials"', 1)[1].split('</section>', 1)[0]
+    assert mats.index('id="matQ"') < mats.index('id="matTbl"'), 'the materials toolbar stays above its table'
+    items = html.split('id="invItems"', 1)[1].split('id="invMaterials"', 1)[0]
+    for control in ('id="invQ"', 'id="invAdv"', 'id="btnCols"'):
+        assert items.index(control) < items.index('id="tbl"'), control + ' sits in the tablebar'
     trade = html.split('id="view-trade"', 1)[1].split('</section>', 1)[0]
     plan = trade.split('id="planList"', 1)[0]
     assert 'id="btnPlan"' in plan and 'id="btnCycle"' in plan

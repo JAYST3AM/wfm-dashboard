@@ -83,10 +83,11 @@ def inv_block():
 
 
 def panels_block():
-    """Just the two new cards: from the .invpanels row to the card that follows it."""
+    """The materials card: from #matCard to the end of its subview (stage 5: Materials is the
+    inventory's second subview, so the card no longer sits in a two-card row)."""
     html = read('index.html')
-    start = html.index('<div class="invpanels">')
-    return html[start:html.index('<div class="card">', start)]
+    start = html.index('id="matCard"')
+    return html[start:html.index('</section>', start)]
 
 
 # ------------------------------------------------------------------ endpoint: shape + join
@@ -204,10 +205,13 @@ def test_junk_rows_are_skipped_not_fatal(server_mod, data_dir):
 
 
 # ------------------------------------------------------------------ card markup + JS
-def test_materials_card_is_in_the_inventory_view_beside_the_dojo_card():
+def test_materials_card_is_the_inventory_subview_and_the_dojo_left():
+    """Stage 5: Materials is the inventory's second subview (#invMaterials inside #view-inventory);
+    the Clan Dojo card that used to sit beside it is a Tools workspace now."""
     inv = inv_block()
-    assert '<div class="invpanels">' in inv
-    assert inv.index('id="matCard"') < inv.index('id="dojoCard"')
+    assert 'id="invMaterials"' in inv and 'id="matCard"' in inv
+    assert inv.index('id="invMaterials"') < inv.index('id="matCard"')
+    assert 'id="dojoCard"' not in inv, 'the dojo card moved to #tools/dojo'
     block = panels_block()
     for frag in ('id="matCard"', 'id="matMeta"', 'id="matQ"', 'id="matSort"',
                  'id="matTbl"', 'id="matRows"', 'id="matCap"'):
@@ -295,12 +299,13 @@ def test_dojo_badge_rides_only_the_dojo_rows_and_counts_use_the_formatter():
     assert 'var(--accent-dim)' in css.split('.dojobadge {', 1)[1].split('}', 1)[0]
 
 
-def test_panels_sit_side_by_side_and_stack_under_1040px():
+def test_the_materials_panel_keeps_the_density_without_the_two_card_row():
     css = read('style.css')
-    row = css.split('.invpanels {', 1)[1].split('}', 1)[0]
-    assert 'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)' in row
-    stacked = css.split('@media (max-width: 1040px) {', 1)[1].split('}', 1)[0]
-    assert '.invpanels { grid-template-columns: minmax(0, 1fr);' in stacked
+    # stage 5: the side-by-side .invpanels row (and its <=1040px stack) is gone - Materials is a
+    # subview of its own, and the table keeps its own cap
+    assert '.invpanels' not in css and '.inv-lower' not in css
+    assert '#matCard .tablewrap { max-height: 420px; }' in css
+    assert '#matCard .card-head, #dojoCard .card-head { padding-bottom: 10px; }' in css
     # the condensed rows reuse the inventory density, without becoming clickable rows
     assert '.mat-row td, .dojo-row td { padding: 3.5px 10px; font-size: 12px; }' in css
     assert 'tr.inv-row { cursor: pointer; }' in css        # the inventory table is untouched

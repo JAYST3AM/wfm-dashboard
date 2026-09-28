@@ -10,7 +10,7 @@ function buildThemeGrid() { wfmBuildThemeGrid(); }
 
 /* ---------- data ---------- */
 let ITEMS = [], SUMMARY = null, PLAT = null, REPORT = null, TRADES = null, TRADER = null, GAMENEWS = null, FEAT = {};
-let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', dojoTier: 'ghost', player: null, cfg: null };
+let state = { tab: 'all', sort: 'value', dir: -1, q: '', itemhist: {}, materials: null, matView: 'personal', matSort: 'count', matQ: '', invView: 'items', dojoTier: 'ghost', player: null, cfg: null };
 /* global item search cache - declared up here because the hash router can call into
    the search before the rest of the file has run (classic script, no module scope) */
 /* Jay's wording (2026-09-26): posting is 'Live' or 'Not live' - never 'dry run'. The one
@@ -64,7 +64,7 @@ const VIEW_ALIAS = { home: 'home', inventory: 'inventory', trade: 'trade', tools
    by hash (#tools/<slug>); '' is the launcher itself. Keep in step with the markup in
    index.html and with tests/test_ia_reachability.py. */
 const TOOL_SLUGS = ['deals', 'trends', 'rivens', 'wl', 'ducats', 'craft', 'relicev', 'sets',
-  'baro', 'meta', 'news', 'player'];
+  'baro', 'meta', 'news', 'player', 'dojo'];
 
 function showView(v, sub) {
   if (!VIEWS.includes(v)) v = 'home';
@@ -83,6 +83,9 @@ function showView(v, sub) {
   });
   if (window.PlatChart) PlatChart.redraw();
   if (v === 'trade') markScrollers();
+  /* the visible inventory subview measures 0 while the view is hidden: re-run the switch so the
+     scroller cue lands on the panel that is actually on screen */
+  if (v === 'inventory') switchInvView(state.invView);
   if (v === 'tools') showTool(sub || '');
   if (v === 'home' && window.wfmRenderHome) wfmRenderHome();
 }
@@ -100,6 +103,26 @@ function showTool(slug) {
     if (el) el.classList.toggle('hidden', s !== slug);
   });
   if (slug === 'player') renderPlayerPage();
+  if (slug === 'dojo') markScrollers();   /* the dojo table's scroller cue, measured once visible */
+}
+
+/* inventory sub-views (Items | Materials) - the same recipe as the trade tabs, remembered like
+   the materials view: one panel on screen, the other .hidden, never a re-fetch */
+function switchInvView(v) {
+  const tabs = document.querySelectorAll('#invViews [role="tab"]');
+  if (!tabs.length) return;
+  if (![...tabs].some(t => t.dataset.v === v)) v = 'items';
+  state.invView = v;
+  try { localStorage.setItem('wfm.invView', v); } catch (err) { /* storage off */ }
+  tabs.forEach(t => {
+    const on = t.dataset.v === v;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+  });
+  const items = document.getElementById('invItems'), mats = document.getElementById('invMaterials');
+  if (items) items.classList.toggle('hidden', v !== 'items');
+  if (mats) mats.classList.toggle('hidden', v !== 'materials');
+  markScrollers();
 }
 
 /* trade sub-tabs (Sell / Buy / History) */
@@ -134,6 +157,8 @@ function applyHash() {
   if (view === 'trade') {
     switchTradeTab(v === 'history' ? 'tp-history' : (sub ? 'tp-' + sub : 'tp-sell'));
   }
+  /* #inventory/materials deep-links the second subview (bare #inventory lands on the remembered one) */
+  if (view === 'inventory') switchInvView(sub || state.invView);
 }
 
 /* first run: setup has not built any data yet - say exactly what to do instead of
@@ -892,10 +917,10 @@ function renderTable() {
     <tr class="inv-row" data-slug="${escHtml(r.slug)}" title="Click for the full item view">
       <td class="name" title="${escHtml(r.name)}">${escHtml(r.name)}</td>
       <td class="num">${fmt(r.count)}</td>
-      <td class="num">${fmt(advField(r, 'equipped'))}</td>
-      <td class="num">${fmt(safeOf(r))}</td>
+      <td class="num hide-a">${fmt(advField(r, 'equipped'))}</td>
+      <td class="num hide-a">${fmt(safeOf(r))}</td>
       <td class="num">${fmt(laneVal(r))}${rkTag}</td>
-      <td class="spark">${state.itemhist ? (sparkline(state.itemhist[r.slug]) || '<span class="dim">-</span>') : '<span class="dim">-</span>'}</td>
+      <td class="spark hide-a">${state.itemhist ? (sparkline(state.itemhist[r.slug]) || '<span class="dim">-</span>') : '<span class="dim">-</span>'}</td>
       <td class="num v">${fmt(laneValue(r))}</td>
       <td class="hide-a"><span class="cat ${r.cat}">${CAT_LABEL[r.cat] || r.cat}</span></td>
       <td class="num hide-a">${fmt(r.ducats)}</td>
@@ -1437,7 +1462,7 @@ function renderPlayerClan(P) {
   const vbTxt = (vb && vb.progress !== null && vb.progress !== undefined)
     ? pnum(vb.progress) + ' / ' + pnum(vb.week_count) : '—';
   rows.push(`<div class="mrow"><span class="m-name dim">Vault bonus</span><span class="num${vbTxt === '—' ? ' dim' : ''}">${vbTxt}</span></div>`);
-  rows.push(`<a class="movedlink" href="#inventory">Dojo materials →</a>`);
+  rows.push(`<a class="movedlink" href="#tools/dojo">Dojo materials →</a>`);
   if (PC_CLAN_ERR) rows.push(`<div class="dim small pad">${escHtml(PC_CLAN_ERR)}</div>`);
   el.innerHTML = rows.join('');
   const inp = document.getElementById('pcClanName'), btn = document.getElementById('pcClanSave');
@@ -1791,18 +1816,31 @@ if (matViewRow) {
     renderMaterials();
   });
 }
+/* inventory sub-views: Items | Materials. The remembered choice is applied on load and the
+   switch never re-fetches - both panels render from the payload already in state. */
+const invViewsRow = document.getElementById('invViews');
+if (invViewsRow) {
+  if (localStorage.getItem('wfm.invView') === 'materials') state.invView = 'materials';
+  invViewsRow.addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (!b) return;
+    switchInvView(b.dataset.v);
+  });
+  switchInvView(state.invView);
+}
 /* inventory rows open the shared item drawer */
 document.getElementById('rows').addEventListener('click', e => {
   const tr = e.target.closest('tr.inv-row');
   if (!tr || !tr.dataset.slug) return;
   if (window.wfmOpenItem) wfmOpenItem(tr.dataset.slug);
 });
-/* "All columns" toggle */
+/* the advanced-columns switch, behind the Columns disclosure in the tablebar (stage 5): the same
+   body.show-a contract, one click further in and off the default screen */
 const btnCols = document.getElementById('btnCols');
 if (btnCols) btnCols.addEventListener('click', () => {
   const on = document.body.classList.toggle('show-a');
   btnCols.setAttribute('aria-pressed', String(on));
-  btnCols.textContent = on ? 'Fewer columns' : 'All columns';
+  btnCols.textContent = on ? 'Hide advanced columns' : 'Show advanced columns';
   iconRepaint(btnCols);
 });
 document.querySelectorAll('thead th').forEach(th => th.addEventListener('click', () => {

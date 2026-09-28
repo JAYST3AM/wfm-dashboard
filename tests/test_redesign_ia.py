@@ -82,12 +82,20 @@ def test_app_wires_drawer_search_and_legacy_hashes():
 
 
 def test_inventory_columns_are_progressively_disclosed():
+    """Stage 5: the basic columns are the default surface and the advanced ones live behind the
+    ONE Columns disclosure in the tablebar (details#invAdv), switched by #btnCols."""
     css = read('style.css')
     assert '.hide-a { display: none; }' in css
     assert 'body.show-a .hide-a' in css
     js = read('app.js')
-    assert "classList.toggle('show-a')" in js                  # the "All columns" toggle
-    assert "id=\"invQ\"" in read('index.html')                 # local filter, not the header search
+    assert "classList.toggle('show-a')" in js                  # the "Columns" switch
+    assert "btnCols.textContent = on ? 'Hide advanced columns' : 'Show advanced columns';" in js
+    html = read('index.html')
+    assert "id=\"invQ\"" in html                               # local filter, not the header search
+    assert 'id="invAdv"' in html, 'the disclosure control is named'
+    adv = html.split('id="invAdv"', 1)[1].split('</details>', 1)[0]
+    assert 'id="btnCols"' in adv, 'the switch sits inside its disclosure'
+    assert 'aria-controls="tbl"' in adv, 'the switch says which table it drives'
 
 
 # ------------------------------------------------------------------ lookup retired

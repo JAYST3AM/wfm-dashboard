@@ -85,10 +85,10 @@ def put(server_mod, dojo=DOJO, mats=MATS):
 
 
 def panels_block():
-    """Just the two new cards: from the .invpanels row to the card that follows it."""
+    """The dojo card: stage 5 moved it off Inventory into its own Tools workspace (#tws-dojo),
+    so the block runs from the workspace wrapper to the end of the Tools section."""
     html = read('index.html')
-    start = html.index('<div class="invpanels">')
-    return html[start:html.index('<div class="card">', start)]
+    return html.split('id="tws-dojo"', 1)[1].split('</section>', 1)[0]
 
 
 # ------------------------------------------------------------------ endpoint: the dojo object
@@ -364,7 +364,7 @@ def test_the_dojo_scroller_looks_like_one():
     assert '::-webkit-scrollbar-track { background: color-mix(in srgb, var(--border) 30%, transparent);' in css
     assert '.tablewrap { scrollbar-gutter: stable; }' in css
     assert '.tablewrap.scrolly {' in css and 'mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);' in css
-    assert '.invpanels .card-head { padding-bottom: 10px; }' in css
+    assert '#matCard .card-head, #dojoCard .card-head { padding-bottom: 10px; }' in css
     js = read('app.js')
     assert "function markScrollers()" in js
     assert "el.classList.toggle('scrolly', el.scrollHeight > el.clientHeight + 2);" in js

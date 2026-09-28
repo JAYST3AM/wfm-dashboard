@@ -96,13 +96,24 @@
     <!-- chat dock: static/chat.js appends #chatDock here, collapsed until the toggle opens it -->
   </section>
 
-  <!-- INVENTORY - simple default columns, all detail in the drawer -->
+  <!-- INVENTORY (stage 5, Jay 2026-09-28): two subviews - Items (the table; basic columns only
+       until the Columns disclosure asks for the advanced ones) and Materials. Inventory changes
+       rides a disclosure under the items table, never a permanent card, and the Clan Dojo card
+       is a Tools workspace (#tools/dojo). -->
   <section id="view-inventory" class="hidden">
+    <nav id="invViews" class="tabs" role="tablist" aria-label="Inventory sections">
+      <button class="tab active" role="tab" data-v="items" aria-selected="true">Items</button>
+      <button class="tab" role="tab" data-v="materials" aria-selected="false">Materials</button>
+    </nav>
+    <div id="invItems" role="tabpanel" aria-label="Items">
     <nav id="tabs" class="tabs" aria-label="Item categories"></nav>
     <div class="tablebar">
       <div id="totals" class="totals"></div>
       <input id="invQ" class="invq" type="text" placeholder="Filter inventory…" autocomplete="off" aria-label="Filter your inventory">
-      <button class="btn" id="btnCols" aria-pressed="false" title="Show or hide optional columns" data-icon="columns">All columns</button>
+      <details class="acc sub" id="invAdv">
+        <summary data-icon="columns">Columns</summary>
+        <button class="btn" id="btnCols" aria-pressed="false" aria-controls="tbl" title="Show or hide the advanced columns" data-icon="columns">Show advanced columns</button>
+      </details>
     </div>
     <div class="tablewrap">
       <table id="tbl">
@@ -111,10 +122,10 @@
           <tr>
             <th data-k="name" scope="col">Item</th>
             <th data-k="count" class="num" scope="col">Qty</th>
-            <th data-k="equipped" class="num" scope="col" title="Copies slotted in a build - never listed">Equipped</th>
-            <th data-k="safe" class="num" scope="col" title="Owned minus equipped and reserved">Safe to sell</th>
+            <th data-k="equipped" class="num hide-a" scope="col" title="Copies slotted in a build - never listed">Equipped</th>
+            <th data-k="safe" class="num hide-a" scope="col" title="Owned minus equipped and reserved">Safe to sell</th>
             <th data-k="wts" class="num" scope="col" title="Cheapest listing at your rank">Sell price</th>
-            <th class="spark" scope="col" title="Ask trend, last 48 samples">Trend</th>
+            <th class="spark hide-a" scope="col" title="Ask trend, last 48 samples">Trend</th>
             <th data-k="value" class="num" scope="col" title="Safe to sell × sell price">Value</th>
             <th data-k="cat" class="num hide-a" scope="col">Category</th>
             <th data-k="ducats" class="num hide-a" scope="col">Ducats</th>
@@ -129,8 +140,14 @@
       </table>
     </div>
     <div id="status" class="status"></div>
-    <div class="inv-lower">
-    <div class="invpanels">
+    <details class="acc sub" id="invDiff">
+      <summary>Inventory changes <span class="dim small" id="diffMeta"></span></summary>
+      <div class="card" id="diffCard">
+        <div class="picks" id="diffList"></div>
+      </div>
+    </details>
+    </div>
+    <div id="invMaterials" role="tabpanel" aria-label="Materials" class="hidden">
       <div class="card" id="matCard">
         <div class="card-head mat-head">
           <div class="card-title" data-icon="package">Materials <span class="dim small" id="matMeta" title="distinct materials owned"></span></div>
@@ -157,44 +174,6 @@
         </div>
         <div id="matCap" class="mat-cap dim small"></div>
       </div>
-      <div class="card" id="dojoCard">
-        <div class="card-head mat-head">
-          <div class="card-title" id="dojoTitle" data-icon="castle-turret">Clan Dojo <span class="dim small" id="dojoMeta"></span></div>
-          <div class="mat-tools">
-            <div class="matview" id="dojoTier" role="group" aria-label="Clan tier">
-              <button data-t="ghost" title="Ghost clan cost column" aria-pressed="true">Ghost</button>
-              <button data-t="shadow" title="Shadow clan cost column" aria-pressed="false">Shadow</button>
-              <button data-t="storm" title="Storm clan cost column" aria-pressed="false">Storm</button>
-              <button data-t="mountain" title="Mountain clan cost column" aria-pressed="false">Mountain</button>
-              <button data-t="moon" title="Moon clan cost column" aria-pressed="false">Moon</button>
-            </div>
-          </div>
-        </div>
-        <div class="tablewrap dojowrap">
-          <table id="dojoTbl">
-            <thead>
-              <tr>
-                <th scope="col">Material</th>
-                <th scope="col" class="num">Needed</th>
-                <th scope="col" class="num">Owned</th>
-                <th scope="col" class="num">Short</th>
-              </tr>
-            </thead>
-            <tbody id="dojoRows"></tbody>
-          </table>
-        </div>
-        <div id="dojoNote" class="dojo-note dim small explain">Short: still missing</div>
-        <details class="acc sub" id="dojoRooms">
-          <summary>Rooms <span class="dim small" id="dojoRoomsMeta"></span></summary>
-          <div id="dojoRoomsList"></div>
-        </details>
-        <div class="dojo-src"><a class="movedlink" id="dojoSrc" href="https://wiki.warframe.com" target="_blank" rel="noopener" data-icon="arrow-square-out">wiki.warframe.com</a></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title" data-icon="clock-counter-clockwise">Inventory changes <span class="dim small" id="diffMeta"></span></div></div>
-      <div class="picks" id="diffList"></div>
-    </div>
     </div>
   </section>
 
@@ -395,6 +374,11 @@
           <a class="tool" href="#tools/player" data-tool="player">
             <span class="tool-name" data-icon="user">Player profile</span>
             <span class="tool-sub">Mastery, syndicates, focus</span>
+            <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
+          </a>
+          <a class="tool" href="#tools/dojo" data-tool="dojo">
+            <span class="tool-name" data-icon="castle-turret">Clan Dojo</span>
+            <span class="tool-sub">Build costs and shortages</span>
             <span class="chev" data-icon="caret-right" aria-hidden="true"></span>
           </a>
         </div>
@@ -611,6 +595,49 @@
         <div class="picks" id="pcClan"></div>
       </div>
       </div>
+      </div>
+      </div>
+    </div>
+    <div class="tws hidden" id="tws-dojo" data-tool="dojo" role="region" aria-label="Clan Dojo">
+      <!-- Clan Dojo moved off Inventory in stage 5 (Jay 2026-09-28): the same card, the same ids,
+           now a Tools workspace - reached from the launcher entry above and by #tools/dojo. -->
+      <div class="tws-bar">
+        <a class="tws-back" href="#tools" data-icon="arrow-left">All tools</a>
+        <span class="tws-name">Clan Dojo</span>
+      </div>
+      <div class="tws-body cols-1">
+      <div class="card" id="dojoCard">
+        <div class="card-head mat-head">
+          <div class="card-title" id="dojoTitle" data-icon="castle-turret">Clan Dojo <span class="dim small" id="dojoMeta"></span></div>
+          <div class="mat-tools">
+            <div class="matview" id="dojoTier" role="group" aria-label="Clan tier">
+              <button data-t="ghost" title="Ghost clan cost column" aria-pressed="true">Ghost</button>
+              <button data-t="shadow" title="Shadow clan cost column" aria-pressed="false">Shadow</button>
+              <button data-t="storm" title="Storm clan cost column" aria-pressed="false">Storm</button>
+              <button data-t="mountain" title="Mountain clan cost column" aria-pressed="false">Mountain</button>
+              <button data-t="moon" title="Moon clan cost column" aria-pressed="false">Moon</button>
+            </div>
+          </div>
+        </div>
+        <div class="tablewrap dojowrap">
+          <table id="dojoTbl">
+            <thead>
+              <tr>
+                <th scope="col">Material</th>
+                <th scope="col" class="num">Needed</th>
+                <th scope="col" class="num">Owned</th>
+                <th scope="col" class="num">Short</th>
+              </tr>
+            </thead>
+            <tbody id="dojoRows"></tbody>
+          </table>
+        </div>
+        <div id="dojoNote" class="dojo-note dim small explain">Short: still missing</div>
+        <details class="acc sub" id="dojoRooms">
+          <summary>Rooms <span class="dim small" id="dojoRoomsMeta"></span></summary>
+          <div id="dojoRoomsList"></div>
+        </details>
+        <div class="dojo-src"><a class="movedlink" id="dojoSrc" href="https://wiki.warframe.com" target="_blank" rel="noopener" data-icon="arrow-square-out">wiki.warframe.com</a></div>
       </div>
       </div>
     </div>

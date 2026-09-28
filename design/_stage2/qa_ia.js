@@ -25,12 +25,14 @@ const RAIL = [['home', '#home', 'Home'], ['trade', '#trade', 'Trade'],
   ['inventory', '#inventory', 'Inventory'], ['collection', '/collection.html', 'Collection'],
   ['tools', '#tools', 'Tools'], ['settings', '/settings.html', 'Settings']];
 const TOOLS = ['deals', 'trends', 'rivens', 'wl', 'ducats', 'craft', 'relicev', 'sets', 'baro',
-  'meta', 'player'];
+  'meta', 'player', 'dojo'];            /* stage 5 (2026-09-28): the Clan Dojo card moved off
+                                           Inventory into a workspace of its own */
 const TOOL_LIST_IDS = {
   deals: ['dealsList'], trends: ['moversList', 'trendsList'], rivens: ['rivensList'],
   wl: ['wlList'], ducats: ['ducatsList'], craft: ['craftList'], relicev: ['relicsList'],
   sets: ['setsList', 'nudgesList'], baro: ['baroList'], meta: ['metaList'],
   player: ['pcHead', 'pcStats', 'pcTop', 'pcSyn', 'pcInt', 'pcFocus', 'pcMarket'],
+  dojo: ['dojoTbl', 'dojoRows'],
 };
 
 const PAGES = [
@@ -138,7 +140,9 @@ async function measure(browser, page, width, height) {
     await page.goto(BASE + '/', { waitUntil: 'load' });
     await sleep(2200);
 
-    for (const vp of [[1920, 1080], [1366, 768]]) {
+    /* stage 5: five sizes, and both inventory subviews - the materials panel is a panel of its
+       own now and has to measure clean at every width, not just the one the items table sees */
+    for (const vp of [[1920, 1080], [1536, 864], [1440, 900], [1366, 768], [1280, 800]]) {
       const key = vp.join('x');
       report.fit[key] = {};
       await page.setViewport({ width: vp[0], height: vp[1] });
@@ -157,6 +161,20 @@ async function measure(browser, page, width, height) {
           };
         });
       }
+      await page.evaluate(() => document.querySelector('#invViews [role="tab"][data-v="materials"]').click());
+      await sleep(450);
+      report.fit[key]['inventory/materials'] = await page.evaluate(() => {
+        const de = document.documentElement;
+        const sec = document.querySelector('main > section:not(.hidden)');
+        return {
+          view: sec ? sec.id : null,
+          pageOverX: Math.max(de.scrollWidth - de.clientWidth, document.body.scrollWidth - window.innerWidth),
+          pageOverY: Math.max(de.scrollHeight - de.clientHeight, document.body.scrollHeight - window.innerHeight),
+          secOverX: sec ? Math.max(0, sec.scrollWidth - sec.clientWidth) : null,
+        };
+      });
+      await page.evaluate(() => document.querySelector('#invViews [role="tab"][data-v="items"]').click());
+      await sleep(200);
     }
     console.log('FIT ' + Object.entries(report.fit).map(([k, views]) =>
       k + ' ' + Object.entries(views).map(([v, m]) => v + ':' + m.pageOverX + '/' + m.pageOverY).join(' ')).join(' | '));
