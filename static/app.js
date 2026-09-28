@@ -189,7 +189,7 @@ function renderFirstRun() {
   el.classList.toggle('hidden', !empty);
   if (!empty) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <div class="card-head"><div class="card-title" data-icon="tray">First run - no data yet</div></div>
+    <div class="card-head"><div class="card-title" data-icon="tray">First run - no data yet <span class="dim small" id="buildMeta"></span></div></div>
     <div class="picks">
       <div class="picks-note"><b>Windows:</b> double-click <code>setup.bat</code> in the project folder.
         It installs the one dependency, reads your AlecaFrame inventory and fetches prices
@@ -199,7 +199,11 @@ function renderFirstRun() {
       <div class="picks-note"><b>Needs:</b> Warframe + <a class="movedlink" href="https://alecaframe.com" target="_blank" rel="noopener">AlecaFrame</a>
         installed and synced once (open the game after installing it).</div>
       <div class="picks-note dim">Press <b>Refresh</b> after setup.</div>
-    </div>`;
+    </div>
+    <!-- §9: which parts are already built (scripts/build.js reads /api/build). The list paints under
+         the setup notes so a long first build shows what has landed and what is still coming. -->
+    <div class="picks" id="buildList"></div>`;
+  renderBuildStates();
 }
 
 /* ---------- home ----------

@@ -840,6 +840,50 @@ def whisper_post(body):
     return 200, out
 
 
+# ------------------------------------------------------------------ build state (first run)
+# docs/trading-session-workflow.md §9: the first build can take a while, so the app must not look
+# dead while it happens. The states are the honest ones - Waiting / Running / Complete / Failed -
+# because the scripts cannot report a percentage: Running means the local pipeline is running right
+# now, Failed means the last run failed and says why, Complete carries how long ago it landed.
+# Usable parts of the app are already visible: every screen reads its own file and renders empty
+# when it is missing, and this list is what tells the user which ones are still coming.
+BUILD_ARTIFACTS = [
+    ('player', 'Player data', 'lastData.dec.json'),
+    ('inventory', 'Inventory', 'owned.json'),
+    ('prices', 'Market prices', 'prices.json'),
+    ('lanes', 'Rank lanes', 'price_lanes.json'),
+    ('collection', 'Collection', 'collection_log.json'),
+    ('advisor', 'Trading advice', 'sell_advisor.json'),
+    ('report', 'Sell report', 'report.json'),
+    ('relics', 'Relic analysis', 'relic_ev.json'),
+]
+
+
+def build_payload():
+    """GET /api/build -> the setup's real state. Read-only; it never starts a build."""
+    now = time.time()
+    running = bool(SYNC.get('running'))
+    failed = SYNC.get('last_ok') is False
+    rows = []
+    for key, label, name in BUILD_ARTIFACTS:
+        path = os.path.join(DATA, name)
+        age = int(now - os.path.getmtime(path)) if os.path.exists(path) else None
+        if age is not None:
+            state, detail = 'complete', None
+        elif running:
+            state, detail = 'running', 'building now'
+        elif failed:
+            state, detail = 'failed', (SYNC.get('error') or 'the last run failed')[:120]
+        else:
+            state, detail = 'waiting', 'not built yet'
+        rows.append({'key': key, 'label': label, 'file': name, 'state': state,
+                     'age_s': age, 'detail': detail})
+    done = sum(1 for r in rows if r['state'] == 'complete')
+    return {'ok': True, 'rows': rows, 'complete': done, 'total': len(rows),
+            'running': running, 'last_sync': SYNC.get('last_sync'), 'last_ok': SYNC.get('last_ok'),
+            'error': SYNC.get('error'), 'seconds': sync_config_seconds()}
+
+
 # ---------------------------------------------------------------- auto sync
 # Jay (2026-09-27): "can we get an auto sync with settings ie 5m 10m 15m 30m 1hr".
 # The cadence is the dashboard knob auto_refresh_seconds (0 = manual only, default 900). While the
@@ -1251,6 +1295,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/trades': return self._send(200, trades_payload())
         if p == '/api/trader': return self._send(200, trader_payload())
         if p == '/api/session': return self._send(200, session_payload())
+        if p == '/api/build': return self._send(200, build_payload())
         if p == '/api/gamenews': return self._send(200, gamenews_payload())
         if p == '/api/config': return self._send(200, dashcfg_payload())
         if p == '/api/sync': return self._send(200, sync_payload())

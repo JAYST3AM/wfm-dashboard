@@ -746,6 +746,9 @@
 <!-- the session panel is before app.js like home.js/drawer.js: load() and the hash router both
      call renderSession() while app.js is still parsing, so it must already be defined -->
 <script src="/session.js"></script>
+<!-- build.js is the same shape of dependency: renderFirstRun() calls renderBuildStates() during
+     app.js, and only on a first run (no data at all) -->
+<script src="/build.js"></script>
 <script src="/app.js"></script>
 <script src="/export.js"></script>
 </body>

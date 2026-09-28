@@ -101,3 +101,11 @@
 body.shell-fit #view-trade #tp-session { overflow-y: auto; }
 body.shell-fit #view-trade #tp-session > .card { flex: 0 0 auto; }
 body.shell-fit #view-trade #tp-session .picks { max-height: 40vh; overflow-y: auto; }
+
+/* first-run build rows (static/build.js into #firstRun #buildList): label + state + when, on the
+   .picks-note line the card already uses, with the state word carried by the icon */
+#firstRun .buildrow { display: flex; gap: 8px; align-items: baseline; }
+#firstRun .buildrow .buildmark { width: 14px; text-align: center; }
+#firstRun .buildrow[data-state="complete"] .buildmark { color: var(--up, #4ade80); }
+#firstRun .buildrow[data-state="failed"] .buildmark { color: var(--down, #f87171); }
+#firstRun .buildrow[data-state="running"] .buildmark { color: var(--accent); }
