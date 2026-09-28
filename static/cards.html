@@ -369,7 +369,9 @@
   </div>
 
   <!-- One toolbar row: search, type, sort, then the rarity + state filters and the reset.
-       Every control is a live filter; none hides behind a click. -->
+       Every control is a live filter; none hides behind a click. The rarity chips and the state
+       buttons share ONE wrap unit (#filterRow), so on a narrower window they move to the next
+       line together - the four state buttons never land alone under a full query row. -->
   <div class="mcd-tools" role="group" aria-label="Card filters">
     <div class="search mcd-search">
       <span class="si i-only-host" data-icon="magnifying-glass" aria-hidden="true"></span>
@@ -390,16 +392,18 @@
       <option value="value">Sell floor (highest first)</option>
     </select>
 
-    <div class="mcd-row" id="rarityRow" role="group" aria-label="Rarity filter">
-      <span class="mcd-lbl">Rarity</span>
-      <button class="mcd-btn rar active" type="button" data-rar="">All</button>
-    </div>
+    <div class="mcd-row" id="filterRow">
+      <div class="mcd-row" id="rarityRow" role="group" aria-label="Rarity filter">
+        <span class="mcd-lbl">Rarity</span>
+        <button class="mcd-btn rar active" type="button" data-rar="">All</button>
+      </div>
 
-    <div class="mcd-row" id="stateRow" role="group" aria-label="Ownership filter">
-      <button class="mcd-btn active" type="button" data-state="owned" aria-pressed="true">Owned</button>
-      <button class="mcd-btn active" type="button" data-state="missing" aria-pressed="true">Missing</button>
-      <button class="mcd-btn" type="button" data-state="dupes" aria-pressed="false" title="Mods you own more than one copy of">Dupes</button>
-      <button class="mcd-btn" type="button" id="resetBtn" data-icon="arrows-clockwise" title="Back to the default filters">Reset</button>
+      <div class="mcd-row" id="stateRow" role="group" aria-label="Ownership filter">
+        <button class="mcd-btn active" type="button" data-state="owned" aria-pressed="true">Owned</button>
+        <button class="mcd-btn active" type="button" data-state="missing" aria-pressed="true">Missing</button>
+        <button class="mcd-btn" type="button" data-state="dupes" aria-pressed="false" title="Mods you own more than one copy of">Dupes</button>
+        <button class="mcd-btn" type="button" id="resetBtn" data-icon="arrows-clockwise" title="Back to the default filters">Reset</button>
+      </div>
     </div>
   </div>
 

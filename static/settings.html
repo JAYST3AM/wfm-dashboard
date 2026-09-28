@@ -18,9 +18,14 @@
      deep-links one, and General is the default. Every card, row, control, Save button and id from
      the stacked layout travelled with its category; the row density recipe (.st-band .cfgrow and
      friends) is unchanged. */
+  /* the page: a settings sidebar plus the category panel. The body is capped so a 1920 window keeps
+     a comfortable measure, but the cap sits at the width the ROWS want (audit N3: the old 1220 cap
+     left the panel at 974 px, i.e. 512 px of a 1920 viewport unused). 1530 puts the panel column at
+     ~1284 px on a 1920 screen and lets it breathe with the window below that; the chip/row columns
+     inside a card are unchanged. */
   .st-body {
     display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px 16px; align-items: start;
-    max-width: 1220px; padding: 6px 18px 24px 22px;
+    max-width: 1530px; padding: 6px 18px 24px 22px;
   }
   .st-wrap { padding: 0; max-width: none; margin: 0; min-width: 0; }
   .st-h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; margin: 6px 2px 2px; }
@@ -144,7 +149,7 @@
   .st-acctrow .st-agrow { margin-left: auto; display: flex; gap: 8px; align-items: center; }
   .st-band .st-acctrow .btn { padding: 3px 10px; font-size: 11.5px; }
   .st-acctnote { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding: 0 12px 8px; }
-  .st-foot { color: var(--muted); font-size: 11px; padding: 4px 22px 18px; max-width: 1220px; }
+  .st-foot { color: var(--muted); font-size: 11px; padding: 4px 22px 18px; max-width: 1530px; }
   .st-foot a { color: var(--muted); }
   .st-foot a:hover { color: var(--accent); }
   @media (max-width: 760px) {

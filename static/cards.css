@@ -5,7 +5,14 @@
    the face/art/foil/inspect visuals, so every layout number for this page has one home here.
 
    - the wrap uses the whole window from 1500px (13 tiles across at 1920)
-   - the toolbar is one wrapping row with one hairline under it: nothing hides behind a click
+   - the toolbar is one wrapping row with one hairline under it: nothing hides behind a click.
+     Its two wrap units are the query controls and the filter strip (rarity chips + state buttons,
+     one group in the markup). At the 1678px content column the whole toolbar is ONE line: the
+     chips give back enough room (tighter chip padding/gap, smaller count text) for the state
+     buttons to sit beside them, which is the nit the audit left open. Below that the wrap happens
+     at that one boundary - the four state buttons ride WITH the chips instead of landing alone on
+     a line - and under ~1250px the groups stack: query, rarity, state. Nothing is ever clipped,
+     scrolled away or hidden.
    - tiles pack at a 10px gap on ~130px columns, the 5:7 face unchanged
    - tile text never goes below 8.5px; every count is tabular
    Nothing was removed: every filter, control and id is still on the page. */
@@ -24,7 +31,9 @@
 /* ---------- one toolbar row ---------- */
 .mcd-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   padding-bottom: 9px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
-.mcd-search { flex: 1 1 200px; min-width: 170px; max-width: 280px; }
+/* the search yields width to the filter strip (it is the elastic control): 260 is still a roomy
+   box, and 150 is the floor at which the strip needs the space more than the field does */
+.mcd-search { flex: 1 1 180px; min-width: 150px; max-width: 260px; }
 .mcd-search input { width: 100%; font-size: 13px; }
 .mcd-search .si { font-size: 15px; }
 .mcd-clear { background: none; border: none; color: var(--muted); cursor: pointer; font: 12px var(--sans); padding: 2px 3px; }
@@ -36,6 +45,15 @@
 .mcd-select:focus { outline: none; border-color: var(--accent-dim); }
 
 .mcd-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+/* the filter strip's own row (rarity chips + the state buttons) is the toolbar's second wrap unit:
+   it moves to the next line as a whole, so a wrap can never leave the four state buttons alone
+   under a full query row. Its children keep wrapping inside it on a narrow window. */
+.mcd-tools > .mcd-row { min-width: 0; }
+/* the rarity chips are the widest thing in the toolbar (seven of them, each carrying its count):
+   a tighter side padding + gap keeps every count and buys the line the room it needs. 30px height
+   is the .mcd-btn recipe, untouched - only the horizontal air moves. */
+#rarityRow { gap: 4px; }
+#rarityRow .mcd-btn { padding: 5px 7px; }
 .mcd-btn {
   background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
   border-radius: 9px; padding: 5px 9px; min-height: 30px; cursor: pointer; font: 600 11.5px var(--sans);
@@ -44,7 +62,9 @@
 .mcd-btn:hover { color: var(--text); border-color: var(--accent-dim); }
 .mcd-btn.active { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
 .mcd-lbl { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; }
-.mcd-rank { font: 10px var(--mono); color: var(--muted); margin-left: 2px; font-variant-numeric: tabular-nums; }
+/* the chip's count: still there, still tabular, a touch smaller and sitting right against its
+   label - seven of these add up to the 40-odd pixels the one-line toolbar was missing */
+.mcd-rank { font: 9.5px var(--mono); color: var(--muted); margin-left: 0; font-variant-numeric: tabular-nums; }
 
 /* ---------- TCG grid: 10px gap, ~130px tile columns (5:7 face kept) ---------- */
 .mcd-grid {
