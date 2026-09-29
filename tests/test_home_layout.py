@@ -177,7 +177,9 @@ def test_next_action_shows_price_demand_liquidity_and_copies():
                  '<div class="nf-l">Liquidity</div>'):
         assert frag in js, frag
     assert "copies + (copies === 1 ? ' copy' : ' copies')" in js
-    assert 'homeBuyers(r.slug)' in js, 'the buyer line reads the run queue payload Home already has'
+    # 2026-09-29: the buyer comes from session.js's lane rule (and only from it) - a slug-wide
+    # helper is exactly what let a rank-6 row wear a rank-0 buyer. See tests/test_lane_buyer.py.
+    assert 'homeBuyers' not in js and 'const b = sessionAskedBy(r);' in js
 
 
 def test_next_action_links_to_trade_when_no_buyer_is_known():

@@ -261,7 +261,6 @@ function renderHomeHead() {
    new. The buyer line only shows when the run queue names that exact item; otherwise the row
    points at Trade's run-queue surface. */
 const QUEUE_ROWS = 5;      /* plan rows listed under NEXT ACTION */
-const RUNQ_WHOM = 3;       /* buyers named in a hover title */
 
 function homePlan() {
   const plan = (TRADER || {}).plan || {};
@@ -289,12 +288,6 @@ function demandCell(slug, row) {
   return { txt, tip };
 }
 
-/* the run queue's own rows for this item - the tradeable buyers, if it names any */
-function homeBuyers(slug) {
-  const R = FEAT.runqueue || {};
-  return (R.queue || []).filter((q) => q && q.slug === slug);
-}
-
 function renderNextAction() {
   const card = document.getElementById('homeSellNext');
   const list = document.getElementById('sellNextList');
@@ -316,10 +309,11 @@ function renderNextAction() {
   if (head) head.title = plan.generated ? rows.length + ' items in the plan' : '';
   if (meta) { meta.textContent = ''; meta.title = ''; }
   const sub = [r.lane, copies + (copies === 1 ? ' copy' : ' copies')].filter(Boolean).join(' · ');
-  const who = homeBuyers(r.slug);
-  /* the buyer for this row's lane, not the first buyer for the slug (session.js owns that rule and
-     loads before this file): Home's top row can be rank 6 while the buyer is only there for rank 0 */
-  const b = sessionAskedBy(r) || who[0];
+  /* The buyer for this row's LANE, and nothing else (session.js owns the rule and loads before this
+     file). There is deliberately no slug-wide fallback: if the top row is rank 6 and only rank 0 has
+     a buyer, sessionAskedBy() answers null and Home shows the honest gap - see
+     tests/test_lane_buyer.py, and design/_session/home_buyer_gate.py for the rendered proof. */
+  const b = sessionAskedBy(r);
   /* one link on the card, and it says what it opens: with a buyer named below, the head action
      opens Trade; with nobody named, the head action IS the buyers surface (no second CTA) */
   const open = card.querySelector('.home-open');

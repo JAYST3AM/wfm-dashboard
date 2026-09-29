@@ -91,3 +91,35 @@ strip it belongs to.
   contrast/theme checks and the copy limits — all in the gates above.
 - The workflow gate still drives one item through one happy path; it does not exercise the lane
   variants, which are covered in the suite (`tests/test_trade_round3.py`).
+---
+
+# Regression found after the pass, and fixed (2026-09-29, later)
+
+**Reported:** `renderNextAction()` read `const b = sessionAskedBy(r) || who[0]`. The rule is
+lane-aware, but the fallback was slug-wide, so when the top plan row's lane had no buyer and another
+lane of the same item did, Home painted the wrong lane's buyer, its price and its Whisper button. The
+guard looked defensive; it was the bug.
+
+**Fixed:** Home's buyer comes from `sessionAskedBy(r)` and nothing else. The slug-wide helper
+(`homeBuyers`) and the constant that fed its hover title (`RUNQ_WHOM`) are gone with it, and the
+whisper row keeps asking the same rule — so even a future fallback cannot produce a button, only
+text.
+
+**Pinned in three layers** (`tests/test_lane_buyer.py`):
+
+| layer | what runs | what it proves |
+|---|---|---|
+| the rule | `design/_session/lane_buyer_check.js` — node evaluates `sessionAskedBy` **from static/session.js itself** (brace-matched, not copied) and runs 10 cases | the rank-6 row with only a rank-0 buyer answers *nothing*; the same row with its own buyer answers it; rank 0 is a lane, not a missing one; an intact relic never takes the radiant buyer; an unlaned item never borrows a laned one |
+| the call site | source pins in the same file | exactly one buyer lookup in Home, no `\|\|` fallback, no slug-wide helper left behind |
+| the render | `design/_session/home_buyer_gate.py` — boots the real server on a throwaway store and drives the real Home page (8.5 s, 14 checks) | scenario A (rank-6 top row, only a rank-0 buyer): **no whisper button, no buyer name, head says "See buyers in Trade", the honest gap stated**, and the session panel agrees; scenario B (that lane's buyer exists): exactly one whisper button, the right name, head says "Open Trade", and the session panel names the same buyer |
+
+**The gate was checked against the regression it exists for:** with the fallback temporarily restored,
+the render gate fails **12 of 14** — `the head action says where to look instead` (saw `Open Trade`)
+and `the honest gap is stated` (saw the start button where the no-buyer line belongs). The two
+whisper-button checks still passed, which is worth stating plainly rather than claiming more: the
+whisper row already asked the rule, so the fallback's damage was the card's text and its promise, not
+a second send path. The check set catches it either way, and the suite fails if it comes back.
+
+The Windows-only suite now runs 1908 passed / 5 skipped (the two node-dependent checks skip when node
+is missing; the browser gate also needs Chrome and puppeteer-core). Both gates re-run after the fix:
+stage-10 **PASS 118/118**, workflow **PASS 22/22**.

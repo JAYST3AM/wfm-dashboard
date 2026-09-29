@@ -388,7 +388,9 @@ def test_home_next_action_shows_one_action_and_the_whisper_row():
     foot = APP.split('class="next-foot"', 1)[1].split('</div>`;', 1)[0]
     assert 'next-buyer' not in foot, 'the whisper row already names the buyer, price and status'
     assert foot.index('next-nobuyer') < foot.index('sessionHomeAction()'),         'the honest gap first, then the one action'
-    assert 'sessionAskedBy(r) || who[0]' in APP,         "Home's buyer is the row's own lane, never the first buyer for the slug"
+    # this pin used to assert the fallback itself (`|| who[0]`), which is what broke Home: it looked
+    # defensive and handed back the wrong lane's buyer. The rule alone is the pin now.
+    assert 'const b = sessionAskedBy(r);' in APP and 'who[0]' not in APP
 
 def test_the_first_run_view_hides_the_two_cards_that_have_nothing_to_say():
     """Before a session exists, "Nothing waiting on a confirmation" and "Nothing to check yet" are two
