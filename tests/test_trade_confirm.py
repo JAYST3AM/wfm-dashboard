@@ -90,8 +90,10 @@ def test_the_summary_follows_the_confirmation(ts, data_dir):
 def test_a_multi_copy_confirmation_earns_the_total(ts, data_dir):
     open_session(ts, data_dir, qty=3)
     p = pending_for(ts, data_dir, qty=3)
-    out, _ = ts.confirm(str(data_dir), ts.trade_draft(p, plat=144))
-    assert out['trade']['qty'] == 3 and log_of(data_dir)[0]['plat'] == 144
+    out, _ = ts.confirm(str(data_dir), ts.trade_draft(p, plat=48))
+    assert out['trade']['qty'] == 3
+    assert log_of(data_dir)[0]['plat'] == 48, 'plat is the price per copy'
+    assert log_of(data_dir)[0]['total'] == 144, 'total is the money for the trade'
     assert ts.summary(ts.load(str(data_dir)))['earned_plat'] == 144.0
 
 
@@ -163,3 +165,97 @@ def test_the_confirm_result_is_json_safe(ts, data_dir):
     p = pending_for(ts, data_dir)
     out, _ = ts.confirm(str(data_dir), ts.trade_draft(p, plat=48))
     json.dumps(out)                                  # the route serialises this
+
+
+# ------------------------------------------------------------------- the record's downstream
+def test_the_record_is_the_shape_every_reader_already_reads(ts, data_dir, monkeypatch):
+    """server.trades_payload, session_stats and plat_ledger all sum `total`. A session trade that
+    only carried `plat` (as the money) vanished from every earnings figure in the app."""
+    open_session(ts, data_dir, qty=3)
+    p = pending_for(ts, data_dir, qty=3)
+    ts.confirm(str(data_dir), ts.trade_draft(p, plat=48))
+    row = log_of(data_dir)[0]
+    for k in ('id', 'ts', 'kind', 'name', 'qty', 'plat', 'total', 'src'):
+        assert k in row, 'trade_log rows must carry %s' % k
+    assert row['kind'] == 'sale' and row['qty'] == 3
+    assert row['plat'] == 48 and row['total'] == 144
+
+    ledger = load_script('plat_ledger', monkeypatch=monkeypatch)
+    assert ledger.trade_totals(log_of(data_dir))['earned'] == 144
+    srv = load_script('server', monkeypatch=monkeypatch)
+    monkeypatch.setattr(srv, 'DATA', str(data_dir))
+    assert srv.trades_payload()['totals']['earned'] == 144
+
+
+def test_a_record_that_gives_only_the_total_is_normalised(ts, data_dir):
+    """Callers may send the money; the stored record still carries both numbers."""
+    out, created = ts.confirm(str(data_dir), {'slug': 'shredder', 'qty': 4, 'total': 100})
+    assert created is True
+    row = log_of(data_dir)[0]
+    assert row['total'] == 100 and row['plat'] == 25
+
+
+# ------------------------------------------------------------------- the recoverable confirm
+def test_the_intent_is_durable_before_the_trade_is_written(ts, data_dir, monkeypatch):
+    """The two files cannot be written together, so the intent goes first: if the append never
+    lands, the next load sees an intent with no trade and claims nothing."""
+    open_session(ts, data_dir)
+    p = pending_for(ts, data_dir)
+    draft = ts.trade_draft(p, plat=48)
+    original = ts.append_event
+
+    def boom(*a, **k):
+        raise OSError('disk full')
+
+    monkeypatch.setattr(ts, 'append_event', boom)
+    with pytest.raises(OSError):
+        ts.confirm(str(data_dir), draft)
+    raw = read_json(os.path.join(str(data_dir), 'trade_session.json'))
+    assert raw['confirming']['id'] == draft['id'], 'the intent must be durable before the append'
+    assert not os.path.exists(os.path.join(str(data_dir), 'trade_log.json')), 'no trade was written'
+
+    monkeypatch.setattr(ts, 'append_event', original)
+    doc = ts.load(str(data_dir))
+    assert doc['recovered']['result'] == 'rolled back'
+    assert doc['pending'][0]['state'] == ts.CONTACTED
+    out, created = ts.confirm(str(data_dir), draft)         # and it still works afterwards
+    assert created is True and len(log_of(data_dir)) == 1
+
+
+def test_a_confirm_that_died_after_the_trade_landed_finishes_itself(ts, data_dir):
+    """The other half of the window: the sale is in the log, the session never heard about it."""
+    open_session(ts, data_dir)
+    p = pending_for(ts, data_dir)
+    draft = ts.trade_draft(p, plat=48)
+    ts.append_event(str(data_dir), draft)
+    doc = ts.load(str(data_dir))
+    doc['confirming'] = {'id': draft['id'], 'rec': draft, 'ts': int(time.time())}
+    ts.save(str(data_dir), doc)
+
+    doc2 = ts.load(str(data_dir))
+    assert doc2['recovered']['result'] == 'finished'
+    assert doc2.get('confirming') is None
+    assert doc2['pending'][0]['state'] == ts.COMPLETED
+    assert doc2['session']['totals']['trades'] == 1
+    assert doc2['session']['totals']['earned_plat'] == 48.0
+    assert draft['id'] in doc2['confirmed']
+
+    again, created = ts.confirm(str(data_dir), draft)        # a replay settles nothing twice
+    assert created is False and again['already'] is True
+    assert ts.load(str(data_dir))['session']['totals']['trades'] == 1
+    assert len(log_of(data_dir)) == 1
+
+
+def test_recovery_only_touches_the_side_that_did_not_happen(ts, data_dir):
+    """A rolled-back intent leaves the pending row and the queue exactly as they were."""
+    open_session(ts, data_dir)
+    p = pending_for(ts, data_dir)
+    draft = ts.trade_draft(p, plat=48)
+    before = ts.load(str(data_dir))
+    before['confirming'] = {'id': draft['id'], 'rec': draft, 'ts': int(time.time())}
+    ts.save(str(data_dir), before)
+    after = ts.load(str(data_dir))
+    assert after['pending'][0]['state'] == before['pending'][0]['state'] == ts.CONTACTED
+    assert after['session']['queue'][0]['state'] == before['session']['queue'][0]['state']
+    assert after['session']['totals']['trades'] == 0
+    assert after['session']['cursor'] == before['session']['cursor']

@@ -306,3 +306,48 @@ def test_why_omits_the_order_book_numbers_when_there_are_none(ts):
     q = ts.build_queue(plan_doc(), advisor_doc(), report, runqueue_doc())
     why = q[0]['why']
     assert 'lowest_sell' not in why and 'highest_buy' not in why
+
+
+# --------------------------------------------------- rank evidence on the buyer (spec §2/§3)
+def row_for(q, slug):
+    return [r for r in q if r['slug'] == slug][0]
+
+
+def test_a_buyer_with_no_rank_evidence_on_a_ranked_lane_says_so(ts):
+    """The run queue picks buyers per lane, but the row it writes used to carry no rank, so a
+    ranked-lane sale showed a buyer nothing could check. It still shows the buyer - it is the best
+    one for that lane - and states that the rank could not be verified from the data."""
+    q = ts.build_queue(plan_doc(), advisor_doc(), report_doc(), runqueue_doc())
+    row = row_for(q, 'primed_continuity')
+    assert row['rank'] == 0 and row['buyer'] is not None
+    assert row['why']['rank_unverified'] in (True, 'queue row names no rank for this buyer')
+
+
+def test_a_buyer_whose_rank_disagrees_can_never_land_on_the_row(ts):
+    q = ts.build_queue(plan_doc(), advisor_doc(), report_doc(),
+                       runqueue_doc(row={'lane': 'rank 6'}))
+    row = row_for(q, 'primed_continuity')
+    assert row['buyer'] is None, 'never pair a rank-6 order with a rank-0 stack'
+    assert 'rank 6' in row['why']['rank_mismatch']
+
+
+def test_a_buyer_whose_rank_agrees_lands_with_no_caveat(ts):
+    q = ts.build_queue(plan_doc(), advisor_doc(), report_doc(),
+                       runqueue_doc(row={'lane': 'rank 0'}))
+    row = row_for(q, 'primed_continuity')
+    assert row['buyer'] is not None
+    assert 'rank_unverified' not in row['why'] and 'rank_mismatch' not in row['why']
+
+
+def test_an_item_with_no_rank_dimension_never_asks_for_rank_evidence(ts):
+    """A relic is 'intact' or nothing - there is no rank to verify, so no caveat either."""
+    plan = {'plan': [{'slug': 'neo_d3_relic', 'name': 'Neo D3 Relic', 'qty': 6, 'per_trade': 6,
+                      'price': 35, 'lane': ''}]}
+    report = {'sell_now': [{'slug': 'neo_d3_relic', 'name': 'Neo D3 Relic', 'cat': 'relic',
+                            'lane_rank': None, 'lane_ask': 35, 'vol48': 20, 'n_buy': 2,
+                            'sellable_count': 6}]}
+    rq = runqueue_doc(row={'slug': 'neo_d3_relic', 'name': 'Neo D3 Relic', 'lane': 'intact',
+                           'qty': 6, 'my_price': 35, 'buy_price': 35})
+    row = row_for(ts.build_queue(plan, {}, report, rq), 'neo_d3_relic')
+    assert row['rank'] is None and row['buyer'] is not None
+    assert 'rank_unverified' not in row['why']

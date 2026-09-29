@@ -188,8 +188,14 @@ def test_plan_queue_orders_rows_online_first_then_price(rq):
     assert rq.queue_summary(queue) == {'ingame': 2, 'online': 1, 'offline': 0, 'total': 3}
     assert rq.queue_summary([]) == {'ingame': 0, 'online': 0, 'offline': 0, 'total': 0}
     q = queue[0]
-    assert sorted(q) == ['buy_price', 'buyer', 'buyer_status', 'my_price', 'name', 'qty', 'slug',
-                         'whisper', 'why']
+    # 'lane' and 'rank' joined the row shape with the Trading Session work: buyers were always
+    # picked per lane, but a consumer could not check that from the file, so a ranked-lane sale
+    # carried an unverifiable buyer. '' / None for items with no rank dimension.
+    assert sorted(q) == ['buy_price', 'buyer', 'buyer_status', 'lane', 'my_price', 'name', 'qty',
+                         'rank', 'slug', 'whisper', 'why']
+    assert q['lane'] == 'rank 0' and q['rank'] == 0
+    assert queue[1]['lane'] == 'intact' and queue[1]['rank'] is None   # a relic has no rank
+    assert queue[2]['lane'] == 'rank 6' and queue[2]['rank'] == 6
     assert q['qty'] == 3 and q['buy_price'] == 47 and q['my_price'] == 47
     assert q['whisper'] == 'Hi! I have Primed Continuity x3 at 47p \u2014 invite SampleTennoIX if you want it.'
     assert queue[1]['qty'] == 6                              # 18 relic copies -> 6/trade
@@ -239,6 +245,7 @@ def test_main_writes_run_queue_contract_without_touching_the_network(rq, tmp_pat
 
     q = doc['queue'][0]
     assert q == {'slug': PC, 'name': 'Primed Continuity', 'qty': 3, 'my_price': 47,
+                 'lane': 'rank 0', 'rank': 0,
                  'buyer': 'IngamePc', 'buyer_status': 'ingame', 'buy_price': 47,
                  'whisper': 'Hi! I have Primed Continuity x3 at 47p \u2014 invite SampleTennoIX if you want it.',
                  'why': 'ingame \u00b7 pays 47p vs your 47p \u00b7 wants 3 \u00b7 rep 5 \u00b7 rank 0'}

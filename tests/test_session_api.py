@@ -239,11 +239,14 @@ def test_the_confirm_route_logs_one_trade_and_moves_the_session(live_mod, seeded
     call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
                                         'price': 48, 'user': 'Wombat'})
     code, body = call(base, '/api/session/confirm',
-                      {'slug': 'primed_continuity', 'rank': 0, 'qty': 3, 'plat': 144,
-                       'user': 'Wombat'})
+                      {'slug': 'primed_continuity', 'rank': 0, 'qty': 3, 'plat': 48,
+                       'total': 144, 'user': 'Wombat'})
     assert code == 200 and body['created'] is True and body['ok'] is True
     log = json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())
-    assert len(log) == 1 and log[0]['id'] == body['trade']['id'] and log[0]['plat'] == 144
+    # plat is the price per copy and total the money for the trade: everything downstream sums
+    # `total`, so both numbers have to be there and mean what the rest of the repo means by them
+    assert len(log) == 1 and log[0]['id'] == body['trade']['id']
+    assert log[0]['plat'] == 48 and log[0]['total'] == 144
     assert body['session_payload']['summary']['earned_plat'] == 144.0
     assert body['session_payload']['summary']['trades'] == 1
     assert body['session_payload']['pending'] == []
@@ -255,7 +258,8 @@ def test_confirming_twice_over_http_logs_one_trade(live, seeded):
     call(base, '/api/session/start', {})
     call(base, '/api/session/contact', {'slug': 'primed_continuity', 'rank': 0, 'qty': 3,
                                         'price': 48, 'user': 'Wombat'})
-    rec = {'slug': 'primed_continuity', 'rank': 0, 'qty': 3, 'plat': 144, 'user': 'Wombat'}
+    rec = {'slug': 'primed_continuity', 'rank': 0, 'qty': 3, 'plat': 48, 'total': 144,
+           'user': 'Wombat'}
     first = call(base, '/api/session/confirm', rec)[1]
     again = call(base, '/api/session/confirm', first['trade'])[1]
     assert again['already'] is True and again['trade']['id'] == first['trade']['id']

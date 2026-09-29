@@ -395,8 +395,9 @@ async function sessionMarkSold(btn) {
   const qty = f.qty || 1;
   btn.disabled = true;
   try {
+    const unit = Number(f.price) || 0;
     const ok = await sessionPost('confirm', { trade: { slug: f.slug, name: f.name,
-      rank: (f.rank === undefined ? null : f.rank), qty, plat: (Number(f.price) || 0) * qty,
+      rank: (f.rank === undefined ? null : f.rank), qty, plat: unit, total: unit * qty,
       user: (f.buyer || {}).user || null, source: 'manual' } });
     if (ok && window.sfx) sfx.play('done');
     if (ok) await load();

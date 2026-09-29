@@ -52,11 +52,27 @@ def test_a_multi_copy_sale_matches_on_the_total(ts):
     assert p['trade']['plat'] == 144 and p['trade']['qty'] == 3
 
 
-def test_extra_platinum_is_shown_not_hidden(ts):
+def test_extra_platinum_makes_it_ambiguous_not_exact(ts):
+    """Spec section 4: EXACT means the deltas agree. 180p arrived against an asked 48p, so other
+    sales are probably in the same change - it is evidence, not a claim."""
     out = ts.propose([pend()], {ts_key('primed_continuity', 0): 3}, 1400)
     p = out['proposals'][0]
-    assert p['verdict'] == ts.EXACT and p['plat_delta'] == 180
-    assert any('extra' in e for e in p['evidence'])
+    assert p['verdict'] == ts.AMBIGUOUS and p['plat_delta'] == 180
+    assert any('more moved' in e for e in p['evidence']), p['evidence']
+
+
+def test_extra_copies_make_it_ambiguous_not_exact(ts):
+    out = ts.propose([pend()], {ts_key('primed_continuity', 0): 1}, 1268)
+    p = out['proposals'][0]
+    assert p['verdict'] == ts.AMBIGUOUS and p['copies_left'] == 3
+    assert any('more moved' in e for e in p['evidence']), p['evidence']
+
+
+def test_an_exact_match_is_still_exact(ts):
+    out = ts.propose([pend()], {ts_key('primed_continuity', 0): 3}, 1268)
+    p = out['proposals'][0]
+    assert p['verdict'] == ts.EXACT and p['copies_left'] == 1 and p['plat_delta'] == 48
+    assert not any('more moved' in e for e in p['evidence'])
 
 
 def test_stack_left_but_platinum_flat_is_ambiguous(ts):
@@ -228,11 +244,11 @@ def test_inv_of_is_none_when_the_report_has_no_such_item(ts):
 
 def test_the_check_says_when_it_counted_the_whole_item(ts):
     report = {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 4}]}
-    pending = [pend(rank=0, qty=1, inv=6)]
+    pending = [pend(rank=0, qty=1, inv=5)]
     out = ts.propose(pending, ts.inv_now_map(report, pending), 1268,
                      inv_basis=ts.inv_basis_map(report, pending))
     p = out['proposals'][0]
-    assert p['verdict'] == ts.EXACT and p['copies_left'] == 2
+    assert p['verdict'] == ts.EXACT and p['copies_left'] == 1
     assert 'basis: item total' in p['evidence'], p['evidence']
 
 

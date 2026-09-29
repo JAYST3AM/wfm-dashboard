@@ -79,11 +79,15 @@ def write_json_atomic(path, obj):
 
 
 def load(data_dir):
-    """The stored doc, or a fresh one. A corrupt/partial file is quarantined, not clobbered."""
+    """The stored doc, or a fresh one. A corrupt/partial file is quarantined, not clobbered.
+
+    A confirmation the process died in the middle of is finished or rolled back here (see
+    recover()): the intent is written before the trade, so the next load can tell which half ran.
+    """
     path = _path(data_dir)
     doc = jload(path)
     if isinstance(doc, dict):
-        return normalise(doc)                       # partly shaped is fine; normalise() coerces it
+        return recover(data_dir, normalise(doc))    # partly shaped is fine; normalise() coerces it
     if doc is not None or os.path.exists(path):
         # unparseable, or from a shape we do not know (a list, a bare string): keep it, start clean
         try:
@@ -146,6 +150,17 @@ def normalise(doc):
     for p in out['pending']:
         p['state'] = p.get('state') if p.get('state') in STATES else CONTACTED
     out['confirmed'] = [str(x) for x in (doc.get('confirmed') or []) if x][-500:]
+    # The two keys a recoverable confirm needs, and they must survive a save: `confirming` is the
+    # durable intent written before the trade reaches trade_log, `recovered` the note that the next
+    # load finished or undid one. Dropping them here would silently break crash recovery.
+    cf = doc.get('confirming')
+    if isinstance(cf, dict) and cf.get('id'):
+        out['confirming'] = {'id': str(cf['id']), 'rec': dict(cf.get('rec') or {}),
+                             'ts': int(cf.get('ts') or 0)}
+    rc = doc.get('recovered')
+    if isinstance(rc, dict) and rc.get('trade'):
+        out['recovered'] = {'ts': int(rc.get('ts') or 0), 'trade': str(rc.get('trade')),
+                            'result': rc.get('result') or '', 'note': rc.get('note') or ''}
     return out
 
 
@@ -338,6 +353,11 @@ def build_queue(plan, advisor, report, runqueue, limit=QUEUE_LIMIT):
         why = _why(rep, adv, buyer, runqueue)
         if mismatch:
             why['rank_mismatch'] = mismatch
+        elif buyer and rank is not None and rq_rank is None:
+            # The row is a ranked-lane sale (a mod rank, a relic refinement) and the run queue gave
+            # no rank for this buyer, so the pairing cannot be checked from here. It is shown - the
+            # run queue picks buyers per lane - but it says so instead of implying it was verified.
+            why['rank_unverified'] = 'queue row names no rank for this buyer'
         rows.append({'slug': slug, 'name': name or rep.get('name') or adv.get('name') or slug,
                      'rank': rank, 'qty': qty, 'price': price, 'cat': rep.get('cat') or adv.get('cat'),
                      'buyer': buyer, 'why': why, 'confidence': _confidence(why),
@@ -683,9 +703,19 @@ def propose(pending, inv_now, plat_now, now=None, inv_basis=None):
             delta_plat = int(plat_now) - plat_before    # platinum that arrived
             if left <= 0 and delta_plat < (total or 1):
                 verdict, why = NOTHING, _evidence(('copies left', 0), ('platinum', delta_plat))
-            elif left >= qty and total and delta_plat >= total:
+            elif left == qty and total and delta_plat == total:
+                # Spec §4: an exact match is item + rank + quantity + inventory delta + platinum
+                # delta agreeing. Anything that moved MORE than this trade is not exact - other
+                # sales may be in the same change - so it is presented as evidence, not a claim.
                 verdict, why = EXACT, _evidence(('copies left', left), ('platinum', '+%d' % delta_plat),
-                                                ('asked', total), ('extra', delta_plat - total or None))
+                                                ('asked', total))
+            elif left >= qty and total and delta_plat >= total:
+                verdict, why = AMBIGUOUS, _evidence(
+                    ('copies left', left), ('platinum', '+%d' % delta_plat), ('asked', total),
+                    ('more moved than this trade', '%s +%dp' % (
+                        ('%d extra copy' % (left - qty)) + ('ies' if left - qty > 1 else '')
+                        if left > qty else 'no extra copies',
+                        delta_plat - total)))
             elif left >= qty and total and delta_plat < total:
                 verdict, why = AMBIGUOUS, _evidence(('copies left', left),
                                                     ('platinum', '+%d' % delta_plat),
@@ -721,8 +751,9 @@ def trade_draft(pending, plat=None, quote=None):
     plat = _int(plat)
     if plat is None:
         plat = (quote or {}).get('plat')
+    unit = _int(plat) or _int((pending.get('expected_plat'))) or 0
     draft = {'kind': 'sale', 'slug': slug, 'item': slug, 'name': pending.get('name'),
-             'rank': rank, 'qty': qty, 'plat': plat or (pending.get('expected_plat') or 0) * qty,
+             'rank': rank, 'qty': qty, 'plat': unit, 'total': unit * qty,
              'user': pending.get('buyer'), 'buyer': pending.get('buyer'),
              'source': 'session', 'session_id': pending.get('session_id'),
              'pending_id': pending.get('id'), 'ts': int(pending.get('ts') or time.time())}
@@ -775,6 +806,92 @@ def append_event(data_dir, rec):
     return rec, True
 
 
+def recover(data_dir, doc):
+    """Finish or undo a confirm the process died inside. It never guesses - see confirm().
+
+    One question decides it: is the intent's trade id in trade_log.json?
+      - yes -> the append landed: the finalisation is replayed (close the pending row, count the
+        session, advance), which is idempotent because a trade already in `confirmed` is skipped.
+      - no  -> the append never landed: the intent is dropped. The pending row was never touched,
+        so the trade is still open and the user can simply confirm it again.
+    """
+    if not isinstance(doc, dict):
+        return doc
+    intent = doc.get('confirming')
+    if not isinstance(intent, dict):
+        return doc
+    rec = intent.get('rec') if isinstance(intent.get('rec'), dict) else {}
+    tid = str(intent.get('id') or rec.get('id') or '')
+    landed = None
+    hist = jload(os.path.join(data_dir, TRADE_LOG))
+    if tid and isinstance(hist, list):
+        for e in hist:
+            if isinstance(e, dict) and str(e.get('id')) == tid:
+                landed = e
+                break
+    at = int(intent.get('ts') or 0) or int(time.time())
+    if landed is None:
+        doc.pop('confirming', None)
+        doc['recovered'] = {'ts': at, 'trade': tid, 'result': 'rolled back',
+                            'note': 'the trade was never written; nothing is claimed'}
+    else:
+        doc = _finalise(data_dir, doc, landed, rec, at)
+        doc['recovered'] = {'ts': at, 'trade': tid, 'result': 'finished',
+                            'note': 'the trade was written before the crash; the session caught up'}
+    save(data_dir, doc)
+    return doc
+
+
+def _finalise(data_dir, doc, written, rec, now, pending_id=None, rank=None):
+    """Everything a confirmed trade has to update, in one place, once, idempotently.
+
+    Spec section 5 asks for one transaction that updates history, session earnings, the sales count,
+    the pending row, the queue and the cursor. History is already written by the time this runs, so
+    a replay only ever settles the session side - a trade already in `confirmed` is skipped.
+    """
+    tid = str((written or {}).get('id') or '')
+    slug = rec.get('slug') or rec.get('item')
+    if rank is None:
+        rank = rec.get('rank')
+    money = _int(rec.get('total'))
+    if money is None:
+        money = (_int(rec.get('plat')) or 0) * max(1, int(rec.get('qty') or 1))
+    if tid and tid in [str(x) for x in (doc.get('confirmed') or [])]:
+        doc.pop('confirming', None)              # already settled: only the intent needs clearing
+        return doc
+
+    pid = pending_id if pending_id is not None else rec.get('pending_id')
+    for p in doc.get('pending', []):
+        if (pid and p.get('id') == pid) or \
+           (not pid and p.get('slug') == slug and p.get('rank') == rank
+                and p.get('state') in (CONTACTED, POSSIBLE)):
+            p['state'] = COMPLETED
+            p['completed_ts'] = now
+            p['completed_trade'] = tid
+
+    s = doc.get('session')
+    if s:
+        for r in (s.get('queue') or []):
+            if r.get('slug') == slug and (rank is None or r.get('rank') == rank):
+                r['state'] = COMPLETED
+                r['completed_ts'] = now
+                break
+        t = s.setdefault('totals', {'trades': 0, 'earned_plat': 0, 'skipped': 0, 'held': 0})
+        t['trades'] = int(t.get('trades') or 0) + 1
+        t['earned_plat'] = round(float(t.get('earned_plat') or 0) + money, 2)
+        s.setdefault('done', []).insert(0, {'id': tid, 'slug': slug, 'name': rec.get('name'),
+                                            'rank': rank, 'qty': max(1, int(rec.get('qty') or 1)),
+                                            'plat': money, 'buyer': rec.get('user') or rec.get('buyer'),
+                                            'ts': now})
+        s['done'] = s['done'][:200]
+        advance(doc, now)
+    doc.setdefault('confirmed', []).append(tid)
+    doc['confirmed'] = doc['confirmed'][-400:]
+    doc.pop('confirming', None)
+    save(data_dir, doc)
+    return doc
+
+
 def confirm(data_dir, rec, now=None, source='user'):
     """Complete a trade: append it, close the pending row, move the session on. Idempotent.
 
@@ -793,53 +910,47 @@ def confirm(data_dir, rec, now=None, source='user'):
         rec['qty'] = max(1, int(rec.get('qty') or 1))
     except (TypeError, ValueError):
         return {'ok': False, 'error': 'qty must be a number'}, False
-    plat = _int(rec.get('plat') if rec.get('plat') is not None else rec.get('price'))
-    if plat is None or plat < 0:
+    # Canonical record shape, the one the whole repo already reads (see scripts/log_trade.py):
+    # `plat` is the price per copy and `total` is the money for the trade. server.trades_payload(),
+    # session_stats and plat_ledger all sum `total`, so a record that only carried `plat` vanished
+    # from every earnings figure, and one with `plat` holding the sum double counted it.
+    qty = rec['qty']
+    unit = _int(rec.get('plat') if rec.get('plat') is not None else rec.get('price'))
+    money = _int(rec.get('total'))
+    if unit is None and money is not None:
+        unit = int(round(float(money) / qty))
+    if money is None and unit is not None:
+        money = unit * qty
+    if unit is None or unit < 0 or money is None or money < 0:
         return {'ok': False, 'error': 'plat must be a number'}, False
-    rec['plat'] = plat
+    rec['plat'], rec['total'] = unit, money
     rec['rank'] = _int(rec.get('rank'))
     rec.setdefault('ts', now)
+    rec.setdefault('src', 'session')
     rec['source'] = str(rec.get('source') or source)[:24]
     rec['confirmed_ts'] = now
-    if rec.get('id') and str(rec['id']) in doc.get('confirmed', []):
+    if not rec.get('id'):
+        rec['id'] = trade_id(rec)
+    if str(rec['id']) in [str(x) for x in doc.get('confirmed', [])]:
         return {'ok': True, 'already': True, 'trade': rec, 'session_payload': None,
                 'summary': summary(doc, now)}, False
+
+    # Two-phase write. The intent (this record and its id) is durable in the session store BEFORE
+    # the trade reaches trade_log, because the two files cannot be written together: whichever way
+    # the process dies, the next load() can tell which half happened and finish or undo it
+    # (recover()). Without this, a crash in between logged a sale that the session never saw.
+    doc['confirming'] = {'id': rec['id'], 'rec': rec, 'ts': now}
+    save(data_dir, doc)
     written, created = append_event(data_dir, rec)
     if not created:
-        doc.setdefault('confirmed', []).append(str(written['id']))
-        save(data_dir, doc)
+        doc = _finalise(data_dir, doc, written, rec, now)   # someone else wrote it: settle ours
         return {'ok': True, 'already': True, 'trade': written, 'summary': summary(doc, now)}, False
 
-    # close the pending trade this came from, if any
-    pend_id = rec.get('pending_id')
-    for p in doc.get('pending', []):
-        if (pend_id and p.get('id') == pend_id) or \
-           (not pend_id and p.get('slug') == rec['slug'] and p.get('rank') == rec['rank']
-                and p.get('state') in (CONTACTED, POSSIBLE)):
-            p['state'] = COMPLETED
-            p['completed_ts'] = now
-            p['completed_trade'] = written['id']
+    # One transaction for everything the spec lists in section 5 - the pending row, the queue, the
+    # session totals, the sales count, the cursor - and it is the same code path a crash-recovery
+    # replay uses, so the two can never drift.
 
-    # move the session on and count it
-    s = doc.get('session')
-    if s:
-        for r in (s.get('queue') or []):
-            if r.get('slug') == rec['slug'] and (rec['rank'] is None or r.get('rank') == rec['rank']):
-                r['state'] = COMPLETED
-                r['completed_ts'] = now
-                break
-        t = s.setdefault('totals', {'trades': 0, 'earned_plat': 0, 'skipped': 0, 'held': 0})
-        t['trades'] = int(t.get('trades') or 0) + 1
-        t['earned_plat'] = round(float(t.get('earned_plat') or 0) + plat, 2)
-        s.setdefault('done', []).insert(0, {'id': written['id'], 'slug': rec['slug'],
-                                           'name': rec.get('name'), 'rank': rec['rank'],
-                                           'qty': rec['qty'], 'plat': plat,
-                                           'buyer': rec.get('user') or rec.get('buyer'),
-                                           'ts': now})
-        s['done'] = s['done'][:200]
-        advance(doc, now)
-    doc.setdefault('confirmed', []).append(str(written['id']))
-    save(data_dir, doc)
+    doc = _finalise(data_dir, doc, written, rec, now)
     return {'ok': True, 'already': False, 'trade': written, 'summary': summary(doc, now)}, True
 
 
