@@ -191,14 +191,20 @@ def test_next_action_links_to_trade_when_no_buyer_is_known():
 
 
 def test_next_action_is_the_one_primary_action_on_home():
-    """Screenshot review 2026-09-28: NEXT ACTION had to be the one obvious thing. Its button is the
-    page's only accent-filled control, the shell's Refresh drops to the quiet weight on the SPA
-    (it was the loudest thing on the page), and the action card's three metric cells got real
-    padding and a readable value size instead of hugging their dividers."""
+    """Screenshot review 2026-09-28: NEXT ACTION had to be the one obvious thing - one accent-filled
+    control on Home, the shell's Refresh quiet on the SPA, and the action card's three metric cells
+    with real padding and a readable value size instead of hugging their dividers.
+
+    UX pass 2026-09-29 moved *which* control that is: the head's quiet pill only opens the plan, and
+    the accent sits on Start trading / Open session, the thing that moves the item above it. The
+    rule is unchanged (one accent, and it is the next action); only its address changed."""
     css = read('static/home.css')
     open_rule = css.split('#view-home .home-open {', 1)[1].split('}', 1)[0]
-    assert 'background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white 8%), var(--accent));' in open_rule
-    assert 'box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 25%, transparent);' in open_rule
+    assert 'color: var(--muted)' in open_rule, 'the plan doorway is the quiet weight now'
+    assert 'border-radius: 999px' in open_rule
+    sess = read('static/session.js')
+    assert '<button class="btn primary" id="homeStartTrading"' in sess,         'the one accent control on Home is the loop action'
+    assert '<a class="btn primary" href="#trade/session"' in sess, 'and it stays the loop action live' 
     assert 'body[data-shell="index"] header #refresh {' in css
     assert 'body[data-shell="index"] header #refresh::after { content: none; }' in css
     fact = css.split('#view-home .next-fact {', 1)[1].split('}', 1)[0]
@@ -347,3 +353,8 @@ def test_the_home_chart_is_sized_by_its_box_not_by_a_stale_measurement():
     chart = read('static/chart.js')
     assert 'height: c.parentElement' not in chart
     assert 'var h = Math.max(56, opts.height || (wrap ? wrap.clientHeight : 0) || 200);' in chart
+
+def test_the_today_disclosure_lines_up_with_the_kpi_strip():
+    """The detail pill sat 12px in while the strip's first cell starts at 14: a 2px float nobody can
+    name but everyone can see."""
+    assert '#view-home .home-more { border: 0; margin: 0 12px 8px 14px; }' in read('static/home.css')

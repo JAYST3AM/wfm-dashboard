@@ -82,7 +82,7 @@ function sessionHomeWhisper() {
   const plan = ((TRADER || {}).plan || {}).plan || [];
   const top = plan[0] || null;
   if (!top || !top.slug) return '';
-  const q = ((FEAT.runqueue || {}).queue || []).filter(r => r && r.slug === top.slug)[0];
+  const q = sessionAskedBy(top);            /* this row's own lane, never another lane's buyer */
   if (!q || !q.buyer) return '';
   const st = String(q.buyer_status || 'offline');
   const rank = (top.lane || '').replace(/[^0-9]/g, '');
@@ -103,8 +103,8 @@ function sessionHomeWhisper() {
 function sessionHomeAction() {
   const P = sessionPayload(), live = !!P.session;
   return (live
-    ? '<a class="btn" href="#trade/session" title="Back to the trading session">Open session</a>'
-    : '<button class="btn" id="homeStartTrading" type="button" data-icon="lightning" title="Build the queue and start trading">Start trading</button>')
+    ? '<a class="btn primary" href="#trade/session" title="Back to the trading session">Open session</a>'
+    : '<button class="btn primary" id="homeStartTrading" type="button" data-icon="lightning" title="Build the queue and start trading">Start trading</button>')
     + sessionHomeWhisper();
 }
 
@@ -119,15 +119,42 @@ function sessionRankBit(row) {
   return (r === null || r === undefined || r === '') ? '' : ' <span class="dim">R' + escHtml(String(r)) + '</span>';
 }
 
-/* the queue, one compact row per item: the state, the item, what it goes for, and one way to point
-   the session at it (the suggested list has no cursor, so it shows the confidence instead) */
+/* the buyer the run queue named for one row's lane, if it named one. A row whose lane the order
+   book does not name gets nothing: the same rule the server applies before it drops a pairing, so
+   Home and the panel can never disagree about who wants an item (§2: the producer is the run queue,
+   this only reads it) */
+function sessionAskedBy(row) {
+  const want = String((row || {}).lane || '');
+  const lane = String((row || {}).rank === null || (row || {}).rank === undefined
+    ? '' : 'rank ' + row.rank);
+  const mine = want || lane;
+  for (const r of ((FEAT.runqueue || {}).queue || [])) {
+    if (!r || r.slug !== row.slug || !r.buyer) continue;
+    const theirs = String(r.lane || '') || (r.rank === null || r.rank === undefined ? '' : 'rank ' + r.rank);
+    if (mine && theirs !== mine) continue;
+    if (!mine && theirs) continue;
+    return r;
+  }
+  return null;
+}
+
+/* the queue, one compact row per item: the item, who wants it, what it goes for, and one way to
+   point the session at it. Before a session starts every row is READY, so the state chip was the
+   same word twelve times - the column answers the other half of the decision instead (spec §8: the
+   recommendation ends at a buyer, not at a price). A live queue keeps the state chip, which changes */
 function sessionQueueRows(rows, live) {
   if (!rows.length) return sessionEmpty(live ? 'Nothing queued yet.' : 'Nothing to sell yet.');
   return rows.map((r, i) => {
     const conf = (r.confidence || {}).level || 'low';
+    const who = live ? null : sessionAskedBy(r);
+    const first = live
+      ? `<span class="chip">${escHtml(sessionStateWord(r))}</span>`
+      : (who
+        ? `<span class="sesswho" title="${escHtml(who.buyer + ' pays ' + who.buy_price + 'p each')}">${escHtml(who.buyer)}</span>`
+        : '<span class="chip dim" title="no buyer in the run queue for this lane">no buyer</span>');
     return `
     <div class="sessrow">
-      <span class="chip">${escHtml(sessionStateWord(r))}</span>
+      ${first}
       <span class="l-name" title="${escHtml(r.slug || '')}">${escHtml(r.name || pretty(r.slug))}${sessionRankBit(r)}</span>
       <span class="num">${r.qty || 1}<span class="dim"> x ${escHtml(String(r.price))}p</span></span>
       ${live ? `<button class="sessfocus" data-index="${i}" title="Point the session at this item">Focus</button>`
@@ -289,9 +316,11 @@ function renderSession() {
       <div class="kpi" title="queue rows still to work"><div class="k-label">Queue</div><div class="k-val">${sum.queue_remaining || 0}<span class="dim">/${sum.queue_total || 0}</span></div></div>` : '';
   }
 
-  /* one control set per state: Start until a session is open, the loop's four once it is */
-  const start = document.getElementById('sessionStart');
-  if (start) start.classList.toggle('hidden', P.live);
+  /* one control set per state: Start until a session is open, the loop's four once it is. The
+     start control sits with the empty state (one unmistakable next action, where the eye already
+     is); its box is what hides, so the button inside it goes with it */
+  const startBox = document.getElementById('sessionStartBox');
+  if (startBox) startBox.classList.toggle('hidden', !!P.live);
   ['sessionNext', 'sessionSkip', 'sessionHold', 'sessionEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('hidden', !P.live);
@@ -325,6 +354,14 @@ function renderSession() {
       n ? ['· ' + (P.pending || []).length + ' waiting']
         .concat((P.stale || []).length ? ['· ' + P.stale.length + ' old'] : []) : []);
   }
+  /* before any session exists the pending and check cards have nothing to say, so they step
+     aside rather than stack two empty panels under the empty state; a live (or ended) session keeps
+     them visible, where "nothing waiting" is an answer rather than an absence */
+  ['sessionPendingCard', 'sessionChecksCard'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !P.session);
+  });
+
   /* the checks ride the payload the panel already painted from: the draft behind every Confirm is
      kept here (one click sends it) and the proposals themselves are never re-asked for */
   const ck = document.getElementById('sessionChecks');

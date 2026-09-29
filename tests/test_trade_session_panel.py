@@ -165,7 +165,11 @@ def test_start_trading_rides_home_next_action_and_adds_no_seventh_card():
     assert 'id="homeStartTrading"' in SESS and '>Start trading</button>' in SESS
     assert 'href="#trade/session"' in SESS, 'a live session links back into the loop'
     assert "btn.id === 'homeStartTrading'" in SESS, 'delegated: the footer is re-rendered'
-    assert 'btn primary' not in SESS, 'the card keeps its one accent action (Open Trade)'
+    # UX pass 2026-09-29: the card's one accent control is the loop action, not the head's link to
+    # the plan surface - Home asks "what do I do with this item", and the answer is the session
+    assert SESS.count('btn primary') == 2, 'Start trading, and Open session when one is live'
+    assert 'class="btn primary" id="homeStartTrading"' in SESS
+    assert 'class="btn primary" href="#trade/session"' in SESS
 
 
 # ------------------------------------------------------------------ 5. one confirmation path
@@ -347,3 +351,59 @@ def test_the_check_card_renders_what_the_payload_decided():
     assert 'ck.innerHTML = sessionCheckRows(props)' in SESS
     assert 'function sessionCheckRows(' in SESS
     assert "class=\"btn sessconf\"" in SESS
+
+# ------------------------------------------------------------------ 2. the next action and the lane rule
+# Jay's UX pass (2026-09-29): "make the next action unmistakable - what to sell, for how much, who
+# wants it, and what to do next". Three pins: the start control sits with the empty state, the
+# suggested queue answers "who wants it" instead of repeating one state word down the list, and Home
+# carries one action plus the whisper row rather than the same buyer facts twice.
+
+def test_the_start_action_sits_with_the_empty_state_it_belongs_to():
+    panel = session_panel(INDEX)
+    box = panel.split('id="sessionStartBox"', 1)[1]
+    assert 'id="sessionStart"' in box, 'the start control lives in the box that hides with it'
+    assert 'class="btn primary"' in box.split('id="sessionStart"', 1)[0] +         box.split('id="sessionStart"', 1)[1][:200], 'one accent action, so it reads as the next step'
+    head = panel.split('id="sessionNext"', 1)[0]
+    assert 'id="sessionStart"' not in head, 'not up in the card head next to the live controls'
+    assert "getElementById('sessionStartBox')" in SESS, 'renderSession hides the box, not the button'
+    assert "'hidden', !!P.live" in SESS
+
+
+def test_the_suggested_queue_says_who_wants_each_row_and_never_a_state_word():
+    assert 'function sessionAskedBy(row)' in SESS, 'the run queue is read through one rule'
+    assert 'const who = live ? null : sessionAskedBy(r);' in SESS, 'the suggested rows ask it'
+    assert 'no buyer' in SESS, "a row with no buyer says so rather than naming another lane's"
+    live_first = SESS.split('const first = live', 1)[1].split(';', 1)[0]
+    assert 'sessionStateWord(r)' in live_first, 'a live queue keeps the state chip, which changes'
+    rest = SESS.split('const first = live', 1)[1]
+    suggested = rest.split(': (who', 1)[1].split('${first}', 1)[0]
+    assert 'sessionStateWord' not in suggested,         'the suggested list never prints the same state word on every row'
+    # the lane rule itself: a buyer for another lane is not this row's buyer
+    body = SESS.split('function sessionAskedBy', 1)[1].split(chr(10) + '}', 1)[0]
+    assert 'if (mine && theirs !== mine) continue;' in body
+    assert 'if (!mine && theirs) continue;' in body, 'a lane-less row takes only a lane-less buyer'
+
+
+def test_home_next_action_shows_one_action_and_the_whisper_row():
+    foot = APP.split('class="next-foot"', 1)[1].split('</div>`;', 1)[0]
+    assert 'next-buyer' not in foot, 'the whisper row already names the buyer, price and status'
+    assert foot.index('next-nobuyer') < foot.index('sessionHomeAction()'),         'the honest gap first, then the one action'
+    assert 'sessionAskedBy(r) || who[0]' in APP,         "Home's buyer is the row's own lane, never the first buyer for the slug"
+
+def test_the_first_run_view_hides_the_two_cards_that_have_nothing_to_say():
+    """Before a session exists, "Nothing waiting on a confirmation" and "Nothing to check yet" are two
+    empty panels stacked under an empty state. They say nothing about the next action, so they step
+    aside; a live session keeps them, where "nothing waiting" is an answer."""
+    panel = session_panel(INDEX)
+    for cid in ('sessionPendingCard', 'sessionChecksCard'):
+        assert 'id="%s"' % cid in panel, cid
+        assert panel.index('id="%s"' % cid) > panel.index('id="sessionFocus"'), 'the loop leads'
+    assert "['sessionPendingCard', 'sessionChecksCard'].forEach" in SESS
+    assert "el.classList.toggle('hidden', !P.session)" in SESS,         'the cards hide only when there is no session at all'
+
+
+def test_the_buyer_column_separates_a_name_from_an_absence():
+    """A buyer is a value; "no buyer" is a state. Same column, different weight - a plain dim string
+    reads as another username."""
+    assert 'class="chip dim" title="no buyer' in SESS
+    assert 'class="sesswho" title=' in SESS, 'a named buyer stays a value, not a pill'

@@ -202,7 +202,6 @@
         <div class="card-head">
           <div class="card-title" data-icon="handshake">Trading session <span class="dim small" id="sessionMeta"></span></div>
           <div class="actions">
-            <button class="btn" id="sessionStart" data-icon="lightning" title="Build the queue and start trading">Start trading</button>
             <button class="btn" id="sessionNext" data-icon="arrow-right" title="Move to the next item">Next</button>
             <button class="btn" id="sessionSkip" title="Skip this item">Skip</button>
             <button class="btn" id="sessionHold" title="Come back to this one later">Hold</button>
@@ -211,6 +210,13 @@
         </div>
         <div class="kpis" id="sessionKpis"></div>
         <div class="picks" id="sessionFocus"></div>
+        <!-- the one next action while no session is open, beside the empty state it belongs to
+             (Started from Home it is already on its way here - the loop is where the work happens).
+             Once a session exists the box hides and the head keeps Next/Skip/Hold/End. -->
+        <div class="sess-start" id="sessionStartBox">
+          <button class="btn primary" id="sessionStart" data-icon="lightning" title="Build the queue and start trading">Start trading</button>
+          <span class="dim small">From the plan, one item at a time</span>
+        </div>
         <div class="status" id="sessionSay" aria-live="polite"></div>
       </div>
       <div class="card">
@@ -219,7 +225,7 @@
         </div>
         <div class="picks" id="sessionQueueList"></div>
       </div>
-      <div class="card">
+      <div class="card" id="sessionPendingCard">
         <div class="card-head">
           <div class="card-title" data-icon="hourglass">Waiting on a confirmation <span class="dim small" id="sessionPendMeta"></span></div>
         </div>
@@ -228,7 +234,7 @@
       <!-- Stage 5: what the game save says moved against what each whisper asked for. The check
            rides GET /api/session (proposals), one Confirm per proposal, and the only writer behind
            it is POST /api/session/confirm - the one canonical completion path. -->
-      <div class="card">
+      <div class="card" id="sessionChecksCard">
         <div class="card-head">
           <div class="card-title" data-icon="check">Checks <span class="dim small" id="sessionChecksMeta"></span></div>
         </div>

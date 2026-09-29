@@ -317,7 +317,9 @@ function renderNextAction() {
   if (meta) { meta.textContent = ''; meta.title = ''; }
   const sub = [r.lane, copies + (copies === 1 ? ' copy' : ' copies')].filter(Boolean).join(' · ');
   const who = homeBuyers(r.slug);
-  const b = who[0];
+  /* the buyer for this row's lane, not the first buyer for the slug (session.js owns that rule and
+     loads before this file): Home's top row can be rank 6 while the buyer is only there for rank 0 */
+  const b = sessionAskedBy(r) || who[0];
   /* one link on the card, and it says what it opens: with a buyer named below, the head action
      opens Trade; with nobody named, the head action IS the buyers surface (no second CTA) */
   const open = card.querySelector('.home-open');
@@ -337,11 +339,10 @@ function renderNextAction() {
       <div class="next-fact" title="completed sales in the last 48h"><div class="nf-l">Sold 48h</div><div class="nf-v">${d.vol === null ? '—' : escHtml(String(d.vol))}</div></div>
       <div class="next-fact" title="how easily it sells near this price"><div class="nf-l">Liquidity</div><div class="nf-v">${escHtml(d.conf || '—')}</div></div>
     </div>
+    <!-- one next action, then the buyer it belongs to: the whisper row already names the buyer,
+         the price and the status, so the prose line beside it was the same three facts twice -->
     <div class="next-foot">
-      ${b
-        ? `<span class="next-buyer" title="${escHtml(who.slice(0, RUNQ_WHOM).map((q) => q.buyer + ' pays ' + q.buy_price + 'p').join(' · '))}">Buyer <b>${escHtml(b.buyer)}</b> pays ${b.buy_price}p</span>
-           <span class="chip act-${escHtml(b.buyer_status)}">${escHtml(b.buyer_status)}</span>`
-        : `<span class="next-nobuyer" title="no buyer row in the run queue">No buyer in the run queue</span>`}
+      ${b ? '' : `<span class="next-nobuyer" title="no buyer for this lane">No buyer in the run queue</span>`}
       ${sessionHomeAction()}
     </div>`;
   renderSellQueue(rows);

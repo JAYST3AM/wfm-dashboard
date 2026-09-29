@@ -68,6 +68,18 @@
 #tp-session .sess-whyacc > summary { font-size: 11.5px; color: var(--muted); cursor: pointer; }
 #tp-session .sess-whyacc .sess-why { padding-bottom: 0; }
 
+/* the one action before a session exists, under the empty state it belongs to */
+#tp-session .sess-start { display: flex; align-items: center; gap: 10px; padding: 2px 0 8px; flex-wrap: wrap; }
+#tp-session .sess-start .btn { padding: 6px 14px; font-size: 12px; }
+#tp-session .sess-start .dim { font-size: 11.5px; }
+
+/* the suggested row's first column: who already wants this lane (the queue row's own lane, matched
+   by the producer's rule), or the honest gap. Names are long, so it truncates rather than pushes */
+#tp-session .sesswho {
+  font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#tp-session .sessrow .chip.dim { font-size: 11px; }
+
 /* the check rows carry one more fact than a queue row: the evidence of what moved */
 #tp-session .sesscheck {
   grid-template-columns: max-content minmax(0, 1fr) minmax(0, 0.5fr) max-content minmax(0, 1.1fr) max-content;
