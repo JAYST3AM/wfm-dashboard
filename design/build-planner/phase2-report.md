@@ -113,3 +113,20 @@ WFCD data ships `/Beginner/`, `/Intermediate/` and `/Expert/` rows wearing real 
 of them numerically impossible. They are renamed to the game's own names ("Flawed Serration"),
 flagged, kept out of the library behind a count, and never slotted as the real card; Conclave
 (`/PvPMods/`) rows carry a badge. Verified against the wiki's own `Module:Mods/data`.
+
+## The three audit rounds, and where each finding landed
+
+| Round | Auditors | Commits | What it changed |
+|---|---|---|---|
+| 1 | Codex Sol + space-bunny on `7d06d63` | `4d071db` | the engine's capacity floor (no page-side formula), a failed compute as a visible refusal, one legality rule for click/keyboard/auto/drag, strict-ish storage v1, request tokens, the polarity/Forma fix, the Exilus engine bug, the catalogue's shadow copies |
+| 2 | both on `4d071db` | `d3fb79d`, `5072162` | a refusal is an *answer* (the validation the first round discarded now reaches the screen), cleanV1 made genuinely strict (no salvaging, no coercion), the live Exilus switch in every message, swap legality both ways, the POST block's real status codes, Conclave rows into the hidden bucket, `rows[].uniqueName`, the docs' table of record, `CORE_IDS`, and the strict-storage gate step |
+| 3 | Codex Sol on `d3fb79d` | `f33bdd2` | no coercion in storage v1 (`"1"` is not 1; an unknown `active_config` fails the payload), the displaced half of a swap checked, and the gate's refusal checks fail instead of skipping when their fixture cannot be built |
+
+Two of the three rounds' findings were regressions introduced by the previous round's fix - the
+honest reading of that: the audit chain paid for itself twice over, and the failure paths (refusal
+rendering, locked slots, malformed storage) are where this page's bugs live.
+
+**Deliberate residuals** (known, not hidden): the swap-refusal hint has no automated assertion (the
+gate drives a legal swap; the illegal one is enforced by the same `slotLegal` call the other paths
+assert); the library counts in the gate are structural (one card per name, no duplicate, hidden
+buckets counted) rather than pinned numbers, so a data refresh moves them without a red gate.
