@@ -109,3 +109,30 @@ MINIMUM REQUIRED FIX:
 ```
 
 No blocking findings → `PASS — ZERO BLOCKING FINDINGS` plus a compact summary.
+
+## Fix round (verify `4d071db`, diff `7d06d63..4d071db`)
+
+The first audit round's findings are answered in this commit. What to check, specifically:
+
+1. `static/planner.js` `renderMrHint()` — the capacity floor must be the engine's
+   `capacity.minimum_from_mastery`, never a local formula; `tests/test_planner_page.py`'s
+   no-math scan now watches `mastery` too, and its whitelist sentence must match the file.
+2. A failed `/compute` must produce the `#plError` banner, `body[data-planswer="no"]`, `—` in the
+   capacity readout, and "No answer from the engine." in the panels — never "Everything this
+   build uses is calculated." with painted zeros.
+3. `slotLegal()` must be the only legality rule: click (`planner-library.js act()`), keyboard,
+   `installAuto()`, the grid drop and the auto-slot picker all route through it, and the Exilus
+   switch it reads is `state.storage.exilus_unlocked` (live), not a layout snapshot.
+4. `cleanV1()` must validate every field and range of a v1 payload before any of it is merged,
+   and a payload it cannot read in full must be replaced in full (boot rewrites the key).
+5. `builds/effects.py::exilus_ok()` must accept both the exporter's `isExilus`/`isUtility` and the
+   ingested `flags.exilus`; a build with an Exilus mod in the Exilus slot must validate.
+6. The API: a planner POST with a non-object JSON body must be a structured answer, never an
+   AttributeError or a 500; `meta.engine`/`meta.categories` and `rows[].uniqueName` are part of
+   the shipped contract (`docs/build-planner.md` is the table of record).
+7. The shadow-copy handling in `builds/ingest.py` and the library's hidden note: one card per
+   name, `shadowed_by` set, the Beginner copy renamed to the game's own name, nothing silently
+   dropped.
+
+Ignore anything from the first round that this table already answers; report only what the fix
+round got wrong, missed, or introduced.
