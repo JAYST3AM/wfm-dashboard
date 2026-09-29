@@ -7,8 +7,18 @@ makes the gate load-bearing). These tests pin the wording so it cannot drift bac
 import os
 import re
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+
+# scripts/trader/ is private and gitignored, so a clean checkout (CI) has no such files. The
+# wording inside it is still pinned - but only where the files exist. Without this the three tests
+# below fail on every CI run, which is how the suite stayed red without anyone seeing it: the data/
+# check above them failed first and pytest never started.
+PRIVATE = os.path.join(ROOT, 'scripts', 'trader')
+needs_private = pytest.mark.skipif(not os.path.isdir(PRIVATE),
+                                   reason='scripts/trader is private and absent from this checkout')
 
 UI_FILES = ('app.js', 'home.js', 'settings.js', 'cards.js', 'drawer.js', 'lookup.js', 'collection.js')
 BAD = re.compile(r'dry[\s-]?run', re.I)
@@ -83,12 +93,14 @@ def test_home_card_shows_not_live():
     assert "'Not live - plan only'" in js          # copy diet 2026-09-27: one short phrase, no sentence
 
 
+@needs_private
 def test_guardrail_help_uses_the_new_wording():
     py = read('scripts/trader/settings.py')
     assert 'Live posting gate: not live = nothing is posted' in py
     assert 'Locked to not live until Jay approves live posting.' in py
 
 
+@needs_private
 def test_lock_refusal_still_explains_itself():
     """The gate itself is untouched: turning it off is still refused with an approval message."""
     py = read('scripts/trader/settings.py')
@@ -96,6 +108,7 @@ def test_lock_refusal_still_explains_itself():
     assert len(re.findall(r'locked', py)) >= 3
 
 
+@needs_private
 def test_engines_print_not_live_not_dry_run():
     for path in ('scripts/trader/lister.py', 'scripts/trader/watcher.py', 'scripts/trader/detector.py'):
         py = read(path)

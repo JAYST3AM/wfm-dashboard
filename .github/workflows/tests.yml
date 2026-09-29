@@ -32,13 +32,18 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest cryptography
 
-      - name: Verify the suite needs no data/ directory
+      - name: Verify the suite needs no runtime data/ files
         run: |
-          if [ -d data ]; then
-            echo "unexpected data/ directory in the checkout"
+          # data/ itself is tracked (data/.gitkeep keeps the directory in the tree), so the check
+          # is for runtime files, not for the directory. Requiring an absent directory made this
+          # step fail on every push since the first release, which meant pytest never ran in CI.
+          stray=$(find data -mindepth 1 ! -name .gitkeep 2>/dev/null || true)
+          if [ -n "$stray" ]; then
+            echo "unexpected runtime data files in the checkout:"
+            echo "$stray"
             exit 1
           fi
-          echo "clean checkout: tests must pass without data/"
+          echo "clean checkout: tests must pass without runtime data/"
 
       - name: Run public test-suite
         run: python -m pytest tests -q
