@@ -45,6 +45,10 @@
       sub: 'collection log', prefix: '/', active: 'collection',
       link: { href: '/', label: 'Dashboard', icon: 'arrow-left' },
     },
+    planner: {
+      sub: 'build planner', prefix: '/', active: 'planner',
+      link: { href: '/', label: 'Dashboard', icon: 'arrow-left' },
+    },
     cards: {
       sub: 'mod cards', prefix: '/', active: 'collection',
       link: { href: '/', label: 'Dashboard', icon: 'arrow-left' },
@@ -59,13 +63,15 @@
     },
   };
 
-  /* The primary rail: six destinations, one order, the same icons on every page.
+  /* The primary rail: seven destinations, one order, the same icons on every page.
      Two groups - what you own and trade (Home / Trade / Inventory / Collection), then what you
-     configure and reach for (Tools / Settings). RAIL_GROUPS records the split; railHTML() marks
-     the second group so shell.css can hold it under a gap. Hrefs are either a hash view on the
-     SPA (prefixed per page: '#home' -> '/#home' off the SPA) or an absolute page. */
+     configure and reach for (Tools / Settings). Phase 2 put the build planner next to
+     Collection: it is a first-class destination, not a tool buried in the Tools launcher.
+     RAIL_GROUPS records the split; railHTML() marks the second group so shell.css can hold it
+     under a gap. Hrefs are either a hash view on the SPA (prefixed per page: '#home' -> '/#home'
+     off the SPA) or an absolute page. */
   var RAIL_GROUPS = [
-    ['home', 'trade', 'inventory', 'collection'],
+    ['home', 'trade', 'inventory', 'collection', 'planner'],
     ['tools', 'settings'],
   ];
   var RAIL = [
@@ -73,6 +79,7 @@
     ['trade', '#trade', 'tag', 'Trade'],
     ['inventory', '#inventory', 'package', 'Inventory'],
     ['collection', '/collection.html', 'squares-four', 'Collection'],
+    ['planner', '/planner.html', 'blueprint', 'Planner'],
     ['tools', '#tools', 'wrench', 'Tools'],
     ['settings', '/settings.html', 'gear-six', 'Settings'],
   ];

@@ -1,20 +1,20 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-29 17:04:59  (2026-09-29T17:04:59.008514+10:00) -> live measurements finished 17:08:00  
+**Run:** 2026-09-29 21:11:28  (2026-09-29T21:11:28.677070+10:00) -> live measurements finished 21:14:31  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
 
 ## Verdict
 
-**PASS** - 0 of 118 checks failed, 37 page states driven, 0 blocked-CDN request(s) excluded.
+**PASS** - 0 of 121 checks failed, 38 page states driven, 0 blocked-CDN request(s) excluded.
 
 ## Checks by group
 
 | group | checks | failed |
 |---|---|---|
-| rail | 29 | 0 |
-| load | 45 | 0 |
+| rail | 30 | 0 |
+| load | 47 | 0 |
 | fit | 1 | 0 |
 | themes | 2 | 0 |
 | parity | 36 | 0 |
@@ -30,6 +30,7 @@ Targets: index (4 hash views + 12 tool workspaces + 6 legacy hashes), collection
 |---|---|---|---|---|
 | index | 24 | 0 | 0 | 0 |
 | collection | 3 | 0 | 0 | 0 |
+| planner | 1 | 0 | 0 | 0 |
 | cards | 1 | 0 | 0 | 0 |
 | settings | 6 | 0 | 0 | 0 |
 | item | 1 | 0 | 0 | 0 |
@@ -38,7 +39,7 @@ Targets: index (4 hash views + 12 tool workspaces + 6 legacy hashes), collection
 | fit | - | 0 | 0 | - |
 | themes | - | 0 | 0 | - |
 
-Per-state rows: 37. States with an error or a failed request: 0.
+Per-state rows: 38. States with an error or a failed request: 0.
 
 ## 2. Fit - pageOverX / pageOverY per index view
 
@@ -54,17 +55,18 @@ Measurements: 30. Over the line (any overflow): 0.
 
 ## 3. Rail - 6 entries, one active, aria-current; legacy hashes
 
-Rail checked on 28 page states; 0 with a problem.
+Rail checked on 29 page states; 0 with a problem.
 
 | order | active | aria-current | the shell expects |
 |---|---|---|---|
-| home,trade,inventory,collection,tools,settings | home | home | home |
-| home,trade,inventory,collection,tools,settings | inventory | inventory | inventory |
-| home,trade,inventory,collection,tools,settings | trade | trade | trade |
-| home,trade,inventory,collection,tools,settings | tools | tools | tools |
-| home,trade,inventory,collection,tools,settings | collection | collection | collection |
-| home,trade,inventory,collection,tools,settings | settings | settings | settings |
-| home,trade,inventory,collection,tools,settings | (none) | (none) | (none) |
+| home,trade,inventory,collection,planner,tools,settings | home | home | home |
+| home,trade,inventory,collection,planner,tools,settings | inventory | inventory | inventory |
+| home,trade,inventory,collection,planner,tools,settings | trade | trade | trade |
+| home,trade,inventory,collection,planner,tools,settings | tools | tools | tools |
+| home,trade,inventory,collection,planner,tools,settings | collection | collection | collection |
+| home,trade,inventory,collection,planner,tools,settings | planner | planner | planner |
+| home,trade,inventory,collection,planner,tools,settings | settings | settings | settings |
+| home,trade,inventory,collection,planner,tools,settings | (none) | (none) | (none) |
 
 Legacy hashes (each loaded fresh, because three of them redirect the whole page):
 
@@ -121,7 +123,7 @@ Parity rows: 35, mismatches: 0.
 
 ## 5. Copy diet
 
-**Repo test** `C:\Users\jayde\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe -m pytest tests/test_copy_diet.py -q` -> rc 0 in 0.9s
+**Repo test** `C:\Users\jayde\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe -m pytest tests/test_copy_diet.py -q` -> rc 0 in 0.4s
 
 ```
 .                                                                        [100%]
@@ -157,7 +159,7 @@ none
 | rendered: settings status pill | Not live#st-pill dry |
 | rendered: trade kill-switch chip | disarmed |
 | rendered: trade kill-switch line | 9/25/2026, 23:02:47 Not live |
-| rendered: trade plan header | · built 48h ago · MR 22 |
+| rendered: trade plan header | · built 52h ago · MR 22 |
 | rendered: home alerts | Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically |
 
 How the badge is derived (read live from `app.js`, not assumed): `dry = set.dry_run === true || plan.dry_run === true`, then the chip prints `Not live - nothing is posted` when dry. The two inputs are `scripts/trader/settings.json` and `data/trader_plan.json`; **`data/config.json` carries no `dry_run` key at all**, so it is not the gate for this badge. Both real inputs are `true` above, and the rendered copy is the Not-live wording - the badge cannot claim Live while posting is locked.
@@ -170,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3180 | 0 | 8970 | 193 | 0 |
-| Kuva Crimson | dark | 17 | 3181 | 0 | 8971 | 193 | 0 |
-| Frost Light | light | 17 | 3181 | 0 | 8971 | 193 | 0 |
-| Cephalon White | light | 17 | 3181 | 0 | 8971 | 193 | 0 |
+| Vor Orange | dark | 17 | 3201 | 0 | 9008 | 193 | 0 |
+| Kuva Crimson | dark | 17 | 3202 | 0 | 9009 | 193 | 0 |
+| Frost Light | light | 17 | 3202 | 0 | 9009 | 193 | 0 |
+| Cephalon White | light | 17 | 3202 | 0 | 9009 | 193 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
@@ -185,11 +187,12 @@ Colours that did **not** change between the dark theme (0) and the light theme (
 
 ids_before.json pages: index=172, collection=28, cards=20, settings=36, item=25, lookup=0
 
-ids found live: index=8298, collection=803, cards=246, settings=1722, item=250, item-deeplink=251, lookup=461
+ids found live: index=8316, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=462, planner=296
 
 **Missing: 0** 
 
-Sanctioned removals/moves applied (5):
+Sanctioned removals/moves applied (6):
+- btnExportPng (index) <- removed from the header 2026-09-29 (Jay: the export drew a stale, price-less report and a share action did not belong in the daily header; static/export.js stays dormant)
 - homeSync (index) <- merged: sync state lives in the header #syncState + footer (stage 3)
 - heroCard (index) <- merged into the Home Today strip (stage 3)
 - heroMeta (index) <- merged into the Home Today strip (stage 3)

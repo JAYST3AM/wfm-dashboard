@@ -21,7 +21,7 @@
  *               the trade surfaces a plain load does not open
  *   2 fit       pageOverX/Y == 0 on every index view at 1920x1080 / 1536x864 / 1440x900 /
  *               1366x768 / 1280x800
- *   3 rail      exactly the 6 rail entries in order, exactly one active + one aria-current per
+ *   3 rail      exactly the 7 rail entries in order, exactly one active + one aria-current per
  *               page/view; the legacy hashes all resolve
  *   4 parity    headline numbers vs the raw data/*.json + the /api payloads (expected vs rendered)
  *   5 copy      rendered visible strings over 8 words / 90 chars, per page
@@ -61,7 +61,7 @@ const VIEWPORTS = [[1920, 1080], [1536, 864], [1440, 900], [1366, 768], [1280, 8
 /* 2 dark + 2 light, by index into static/theme.js WFM_THEMES */
 const THEMES = [0, 2, 14, 28];                 /* Vor Orange, Kuva Crimson (dark) | Frost Light, Cephalon White (light) */
 const THEME_DARK = 0, THEME_LIGHT = 14;        /* the dark/light pair compared for var escapes */
-const RAIL_EXPECT = ['home', 'trade', 'inventory', 'collection', 'tools', 'settings'];
+const RAIL_EXPECT = ['home', 'trade', 'inventory', 'collection', 'planner', 'tools', 'settings'];
 const INDEX_VIEWS = ['home', 'inventory', 'trade', 'tools'];
 const WORKSPACES = ['deals', 'trends', 'rivens', 'wl', 'ducats', 'craft', 'relicev', 'sets', 'baro', 'meta', 'news', 'player'];
 const SETTINGS_CATS = ['general', 'trading', 'appearance', 'accounts', 'notifications', 'advanced'];
@@ -406,7 +406,8 @@ function railCheck(pageName, label, facts) {
     facts.railCurrent.join(',') === expectActive.join(',') && facts.railCurrentMatchesActive === (expectActive.length === 1);
   R.rail.push({ page: pageName, state: label, order, active: facts.railActive.join(','), current: facts.railCurrent.join(','),
     expects: expectActive.join(',') || '(none)', ok: good });
-  addCheck('rail', pageName + ' ' + label + ': 6 entries in order, one active + one aria-current',
+  addCheck('rail', pageName + ' ' + label + ': ' + RAIL_EXPECT.length +
+    ' entries in order, one active + one aria-current',
     good, RAIL_EXPECT.join(',') + ' | active=' + (expectActive.join(',') || '(none)'),
     order + ' | active=' + facts.railActive.join(',') + ' current=' + facts.railCurrent.join(','));
 }
@@ -604,7 +605,8 @@ function idsCheck() {
   });
   const rendered = { index: {}, cards: {}, collection: {}, settings: {}, item: {}, lookup: {} };
   const ids = R.ids.found;
-  const ID_PAGES = ['index', 'collection', 'cards', 'settings', 'item', 'item-deeplink', 'lookup'];
+  const ID_PAGES = ['index', 'collection', 'cards', 'settings', 'item', 'item-deeplink', 'lookup',
+                    'planner'];
   ID_PAGES.forEach((p) => { ids[p] = []; });
 
   /* ============ 1. index: 4 hash views + 12 tool workspaces + legacy hashes ============ */
@@ -812,9 +814,10 @@ function idsCheck() {
     await page.close();
   }
 
-  /* ============ 2. collection / cards / settings / item / item deep link / lookup ============ */
+  /* ====== 2. collection / cards / settings / item / deep link / lookup / planner ====== */
   const specs = [
     { name: 'collection', url: '/collection.html' },
+    { name: 'planner', url: '/planner.html' },
     { name: 'cards', url: '/cards.html' },
     { name: 'settings', url: '/settings.html' },
     { name: 'item', url: '/item.html' },
@@ -900,6 +903,26 @@ function idsCheck() {
         addCheck('load', 'item deep link ?item=' + ITEM_SLUG + ' fills the analysis',
           f.n.itemCards.includes('ipChartCard:shown'), 'ipChartCard shown', f.n.itemCards.join(' '),
           'title=' + f.n.metas.ipTitle + ' | meta=' + f.n.metas.ipMeta);
+      }
+      if (spec.name === 'planner') {
+        /* the head status fills once /api/planner/meta answers - give it a moment rather than
+           reading the empty shell the instant the landing settles */
+        try {
+          await page.waitForFunction(
+            () => /mods/.test((document.getElementById('plStatus') || {}).textContent || ''),
+            { timeout: 8000 });
+        } catch (e) { /* the check below reports the real state */ }
+        const pl = await page.evaluate(() => ({
+          shell: (document.body.getAttribute('data-shell') || ''),
+          picker: !!document.getElementById('plEquipBtn'),
+          grid: !!document.getElementById('plGrid'),
+          stats: !!document.getElementById('plStats'),
+          status: (document.getElementById('plStatus') || {}).textContent || '',
+        }));
+        addCheck('load', 'planner landing: the page declares itself and its three columns exist',
+          pl.shell === 'planner' && pl.picker && pl.grid && pl.stats && /mods/.test(pl.status),
+          'data-shell=planner, picker + grid + stats present, status names the DB',
+          JSON.stringify(pl));
       }
       if (spec.name === 'lookup') {
         const landed = await page.evaluate(() => ({ path: location.pathname, hash: location.hash, hasSearch: !!document.getElementById('search') }));

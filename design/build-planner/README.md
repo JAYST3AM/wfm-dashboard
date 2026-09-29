@@ -7,6 +7,8 @@ that a disputed number can be argued about with citations instead of memory.
 
 | File | Covers |
 |---|---|
+| `phase2-ui-spec.md` | The page contract: endpoints, layout, state, persistence v1, keyboard |
+| `phase2-report.md` | What Phase 2 shipped, the rules the page keeps, what the browser gate found, and what is deliberately not built |
 | `references/capacity-polarity.md` | Mod capacity, rank/supercharger interaction, the Mastery floor, drain & polarity rounding, Aura/Stance bonuses, Forma, Exilus, duplicate-mod rules |
 | `references/weapon-stat-math.md` | Damage order of operations, elemental combination and slot order, innate elements, crit tiers, status, multishot, reload, fire rate, faction damage, DPS |
 | `references/frame-stat-math.md` | Ability Strength/Duration/Range/Efficiency stacking, caps and floors, Health/Shield/Armour/Energy rank scaling |

@@ -1,14 +1,91 @@
-# WFM Trader — Build Planner (engine)
+# WFM Trader — Build Planner
 
 A build planner that answers **"what does this build actually produce?"** for Warframe
 equipment, and can always answer **"why is this number this number?"**
 
-Phase 1 (this document) is the **calculation and data foundation**: a stdlib-only engine
-under `builds/` that ingests authoritative data, validates a build, computes the stats
-the arsenal shows, and *names every mechanic it refuses to fake*. No UI yet — the
-intended consumer is the existing dashboard plus a future build-planner page.
+Two pieces:
 
-## Running it
+* **Phase 1 — the engine** (`builds/`): a stdlib-only calculation and data foundation that
+  ingests authoritative data, validates a build, computes the stats the arsenal shows, and
+  *names every mechanic it refuses to fake*.
+* **Phase 2 — the planner page** (`static/planner.html` + `static/planner*.js`): the
+  Arsenal-style interface that edits a build and displays what the engine returns. The page
+  owns **no Warframe math** — it POSTs a build and renders `result`, `traces`, `validation`
+  and the refusals, plus the server routes in `server.py` that join the database to the
+  engine.
+
+## The planner page
+
+`/planner.html` is a first-class destination (7th rail entry, deep-linkable with
+`?equip=<name|slug|uniqueName>&config=A|B|C`, same shell/theme/focus behaviour as the other
+pages).
+
+| Area | What it does |
+|---|---|
+| Head | equipment picker (search across the normalised DB, filter by kind), engine+database status, build JSON copy, clear config |
+| Toolbar | item rank, Mastery rank (with the capacity floor it implies), Catalyst/Reactor, Exilus adapter, **Forma readout** (how many slots this config rewrites vs the item), Config A/B/C tabs + duplicate, live capacity (used / total / over-capacity bar) |
+| Slot grid | 8 normal slots + aura/stance/exilus where the item has them, each showing the mod, its rank, the adjusted drain and the slot polarity; click a slot for rank + polarity controls |
+| Mod library | search (name or effect text), filters for slot class, polarity, refusals and installed state, sorts, per-row name/polarity/drain/rank/flags, refusal counts; click installs into the focused slot, drag installs anywhere legal |
+| Stat panel | grouped stats per equipment type with before/after against the unmodded baseline, "N values · M with a trace", click a stat for the engine's own trace |
+| Damage + elements | the engine's damage split as a bar, the composition rows (which mods built which type), combined elements, DPS with its assumptions, crit/status notes |
+| Capacity detail | how the total was built (rank, catalyst, Mastery floor, aura/stance bonus) and what each slot was charged, rule by rule |
+| Validation | every error/warning the engine returned, with its own code, field and mod |
+| Unsupported | refusals on the build and in the library, each naming the mechanic |
+
+Interaction rules the page follows:
+
+* **Drag and click are both first-class.** Drag a library row onto a slot (legal targets
+  glow, illegal ones are refused visibly), drag an installed mod to another slot (move, or
+  swap) or onto the library card to remove it. Keyboard: `/` focuses the library search,
+  arrows + Enter install, `1`-`8` focus slots, `a`/`s`/`e` the aura/stance/exilus slots,
+  `Delete` clears the focused slot, `Escape` lets go.
+* **Before/after without commitment.** Hovering or dragging a mod asks the server
+  `/api/planner/preview` for the hypothetical build and shows the deltas; nothing changes
+  until the drop.
+* **Everything is persisted locally** under one versioned key (`wfm.planner.v1`): equipment,
+  all three configs (slots, ranks, polarities), catalyst, exilus, Mastery rank and the
+  active config. A payload with an unknown version or shape is ignored and rewritten instead
+  of half-applied.
+* **Refusals are never hidden.** An installed mod with mechanics the engine does not model
+  carries a "N not calculated" chip in its slot; clicking it opens the same card the library
+  shows, listing which stats and why.
+
+### The planner API
+
+`server.py` exposes the engine under `/api/planner/*` (thin joins onto `builds/api.py` —
+no math lives in the server):
+
+| Route | Answers |
+|---|---|
+| `GET  /api/planner/meta` | engine version, database provenance + counts, supported triggers, kinds, polarities |
+| `GET  /api/planner/equipment?q=&kind=&slug=` | equipment search / one normalised row (with base damage split) |
+| `GET  /api/planner/library?equip=&q=` | the mod rows for one equipment, each with drain, rank range, flags and refusal counts |
+| `POST /api/planner/compute` | `{build}` → the full `api.compute` answer |
+| `POST /api/planner/compare` | `{a, b}` → both sides with stats, capacity and deltas |
+| `POST /api/planner/preview` | `{build, next}` → the same build with one slot changed |
+| `POST /api/planner/explain` | `{build, stat}` → the trace for one stat |
+| `GET  /api/planner/unsupported` | the refusal registry |
+
+Unknown `/api/planner/*` routes answer `404 {"ok": false, "error": "unknown planner route"}`
+instead of falling through to static serving.
+
+### Gates for the page
+
+```bash
+python design/_planner/build_planner_gate.py     # 20-step browser workflow (puppeteer-core)
+python -m pytest tests/test_planner_api.py tests/test_planner_page.py -q
+```
+
+The browser gate drives the real page against the real server and the real database, and
+compares every number it reads in the DOM against `/api/planner/compute` for the very same
+build — so a page that invented a stat fails the gate. It also pins two Phase 1 values
+(Braton Prime 35 base damage; Serration R10 → 92.75) so engine drift fails loudly, and
+covers capacity, polarity/Forma, rank changes, element combinations by slot order, configs
+A/B/C, reload persistence, a foreign storage payload, five viewport widths, the keyboard
+path and all three drag flows. Report: `design/_planner/build-planner-report.md`, raw
+numbers: `design/_planner/build-planner-raw.json`.
+
+## Running the engine
 
 ```bash
 python builds/ingest.py            # build data/build_data.json (once, or to refresh)
@@ -200,12 +277,16 @@ Serration's 14 drain costs 7 in a Madurai slot and 18 in a Naramon one; Excalibu
 is 2310 Health and Hildryn 1780 Shields at rank 30; Nidus is 775/450 with +15% Ability
 Strength; efficiency above 175% still floors energy cost at 25%.
 
-## Roadmap (what Phase 1 deliberately leaves out)
+## Roadmap (what the engine deliberately leaves out)
 
-* **Phase 2** — conditional/stacking effects (Galvanized, "On Kill"), set bonuses, status
-  effect modelling (bleed/heat/viral), proc weighting, melee combo + heavy attacks +
-  stances, Incarnon, exotic triggers, enemy armour and damage-type modifiers.
-* **Phase 3** — per-ability formulas, augments, Helminth, Archon Shards, companion and
-  squad buffs.
-* **Later** — Rivens, primers, full fight simulation, and the UI page (the engine is
-  scalar and side-effect free so the UI only has to render `result` and `traces`).
+* **Engine mechanics still refused by name** — conditional/stacking effects (Galvanized,
+  "On Kill"), set bonuses, status effect modelling (bleed/heat/viral), proc weighting,
+  melee combo + heavy attacks + stances, Incarnon, exotic triggers, enemy armour and
+  damage-type modifiers. `python builds/debug.py unsupported` is the live list, and the
+  planner page shows the same refusals on any build it displays.
+* **Per-ability formulas** — augments, Helminth, Archon Shards, companion and squad buffs.
+* **Later** — Rivens, primers, full fight simulation.
+* **Planner UI, deliberately not in Phase 2** — auto-import of the player's own builds,
+  community build scraping, "improve this build", upgrade recommendations, build popularity,
+  market price integration, buy-missing-mod flows, badges, and AI-generated builds. The page
+  compares builds and previews deltas already, which is the foundation those features need.

@@ -27,22 +27,25 @@ def read(name):
 @pytest.mark.parametrize('page', PAGES)
 def test_every_page_carries_the_full_nav(page):
     """The rail lives in /shell.js now (stage 1): a page declares what it is, the shell renders
-    the same six destinations on all of them. Stage 2 (2026-09-28) shrank the rail to what you
+    the same destinations on all of them. Stage 2 (2026-09-28) shrank the rail to what you
     own and trade (Home / Trade / Inventory / Collection), a gap, then what you reach for (Tools /
     Settings) - Mastery, Player and More left the primary row for a Collection tab / Tools
-    workspaces, so they are pinned by tests/test_ia_reachability.py instead of here."""
+    workspaces, so they are pinned by tests/test_ia_reachability.py instead of here. Phase 2
+    (2026-09-29) put Planner beside Collection."""
     key, _acts = shell_decl(page)
     assert '<script src="/shell.js"></script>' in read(page), page + ' must load the shared shell'
     rows = rail_rows()
-    assert [r[0] for r in rows] == ['home', 'trade', 'inventory', 'collection', 'tools', 'settings']
+    assert [r[0] for r in rows] == ['home', 'trade', 'inventory', 'collection', 'planner',
+                                    'tools', 'settings']
     assert [r[1] for r in rows] == ['#home', '#trade', '#inventory', '/collection.html',
-                                    '#tools', '/settings.html']
-    assert [r[3] for r in rows] == ['Home', 'Trade', 'Inventory', 'Collection', 'Tools', 'Settings']
-    assert dict((r[0], r[2]) for r in rows)['tools'] == 'wrench'    # the 5th pill is Tools
+                                    '/planner.html', '#tools', '/settings.html']
+    assert [r[3] for r in rows] == ['Home', 'Trade', 'Inventory', 'Collection', 'Planner',
+                                    'Tools', 'Settings']
+    assert dict((r[0], r[2]) for r in rows)['tools'] == 'wrench'    # the 6th pill is Tools
     assert dict((r[0], r[2]) for r in rows)['settings'] == 'gear-six'
     shell = shell_js()
     # two groups, one gap: the split is data, so the rail cannot drift back to one flat row
-    assert "['home', 'trade', 'inventory', 'collection']," in shell
+    assert "['home', 'trade', 'inventory', 'collection', 'planner']," in shell
     assert "['tools', 'settings']," in shell
     assert 'navsec' in shell, 'the second group is marked for shell.css (gap + hairline)'
     assert "class=\"navpill' + (on ? ' active' : '')" in shell, 'exactly the active pill is marked'

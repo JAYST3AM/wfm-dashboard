@@ -1,0 +1,1280 @@
+{
+ "started": "2026-09-29T11:14:35.282Z",
+ "base": "http://127.0.0.1:50541",
+ "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
+ "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+ "checks": [
+  {
+   "section": "open",
+   "title": "the page ships the planner shell and its empty first-run state",
+   "ok": true,
+   "expected": "grid empty (awaiting a pick) or already rendered",
+   "observed": "0 slot cards, pickerOpen=true",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "open",
+   "title": "the shell marks the planner destination (not the dashboard)",
+   "ok": true,
+   "expected": "data-shell=\"planner\"",
+   "observed": "data-shell=\"planner\"",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "open",
+   "title": "the rail holds 7 destinations and something is current",
+   "ok": true,
+   "expected": "7 rail entries, one aria-current",
+   "observed": "7 entries, active=true",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "open",
+   "title": "the page names the engine + database it reads",
+   "ok": true,
+   "expected": "a status line naming the DB",
+   "observed": "\"db 8c3f4101 · 1809 mods · 777 items\"",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "open",
+   "title": "no id appears twice in the rendered page",
+   "ok": true,
+   "expected": "0 duplicate ids",
+   "observed": "0 ()",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "select",
+   "title": "the picker opens with the normalised DB searchable",
+   "ok": true,
+   "expected": "popup open with rows",
+   "observed": "open=true rows=80",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "select",
+   "title": "searching \"braton prime\" leaves exactly the rifle",
+   "ok": true,
+   "expected": "1 row: Braton Prime",
+   "observed": "Braton Prime Primary · RifleMR 8 · 35 dmg · 12% crit",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "select",
+   "title": "picking it draws the slot grid (8 normal slots + exilus)",
+   "ok": true,
+   "expected": "8 normal slots and an exilus slot",
+   "observed": "normal0,normal1,normal2,normal3,normal4,normal5,normal6,normal7,exilus",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "select",
+   "title": "the build now names that equipment",
+   "ok": true,
+   "expected": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "observed": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "select",
+   "title": "the engine prices its base damage at the Phase 1 value",
+   "ok": true,
+   "expected": "base_damage = 35",
+   "observed": "base_damage = 35",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "catalyst",
+   "title": "the Catalyst toggle reaches the engine",
+   "ok": true,
+   "expected": "build.orokin = true",
+   "observed": "build.orokin = true",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "catalyst",
+   "title": "the capacity bar reads the engine total",
+   "ok": true,
+   "expected": "ui 60",
+   "observed": "ui 60",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "catalyst",
+   "title": "the doubled capacity is what the rank supports (30 -> 60)",
+   "ok": true,
+   "expected": "60",
+   "observed": "60",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "add mod",
+   "title": "clicking a library row installs it into the focused slot",
+   "ok": true,
+   "expected": "slot 1 = Serration (the rifle damage mod)",
+   "observed": "{\"id\":\"/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod\",\"rank\":10} | \"Slot 1SerrationR1014✕\"",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "add mod",
+   "title": "a vacant slot charges the mod's full drain (4 + 10 = 14)",
+   "ok": true,
+   "expected": "ui == engine (14)",
+   "observed": "ui 14",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "add mod",
+   "title": "the engine's damage with Serration R10 is the Phase 1 number",
+   "ok": true,
+   "expected": "modded base = 92.75",
+   "observed": "engine 92.75",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "add mod",
+   "title": "the DOM shows that same number (the page invents nothing)",
+   "ok": true,
+   "expected": "DOM contains 92.75 (from Modded base damage92.75+57.75)",
+   "observed": "Modded base damage92.75+57.75",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "polarity",
+   "title": "the slot carries the new polarity into the engine",
+   "ok": true,
+   "expected": "madurai",
+   "observed": "madurai",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "polarity",
+   "title": "a matched polarity halves the drain (14 -> 7)",
+   "ok": true,
+   "expected": "ui == engine, < 14",
+   "observed": "ui 7 engine 7",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "polarity",
+   "title": "the Forma readout counts the changed slot",
+   "ok": true,
+   "expected": "Forma >= 1, \"1 slot changed\"",
+   "observed": "1 / 1 slot changed vs the item",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "rank",
+   "title": "rank 0 uses the mod's own rank-0 value (+15%, not zero)",
+   "ok": true,
+   "expected": "modded base = 40.25",
+   "observed": "engine 40.25",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "rank",
+   "title": "rank 10 restores the Phase 1 number (92.75)",
+   "ok": true,
+   "expected": "modded base = 92.75",
+   "observed": "engine 92.75",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "elements",
+   "title": "Heat + Toxin combine to Gas in the engine",
+   "ok": true,
+   "expected": "gas present",
+   "observed": "{\"impact\":4.6375,\"puncture\":32.4625,\"slash\":55.65,\"gas\":306.075}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "elements",
+   "title": "the DOM shows the same combination",
+   "ok": true,
+   "expected": "gas in the composition",
+   "observed": "Impact 4.638 1.2%Puncture 32.463 8.1%Slash 55.65 14%Gas 306.075 76.7%Gas 306.075 ← Heat + Toxin · Hellfire R10 + Infected Clip R10burst 4280.707 (average shot x",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "elements",
+   "title": "slot order decides the pair: Cold + Toxin is now Viral",
+   "ok": true,
+   "expected": "viral present",
+   "observed": "{\"impact\":4.6375,\"puncture\":32.4625,\"slash\":55.65,\"viral\":236.5125}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "elements",
+   "title": "the stat panel followed the swap (Viral, not Gas)",
+   "ok": true,
+   "expected": "viral and no gas",
+   "observed": "Impact 4.638 1.4%Puncture 32.463 9.9%Slash 55.65 16.9%Viral 236.513 71.8%Viral 236.513 ← Cold + Toxin · Cryo Rounds R5 + Infected Clip R10burst 3534.072 (averag",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "capacity",
+   "title": "used capacity in the DOM equals the engine's",
+   "ok": true,
+   "expected": "ui == engine",
+   "observed": "ui 34 engine 34",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "capacity",
+   "title": "the charge table names a rule for every filled slot",
+   "ok": true,
+   "expected": "one priced row per installed mod (3)",
+   "observed": "3 priced of 7 rows: [\"Slot 1Serrationmatched7 (14)\",\"Slot 2empty - charges nothing\",\"Slot 3Cryo Roundsvacant11\",\"Slot 4Infected Clipvacant16\"]",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "damage",
+   "title": "every stat row the DOM shows traces to an engine value",
+   "ok": true,
+   "expected": "8+ stat rows",
+   "observed": "24 rows",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "damage",
+   "title": "the panel groups weapon stats (no meaningless fields)",
+   "ok": true,
+   "expected": "2+ groups",
+   "observed": "[\"Offence\",\"Critical\",\"Status\",\"Cadence\",\"Damage types\",\"Other\"]",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "crit",
+   "title": "Point Strike raises crit chance above the 12% base",
+   "ok": true,
+   "expected": "> 12",
+   "observed": "45",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "crit",
+   "title": "the DOM crit chance is that engine number",
+   "ok": true,
+   "expected": "ui ~= engine (45)",
+   "observed": "Critical chance45%+33%",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "trace",
+   "title": "a stat opens the engine's own trace (base, each mod, final)",
+   "ok": true,
+   "expected": "a trace with the base and the mod",
+   "observed": "Base damage (modded)Base35Serration R10+165%Final92.75",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "trace",
+   "title": "the trace names the final value the stat row shows",
+   "ok": true,
+   "expected": "a final total in the trace",
+   "observed": "Base damage (modded)Base35Serration R10+165%Final92.75",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "config",
+   "title": "config B is its own build (active + empty)",
+   "ok": true,
+   "expected": "config B, no mods",
+   "observed": "config B, 0 mods",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "config",
+   "title": "switching to B and back leaves A untouched",
+   "ok": true,
+   "expected": "the same 4 mods, incl. the rifle damage mod",
+   "observed": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert, /Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert, /Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod, /Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "config",
+   "title": "A still holds its polarity + capacity",
+   "ok": true,
+   "expected": "madurai slot, capacity 48",
+   "observed": "polarity madurai, used 48 (was 48)",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "duplicate",
+   "title": "duplicate copies A into B and switches to it",
+   "ok": true,
+   "expected": "B active with A's 4 mods",
+   "observed": "config B, /Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert, /Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert, /Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod, /Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "persistence",
+   "title": "the planner store is versioned",
+   "ok": true,
+   "expected": "version 1",
+   "observed": "1",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "persistence",
+   "title": "a full reload restores equipment, mods, ranks and polarity",
+   "ok": true,
+   "expected": "Braton Prime, Serration R10 in a madurai slot, 4 mods",
+   "observed": "/Lotus/Weapons/Tenno/Rifle/BratonPrime / {\"kind\":\"normal\",\"index\":0,\"polarity\":\"madurai\",\"mod\":{\"id\":\"/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod\",\"rank\":10}} / 4 mods",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "persistence",
+   "title": "catalyst, exilus and mastery ride along",
+   "ok": true,
+   "expected": "orokin true, same mastery",
+   "observed": "orokin true, mr 28",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "persistence",
+   "title": "capacity after the reload is the engine's number again",
+   "ok": true,
+   "expected": "ui == engine",
+   "observed": "ui 48 engine 48",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "persistence",
+   "title": "the Forma readout survived too",
+   "ok": true,
+   "expected": ">= 1",
+   "observed": "1",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "graceful",
+   "title": "a v99 / foreign payload does not break the page",
+   "ok": true,
+   "expected": "page boots at its defaults, no new page error",
+   "observed": "0 slots in the grid, config A, new errors 0",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "graceful",
+   "title": "the unreadable payload is discarded, not half-applied",
+   "ok": true,
+   "expected": "the store is gone or rewritten as version 1",
+   "observed": "{\"version\":1,\"active\":\"A\"}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "no horizontal overflow at 1920x1080",
+   "ok": true,
+   "expected": "scrollWidth <= 1920",
+   "observed": "scrollWidth 1920",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "the three columns never overlap at 1920x1080",
+   "ok": true,
+   "expected": "0 px overlap",
+   "observed": "0 px",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "no horizontal overflow at 1536x864",
+   "ok": true,
+   "expected": "scrollWidth <= 1536",
+   "observed": "scrollWidth 1536",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "the three columns never overlap at 1536x864",
+   "ok": true,
+   "expected": "0 px overlap",
+   "observed": "0 px",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "no horizontal overflow at 1440x900",
+   "ok": true,
+   "expected": "scrollWidth <= 1440",
+   "observed": "scrollWidth 1440",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "the three columns never overlap at 1440x900",
+   "ok": true,
+   "expected": "0 px overlap",
+   "observed": "0 px",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "no horizontal overflow at 1366x768",
+   "ok": true,
+   "expected": "scrollWidth <= 1366",
+   "observed": "scrollWidth 1366",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "the three columns never overlap at 1366x768",
+   "ok": true,
+   "expected": "0 px overlap",
+   "observed": "0 px",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "no horizontal overflow at 1280x800",
+   "ok": true,
+   "expected": "scrollWidth <= 1280",
+   "observed": "scrollWidth 1280",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "fit",
+   "title": "the three columns never overlap at 1280x800",
+   "ok": true,
+   "expected": "0 px overlap",
+   "observed": "0 px",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "keyboard",
+   "title": "\"/\" reaches the library search",
+   "ok": true,
+   "expected": "plLibSearch focused",
+   "observed": "plLibSearch",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "keyboard",
+   "title": "arrows + Enter install a mod without a mouse",
+   "ok": true,
+   "expected": "1+ mod installed",
+   "observed": "1 mods",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "keyboard",
+   "title": "a digit focuses a slot (the inspector says which)",
+   "ok": true,
+   "expected": "inspector shows Slot 1",
+   "observed": "Slot 1 · Serrated RoundsR3 drain 2+3 → max 5Remove",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "drag",
+   "title": "a mod at a locked Exilus slot is refused - marked bad, nothing installed",
+   "ok": true,
+   "expected": "data-drop=\"bad\", mod count unchanged",
+   "observed": "mark bad, mods 1 -> 1",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "drag",
+   "title": "a library row dropped on a slot installs it",
+   "ok": true,
+   "expected": "marked \"ok\" and one more mod",
+   "observed": "mark ok, 1 -> 2",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "drag",
+   "title": "slot -> slot moves the mod (marked \"move\") without losing or duplicating any",
+   "ok": true,
+   "expected": "the mod is in slot 8, slot 1 empty, same count, target marked \"move\"",
+   "observed": "in slot 8: true, slot 1 empty: true, 2 -> 2, mark move",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "drag",
+   "title": "slot -> library removes the mod, and the panel offers the drop",
+   "ok": true,
+   "expected": "panel marked \"drop here to remove\", one mod fewer",
+   "observed": "marked: true, removed 1",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "hygiene",
+   "title": "no duplicate id after the whole drive",
+   "ok": true,
+   "expected": "0 duplicates",
+   "observed": "[]",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "hygiene",
+   "title": "no console error over the whole drive",
+   "ok": true,
+   "expected": "0 console errors",
+   "observed": "0: ",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "hygiene",
+   "title": "no page error over the whole drive",
+   "ok": true,
+   "expected": "0 page errors",
+   "observed": "0: ",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "hygiene",
+   "title": "no failed request outside the dev-server burst class",
+   "ok": true,
+   "expected": "0 failed requests",
+   "observed": "0: []",
+   "note": "",
+   "diagnostic": false
+  }
+ ],
+ "console": [],
+ "pageerrors": [],
+ "failed": [],
+ "blocked_cdn": [],
+ "steps": {
+  "open": {
+   "shell": "planner",
+   "rail": [
+    "Home",
+    "Trade",
+    "Inventory",
+    "Collection",
+    "Planner",
+    "Tools",
+    "Settings"
+   ],
+   "plannerActive": true,
+   "title": "Build planner · WFM Trader",
+   "dupes": [],
+   "status": "db 8c3f4101 · 1809 mods · 777 items",
+   "gridSlots": 0,
+   "pickerOpen": true,
+   "libRows": 0
+  },
+  "picker": {
+   "opening": {
+    "open": true,
+    "rows": 80
+   },
+   "hit": "Braton Prime Primary · RifleMR 8 · 35 dmg · 12% crit",
+   "build": {
+    "config": "A",
+    "equipment_id": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "orokin": false,
+    "mastery_rank": 28,
+    "exilus_unlocked": false,
+    "slots": [
+     {
+      "kind": "normal",
+      "index": 0,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 1,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 2,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 3,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 4,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 5,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 6,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 7,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "exilus",
+      "index": null,
+      "polarity": "naramon",
+      "unlocked": false,
+      "mod": null
+     }
+    ]
+   },
+   "detail_damage": 35
+  },
+  "catalyst": {
+   "ui": {
+    "used": "0",
+    "total": "60",
+    "width": "0%"
+   },
+   "api_total": 60,
+   "api_rank": 60,
+   "build_orokin": true
+  },
+  "serration": {
+   "ui": {
+    "capUsed": "14",
+    "capTotal": "60",
+    "slot1": "Slot 1SerrationR1014✕",
+    "damage": "Modded base damage92.75+57.75",
+    "damageTotal": "Modded base damage92.75+57.75",
+    "trace": "traceable"
+   },
+   "api": {
+    "damage": 35,
+    "modded": 92.75,
+    "cap": 14
+   },
+   "slot_mod": {
+    "id": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+    "rank": 10
+   }
+  },
+  "polarity": {
+   "dom": {
+    "used": "7",
+    "forma": "1",
+    "formaNote": "1 slot changed vs the item",
+    "slotPol": "madurai"
+   },
+   "api_cap": 7,
+   "slot": {
+    "kind": "normal",
+    "index": 0,
+    "polarity": "madurai",
+    "mod": {
+     "id": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+     "rank": 10
+    }
+   }
+  },
+  "rank": {
+   "r0": {
+    "id": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+    "rank": 0
+   },
+   "r10": {
+    "id": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+    "rank": 10
+   },
+   "damage_r0": 40.25,
+   "damage_r10": 92.75
+  },
+  "elements-gas": {
+   "api": {
+    "types": [
+     {
+      "element": "gas",
+      "amount": 306.075,
+      "sources": [
+       {
+        "element": "heat",
+        "amount": 153.0375,
+        "source": "mod",
+        "slot": 2,
+        "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponFireDamageModExpert",
+        "mod_name": "Hellfire",
+        "rank": 10
+       },
+       {
+        "element": "toxin",
+        "amount": 153.0375,
+        "source": "mod",
+        "slot": 3,
+        "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+        "mod_name": "Infected Clip",
+        "rank": 10
+       }
+      ],
+      "combined_from": [
+       "heat",
+       "toxin"
+      ],
+      "standalone": true
+     }
+    ],
+    "order": [
+     "gas"
+    ],
+    "trace": [
+     {
+      "stage": "combine",
+      "element": "gas",
+      "amount": 306.075,
+      "from": [
+       "heat",
+       "toxin"
+      ],
+      "slots": [
+       2,
+       3
+      ]
+     }
+    ],
+    "notes": []
+   },
+   "dom": {
+    "composition": "Impact 4.638 1.2%Puncture 32.463 8.1%Slash 55.65 14%Gas 306.075 76.7%Gas 306.075 ← Heat + Toxin · Hellfire R10 + Infected Clip R10burst 4280.707 (average shot x effective fire rate) · sustained 3358.151assumes: assumes the player fires at the arsenal fire rateassumes: reload is uninterrupted and ful",
+    "types": "impact,puncture,slash,gas,impact,puncture,slash,gas,gas",
+    "hidden": false
+   }
+  },
+  "elements-viral": {
+   "api": {
+    "types": [
+     {
+      "element": "viral",
+      "amount": 236.5125,
+      "sources": [
+       {
+        "element": "cold",
+        "amount": 83.475,
+        "source": "mod",
+        "slot": 2,
+        "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+        "mod_name": "Cryo Rounds",
+        "rank": 5
+       },
+       {
+        "element": "toxin",
+        "amount": 153.0375,
+        "source": "mod",
+        "slot": 3,
+        "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+        "mod_name": "Infected Clip",
+        "rank": 10
+       }
+      ],
+      "combined_from": [
+       "cold",
+       "toxin"
+      ],
+      "standalone": true
+     }
+    ],
+    "order": [
+     "viral"
+    ],
+    "trace": [
+     {
+      "stage": "combine",
+      "element": "viral",
+      "amount": 236.5125,
+      "from": [
+       "cold",
+       "toxin"
+      ],
+      "slots": [
+       2,
+       3
+      ]
+     }
+    ],
+    "notes": []
+   },
+   "dom": {
+    "composition": "Impact 4.638 1.4%Puncture 32.463 9.9%Slash 55.65 16.9%Viral 236.513 71.8%Viral 236.513 ← Cold + Toxin · Cryo Rounds R5 + Infected Clip R10burst 3534.072 (average shot x effective fire rate) · sustained 2772.427assumes: assumes the player fires at the arsenal fire rateassumes: reload is uninterrupted",
+    "types": "impact,puncture,slash,viral,impact,puncture,slash,viral,viral",
+    "hidden": false
+   }
+  },
+  "capacity": {
+   "ui": {
+    "used": 34,
+    "total": 60,
+    "total_dom": "60",
+    "rows": [
+     "Slot 1Serrationmatched7 (14)",
+     "Slot 2empty - charges nothing",
+     "Slot 3Cryo Roundsvacant11",
+     "Slot 4Infected Clipvacant16",
+     "Exiluslocked",
+     "+3 moreempty slots, charging nothing",
+     "Slot 1set to V (item: none)1 forma"
+    ],
+    "detail": "Rank 30/30the item's own capacity30Catalyst / Reactordoubles the rank capacity60Total34 used of 6026 freewhat each slot was chargedSlot 1Serrationmatched7 (14)Slot 2empty - charges nothingSlot 3Cryo Roundsvacant11Slot 4Infected Clipvacant16Exiluslocked+3 moreempty slots, charging nothing1 forma spen"
+   },
+   "api_used": 34,
+   "api_cap": {
+    "capacity": {
+     "equipment_rank": 30,
+     "max_rank": 30,
+     "mastery_rank": 28,
+     "minimum_from_mastery": 0,
+     "rank_capacity": 30,
+     "orokin_doubled": true,
+     "doubled_capacity": 60,
+     "aura_bonus": 0,
+     "stance_bonus": 0,
+     "total": 60,
+     "floored_by_mastery": false
+    },
+    "drain": {
+     "per_slot": [
+      {
+       "kind": "normal",
+       "index": 0,
+       "polarity": "madurai",
+       "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+       "mod_name": "Serration",
+       "mod_polarity": "madurai",
+       "raw_drain": 14,
+       "adjusted_drain": 7,
+       "adjustment": -7,
+       "rule": "matching",
+       "contribution": -7
+      },
+      {
+       "kind": "normal",
+       "index": 1,
+       "polarity": null,
+       "mod": null,
+       "mod_name": null,
+       "mod_polarity": null,
+       "raw_drain": 0,
+       "adjusted_drain": 0,
+       "adjustment": 0,
+       "rule": "empty",
+       "contribution": 0
+      },
+      {
+       "kind": "normal",
+       "index": 2,
+       "polarity": null,
+       "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+       "mod_name": "Cryo Rounds",
+       "mod_polarity": "vazarin",
+       "raw_drain": 11,
+       "adjusted_drain": 11,
+       "adjustment": 0,
+       "rule": "vacant",
+       "contribution": -11
+      },
+      {
+       "kind": "normal",
+       "index": 3,
+       "polarity": null,
+       "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+       "mod_name": "Infected Clip",
+       "mod_polarity": "naramon",
+       "raw_drain": 16,
+       "adjusted_drain": 16,
+       "adjustment": 0,
+       "rule": "vacant",
+       "contribution": -16
+      },
+      {
+       "kind": "normal",
+       "index": 4,
+       "polarity": null,
+       "mod": null,
+       "mod_name": null,
+       "mod_polarity": null,
+       "raw_drain": 0,
+       "adjusted_drain": 0,
+       "adjustment": 0,
+       "rule": "empty",
+       "contribution": 0
+      },
+      {
+       "kind": "normal",
+       "index": 5,
+       "polarity": null,
+       "mod": null,
+       "mod_name": null,
+       "mod_polarity": null,
+       "raw_drain": 0,
+       "adjusted_drain": 0,
+       "adjustment": 0,
+       "rule": "empty",
+       "contribution": 0
+      },
+      {
+       "kind": "normal",
+       "index": 6,
+       "polarity": null,
+       "mod": null,
+       "mod_name": null,
+       "mod_polarity": null,
+       "raw_drain": 0,
+       "adjusted_drain": 0,
+       "adjustment": 0,
+       "rule": "empty",
+       "contribution": 0
+      },
+      {
+       "kind": "normal",
+       "index": 7,
+       "polarity": null,
+       "mod": null,
+       "mod_name": null,
+       "mod_polarity": null,
+       "raw_drain": 0,
+       "adjusted_drain": 0,
+       "adjustment": 0,
+       "rule": "empty",
+       "contribution": 0
+      },
+      {
+       "kind": "exilus",
+       "index": null,
+       "polarity": "naramon",
+       "mod": null,
+       "mod_name": null,
+       "mod_polarity": null,
+       "raw_drain": 0,
+       "adjusted_drain": 0,
+       "adjustment": 0,
+       "rule": "empty",
+       "contribution": 0
+      }
+     ],
+     "total": 34,
+     "remaining": 26
+    },
+    "trace": [
+     "slot 0: Serration R10 drains 7 (raw 14, matching, -7)",
+     "slot 2: Cryo Rounds R5 drains 11 (raw 11, vacant)",
+     "slot 3: Infected Clip R10 drains 16 (raw 16, vacant)"
+    ],
+    "notes": [],
+    "errors": []
+   }
+  },
+  "damage-crit": {
+   "dom": {
+    "base_damage": "Base Damage35",
+    "modded": "Modded base damage92.75+57.75",
+    "crit": "Critical chance45%+33%",
+    "mult": "Critical multiplierx2",
+    "status": "Status chance26%",
+    "multishot": "Multishotx1",
+    "rows": 24,
+    "groups": [
+     "Offence",
+     "Critical",
+     "Status",
+     "Cadence",
+     "Damage types",
+     "Other"
+    ]
+   },
+   "api": {
+    "base_damage": 35,
+    "modded_base_damage": 92.75,
+    "per_projectile_total": 329.2625,
+    "multishot": 1,
+    "multishot_whole": 1,
+    "multishot_extra_chance": 0,
+    "damage_per_shot": 329.2625,
+    "damage_impact": 4.6375,
+    "damage_puncture": 32.4625,
+    "damage_slash": 55.65,
+    "damage_viral": 236.5125,
+    "critical_chance": 45,
+    "critical_multiplier": 2,
+    "critical_tier": 0,
+    "critical_expected_multiplier": 1.45,
+    "status_chance": 26,
+    "status_procs_per_projectile": 0.26,
+    "status_expected_procs_per_shot": 0.26,
+    "fire_rate": 9.5833,
+    "magazine_size": 75,
+    "reload_time": 2.15,
+    "damage_per_shot_expected_crit": 477.4306,
+    "burst_dps": 4575.3609,
+    "sustained_dps": 3589.303
+   },
+   "api_crit": 45,
+   "api_damage": 92.75
+  },
+  "trace": {
+   "text": "Base damage (modded)Base35Serration R10+165%Final92.75",
+   "lines": [
+    "Base damage (modded)",
+    "Base35",
+    "Serration R10+165%",
+    "Final92.75"
+   ]
+  },
+  "config-b": {
+   "active": "B",
+   "slots": 0
+  },
+  "config-a-intact": {
+   "mods": [
+    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert",
+    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod"
+   ],
+   "cap_used": 48
+  },
+  "duplicate": {
+   "active": "B",
+   "mods": [
+    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert",
+    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod"
+   ]
+  },
+  "persistence": {
+   "stored": {
+    "version": 1,
+    "equipment_id": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "orokin": true,
+    "active_config": "B",
+    "mastery_rank": 28,
+    "exilus": false,
+    "configs": [
+     "A",
+     "B",
+     "C"
+    ]
+   },
+   "dom": {
+    "equip": "Braton Prime",
+    "capUsed": 48,
+    "slots": [
+     "Slot 1…R107V✕",
+     "Slot 3…R511✕",
+     "Slot 4…R1016✕",
+     "Slot 5…R1014✕"
+    ],
+    "forma": "1"
+   },
+   "build_after": {
+    "config": "B",
+    "equipment_id": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "orokin": true,
+    "mastery_rank": 28,
+    "exilus_unlocked": false,
+    "slots": [
+     {
+      "kind": "normal",
+      "index": 0,
+      "polarity": "madurai",
+      "mod": {
+       "id": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+       "rank": 10
+      }
+     },
+     {
+      "kind": "normal",
+      "index": 1,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 2,
+      "polarity": null,
+      "mod": {
+       "id": "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+       "rank": 5
+      }
+     },
+     {
+      "kind": "normal",
+      "index": 3,
+      "polarity": null,
+      "mod": {
+       "id": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+       "rank": 10
+      }
+     },
+     {
+      "kind": "normal",
+      "index": 4,
+      "polarity": null,
+      "mod": {
+       "id": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert",
+       "rank": 10
+      }
+     },
+     {
+      "kind": "normal",
+      "index": 5,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 6,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "normal",
+      "index": 7,
+      "polarity": null,
+      "mod": null
+     },
+     {
+      "kind": "exilus",
+      "index": null,
+      "polarity": "naramon",
+      "unlocked": false,
+      "mod": null
+     }
+    ]
+   },
+   "api_used_after": 48
+  },
+  "graceful": {
+   "version": 1,
+   "slots": 0,
+   "active": "A"
+  },
+  "keyboard": {
+   "search": {
+    "active": "plLibSearch"
+   },
+   "rows": 10,
+   "mods_after": 1,
+   "hint": "Slot 1 · Serrated RoundsR3 drain 2+3 → max 5Remove"
+  },
+  "drag-illegal": {
+   "mark": "bad",
+   "before": 1,
+   "after": 1,
+   "name": "/Lotus/Upgrades/Mods/PvPMods/Rifle/DamageBiasSlashRifleMod",
+   "rows": 10
+  },
+  "drag": {
+   "before": 1,
+   "marked": "ok",
+   "mods_after_drop": 2,
+   "move_mark": "move",
+   "src_id": "/Lotus/Upgrades/Mods/PvPMods/Rifle/DamageBiasSlashRifleMod",
+   "in_slot_8": true,
+   "left_slot_1": true,
+   "count_before_move": 2,
+   "count_after_move": 2,
+   "panel_mark": true,
+   "removed": 1
+  },
+  "hygiene": {
+   "dupes": [],
+   "console": 0,
+   "pageerrors": 0,
+   "failed": 0,
+   "transient": 0
+  }
+ },
+ "screenshots": [
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\01-open-empty.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\02-selected-braton-prime.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\03-serration-installed.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\04-polarity-matched.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\05-elements-viral.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\06-trace-open.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\07-after-reload.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\08-responsive-1280.png",
+  "C:\\Users\\jayde\\AppData\\Local\\Temp\\planner-gate-shots\\09-drag-states.png"
+ ],
+ "notes": [],
+ "ids": {},
+ "finished": "2026-09-29T11:14:57.837Z",
+ "verdict": {
+  "pass": true,
+  "checks_total": 66,
+  "checks_failed": 0,
+  "failed": []
+ }
+}

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build planner · WFM Trader</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/shell.css">
+<link rel="stylesheet" href="/planner.css">
+<link rel="stylesheet" href="/icons.css">
+<script src="/icons.js" defer></script>
+</head>
+<body data-shell="planner" data-shell-actions="">
+<!-- The chrome (header, left rail #mainnav) is rendered by /shell.js from data-shell="planner".
+     Everything below is this page's own body: toolbar, slot grid, mod library, stat panel. -->
+
+<div class="shellbody">
+<div class="shellcol">
+
+<main class="pl-wrap">
+
+  <!-- ---------------------------------------------------------------- head: what is being built -->
+  <div class="pl-head card">
+    <div class="pl-head-main">
+      <h1 class="pl-title" data-icon="blueprint">Build planner</h1>
+      <div class="pl-picker">
+        <button class="pl-equip" id="plEquipBtn" aria-haspopup="listbox" aria-expanded="false"
+                aria-controls="plEquipPop">
+          <span class="pl-equip-kind" id="plEquipKind">—</span>
+          <span class="pl-equip-name" id="plEquipName">Choose equipment</span>
+          <span class="pl-equip-meta" id="plEquipMeta">search the whole catalogue</span>
+          <span class="pl-caret" data-icon="caret-down"></span>
+        </button>
+        <div class="pl-pop card" id="plEquipPop" hidden role="dialog" aria-label="Choose equipment">
+          <div class="search pl-search">
+            <span class="si" data-icon="magnifying-glass"></span>
+            <input id="plEquipSearch" type="search" autocomplete="off" spellcheck="false"
+                   placeholder="Search equipment…" aria-label="Search equipment">
+          </div>
+          <div class="ranges" id="plEquipKinds" role="group" aria-label="Equipment kinds"></div>
+          <div class="pl-pop-list" id="plEquipList" role="listbox" aria-label="Equipment results"></div>
+          <div class="pl-pop-foot dim small" id="plEquipFoot"></div>
+        </div>
+      </div>
+    </div>
+    <div class="pl-head-side">
+      <span class="pl-status dim small" id="plStatus" title="The engine and database this page is reading"></span>
+      <button class="btn" id="plCopy" data-icon="clipboard-text" title="Copy this build as JSON">Copy build</button>
+      <button class="btn" id="plReset" data-icon="trash-simple" title="Clear every slot in this config">Clear config</button>
+    </div>
+  </div>
+
+  <!-- ---------------------------------------------------------------- toolbar: item + config state -->
+  <div class="pl-bar card" id="plBar">
+    <div class="pl-bar-item">
+      <label class="pl-lbl" for="plRank">Rank</label>
+      <div class="pl-rankctl">
+        <input id="plRank" class="pl-num" type="number" min="0" max="40" step="1" value="30"
+               aria-label="Equipment rank">
+        <span class="dim small" id="plRankMax">/30</span>
+      </div>
+    </div>
+    <div class="pl-bar-item">
+      <label class="pl-lbl" for="plMr">Mastery rank</label>
+      <div class="pl-rankctl">
+        <input id="plMr" class="pl-num" type="number" min="0" max="40" step="1" value="28"
+               aria-label="Mastery rank">
+        <span class="dim small" id="plMrFloor"></span>
+      </div>
+    </div>
+    <div class="pl-bar-item pl-toggles">
+      <button class="pl-toggle" id="plOrokin" aria-pressed="false" data-icon="diamond">
+        <span>Catalyst / Reactor</span><span class="pl-tog-val" id="plOrokinVal">off</span>
+      </button>
+      <button class="pl-toggle" id="plExilus" aria-pressed="false" data-icon="lock-open">
+        <span>Exilus adapter</span><span class="pl-tog-val" id="plExilusVal">off</span>
+      </button>
+    </div>
+    <div class="pl-bar-item pl-forma-item" id="plFormaChip" title="This config uses the item's own polarities">
+      <span class="pl-lbl">Forma</span>
+      <span class="pl-forma mono" id="plForma">0</span>
+      <span class="dim small" id="plFormaNote">matches the item</span>
+    </div>
+    <div class="pl-bar-item pl-configs">
+      <span class="pl-lbl">Config</span>
+      <div class="pl-tabs" id="plConfigs" role="tablist" aria-label="Build configs"></div>
+      <button class="pl-dup" id="plDup" data-icon="copy"
+              title="Copy this config into the next one">Duplicate</button>
+    </div>
+    <div class="pl-bar-cap">
+      <div class="pl-cap-head">
+        <span class="pl-lbl">Capacity</span>
+        <span class="pl-cap-num mono" id="plCapUsed">0</span><span class="pl-cap-sep mono">/</span><span
+          class="pl-cap-num mono dim" id="plCapTotal">0</span>
+        <span class="pl-cap-note dim small" id="plCapNote"></span>
+      </div>
+      <div class="pl-cap-bar" id="plCapBar" role="img" aria-label="Capacity used"><i id="plCapFill"></i></div>
+    </div>
+  </div>
+
+  <div class="pl-body">
+
+    <!-- -------------------------------------------------------------- left: the build itself -->
+    <section class="pl-col pl-col-build">
+      <div class="card pl-card">
+        <div class="card-head">
+          <div class="card-title" data-icon="grid-four">Mod slots <span class="dim small" id="plGridMeta"></span></div>
+          <div class="ranges" id="plGridHint">click a slot, then a mod</div>
+        </div>
+        <div class="pl-grid" id="plGrid"></div>
+        <div class="pl-grid-foot dim small" id="plPolarityNote"></div>
+      </div>
+
+      <div class="card pl-card" id="plValidityCard">
+        <div class="card-head">
+          <div class="card-title" data-icon="seal-check">Validation <span class="dim small" id="plValidityMeta"></span></div>
+        </div>
+        <div class="pl-valid" id="plValidity"></div>
+      </div>
+
+      <div class="card pl-card" id="plCapCard">
+        <div class="card-head">
+          <div class="card-title" data-icon="calculator">Capacity detail <span class="dim small" id="plCapDetailMeta"></span></div>
+        </div>
+        <div class="pl-capdetail" id="plCapBody"></div>
+      </div>
+
+      <div class="card pl-card">
+        <div class="card-head">
+          <div class="card-title" data-icon="info">Not calculated <span class="dim small" id="plUnsupportedMeta"></span></div>
+        </div>
+        <div class="pl-unsup" id="plUnsupported"><div class="dim small" id="plUnsupportedList">nothing yet</div></div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------- middle: what can go in -->
+    <section class="pl-col pl-col-lib">
+      <div class="card pl-card pl-lib" id="plLibrary">
+        <div class="card-head">
+          <div class="card-title" data-icon="stack">Mod library <span class="dim small" id="plLibCount"></span></div>
+          <div class="ranges" id="plLibSort" role="group" aria-label="Sort mods"></div>
+        </div>
+        <div class="search pl-search">
+          <span class="si" data-icon="magnifying-glass"></span>
+          <input id="plLibSearch" type="search" autocomplete="off" spellcheck="false"
+                 placeholder="Search mods…" title="Search by name or effect"
+                 aria-label="Search mods">
+        </div>
+        <div class="pl-filters" id="plLibFilters"></div>
+        <div class="pl-lib-list" id="plLibList" role="list"></div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------- right: what it produces -->
+    <section class="pl-col pl-col-stats">
+      <div class="card pl-card pl-stats" id="plStats">
+        <div class="card-head">
+          <div class="card-title" data-icon="chart-line">Stats
+            <span class="dim small" id="plStatsMeta"></span>
+          </div>
+          <div class="ranges" id="plStatsView" role="group" aria-label="Stat view">
+            <span class="pl-hintkey dim small">click a stat for its trace</span>
+          </div>
+        </div>
+        <div class="pl-stat-body" id="plStatBody"></div>
+      </div>
+
+      <div class="card pl-card pl-trace" id="plTraces">
+        <div class="card-head">
+          <div class="card-title" data-icon="list-dashes">Why <span class="dim small" id="plTraceStat"></span></div>
+          <button class="btn pl-mini" id="plTraceCopy" data-icon="copy" hidden>Copy</button>
+        </div>
+        <div class="pl-trace-body" id="plTraceBody">
+          <div class="dim small">Pick a stat for its trace.</div>
+        </div>
+      </div>
+
+      <div class="card pl-card pl-elements" id="plElements">
+        <div class="card-head">
+          <div class="card-title" data-icon="atom">Damage &amp; elements <span class="dim small" id="plDamageMeta"></span></div>
+        </div>
+        <div class="pl-elem-body" id="plElemBody"></div>
+      </div>
+    </section>
+
+  </div><!-- /pl-body -->
+
+  <!-- the hover/drag preview: real engine answers for a hypothetical edit (never a guess) -->
+  <div class="pl-preview card" id="plPreview" hidden></div>
+
+</main>
+</div><!-- /shellcol -->
+</div><!-- /shellbody -->
+
+<footer class="pl-foot" title="Every number on this page comes from the local build engine (builds/) reading data/build_data.json">
+  <span>engine: <code>builds/</code> · <span id="plFootEngine">loading…</span></span> ·
+  <a href="/docs/build-planner.md" target="_blank" rel="noopener">how it calculates</a> ·
+  <a href="/">back to dashboard</a>
+</footer>
+
+<script src="/shell.js"></script>
+<script src="/adv.js"></script>
+<script src="/sfx.js"></script>
+<script src="/theme.js"></script>
+<script>wfmInitThemeUI();</script>
+<script src="/planner.js"></script>
+<script src="/planner-library.js"></script>
+<script src="/planner-stats.js"></script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 ROOT = os.path.abspath(os.environ.get('WFM_ROOT') or os.path.dirname(os.path.abspath(__file__)))
 DATA = os.environ.get('WFM_DATA') or os.path.join(ROOT, 'data')
@@ -1278,6 +1278,363 @@ def autosync_loop():
         time.sleep(max(0.2, min(slice_s, max(1.0, (SYNC['seconds'] or 60) / 4.0))))
 
 
+# ================================================================ build planner (Phase 2)
+# The Phase 1 engine under builds/ owns every Warframe number; these endpoints only join the
+# ingested database to it and trim the payloads to what the planner UI draws. The database is
+# loaded once per process (WFM_BUILD_DB overrides the repo default) and the mod library is
+# cached per (kind, content hash).
+_PLANNER = {}
+
+PLANNER_KIND_LABELS = {'warframe': 'Warframe', 'primary': 'Primary', 'secondary': 'Secondary',
+                       'melee': 'Melee', 'sentinel': 'Sentinel',
+                       'sentinel_weapon': 'Sentinel Weapon'}
+PLANNER_MOD_LINES = 3            # effect lines the library row carries (the rest live in detail)
+PLANNER_SUPPORT_ITEMS = 4        # refusal texts the library row carries, per class
+
+
+def _builds():
+    """The Phase 1 engine modules, imported once (None when the package is missing)."""
+    if 'mod' not in _PLANNER:
+        try:
+            if ROOT not in sys.path:
+                sys.path.insert(0, ROOT)
+            from builds import api as b_api
+            from builds import capacity as b_capacity
+            from builds import data as b_data
+            from builds import effects as b_effects
+            from builds import schema as b_schema
+            from builds import unsupported as b_unsupported
+            _PLANNER['mod'] = {'api': b_api, 'capacity': b_capacity, 'data': b_data,
+                               'effects': b_effects, 'schema': b_schema,
+                               'unsupported': b_unsupported}
+        except Exception as e:            # engine missing: the rest of the app still works
+            _PLANNER['mod'] = None
+            _PLANNER['import_error'] = str(e)[:200]
+    return _PLANNER['mod']
+
+
+def _planner_db():
+    """(db, error) - the build database, or the one message that fixes it."""
+    mods = _builds()
+    if not mods:
+        return None, ('the build engine is not importable (%s)'
+                      % _PLANNER.get('import_error') or 'builds/ missing')
+    path = os.environ.get('WFM_BUILD_DB') or None
+    if _PLANNER.get('db') is not None and _PLANNER.get('db_path') == path:
+        return _PLANNER['db'], None
+    try:
+        db = mods['data'].load(path=path, allow_missing=True) if path else \
+            mods['data'].load(allow_missing=True)
+    except Exception as e:
+        return None, 'the build database could not be read: %s' % str(e)[:200]
+    if not db:
+        return None, 'no build database - run: python builds/ingest.py'
+    _PLANNER['db'], _PLANNER['db_path'] = db, path
+    _PLANNER.pop('library', None)
+    return db, None
+
+
+def planner_meta():
+    """What the planner needs before its first frame: kinds, slot layouts, database identity."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    mods = _builds()
+    info = mods['data'].summary(db)
+    kinds = []
+    for kind in mods['schema'].EQUIP_KINDS:
+        count = info['equipment_by_kind'].get(kind) or 0
+        if not count:
+            continue
+        kinds.append({'kind': kind, 'label': PLANNER_KIND_LABELS.get(kind, kind.title()),
+                      'count': count, 'slots': list(mods['schema'].EQUIP_SLOT_KINDS.get(kind, ())),
+                      'normal_slots': mods['schema'].NORMAL_SLOTS,
+                      'max_rank': (mods['schema'].MAX_RANK_FRAME
+                                   if kind == mods['schema'].EQUIP_WARFRAME
+                                   else mods['schema'].MAX_RANK_WEAPON)})
+    return {'ok': True, 'schema_version': db.get('schema_version'),
+            'content_hash': db.get('content_hash'),
+            'generated': db.get('generated_iso'),
+            'game_version': (db.get('game_data') or {}).get('source_version'),
+            'kinds': kinds,
+            'equipment_total': info.get('equipment'), 'mods_total': info.get('mods'),
+            'unsupported': len(mods['unsupported'].list_all()),
+            'storage_version': PLANNER_STORAGE_VERSION}
+
+
+def _planner_equip_row(row):
+    """One equipment row, trimmed to what a picker row and the planner's header need."""
+    return {'id': row.get('id'), 'name': row.get('name'), 'slug': row.get('slug'),
+            'kind': row.get('kind'), 'subtype': row.get('subtype'),
+            'mastery_req': row.get('mastery_req'), 'max_rank': row.get('max_rank'),
+            'variant': row.get('variant'), 'is_prime': row.get('is_prime'),
+            'incarnon': row.get('incarnon'),
+            'damage_total': row.get('damage_total'), 'crit_chance': row.get('crit_chance'),
+            'crit_multiplier': row.get('crit_multiplier'),
+            'status_chance': row.get('status_chance'), 'fire_rate': row.get('fire_rate'),
+            'magazine': row.get('magazine'), 'reload': row.get('reload'),
+            'stats': row.get('stats') or None}
+
+
+def planner_equipment(query):
+    """Search the ingested equipment rows: ?q=&kind=&limit= (name or slug, ranked)."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    mods = _builds()
+    q = _qs(query, 'q').lower()
+    kind = _qs(query, 'kind')
+    try:
+        limit = int(_qs(query, 'limit') or 80)
+    except (TypeError, ValueError):
+        limit = 80
+    limit = max(1, min(200, limit))
+    rows = []
+    for row in mods['data'].index(db, 'equipment').values():
+        if kind and row.get('kind') != kind:
+            continue
+        name = str(row.get('name') or '')
+        if q and q not in name.lower() and q not in str(row.get('slug') or ''):
+            continue
+        rows.append(row)
+    rows.sort(key=lambda r: _planner_equip_sort(r, q))
+    return {'ok': True, 'total': len(rows),
+            'rows': [_planner_equip_row(r) for r in rows[:limit]]}
+
+
+def _planner_equip_sort(row, q):
+    """Exact name, then prefix, then earliest hit; ties by name (variant rows sink)."""
+    name = str(row.get('name') or '').lower()
+    if not q:
+        rank = 1
+    elif name == q:
+        rank = -2
+    elif name.startswith(q):
+        rank = -1
+    else:
+        rank = name.find(q)
+    return (rank, row.get('variant') and 1 or 0, name)
+
+
+def planner_equipment_detail(key):
+    """One equipment row + the slot layout the planner draws, straight from the engine's schema."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    mods = _builds()
+    row = mods['data'].find_equipment(db, key)
+    if not row:
+        return {'ok': False, 'error': "no equipment with id or slug '%s'" % key}
+    layout = _planner_slot_layout(mods, row)
+    return {'ok': True, 'equipment': row, 'slots': layout,
+            # The DE export carries `polarities` for some items and not others (Braton Prime
+            # ships none, Kuva Bramma ships one). When it is absent the grid opens vacant and
+            # the UI says so rather than inventing the item's foundry polarities.
+            'polarities_from_export': bool(row.get('polarities'))}
+
+
+def _planner_slot_layout(mods, row):
+    """The slots this item has, their default polarity, and what is locked.
+
+    The order is the engine's (normal slots first, then aura / stance / exilus) and the
+    polarity the item ships with comes from its own row, so the grid opens the way the item
+    comes out of the foundry - not the way a build guide would polarize it.
+    """
+    schema = mods['schema']
+    polarities = list(row.get('polarities') or [])
+    layout = []
+    for index in range(int(schema.NORMAL_SLOTS)):
+        layout.append({'kind': schema.SLOT_NORMAL, 'index': index,
+                       'polarity': polarities[index] if index < len(polarities) else None,
+                       'unlocked': True, 'default_polarity': None})
+    for kind in schema.EQUIP_SLOT_KINDS.get(row.get('kind'), ()):
+        if kind == schema.SLOT_NORMAL:
+            continue
+        entry = {'kind': kind, 'index': None, 'unlocked': True, 'default_polarity': None,
+                 'polarity': None}
+        if kind == schema.SLOT_AURA:
+            entry['polarity'] = row.get('aura_polarity')
+        elif kind == schema.SLOT_STANCE:
+            entry['polarity'] = row.get('stance_polarity')
+        elif kind == schema.SLOT_EXILUS:
+            entry['unlocked'] = False        # needs an Exilus Adapter before anything fits
+            entry['polarity'] = row.get('exilus_polarity')
+        layout.append(entry)
+    for entry in layout:
+        entry['default_polarity'] = entry['polarity']
+    return layout
+
+
+def _planner_mod_line(row):
+    """One display line, trimmed to something a library row can hold."""
+    text = ' '.join(str((row or {}).get('text') or '').split())
+    return text if len(text) <= 120 else text[:117] + '\u2026'
+
+
+def _planner_line_norm(text):
+    """Whitespace- and case-insensitive form, for matching a card line against a refusal.
+
+    The card text carries both real newlines and the export's literal '\\n' escape
+    ('On Kill:\\n+2.7% ...'), and the engine's refusal list holds the cleaned form, so both
+    spellings fold to a single space before the comparison.
+    """
+    text = str(text or '').replace('\\n', ' ')
+    return ' '.join(text.split()).lower()
+
+
+def _planner_mod_lines(mods, effects, max_rank):
+    """The mod card's own lines at its max rank ('+165% Damage'), minus the refused riders.
+
+    effects['per_rank'] is the engine's cleaned copy of the card text, so this is the line a
+    player reads on the card - and a rider the engine refused stays out of it, appearing in
+    support.conditional / support.unmodelled_examples instead.
+    """
+    per_rank = effects.get('per_rank') or []
+    if max_rank is None or max_rank >= len(per_rank):
+        rank_lines = per_rank[-1] if per_rank else []
+    else:
+        rank_lines = per_rank[max(0, max_rank)]
+    refused = {_planner_line_norm(t) for t in (effects.get('conditional') or [])}
+    lines = []
+    for line in rank_lines:
+        text = ' '.join(str(line or '').split())
+        if not text or _planner_line_norm(text) in refused:
+            continue
+        lines.append(_planner_mod_line({'text': text}))
+        if len(lines) >= PLANNER_MOD_LINES:
+            break
+    if not lines:                       # no card text: fall back to the numeric table
+        for row in mods['effects'].effect_rows(effects, max_rank):
+            if row.get('conditional'):
+                continue
+            value = row.get('value')
+            unit = '%' if row.get('unit') == 'percent' else ''
+            if value is None:
+                continue
+            lines.append('%+g%s %s' % (value, unit, row.get('stat')))
+            if len(lines) >= PLANNER_MOD_LINES:
+                break
+    return lines
+
+
+def _planner_mod_summary(mods, row):
+    """The library-row payload for one mod: identity, the numbers a decision needs, support state."""
+    effects = row.get('effects') or {}
+    max_rank = row.get('max_rank')
+    lines = _planner_mod_lines(mods, effects, max_rank)
+    refusals, conditionals = [], []
+    for stat, ranks in sorted((effects.get('unmodelled') or {}).items()):
+        example = (effects.get('unmodelled_examples') or {}).get(stat, stat)
+        if len(refusals) < PLANNER_SUPPORT_ITEMS:
+            refusals.append(_planner_mod_line({'text': example}))
+    for text in (effects.get('conditional') or [])[:PLANNER_SUPPORT_ITEMS]:
+        conditionals.append(_planner_mod_line({'text': text}))
+    drain_max = None
+    if row.get('base_drain') is not None and max_rank is not None:
+        drain_max = mods['capacity'].mod_drain(row['base_drain'], max_rank)
+    flags = row.get('flags') or {}
+    return {
+        'id': row.get('id'), 'name': row.get('name'), 'slug': row.get('slug'),
+        'polarity': row.get('polarity'), 'base_drain': row.get('base_drain'),
+        'drain_max': drain_max, 'max_rank': max_rank, 'rarity': row.get('rarity'),
+        'type': row.get('type'), 'compat': row.get('compat'), 'slot': row.get('slot'),
+        'exilus_ok': row.get('exilus_ok'), 'variant': row.get('variant'),
+        'class': row.get('class'), 'targets': row.get('targets') or [],
+        'flags': [k for k in ('primed', 'umbral', 'galvanized', 'archon', 'amalgam',
+                              'sacrificial', 'augment', 'stance', 'aura', 'set', 'exilus',
+                              'flawed', 'riven') if flags.get(k)],
+        'is_prime': bool(flags.get('prime')),
+        'lines': lines,
+        'support': {'unmodelled': len(effects.get('unmodelled') or {}),
+                    'conditional': len(effects.get('conditional') or []),
+                    'unmodelled_examples': refusals, 'conditional_examples': conditionals},
+    }
+
+
+def planner_library(query):
+    """Every mod installable on one item (the library list): ?equipment=<id|slug>."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    mods = _builds()
+    key = _qs(query, 'equipment')
+    row = mods['data'].find_equipment(db, key) if key else None
+    if not row:
+        return {'ok': False, 'error': "no equipment with id or slug '%s'" % key}
+    cache = _PLANNER.setdefault('library', {})
+    cache_key = (row.get('kind'), db.get('content_hash'))
+    if cache_key not in cache:
+        rows = [_planner_mod_summary(mods, m)
+                for m in mods['data'].mods_for_kind(db, row.get('kind'))]
+        # The catalog ships Beginner/Intermediate starter copies under the same display name;
+        # the standard copy sorts first so the library reads the way the game's does.
+        rows.sort(key=lambda r: (str(r.get('name') or '').lower(),
+                                 {'': 0, 'intermediate': 1, 'beginner': 2}.get(
+                                     r.get('variant') or '', 3), -(r.get('max_rank') or 0)))
+        cache[cache_key] = rows
+    return {'ok': True, 'total': len(cache[cache_key]),
+            'equipment': {'id': row.get('id'), 'name': row.get('name'),
+                          'kind': row.get('kind')},
+            'rows': cache[cache_key]}
+
+
+def planner_unsupported():
+    """The refusal registry (brief section 14: the UI shows what is not calculated)."""
+    mods = _builds()
+    if not mods:
+        return {'ok': False, 'error': 'the build engine is not importable'}
+    return {'ok': True, 'rows': mods['unsupported'].list_all(),
+            'marker_keys': mods['unsupported'].MARKER_TO_KEY}
+
+
+def planner_compute(build):
+    """One build -> the engine's full answer (validation, capacity, stats, baseline, refusals)."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    if not isinstance(build, dict):
+        return {'ok': False, 'error': 'build must be a JSON object'}
+    mods = _builds()
+    out = mods['api'].compute(build, db)
+    out['engine'] = {'schema_version': db.get('schema_version'),
+                     'content_hash': db.get('content_hash')}
+    return out
+
+
+def planner_preview(payload):
+    """A hypothetical edit: what changes (brief section 11), from two real engine runs."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    mods = _builds()
+    a = (payload or {}).get('build') or {}
+    b = (payload or {}).get('next') or {}
+    if not isinstance(a, dict) or not isinstance(b, dict):
+        return {'ok': False, 'error': 'build and next must be JSON objects'}
+    out = mods['api'].compare(a, b, db)
+    return out
+
+
+def planner_explain(payload):
+    """The rendered trace for one stat of a computed build (brief section 12)."""
+    db, err = _planner_db()
+    if err:
+        return {'ok': False, 'error': err}
+    mods = _builds()
+    build = (payload or {}).get('build') or {}
+    stat = str((payload or {}).get('stat') or '')
+    computed = mods['api'].compute(build, db)
+    text = mods['api'].explain(computed, stat) if stat else None
+    traces = ((computed or {}).get('result') or {}).get('traces') or {}
+    return {'ok': text is not None, 'stat': stat, 'text': text,
+            'available': sorted(traces),
+            'result': {'stats': ((computed or {}).get('result') or {}).get('stats') or {},
+                       'damage': ((computed or {}).get('result') or {}).get('damage') or {}}}
+
+
+PLANNER_STORAGE_VERSION = 1       # the localStorage schema the page writes (planner storage v1)
+
+
 class H(BaseHTTPRequestHandler):
     def _send(self, code, body, ctype='application/json'):
         if isinstance(body, (dict, list)):
@@ -1332,6 +1689,17 @@ class H(BaseHTTPRequestHandler):
                     return self._send(500, {'error': str(e)[:200]})
             return self._send(404, {'error': 'unknown feature'})
         if p == '/api/report': return self._send(200, jload(os.path.join(DATA, 'report.json')) or {})
+        if p == '/api/planner/meta': return self._send(200, planner_meta())
+        if p == '/api/planner/equipment':
+            return self._send(200, planner_equipment(parse_qs(urlparse(self.path).query)))
+        if p.startswith('/api/planner/equipment/'):
+            return self._send(200, planner_equipment_detail(
+                unquote(p[len('/api/planner/equipment/'):])))
+        if p == '/api/planner/mods':
+            return self._send(200, planner_library(parse_qs(urlparse(self.path).query)))
+        if p == '/api/planner/unsupported': return self._send(200, planner_unsupported())
+        if p.startswith('/api/planner/'):
+            return self._send(404, {'ok': False, 'error': 'unknown planner route'})
         return self._serve_file(p.lstrip('/'))
 
     def do_POST(self):
@@ -1500,6 +1868,19 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, ks)
             except Exception as e:
                 return self._send(500, {'ok': False, 'error': str(e)})
+        if p.startswith('/api/planner/'):
+            try:
+                ln = int(self.headers.get('Content-Length') or 0)
+                b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
+            except Exception as e:
+                return self._send(400, {'ok': False, 'error': 'bad JSON body: %s' % str(e)[:120]})
+            if p == '/api/planner/compute':
+                return self._send(200, planner_compute(b))
+            if p == '/api/planner/preview':
+                return self._send(200, planner_preview(b))
+            if p == '/api/planner/explain':
+                return self._send(200, planner_explain(b))
+            return self._send(404, {'ok': False, 'error': 'unknown planner route'})
         return self._send(404, {'error': 'not found'})
 
     def log_message(self, fmt, *args):

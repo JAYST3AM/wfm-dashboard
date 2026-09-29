@@ -565,9 +565,20 @@ def slot_class(mod_row):
 
     Aura and Stance mods are capacity *sources*, not drains, and they only fit their
     dedicated slot - the validator rejects an aura in a normal slot and vice versa.
+
+    The engine sees two shapes of the same mod: the raw export row (`compatName`, `type`)
+    and the ingested row (`slot`, `class`, `compat`). Both must classify, or an ingested
+    Aura silently becomes a normal mod the moment it is validated.
     """
-    compat = str((mod_row or {}).get('compatName') or '').strip().lower()
-    kind = str((mod_row or {}).get('type') or '').strip().lower()
+    row = mod_row or {}
+    ingested = str(row.get('slot') or '').strip().lower()
+    if ingested in (schema.SLOT_AURA, schema.SLOT_STANCE):
+        return ingested
+    class_name = str(row.get('class') or '').strip().lower()
+    if class_name in (schema.SLOT_AURA, schema.SLOT_STANCE):
+        return class_name
+    compat = str(row.get('compatName') or row.get('compat') or '').strip().lower()
+    kind = str(row.get('type') or '').strip().lower()
     if compat == 'aura' or kind.startswith('aura'):
         return schema.SLOT_AURA
     if 'stance' in kind or compat == 'stance':
@@ -675,6 +686,16 @@ def selftest():
                                       for i in range(6)], compat='Aura', mtype='Aura',
                         polarity='madurai', base_drain=4)
     check('slot_class: aura', slot_class(aura) == schema.SLOT_AURA)
+    # The exporter's shape and the ingested shape must classify the same, or an Aura becomes
+    # a normal mod the moment validation sees it (ingest stores it as `slot`, not compatName).
+    check('slot_class: aura and stance survive ingestion',
+          slot_class({'slot': 'aura', 'class': 'aura', 'compat': 'AURA',
+                      'type': 'Warframe Mod'}) == schema.SLOT_AURA
+          and slot_class({'slot': 'stance', 'class': 'stance', 'compat': 'STANCE',
+                          'type': 'Melee Mod'}) == schema.SLOT_STANCE
+          and slot_class({'slot': 'normal', 'class': 'rifle', 'compat': 'Rifle',
+                          'type': 'Primary Mod'}) == schema.SLOT_NORMAL,
+          'an ingested aura/stance must not fall through to normal')
     check('derive_flags: aura + name flags', derive_flags('Rifle Amp', aura)['aura'] is True)
     check('derive_flags: galvanized/primed/umbral by name',
           derive_flags('Galvanized Chamber', galv)['galvanized'] is True

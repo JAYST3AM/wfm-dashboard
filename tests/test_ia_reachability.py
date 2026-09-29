@@ -10,7 +10,7 @@ of every Tools workspace, the mastery tab, the legacy hashes, and the rendered i
 against design/_stage1/ids_before.json - 0 missing). Reachability is pinned here so a later edit
 cannot quietly orphan a feature:
 
-  * the rail is exactly the six destinations, in order, in two groups;
+  * the rail is exactly the seven destinations, in order, in two groups (Phase 2 added /planner.html);
   * every Tools slug in app.js's TOOL_SLUGS has a launcher entry AND a workspace in index.html;
   * all twelve list ids that lived on the old More page are still rendered by their workspace,
     and the Clan Dojo card that stage 5 moved off Inventory renders in the `dojo` workspace;
@@ -86,16 +86,26 @@ def workspace_block(slug):
 
 # ------------------------------------------------------------------ the rail itself
 
-def test_the_rail_is_exactly_six_destinations_in_order():
+def test_the_rail_is_exactly_seven_destinations_in_order():
+    """Phase 2 (2026-09-29): the build planner joins the rail as the seventh destination -
+    /planner.html, last in the first group (Home / Trade / Inventory / Collection / Planner, then
+    the gap, then Tools / Settings). It is a page the way collection.html is, so it carries its own
+    pill and its own registry entry: without the PAGES entry the shell would render another page's
+    sub-title, active pill and way back on it."""
     rows = rail_rows()
     assert [(r[0], r[1], r[3]) for r in rows] == [
         ('home', '#home', 'Home'),
         ('trade', '#trade', 'Trade'),
         ('inventory', '#inventory', 'Inventory'),
         ('collection', '/collection.html', 'Collection'),
+        ('planner', '/planner.html', 'Planner'),
         ('tools', '#tools', 'Tools'),
         ('settings', '/settings.html', 'Settings'),
     ]
+    entry = re.search(r'\n    planner: \{(.*?)\n    \},', SHELL, re.S)
+    assert entry, 'shell.js PAGES needs the planner entry (design/build-planner/phase2-ui-spec.md)'
+    assert "active: 'planner'" in entry.group(1) and "prefix: '/'" in entry.group(1), entry.group(1)
+    assert "sub: 'build planner'" in entry.group(1), entry.group(1)
     # every pill keeps the stage 1 conventions: data-v (app.js routes on it), data-icon, .navpill
     assert "data-v=\"' + v + '\"" in SHELL and 'data-icon="' in SHELL
     assert "'<nav class=\"mainnav sidenav\" id=\"mainnav\" aria-label=\"Primary\">'" in SHELL
@@ -103,7 +113,8 @@ def test_the_rail_is_exactly_six_destinations_in_order():
 
 def test_the_rail_is_two_groups_primary_then_secondary():
     groups = SHELL.split('var RAIL_GROUPS = [', 1)[1].split('];', 1)[0]
-    assert "['home', 'trade', 'inventory', 'collection']," in groups
+    # Phase 2: the planner sits at the end of the first group, so the gap still opens at Tools
+    assert "['home', 'trade', 'inventory', 'collection', 'planner']," in groups
     assert "['tools', 'settings']," in groups
     # the second group is marked so shell.css holds it under a gap + hairline - and only its
     # first pill carries the mark (a second hairline under Tools would cut Settings loose again)
@@ -370,7 +381,8 @@ def test_legacy_hashes_cannot_land_blank():
         assert 'id="view-%s"' % v in INDEX, v
     for slug in SLUGS:
         assert 'data-tool="%s"' % slug in INDEX, slug
-    for page in ('collection.html', 'cards.html', 'settings.html', 'item.html'):
+    # Phase 2: the rail's new href (/planner.html) must ship like every other one
+    for page in ('collection.html', 'cards.html', 'settings.html', 'item.html', 'planner.html'):
         assert os.path.isfile(os.path.join(STATIC, page)), page
     for href in ('/collection.html', '/settings.html', '/#search', '#tools'):
         assert href in INDEX or href in SHELL, href

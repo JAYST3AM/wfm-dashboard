@@ -5,14 +5,14 @@ it. Written for anyone changing the UI (and for future-me). The stage-by-stage h
 audit behind it live in [`design/migration-map.md`](../design/migration-map.md); this page describes
 the **landed** state as of 2026-09-28.
 
-The app is a local server with hash-routed views on one SPA page plus four standalone pages, so a
+The app is a local server with hash-routed views on one SPA page plus five standalone pages, so a
 "destination" is either a hash on `/#…` or a real `.html` file.
 
-## The rail — six destinations, two groups
+## The rail — seven destinations, two groups
 
 Rendered by `static/shell.js` from the `RAIL` / `RAIL_GROUPS` registry; styled by `static/shell.css`.
-Pages declare themselves with `<body data-shell="index|collection|cards|settings|item">` and hold no
-chrome of their own.
+Pages declare themselves with `<body data-shell="index|collection|cards|planner|settings|item">` and
+hold no chrome of their own.
 
 | Pill | Goes to | Active when | Group |
 |---|---|---|---|
@@ -20,6 +20,7 @@ chrome of their own.
 | Trade | `/#trade` | `#trade` | ↑ |
 | Inventory | `/#inventory` | `#inventory` | ↑ |
 | Collection | `/collection.html` | any `collection.html` section (relics/mastery included) | ↑ |
+| Planner | `/planner.html` | `planner.html` (`?equip=`/`?config=` deep links included) | ↑ |
 | Tools | `/#tools` | `#tools` and every `#tools/<slug>` | configure & reach for |
 | Settings | `/settings.html` | `settings.html` | ↑ |
 
@@ -35,6 +36,7 @@ Tools workspace, and More *is* the Tools launcher.
 | Inventory | `/#inventory` | Owned items table (default columns + **All columns**), Materials, Clan Dojo, inventory changes. |
 | Collection | `/collection.html` | Sections **Collection** · **Relics** (`#relics`) · **Mastery** (`#mastery`), each deep-linkable, plus a link to the Cards page. |
 | Cards | `/cards.html` | The full mod-card workspace. Reached from the Collection section row (and old `#cards` links). |
+| Planner | `/planner.html` | The build planner: equipment picker, mod slots + polarity/rank/Forma controls, the mod library, live stats with before/after, the damage split and combined elements, the capacity breakdown, traces and refusals. Deep links: `?equip=<name|slug|uniqueName>` and `?config=A\|B\|C`. |
 | Tools | `/#tools` | The launcher: three groups (Trading / Planning / Warframe) + the Setup/links card. Each tool opens one focused workspace, `#tools/<slug>`. |
 | Settings | `/settings.html` | Six categories, one panel in the flow at a time: **General** (`#general`, the default) · **Trading** · **Appearance** · **Accounts** · **Notifications** · **Advanced**. An unknown/empty hash falls back to General. |
 | Item analysis | `/item.html?item=<slug>` | The deep per-item page: picker, chart, trades, statistics. Also accepts `#item=<slug>` and the older `?slug=<slug>`. No parameter = the picker. |

@@ -40,9 +40,21 @@ def server_up():
     import urllib.request
     try:
         with urllib.request.urlopen(BASE + '/', timeout=8) as r:
-            return r.status == 200
+            if r.status != 200:
+                return 'HTTP %s on /' % r.status
     except Exception as e:
         return 'unreachable: %s' % e
+    # The stage-10 rail includes Planner, so the app on BASE must be THIS checkout: a stale
+    # server from an older session answers / but 404s /api/planner/*, which reads as a page bug.
+    try:
+        with urllib.request.urlopen(BASE + '/api/planner/meta', timeout=8) as r:
+            body = r.read(200)
+            if r.status == 200 and b'"ok"' in body:
+                return True
+            return 'no planner API on %s (HTTP %s) - restart server.py from this checkout' % (
+                BASE, r.status)
+    except Exception as e:
+        return 'no planner API on %s (%s) - restart server.py from this checkout' % (BASE, e)
 
 
 def md_table(head, rows):

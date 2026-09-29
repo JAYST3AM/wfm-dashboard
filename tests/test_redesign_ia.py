@@ -23,20 +23,22 @@ def read(name):
 
 
 # ------------------------------------------------------------------ shell: nav + views
-def test_index_has_the_six_destination_nav():
-    """The rail is shell chrome now: index declares itself the SPA and /shell.js renders the six
+def test_index_has_the_seven_destination_nav():
+    """The rail is shell chrome now: index declares itself the SPA and /shell.js renders the seven
     destinations, in this order, with these hrefs (bare hashes on the SPA, /#… on the sub-pages).
     Stage 2 removed the Mastery / Player / More pills - their homes are pinned in
-    tests/test_ia_reachability.py."""
+    tests/test_ia_reachability.py. Phase 2 (2026-09-29) added Planner beside Collection: one
+    configure-and-read destination, still reached from the same rail."""
     key, _acts = shell_decl('index.html')
     assert key == 'index'
     rows = [(r[0], r[1], r[3]) for r in rail_rows()]
-    assert len(rows) == 6, rows
-    assert [v for v, _h, _l in rows] == ['home', 'trade', 'inventory', 'collection', 'tools',
-                                         'settings']
+    assert len(rows) == 7, rows
+    assert [v for v, _h, _l in rows] == ['home', 'trade', 'inventory', 'collection', 'planner',
+                                         'tools', 'settings']
     assert [(h, l) for _v, h, l in rows] == [('#home', 'Home'), ('#trade', 'Trade'),
                                              ('#inventory', 'Inventory'),
                                              ('/collection.html', 'Collection'),
+                                             ('/planner.html', 'Planner'),
                                              ('#tools', 'Tools'), ('/settings.html', 'Settings')]
     for gone in ('mastery', 'player', 'more'):
         assert gone not in [v for v, _h, _l in rows], gone + ' must not be a primary pill'

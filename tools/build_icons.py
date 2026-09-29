@@ -51,6 +51,7 @@ REGULAR = [
     'atom', 'dna', 'flask', 'planet', 'rocket', 'robot', 'sword', 'crosshair', 'target',
     'skull', 'users', 'users-three', 'person', 'handshake', 'lightning', 'fire', 'drop',
     'snowflake', 'leaf', 'bug', 'castle-turret', 'buildings', 'warehouse', 'gas-pump',
+    'blueprint',
     # status / alerts
     'warning', 'warning-circle', 'warning-diamond', 'info', 'question', 'x-circle',
     'circle-notch', 'seal-warning', 'prohibit', 'plus-circle', 'minus-circle', 'spinner-gap',
@@ -71,6 +72,7 @@ FILL = [
     'users', 'handshake', 'cube', 'archive', 'trash', 'pencil', 'download-simple', 'copy',
     'list', 'table', 'eye', 'sliders-horizontal', 'caret-down', 'arrow-right', 'check', 'x',
     'plus', 'circle-notch', 'newspaper', 'megaphone', 'storefront', 'wallet', 'arrow-square-out',
+    'blueprint',
 ]
 
 

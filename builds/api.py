@@ -146,8 +146,17 @@ def compare(build_a, build_b, db, options=None):
             row['delta'] = round(float(bv) - float(av), 6)
         diff.append(row)
     return {'ok': True, 'diff': diff,
-            'a': {'stats': left, 'capacity_used': a.get('capacity_used')},
-            'b': {'stats': right, 'capacity_used': b.get('capacity_used')}}
+            'a': _compare_side(a), 'b': _compare_side(b)}
+
+
+def _compare_side(computed):
+    """One side of a comparison: what the UI needs to render it without a second call."""
+    return {'stats': (computed.get('result') or {}).get('stats') or {},
+            'capacity_used': computed.get('capacity_used'),
+            'capacity': computed.get('capacity'),
+            'validation': computed.get('validation'),
+            'unsupported': computed.get('unsupported') or [],
+            'damage': (computed.get('result') or {}).get('damage') or {}}
 
 
 def _normalised(build, equipment):
