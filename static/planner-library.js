@@ -215,7 +215,7 @@
         return false;
       }
     }
-    if (fitsKind && !P.modFitsSlot(row, fitsKind)) return false;
+    if (fitsKind && !P.slotLegal(fitsKind, null, row)) return false;   // lock included
     if (lib.polarity && (row.polarity || '') !== lib.polarity) return false;
     if (lib.refusedOnly) {
       var sup = row.support || {};
@@ -629,14 +629,17 @@
   }
 
   function previewTarget(row) {
+    // The same legality rule the install paths use, so a hover can never promise a slot a click
+    // would refuse (a locked Exilus slot is the case that used to diverge).
     var focus = P.focused();
-    if (focus && P.modFitsSlot(row, focus.kind)) return { kind: focus.kind, index: focus.index };
+    if (focus && P.slotLegal(focus.kind, focus.index, row)) {
+      return { kind: focus.kind, index: focus.index };
+    }
     var slots = P.build().slots || [];
     var last = null;
     for (var i = 0; i < slots.length; i++) {
       var s = slots[i];
-      if (s.kind === 'exilus' && !s.unlocked) continue;
-      if (!P.modFitsSlot(row, s.kind)) continue;
+      if (!P.slotLegal(s.kind, s.index, row)) continue;
       if (!s.mod) return { kind: s.kind, index: s.index };
       last = { kind: s.kind, index: s.index };
     }

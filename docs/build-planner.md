@@ -205,10 +205,15 @@ that travel with the build, not silent zeroes.
 
 Two data traps this project hit and handles explicitly:
 
-* **Starter mod copies share display names.** The catalog ships Beginner/Intermediate
-  versions of several mods (Serration exists at max rank 3, 5 *and* 10). Rows carry a
-  `variant` field and name lookups prefer the standard copy — otherwise "Serration"
-  silently resolves to the 3-rank beginner mod.
+* **The catalog ships copies of real mods under their names.** Three kinds, handled three
+  ways. The *Beginner* copy is a real in-game card (Serration at max rank 3): the ingester
+  renames it to the wiki's own name ("Flawed Serration") and flags it `is_flawed`. The
+  *Intermediate* and *Expert* rows are internal leftovers that exist in no player's
+  inventory (a rank-10 "Hellfire" at +275%): they are flagged `shadowed` with
+  `shadowed_by`, kept out of the library behind a count with a one-click reveal, badged
+  "not in game" when revealed, and never slotted as the real card. Name lookups prefer the
+  standard copy, so "Serration" always resolves to the rank-10 real mod. Grounded in the
+  wiki's `Module:Mods/data` internal names, not guessed.
 * **The AlecaFrame mirror is an older snapshot.** Compared against today's WFCD export,
   1794 of 1809 mod stat tables are identical; 11 differ in wording only (the mirror still
   says "On Headshot" where the current game says "On Weak Point Hit"), one augment was

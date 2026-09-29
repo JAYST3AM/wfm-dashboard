@@ -962,6 +962,72 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       contract.hidden === true && contract.answer === 'yes' && contract.capUsed !== '—',
       'banner hidden, data-planswer=yes, a capacity figure', JSON.stringify(contract));
 
+    /* ------------------------------------------------- 19c a refusal is an answer with reasons */
+    // An impossible build must show the engine's own validation - and must not be reported as a
+    // dead engine. The cheapest certain impossibility: the same mod in two slots (duplicate_mod),
+    // written straight into storage v1 and loaded, so the check exercises boot + cleanV1 + the
+    // Validation card rather than the click paths.
+    const dup = await page.evaluate(async (base) => {
+      const P = window.WFMPlanner;
+      const KEY = 'wfm.planner.v1';
+      const build = P.build();
+      const installed = (build.slots || []).filter((s) => s.mod && s.kind === 'normal');
+      const empty = (build.slots || []).filter((s) => !s.mod && s.kind === 'normal');
+      if (!installed.length || !empty.length) return { skipped: 'no installed mod with a free slot' };
+      const doc = { version: 1, equipment_id: build.equipment_id,
+        equipment_rank: build.equipment_rank === undefined ? null : build.equipment_rank,
+        mastery_rank: build.mastery_rank, orokin: build.orokin,
+        exilus_unlocked: !!build.exilus_unlocked, active_config: build.config || 'A',
+        configs: { A: { slots: {}, polarities: {} } }, library: {}, ui: {} };
+      doc.configs.A.slots['normal:' + installed[0].index] = { id: installed[0].mod.id,
+        rank: installed[0].mod.rank };
+      doc.configs.A.slots['normal:' + empty[0].index] = { id: installed[0].mod.id,
+        rank: installed[0].mod.rank };
+      localStorage.setItem(KEY, JSON.stringify(doc));
+      // what the engine says about exactly this build, straight from the API
+      const answer = await (await fetch(base + '/api/planner/compute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equipment_id: build.equipment_id, config: 'A', mastery_rank: build.mastery_rank,
+          orokin: build.orokin, exilus_unlocked: !!build.exilus_unlocked,
+          slots: [{ kind: 'normal', index: installed[0].index, mod: installed[0].mod },
+                  { kind: 'normal', index: empty[0].index, mod: installed[0].mod }]
+        })
+      })).json();
+      return { skipped: null, wrote: Object.keys(doc.configs.A.slots),
+        engine_codes: (((answer || {}).validation || {}).errors || []).map((e) => e.code) };
+    }, BASE);
+    if (!dup.skipped && dup.engine_codes.length) {
+      await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+      await page.waitForFunction(() => {
+        const box = document.getElementById('plValidity');
+        return box && box.textContent.indexOf('code') >= 0;
+      }, { timeout: 20000 });
+    }
+    const refusal = dup.skipped ? { skipped: dup.skipped } : await page.evaluate((expected) => {
+      const shown = (document.getElementById('plValidity') || {}).textContent || '';
+      return { engine_codes: expected, shown: shown.trim().slice(0, 200),
+        banner_hidden: document.getElementById('plError').hidden,
+        banner_text: ((document.getElementById('plError') || {}).textContent || '').trim() };
+    }, dup.engine_codes);
+    say('engine-refusal', refusal);
+    addCheck('answer-contract', 'an impossible build shows the engine\'s own reason, not a dead engine',
+      !!refusal.skipped || (refusal.engine_codes.length > 0 &&
+        refusal.engine_codes.every((c) => refusal.shown.indexOf(c) >= 0)),
+      'the refusal code the engine sent appears in #plValidity',
+      refusal.skipped || JSON.stringify({ codes: refusal.engine_codes, shown: refusal.shown.slice(0, 90),
+        banner: refusal.banner_text }));
+    addCheck('answer-contract', 'a refusal is not reported as a failure to answer',
+      !!refusal.skipped || refusal.banner_hidden === true,
+      'the error banner stays hidden while the validation card carries the reason',
+      refusal.skipped || ('banner hidden: ' + refusal.banner_hidden + ', banner: ' +
+        JSON.stringify(refusal.banner_text)));
+    // back to a clean page for the hygiene pass
+    await page.evaluate(() => localStorage.removeItem('wfm.planner.v1'));
+    await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+
+
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
     const final = await page.evaluate(() => {

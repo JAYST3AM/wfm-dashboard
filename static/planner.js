@@ -103,7 +103,8 @@
     polaritiesFromExport: true,
     library: [],              // mod rows for this equipment (planner-library.js draws them)
     libraryFor: null,
-    result: null,             // last /compute answer
+    result: null,             // last /compute answer, when it carried a numeric result
+    answer: null,             // the whole /compute answer, refusals included
     baseline: null,
     storage: null,
     focused: null,            // {kind, index} of the selected slot
@@ -159,6 +160,7 @@
   }
 
   var POLARITY_NAMES = ['madurai', 'naramon', 'vazarin', 'zenurik', 'umbral', 'penjaga', 'unairu'];
+  var MAX_STORED_RANK = 40;        // the game's own ceiling (a rank-40 frame)
 
   // Every field of a v1 document, checked before any of it is trusted: a payload this page
   // cannot read in full is dropped in full (the boot then rewrites the key). Ranges are checked
@@ -167,10 +169,16 @@
     if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
     if (Number(data.version) !== STORE_VERSION) return null;
     var out = freshStorage();
+    var bad = false;
+    // Strict: a field that is present but not what v1 says it is fails the whole document (the
+    // boot then rewrites the key). Defaulting a junk value would silently change the user's state.
     function scalar(key, ok, fallback) {
-      return (data[key] === undefined || data[key] === null) ? fallback
-        : (ok(data[key]) ? data[key] : fallback);
+      var v = data[key];
+      if (v === undefined || v === null) return fallback;
+      if (!ok(v)) { bad = true; return fallback; }
+      return v;
     }
+    var SLOT_KEY = /^(normal:\d+|exilus|aura|stance)$/;
     out.equipment_id = scalar('equipment_id',
       function (v) { return typeof v === 'string' && v.length > 0; }, null);
     out.equipment_rank = scalar('equipment_rank',
@@ -197,14 +205,16 @@
       for (var s = 0; s < slotKeys.length; s++) {
         var entry = slotsIn[slotKeys[s]];
         if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+        if (!SLOT_KEY.test(slotKeys[s])) return null;
         if (typeof entry.id !== 'string' || !entry.id.length) return null;
         var rank = (entry.rank === undefined || entry.rank === null) ? 0 : entry.rank;
-        if (!Number.isInteger(rank) || rank < 0) return null;
+        if (!Number.isInteger(rank) || rank < 0 || rank > MAX_STORED_RANK) return null;
         slots[slotKeys[s]] = { id: entry.id, rank: rank };
       }
       var pols = {};
       var polKeys = Object.keys(polIn);
       for (var q = 0; q < polKeys.length; q++) {
+        if (!SLOT_KEY.test(polKeys[q])) return null;
         var value = polIn[polKeys[q]];
         if (value === undefined || value === null) continue;
         if (typeof value !== 'string') return null;
@@ -214,10 +224,43 @@
       }
       out.configs[letter] = { slots: slots, polarities: pols };
     }
-    out.library = (data.library && typeof data.library === 'object' && !Array.isArray(data.library))
-      ? data.library : {};
-    out.ui = (data.ui && typeof data.ui === 'object' && !Array.isArray(data.ui)) ? data.ui : {};
-    return out;
+    out.library = cleanLibrary(data.library);
+    if (out.library === null) return null;
+    if (data.ui !== undefined && data.ui !== null &&
+        (typeof data.ui !== 'object' || Array.isArray(data.ui))) return null;
+    out.ui = (data.ui && typeof data.ui === 'object') ? data.ui : {};
+    return bad ? null : out;
+  }
+
+  var LIB_SLOTS = ['', 'normal', 'aura', 'stance', 'exilus'];
+  var LIB_SORTS = ['name', 'drain', 'rarity', 'flag', 'catalogue'];
+
+  // The library panel's own persisted view state: every member v1 defines, checked; a member
+  // that is present and wrong fails the document like any other.
+  function cleanLibrary(raw) {
+    if (raw === undefined || raw === null) return freshStorage().library;
+    if (typeof raw !== 'object' || Array.isArray(raw)) return null;
+    var out = freshStorage().library;
+    var ok = true;
+    function text(key, allowed) {
+      var v = raw[key];
+      if (v === undefined || v === null) return;
+      if (typeof v !== 'string' || (allowed && allowed.indexOf(v) < 0)) { ok = false; return; }
+      out[key] = v;
+    }
+    function bool(key) {
+      var v = raw[key];
+      if (v === undefined || v === null) return;
+      if (typeof v !== 'boolean') { ok = false; return; }
+      out[key] = v;
+    }
+    text('q');
+    text('polarity', POLARITY_NAMES.concat(['']));
+    text('slot', LIB_SLOTS);
+    text('sort', LIB_SORTS);
+    bool('hide_refused');
+    bool('hide_installed');
+    return ok ? out : null;
   }
 
   var saveTimer = null;
@@ -456,15 +499,20 @@
         if (seq !== state.computeSeq) return;           // a stale answer never lands
         state.computing = false;
         var good = !!(out && out.result);
-        state.result = good ? out : null;               // a refusal is not a result to paint
+        // A refusal is not a result to paint, but it is an answer: the engine's own validation
+        // (capacity_exceeded, mod_not_exilus, ...) is kept and shown by the Validation card.
+        state.answer = out || null;
+        state.result = good ? out : null;
         state.baseline = good ? out.baseline : null;
-        state.error = good ? null : ((out && out.error) || 'the engine did not answer');
+        state.error = (out && out.error) ? out.error
+          : (good || (out && out.validation) ? null : 'the engine did not answer');
         renderResult();
         emit('result', out);
       }).catch(function (err) {
         if (seq !== state.computeSeq) return;
         state.computing = false;
         state.result = null;
+        state.answer = null;
         state.error = 'the engine did not answer (' + ((err && err.message) || 'network') + ')';
         renderResult();
         emit('result', null);
@@ -794,7 +842,7 @@
     var moved = cfg.slots[fromKey];
     if (!moved) return;
     var row = modRowById(moved.id);
-    if (!row || !modFitsSlot(row, kind)) {
+    if (!row || !slotLegal(kind, index, row)) {      // one legality rule, moves included
       flashHint((row ? row.name : 'that mod') + ' does not go in a ' + SLOT_LABEL[kind]);
       return;
     }
@@ -950,7 +998,8 @@
       $('plCapBar').className = 'pl-cap-bar';
       $('plCapFill').setAttribute('style', 'width:0%');
       $('plCapBar').setAttribute('aria-label', 'Capacity unknown');
-      $('plCapNote').textContent = state.error ? 'no answer from the engine' : '';
+      $('plCapNote').textContent = state.error ? 'no answer from the engine'
+        : (state.answer && state.answer.validation ? 'the engine refused this build - see Validation' : '');
       return;
     }
     var out = state.result;
@@ -979,7 +1028,10 @@
   }
 
   function renderValidation() {
-    if (!state.result) {
+    // The engine's refusals are the point of this card, so it reads the whole answer - a build
+    // that does not fit has validation.errors and no numeric result, and both facts matter.
+    var out = state.result || state.answer;
+    if (!out) {
       var empty = $('plValidity');
       clear(empty);
       $('plValidityMeta').textContent = '';
@@ -987,7 +1039,6 @@
         text: state.error ? 'No answer from the engine.' : 'Nothing to check yet.' }));
       return;
     }
-    var out = state.result || {};
     var v = out.validation || {};
     var errors = v.errors || [];
     var warnings = v.warnings || [];
@@ -1026,7 +1077,9 @@
     if (!state.result) {
       $('plUnsupportedMeta').textContent = '';
       box.appendChild(el('div', { class: 'dim small',
-        text: state.error ? 'No answer from the engine.' : 'Nothing to check yet.' }));
+        text: state.error ? 'No answer from the engine.'
+          : (state.answer && state.answer.validation ? 'the engine refused this build'
+            : 'Nothing to check yet.') }));
       return;
     }
     var out = state.result;
@@ -1534,6 +1587,7 @@
     equipment: function () { return state.equipment; },
     layout: function () { return state.layout; },
     error: function () { return state.error; },
+    answer: function () { return state.answer; },
     library: function () { return state.library; },
     libraryHidden: function () { return state.libraryHidden || null; },
     libraryWithHidden: function () { return !!state.libraryWithHidden; },

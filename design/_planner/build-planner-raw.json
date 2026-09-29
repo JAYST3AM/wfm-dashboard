@@ -1,6 +1,6 @@
 {
- "started": "2026-09-29T11:50:51.564Z",
- "base": "http://127.0.0.1:51711",
+ "started": "2026-09-29T11:56:19.763Z",
+ "base": "http://127.0.0.1:8787",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -622,6 +622,24 @@
    "ok": true,
    "expected": "banner hidden, data-planswer=yes, a capacity figure",
    "observed": "{\"hidden\":true,\"answer\":\"yes\",\"capUsed\":\"23\",\"ok\":true,\"has_result\":true,\"error\":null,\"val_errors\":[],\"banner\":\"\"}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "answer-contract",
+   "title": "an impossible build shows the engine's own reason, not a dead engine",
+   "ok": true,
+   "expected": "the refusal code the engine sent appears in #plValidity",
+   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod\",\"banner\":\"\"}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "answer-contract",
+   "title": "a refusal is not reported as a failure to answer",
+   "ok": true,
+   "expected": "the error banner stays hidden while the validation card carries the reason",
+   "observed": "banner hidden: true, banner: \"\"",
    "note": "",
    "diagnostic": false
   },
@@ -1354,6 +1372,14 @@
    "val_errors": [],
    "banner": ""
   },
+  "engine-refusal": {
+   "engine_codes": [
+    "duplicate_mod"
+   ],
+   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mods/Rifle/WeaponGrenadeStickyModAdhesive Blast carries stats the engine does not model: grenades have #% chance ",
+   "banner_hidden": true,
+   "banner_text": ""
+  },
   "hygiene": {
    "dupes": [],
    "console": 0,
@@ -1375,10 +1401,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-29T11:51:16.162Z",
+ "finished": "2026-09-29T11:56:46.072Z",
  "verdict": {
   "pass": true,
-  "checks_total": 73,
+  "checks_total": 75,
   "checks_failed": 0,
   "failed": []
  }
