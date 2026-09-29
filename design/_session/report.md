@@ -85,6 +85,9 @@ intermediate. Everything else is one stage per commit.
   rows, real buyers `aleks_002`, `MrFail`, `NaYory`, `filnor9712`), two contacts opened, a check
   answered with real evidence, then the seeded store was deleted so the app is back to its normal
   no-session state.
+- **Workflow gate (one command):** `python design/_session/workflow_gate.py` boots a throwaway data
+  dir, drives the real UI through Whisper → CONTACTED → the reconcile check → Confirm, and rewrites
+  `design/_session/workflow-report.md` with the verdict and the evidence it read back.
 
 ## 5. Weaknesses, honestly
 
