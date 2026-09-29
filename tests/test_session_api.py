@@ -213,7 +213,8 @@ def test_the_check_rides_the_session_payload(live, seeded):
     assert body['needs_you'] == 1 and body['checks']['exact'] == 1
     p = body['proposals'][0]
     assert p['verdict'] == 'exact' and p['copies_left'] == 3 and p['plat_delta'] == 144
-    assert p['trade']['plat'] == 144 and p['trade']['pending_id'] == body['pending'][0]['id']
+    assert p['trade']['plat'] == 48 and p['trade']['total'] == 144
+    assert p['trade']['pending_id'] == body['pending'][0]['id']
 
 
 def test_the_reconcile_route_answers_and_writes_nothing(live, seeded):

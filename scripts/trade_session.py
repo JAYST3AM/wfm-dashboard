@@ -737,7 +737,10 @@ def propose(pending, inv_now, plat_now, now=None, inv_basis=None):
                     'plat_before': plat_before, 'plat_now': _int(plat_now),
                     'copies_left': left, 'plat_delta': delta_plat, 'evidence': why,
                     'stale': age > STALE_PENDING_S,
-                    'trade': trade_draft(p, plat=(expected or 0) * qty if verdict == EXACT else None)})
+                    # the draft carries the per-copy price: trade_draft turns it into
+                    # plat=unit / total=unit*qty, which is the shape every reader sums. Passing
+                    # the sum here would have stored it as the unit and multiplied it again.
+                    'trade': trade_draft(p, plat=expected if verdict == EXACT else None)})
     order = {EXACT: 0, AMBIGUOUS: 1, UNKNOWN: 2, NOTHING: 3}
     out.sort(key=lambda r: (order.get(r['verdict'], 9), -(r['plat_delta'] or 0)))
     return {'proposals': out, 'counts': counts,

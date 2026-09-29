@@ -49,7 +49,8 @@ def test_a_multi_copy_sale_matches_on_the_total(ts):
     out = ts.propose([pend(qty=3, inv=6, plat_before=1000)], {ts_key('primed_continuity', 0): 3}, 1144)
     p = out['proposals'][0]
     assert p['verdict'] == ts.EXACT and p['copies_left'] == 3 and p['total_plat'] == 144
-    assert p['trade']['plat'] == 144 and p['trade']['qty'] == 3
+    assert p['trade']['qty'] == 3
+    assert p['trade']['plat'] == 48 and p['trade']['total'] == 144   # unit, then the money
 
 
 def test_extra_platinum_makes_it_ambiguous_not_exact(ts):
@@ -66,6 +67,17 @@ def test_extra_copies_make_it_ambiguous_not_exact(ts):
     p = out['proposals'][0]
     assert p['verdict'] == ts.AMBIGUOUS and p['copies_left'] == 3
     assert any('more moved' in e for e in p['evidence']), p['evidence']
+
+
+def test_the_draft_the_panel_confirms_carries_both_numbers(ts):
+    """The draft propose() offers is what the panel POSTs back on Confirm, so it has to carry the
+    canonical pair: plat = price per copy, total = the money. It passed the sum as `plat` once, and
+    confirm() multiplied it again - a 3 x 48p sale was recorded as 432p."""
+    out = ts.propose([pend(qty=3, inv=4, plat=48)], {ts_key('primed_continuity', 0): 1}, 1364)
+    p = out['proposals'][0]
+    assert p['verdict'] == ts.EXACT
+    assert p['trade']['qty'] == 3
+    assert p['trade']['plat'] == 48 and p['trade']['total'] == 144
 
 
 def test_an_exact_match_is_still_exact(ts):
