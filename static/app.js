@@ -2013,7 +2013,6 @@ bind('ordRefresh', () => renderOrders());
     ordChips(ORD.data); ordPaint();
   });
 })();
-bind('btnExportPng', () => WFMExportPicks(REPORT && REPORT.sell_now));
 bind('btnKill', async () => {
   const active = !((FEAT.killswitch || {}).active);
   const note = (document.getElementById('killNote') || {}).value || '';

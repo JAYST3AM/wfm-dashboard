@@ -396,6 +396,10 @@ def test_no_id_from_the_stage1_snapshot_disappeared():
       heroMeta   the hero's date line, a copy of #homeSub (the page header's own date)
       homeSync   the sync state, a copy of #syncState in the header (and the footer line)
       kpiCard    the six-cell grid, merged into #kpis
+    One more left on 2026-09-29 (Jay): the header's PNG export button, because the image it drew
+    was a stale, price-less report - a table of dashes - and a share-my-picks action did not belong
+    in the chrome a session uses every day. The utility behind it (static/export.js) is still in
+    the tree, dormant; nothing loads it.
     The data those ids carried did not leave the app: the six readings are the strip's four cells
     and its detail disclosure, and the sync state still renders in the header + footer.
     """
@@ -404,7 +408,9 @@ def test_no_id_from_the_stage1_snapshot_disappeared():
     removed = {'heroCard': 'duplicate of the Today strip (#kpis) + #chartCard',
                'heroMeta': 'duplicate of #homeSub (the page date line)',
                'homeSync': 'duplicate of #syncState (the header clock)',
-               'kpiCard': 'merged into the Today strip (#kpis)'}
+               'kpiCard': 'merged into the Today strip (#kpis)',
+               'btnExportPng': 'the header export drew a stale, price-less report (2026-09-29); '
+                               'static/export.js stays dormant'}
     wanted = sorted({i for ids in before.values() for i in ids} - set(removed))
     sources = []
     for name in sorted(os.listdir(STATIC)):

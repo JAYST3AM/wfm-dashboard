@@ -7,12 +7,12 @@
  *
  * Before this file, index.html / collection.html / cards.html / settings.html / item.html each
  * hand-declared the same header (brand, chips, global search, sound button, theme button + its
- * 60-theme panel, the settings/back link, sync state, refresh, PNG), the same left rail and their
+ * 60-theme panel, the settings/back link, sync state, refresh), the same left rail and their
  * own copy of the nav pills - which is exactly how the five pages drifted apart.
  *
  * A page now declares WHAT IT IS and nothing else:
  *   <body data-shell="collection" data-shell-actions="">            <- no optional header actions
- *   <body class="shell-fit" data-shell="index" data-shell-actions="search syncState refresh png">
+ *   <body class="shell-fit" data-shell="index" data-shell-actions="search syncState refresh">
  * ...plus its own content, its own sub-nav (`.mainnav.subnav`, kept in the page) and its footer.
  * The registry below turns that declaration into the identical chrome on every page.
  *
@@ -135,10 +135,6 @@
     }
     if (want.syncState) h.push('<span id="syncState" class="dim small" data-icon="arrows-clockwise"></span>');
     if (want.refresh) h.push('<button id="refresh" class="btn primary" data-icon="arrows-clockwise">Refresh</button>');
-    if (want.png) {
-      h.push('<button id="btnExportPng" class="btn" title="Save top recommendations as a PNG"');
-      h.push(' data-icon="download-simple">PNG</button>');
-    }
     h.push('</div>');
     h.push('<div id="themePanel" class="theme-panel hidden">');
     h.push('<div class="tp-head">Choose a theme <span id="themeName" class="dim"></span></div>');

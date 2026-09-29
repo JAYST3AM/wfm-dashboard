@@ -72,8 +72,12 @@ def test_the_shell_renders_every_id_the_page_scripts_bind_to():
     shell = shell_js()
     for frag in ('id="mainnav"', 'id="chips"', 'id="search"', 'id="searchDrop"', 'id="soundBtn"',
                  'id="themeBtn"', 'id="themePanel"', 'id="themeName"', 'id="themeGrid"',
-                 'id="syncState"', 'id="refresh"', 'id="btnExportPng"'):
+                 'id="syncState"', 'id="refresh"'):
         assert frag in shell, frag
+    # the PNG export button left the header on 2026-09-29 (Jay): it exported a stale report whose
+    # rows carried no prices, so the page it drew was a table of dashes, and a share-my-picks
+    # action was sitting in the daily-use header. static/export.js stays as a dormant utility.
+    assert 'id="btnExportPng"' not in shell and 'want.png' not in shell
     # the Settings link is contextual (settingsBtn on the SPA, the way back on the sub-pages),
     # so its id rides in the page registry
     assert "id: 'settingsBtn'" in shell and 'pg.link.id' in shell
@@ -81,13 +85,13 @@ def test_the_shell_renders_every_id_the_page_scripts_bind_to():
 
 def test_the_header_actions_are_opt_in_per_page():
     """A page gets the header actions it really had - no more (index), no less (the sub-pages had
-    none of them). 'search syncState refresh png' is index's list; the other four are bare."""
-    assert shell_decl('index.html')[1] == {'search', 'syncState', 'refresh', 'png'}
+    none of them). 'search syncState refresh' is index's list; the other four are bare."""
+    assert shell_decl('index.html')[1] == {'search', 'syncState', 'refresh'}
     for page in SHELL_PAGES[1:]:
         assert shell_decl(page)[1] == set(), page
     shell = shell_js()
     for flag, frag in (('search', 'id="search"'), ('syncState', 'id="syncState"'),
-                       ('refresh', 'id="refresh"'), ('png', 'id="btnExportPng"')):
+                       ('refresh', 'id="refresh"')):
         assert 'want.%s' % flag in shell, flag
         assert frag in shell, frag
 

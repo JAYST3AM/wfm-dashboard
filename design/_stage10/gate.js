@@ -77,6 +77,7 @@ const SANCTIONED = {
   'homeSync': 'merged: sync state lives in the header #syncState + footer (stage 3)',
   'kpiCard': 'merged into the Home Today strip #kpis (stage 3)',
   'view-mastery': 'moved to collection.html #view-mastery (stage 2)',
+  'btnExportPng': 'removed from the header 2026-09-29 (Jay: the export drew a stale, price-less report and a share action did not belong in the daily header; static/export.js stays dormant)',
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
