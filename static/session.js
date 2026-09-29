@@ -26,7 +26,14 @@ function sessionPayload() {
   const S = FEAT.session || {};
   return { live: !!S.session, focusIndex: S.focus_index, summary: S.summary || {},
     focus: S.focus || null, queue: S.queue || [], suggested: S.suggested || [],
-    pending: S.pending || [], stale: S.stale_pending || [] };
+    pending: S.pending || [], stale: S.stale_pending || [],
+    /* the checks ride this payload (spec §4) and the renderer reads them from here: the proposals
+       the server decided on, how many need a person, and the exception counts. Without these three
+       the Checks card rendered empty for ever - the server answered EXACT and the panel showed
+       nothing, which is exactly the sort of gap only a real browser run finds. */
+    proposals: S.proposals || [], needs_you: S.needs_you || 0, checks: S.checks || {},
+    /* the session itself: the end-of-session card reads ended_ts off it to know it is over */
+    session: S.session || null };
 }
 
 function sessionStateWord(row) {

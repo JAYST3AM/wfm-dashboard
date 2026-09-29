@@ -318,3 +318,30 @@ def test_the_focus_card_carries_the_full_action_set():
     assert 'ORD.slug = slug' in SESS, 'and it opens on this item'
     assert "source: 'manual'" in SESS, 'the manual completion is labelled as one'
     assert SESS.count('function sessionMarkSold(') == 1
+
+
+# ------------------------------------------- the view model is the renderer's whole input
+def test_the_view_model_carries_every_key_the_renderers_read():
+    """sessionPayload() is what every renderer in this file reads as `P`, and it is hand-written:
+    the proposals the server decided on were missing from it, so the Checks card rendered empty for
+    ever - the API answered EXACT and the panel showed nothing. This pins the mapping: any new
+    `P.<key>` a renderer reads must be carried here. Only a real browser run finds the gaps this
+    cannot see, which is what design/_session/workflow_gate.py is for."""
+    import re
+    body = re.search(r'function sessionPayload\(\)\s*\{(.*?)\n\}', SESS, re.S)
+    assert body, 'sessionPayload() not found'
+    mapping = body.group(1)
+    read = sorted({m for m in re.findall(r'\bP\.([a-z_]+)', SESS)})
+    assert read, 'no P.<key> reads found - the regex would be silently useless'
+    missing = [k for k in read if (k + ':') not in mapping]
+    assert not missing, 'sessionPayload() does not carry %s' % missing
+    for key in ('proposals', 'needs_you'):
+        assert (key + ':') in mapping, key
+
+
+def test_the_check_card_renders_what_the_payload_decided():
+    """The renderer paints the proposals it is given, with the one confirm path per row."""
+    assert 'SESSION_DRAFTS[p.pending_id] = p.trade' in SESS
+    assert 'ck.innerHTML = sessionCheckRows(props)' in SESS
+    assert 'function sessionCheckRows(' in SESS
+    assert "class=\"btn sessconf\"" in SESS
