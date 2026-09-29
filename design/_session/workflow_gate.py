@@ -121,8 +121,11 @@ def seed_data(data):
         'sell_now': [{'slug': SEED['slug'], 'name': SEED['name'], 'cat': 'mod',
                       'lane_rank': SEED['rank'], 'lane_ask': 60, 'wts': 70, 'wtb': 45,
                       'vol48': 110, 'n_buy': 5, 'sellable_count': SEED['copies_before']}]})
+    # The row names its lane, exactly as the real producer writes it now: a lane is what pairs a
+    # buyer with a row, and a run-queue row without one is deliberately not actionable.
     jwrite(os.path.join(data, 'run_queue.json'), {
-        'queue': [{'slug': SEED['slug'], 'qty': SEED['qty'], 'my_price': SEED['price'],
+        'queue': [{'slug': SEED['slug'], 'lane': 'rank %d' % SEED['rank'], 'rank': SEED['rank'],
+                   'qty': SEED['qty'], 'my_price': SEED['price'],
                    'buyer': SEED['buyer'], 'buyer_status': 'ingame', 'buy_price': SEED['price'],
                    'why': 'seeded by workflow_gate.py'}],
         'summary': {'ingame': 1, 'online': 0, 'total': 1}})
