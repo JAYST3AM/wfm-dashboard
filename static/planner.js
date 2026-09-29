@@ -167,7 +167,7 @@
   // here too, because the engine's own coercion must never see a string where it wants a rank.
   function cleanV1(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-    if (Number(data.version) !== STORE_VERSION) return null;
+    if (data.version !== STORE_VERSION) return null;   // "1" is not 1: no coercion here
     var out = freshStorage();
     var bad = false;
     // Strict: a field that is present but not what v1 says it is fails the whole document (the
@@ -188,7 +188,10 @@
     out.orokin = scalar('orokin', function (v) { return typeof v === 'boolean'; }, false);
     out.exilus_unlocked = scalar('exilus_unlocked',
       function (v) { return typeof v === 'boolean'; }, false);
-    out.active_config = CONFIGS.indexOf(data.active_config) >= 0 ? data.active_config : 'A';
+    if (data.active_config !== undefined && data.active_config !== null) {
+      if (CONFIGS.indexOf(data.active_config) < 0) return null;   // a config that does not exist
+      out.active_config = data.active_config;
+    }
     var cfgIn = (data.configs === undefined || data.configs === null) ? {} : data.configs;
     if (typeof cfgIn !== 'object' || Array.isArray(cfgIn)) return null;
     for (var i = 0; i < CONFIGS.length; i++) {
@@ -854,6 +857,16 @@
       return;
     }
     var replaced = cfg.slots[toKey];
+    if (replaced) {
+      // A swap moves the displaced mod the other way, so that half needs the same check: an Aura
+      // mod cannot land in a normal slot just because a normal mod was dragged onto the Aura one.
+      var replacedRow = modRowById(replaced.id);
+      if (!replacedRow || !slotLegal(from.kind, from.index, replacedRow)) {
+        flashHint((replacedRow ? replacedRow.name : 'that mod') + ' does not go in ' +
+          layoutLabel(from.kind, from.index));
+        return;
+      }
+    }
     delete cfg.slots[fromKey];
     cfg.slots[toKey] = moved;
     if (replaced) cfg.slots[fromKey] = replaced;

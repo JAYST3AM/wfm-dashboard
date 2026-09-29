@@ -1013,17 +1013,22 @@ catch (e) { console.log('• profile dir busy (' + e.code + ') - reusing it'); }
         banner_text: ((document.getElementById('plError') || {}).textContent || '').trim() };
     }, dup.engine_codes);
     say('engine-refusal', refusal);
+    // A skipped fixture is a FAILED check, not a pass: if the drive can no longer produce an
+    // impossible build, that is drift in the story, and the whole point here is the refusal path.
     addCheck('answer-contract', 'an impossible build shows the engine\'s own reason, not a dead engine',
-      !!refusal.skipped || (refusal.engine_codes.length > 0 &&
-        refusal.engine_codes.every((c) => refusal.shown.indexOf(c) >= 0)),
+      !refusal.skipped && refusal.engine_codes.length > 0 &&
+        refusal.engine_codes.every((c) => refusal.shown.indexOf(c) >= 0),
       'the refusal code the engine sent appears in #plValidity',
-      refusal.skipped || JSON.stringify({ codes: refusal.engine_codes, shown: refusal.shown.slice(0, 90),
-        banner: refusal.banner_text }));
+      refusal.skipped ? ('SKIPPED FIXTURE: ' + refusal.skipped)
+        : JSON.stringify({ codes: refusal.engine_codes, shown: refusal.shown.slice(0, 90),
+            banner: refusal.banner_text }));
     addCheck('answer-contract', 'a refusal is not reported as a failure to answer',
-      !!refusal.skipped || refusal.banner_hidden === true,
-      'the error banner stays hidden while the validation card carries the reason',
-      refusal.skipped || ('banner hidden: ' + refusal.banner_hidden + ', banner: ' +
-        JSON.stringify(refusal.banner_text)));
+      !refusal.skipped && refusal.banner_hidden === true && refusal.engine_codes.length > 0 &&
+        refusal.shown.length > 0,
+      'the refusal reached the page and the error banner stayed hidden',
+      refusal.skipped ? ('SKIPPED FIXTURE: ' + refusal.skipped)
+        : ('banner hidden: ' + refusal.banner_hidden + ', codes: ' + refusal.engine_codes.join(',') +
+            ', banner: ' + JSON.stringify(refusal.banner_text)));
     // back to a clean page for the hygiene pass
     await page.evaluate(() => localStorage.removeItem('wfm.planner.v1'));
     await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
