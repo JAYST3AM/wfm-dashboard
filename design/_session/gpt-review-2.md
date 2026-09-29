@@ -1,6 +1,7 @@
 # WFM Trader — Trading Session: round-2 report for outside review
 
-**Revision under review:** `9d2a503` (branch `main`, `github.com/JAYST3AM/wfm-dashboard`, private)
+**Revision under review:** `1842b40` (branch `main`, `github.com/JAYST3AM/wfm-dashboard`, private) —
+code identical to `9d2a503`; this commit adds documentation only
 **Previous revision reviewed:** `9cb77ec` — the package that returned the FIX verdict below
 **Diff:** 19 files, +2400 / −101
 **What this document is:** the answer to your seven findings, each with the cause as it actually
