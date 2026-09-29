@@ -170,6 +170,7 @@ function sessionBuyerRow(f, b, say) {
   const rank = (f.rank === null || f.rank === undefined) ? '' : String(f.rank);
   const lane = String(f.lane || '');           // 'rank 6' / 'intact' / 'radiant': the row's own lane
   const plat = (b.plat === null || b.plat === undefined) ? '' : String(b.plat);
+  const sent = String(f.state || '').toUpperCase() === 'CONTACTED';   // already whispered this buyer
   return `
     <div class="ordrow" data-kind="buy" data-st="${escHtml(st)}">
       <span class="orduser" title="the buyer who posted this order">${escHtml(b.user || '')}</span>
@@ -177,8 +178,8 @@ function sessionBuyerRow(f, b, say) {
       <span class="ordst" title="${escHtml(b.why || 'from the run queue')}"><i class="orddot ${escHtml(st)}"></i>${escHtml(st)}</span>
       <button class="ordwsp" data-item="${escHtml(f.slug || '')}" data-user="${escHtml(b.user || '')}"
         data-price="${escHtml(plat)}" data-rank="${escHtml(rank)}" data-lane="${escHtml(f.lane || '')}"
-        data-kind="buy"
-        title="Send this whisper in game">Whisper</button>
+        data-kind="buy" data-sent="${sent ? '1' : '0'}"
+        title="${sent ? 'You already whispered this buyer - send it again if they missed it' : 'Send this whisper in game'}">${sent ? 'Whisper again' : 'Whisper'}</button>
       <span class="ordres" aria-live="polite">${escHtml(say || '')}</span>
     </div>`;
 }
@@ -265,8 +266,11 @@ const SESSION_DRAFTS = {};
 function sessionCheckRows(props) {
   if (!props.length) return sessionEmpty('Nothing to check yet.');
   return props.map(p => {
+    /* the money the click will log, on the button that logs it: "Confirm" alone asks the user to
+       re-read the row to find out what they are confirming */
+    const total = (p.trade && p.trade.total) ? ' ' + escHtml(String(p.trade.total)) + 'p' : '';
     const act = (p.verdict === 'exact')
-      ? '<button class="btn sessconf" data-pending="' + escHtml(p.pending_id) + '" title="Log this sale">Confirm</button>'
+      ? '<button class="btn primary sessconf" data-pending="' + escHtml(p.pending_id) + '" title="Log this sale">Confirm' + total + '</button>'
       : (p.verdict === 'ambiguous'
         ? '<button class="btn sessconf" data-pending="' + escHtml(p.pending_id) + '" title="Log it as your sale">Looks right</button>'
         : '');
@@ -321,6 +325,15 @@ function renderSession() {
      is); its box is what hides, so the button inside it goes with it */
   const startBox = document.getElementById('sessionStartBox');
   if (startBox) startBox.classList.toggle('hidden', !!P.live);
+  /* a raised check is the loop's only action: with one waiting, its card comes up to sit under the
+     session card instead of below the queue and the pending list, where it used to sit off the fold */
+  const loopPane = document.getElementById('tp-session');
+  const cCard = document.getElementById('sessionChecksCard');
+  const qCard = document.getElementById('sessionQueueCard');
+  if (loopPane && cCard && qCard) {
+    if ((P.proposals || []).length) loopPane.insertBefore(cCard, qCard);
+    else if (cCard !== loopPane.lastElementChild) loopPane.appendChild(cCard);
+  }
   ['sessionNext', 'sessionSkip', 'sessionHold', 'sessionEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('hidden', !P.live);

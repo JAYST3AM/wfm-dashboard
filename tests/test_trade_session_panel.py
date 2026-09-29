@@ -167,9 +167,12 @@ def test_start_trading_rides_home_next_action_and_adds_no_seventh_card():
     assert "btn.id === 'homeStartTrading'" in SESS, 'delegated: the footer is re-rendered'
     # UX pass 2026-09-29: the card's one accent control is the loop action, not the head's link to
     # the plan surface - Home asks "what do I do with this item", and the answer is the session
-    assert SESS.count('btn primary') == 2, 'Start trading, and Open session when one is live'
+    # 2026-09-29 (second pass): the third accent is the exact check's Confirm - one accent per
+    # decision, and the decision that ends the loop is not a quiet little button any more.
+    assert SESS.count('btn primary') == 3, 'Start trading, Open session, and the check Confirm'
     assert 'class="btn primary" id="homeStartTrading"' in SESS
     assert 'class="btn primary" href="#trade/session"' in SESS
+    assert 'class="btn primary sessconf"' in SESS, "an exact check is the one action there"
 
 
 # ------------------------------------------------------------------ 5. one confirmation path
@@ -409,3 +412,44 @@ def test_the_buyer_column_separates_a_name_from_an_absence():
     reads as another username."""
     assert 'class="chip dim" title="no buyer' in SESS
     assert 'class="sesswho" title=' in SESS, 'a named buyer stays a value, not a pill'
+
+
+# ----------------------------------------------- the second UX pass (2026-09-29, live-session view)
+# What the live-session review found that the fresh-load screens never showed: the accent Start
+# trading button survived a whole live session (a specificity bug, not a logic one), the loop's only
+# real action - Confirm - sat below two other cards at the quiet weight, and the focus card kept
+# offering a first whisper after the whisper had already gone out.
+
+def test_the_start_box_really_hides_when_a_session_is_live():
+    """`#tp-session .sess-start` carries an id, so it outranks the bare `.hidden` class: the toggle
+    ran and the loudest button in the panel kept advertising "Start trading" through a live session,
+    beside the loop's own next action. The hidden state has to be declared at the matching weight."""
+    assert '#tp-session .sess-start.hidden { display: none; }' in CSS
+    assert "getElementById('sessionStartBox')" in SESS
+
+
+def test_the_check_comes_up_when_it_is_the_only_action():
+    assert 'id="sessionQueueCard"' in session_panel(INDEX)
+    body = SESS.split('const loopPane', 1)[1].split('const focus =', 1)[0]
+    assert "getElementById('sessionChecksCard')" in body
+    assert "getElementById('sessionQueueCard')" in body
+    assert 'if ((P.proposals || []).length) loopPane.insertBefore(cCard, qCard)' in body
+    assert 'loopPane.appendChild(cCard)' in body, 'and goes back to the end when nothing is waiting'
+
+
+def test_an_exact_check_is_the_one_accent_action_and_an_ambiguous_one_stays_quiet():
+    """The check is the loop's last decision: an exact match is a confirm, so it takes the accent
+    weight - once, and only there. An ambiguous one is a judgement call, not a confirmation."""
+    assert SESS.count('btn primary sessconf') == 1
+    assert "title=\"Log this sale\">Confirm' + total + '</button>'" in SESS,         'the button says the money the click logs, not just "Confirm"'
+    assert "(p.trade && p.trade.total)" in SESS, 'the canonical total is the amount shown'
+    assert 'class="btn sessconf" data-pending=' in SESS, 'ambiguous keeps the quiet weight'
+    assert 'title="Log it as your sale">Looks right</button>' in SESS
+
+
+def test_the_focus_card_says_when_it_already_whispered_this_buyer():
+    """The row's own state is the answer to "did I send it?": a CONTACTED row offers a second send
+    with the word for it, instead of the identical button it offered the first time."""
+    assert "String(f.state || '').toUpperCase() === 'CONTACTED'" in SESS
+    assert "${sent ? 'Whisper again' : 'Whisper'}" in SESS
+    assert "data-sent=\"${sent ? '1' : '0'}\"" in SESS

@@ -133,6 +133,11 @@ async function snapshot(page) {
       kpis: txt('#sessionKpis'),
       start_hidden: (() => { const b = document.querySelector('#sessionStart');
         return b ? b.classList.contains('hidden') : null; })(),
+      /* the box, by rendered visibility: `classList.add('hidden')` is worthless if an id-scoped rule
+         outranks the bare .hidden class, which is exactly how the accent Start button sat through a
+         live session (2026-09-29) */
+      start_visible: (() => { const b = document.getElementById('sessionStartBox');
+        return b ? !!b.offsetParent : null; })(),
       buyer_user: txt('#sessionFocus .orduser'),
       whisper_btns: q('#sessionFocus .ordwsp').length,
       whisper_say: (() => { const r = document.querySelector('#sessionFocus .ordres');
@@ -216,9 +221,9 @@ async function main() {
     let dom = await snapshot(page);
     R.evidence.load = dom;
     addCheck('load', 'the Session panel renders and paints from GET /api/session',
-             dom.panel_open === true && dom.focus !== null && dom.start_hidden === false,
-             'panel open, Start visible, the panel painted a state',
-             'panel_open=' + dom.panel_open + ' start_hidden=' + dom.start_hidden +
+             dom.panel_open === true && dom.focus !== null && dom.start_visible === true,
+             'panel open, Start rendered, the panel painted a state',
+             'panel_open=' + dom.panel_open + ' start_visible=' + dom.start_visible +
              ' focus="' + str(dom.focus).slice(0, 80) + '"');
     addCheck('load', 'no console errors on the Session surface',
              R.console.filter((c) => c.step === 'load').length === 0,
@@ -247,6 +252,10 @@ async function main() {
                          queue: queue.map((r) => ({ slug: r.slug, rank: r.rank, qty: r.qty,
                                                     price: r.price, state: r.state,
                                                     buyer: (r.buyer || {}).user || null })) };
+    addCheck('start', 'the Start control steps aside once a session is live',
+             dom.start_visible === false,
+             'the start box is out of the flow while the loop owns the panel',
+             'start_visible=' + dom.start_visible + ' start_hidden=' + dom.start_hidden);
     addCheck('start', 'Start opened a real session with a queue', !!(s1.body && s1.body.session) && queue.length > 0,
              'a session with at least one queue row', 'session=' + str(s1.body && s1.body.session && s1.body.session.id) +
              ' queue_rows=' + queue.length + ' (dom rows ' + dom.queue_rows + ')');

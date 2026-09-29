@@ -72,6 +72,11 @@
 #tp-session .sess-start { display: flex; align-items: center; gap: 10px; padding: 2px 0 8px; flex-wrap: wrap; }
 #tp-session .sess-start .btn { padding: 6px 14px; font-size: 12px; }
 #tp-session .sess-start .dim { font-size: 11.5px; }
+/* The id in the selector above outranks the bare `.hidden` class (0,0,1 vs 0,0,1... it wins on the
+   id), so `classList.add('hidden')` did nothing and the accent Start trading button sat there
+   through a whole live session, advertising the wrong action next to the loop's. Same trap
+   `main > section.hidden` documents: the hidden state has to be said at the matching weight. */
+#tp-session .sess-start.hidden { display: none; }
 
 /* the suggested row's first column: who already wants this lane (the queue row's own lane, matched
    by the producer's rule), or the honest gap. Names are long, so it truncates rather than pushes */
