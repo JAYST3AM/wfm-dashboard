@@ -131,8 +131,26 @@ Fixed in two parts:
    already handled the same situation.
 
 **Verified the way CI runs it:** a fresh `git clone` of the commit, then `python -m pytest tests -q`
-inside it. Before: `3 failed, 1612 passed, 251 skipped`. After: see the run recorded in the commit
-message.
+inside it. Before: `3 failed, 1612 passed, 251 skipped`. After: `1623 passed, 254 skipped, 0 failed`.
+
+### The push after that fix proved there was a second half to this finding
+
+The data/ step now passes on GitHub (run `36507816492`, step 5 of 6: success) — and pytest, running for
+the first time in the runner's life, **failed 15 tests on Linux** (`15 failed, 1609 passed, 256 skipped`)
+that pass on this machine. Every one of them is Windows-shaped:
+
+- 11 in `tests/test_whisper.py`. `send()` refuses with `'windows only'` before it reaches any seam, and
+  those tests drive the Windows path with fakes without ever saying they are on Windows — while the
+  file's own docstring claims the logic is asserted on any platform. They now set `_WIN` True, as the
+  rest of the file already does, so the gates, the rate cap and the ledger logic are covered on the
+  runner instead of being silently skipped.
+- 4 in `tests/test_refresh_guard.py`. The pipeline built its AlecaFrame path with
+  `os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')`, and `expandvars` only knows the `%NAME%` syntax
+  on Windows, so the fake `%LOCALAPPDATA%` the test sets never resolved into `tmp/AlecaFrame`. The path
+  is now read from the environment first and falls back to the old literal, so Windows is unchanged
+  (checked directly: unset → the old literal, set → resolved).
+
+This half could not have been seen before the first half was fixed: CI had never run pytest at all.
 
 ## What is still open (honestly)
 

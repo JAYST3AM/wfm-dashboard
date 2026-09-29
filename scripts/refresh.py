@@ -7,7 +7,11 @@ import json, os, sys, collections, re, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
-AF = os.path.expandvars(r'%LOCALAPPDATA%\AlecaFrame')
+
+# %LOCALAPPDATA%\AlecaFrame. Positive lookup first: os.path.expandvars only knows the %NAME% syntax
+# on Windows, and the test suite runs on Linux in CI where the fake %LOCALAPPDATA% has to resolve.
+AF = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expandvars('%LOCALAPPDATA%'),
+                  'AlecaFrame')
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: saveio
 from saveio import decrypt, normalise, SECTIONS  # noqa: E402  (the one save reader)

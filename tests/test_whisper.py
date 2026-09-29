@@ -111,7 +111,8 @@ class FakeThreads:
 def win_seams(whisper, monkeypatch, focus=True, keys=6, copied=True, hwnd=4242):
     """Swap the Windows seams of a send for stubs; returns the call log."""
     calls = []
-    monkeypatch.setattr(whisper, 'find_game', lambda: hwnd)
+    monkeypatch.setattr(whisper, '_WIN', True)     # send() refuses off Windows before any seam; the
+    monkeypatch.setattr(whisper, 'find_game', lambda: hwnd)   # fakes below stand in for Windows
     monkeypatch.setattr(whisper, 'copy', lambda text: calls.append(('copy', text)) or copied)
     monkeypatch.setattr(whisper, 'focus',
                         lambda handle: calls.append(('focus', handle)) or focus)
@@ -439,6 +440,7 @@ def test_off_windows_the_win32_half_answers_zero_and_false(whisper):
 # --------------------------------------------------------------------------------- send
 
 def test_send_without_the_game_copies_the_text_and_says_so(whisper, monkeypatch):
+    monkeypatch.setattr(whisper, '_WIN', True)   # send() refuses off Windows
     monkeypatch.setattr(whisper, 'find_game', lambda: None)
     copied = []
     monkeypatch.setattr(whisper, 'copy', lambda text: copied.append(text) or True)
@@ -456,6 +458,7 @@ def test_send_without_the_game_copies_the_text_and_says_so(whisper, monkeypatch)
 
 
 def test_send_without_the_game_reports_a_failed_copy_too(whisper, monkeypatch):
+    monkeypatch.setattr(whisper, '_WIN', True)   # send() refuses off Windows
     monkeypatch.setattr(whisper, 'find_game', lambda: None)
     monkeypatch.setattr(whisper, 'copy', lambda text: False)
 
@@ -611,6 +614,7 @@ def test_the_minute_window_rolls_over(whisper, monkeypatch):
 
 
 def test_only_sends_that_really_left_count_against_the_cap(whisper, monkeypatch):
+    monkeypatch.setattr(whisper, '_WIN', True)   # send() refuses off Windows
     clock = FakeClock()
     monkeypatch.setattr(whisper, 'clock', clock)
     monkeypatch.setattr(whisper, 'find_game', lambda: None)
