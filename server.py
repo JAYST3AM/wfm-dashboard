@@ -1356,6 +1356,10 @@ def planner_meta():
             'content_hash': db.get('content_hash'),
             'generated': db.get('generated_iso'),
             'game_version': (db.get('game_data') or {}).get('source_version'),
+            'engine': {'schema_version': db.get('schema_version'),
+                       'content_hash': db.get('content_hash'),
+                       'generated': db.get('generated_iso')},
+            'categories': [k['kind'] for k in kinds],
             'kinds': kinds,
             'equipment_total': info.get('equipment'), 'mods_total': info.get('mods'),
             'unsupported': len(mods['unsupported'].list_all()),
@@ -1364,7 +1368,8 @@ def planner_meta():
 
 def _planner_equip_row(row):
     """One equipment row, trimmed to what a picker row and the planner's header need."""
-    return {'id': row.get('id'), 'name': row.get('name'), 'slug': row.get('slug'),
+    return {'id': row.get('id'), 'uniqueName': row.get('id'), 'name': row.get('name'),
+            'slug': row.get('slug'),
             'kind': row.get('kind'), 'subtype': row.get('subtype'),
             'mastery_req': row.get('mastery_req'), 'max_rank': row.get('max_rank'),
             'variant': row.get('variant'), 'is_prime': row.get('is_prime'),
@@ -1535,6 +1540,8 @@ def _planner_mod_summary(mods, row):
     flags = row.get('flags') or {}
     return {
         'id': row.get('id'), 'name': row.get('name'), 'slug': row.get('slug'),
+        'base_name': row.get('base_name'),
+        'shadowed': bool(row.get('shadowed')), 'shadowed_by': row.get('shadowed_by'),
         'polarity': row.get('polarity'), 'base_drain': row.get('base_drain'),
         'drain_max': drain_max, 'max_rank': max_rank, 'rarity': row.get('rarity'),
         'type': row.get('type'), 'compat': row.get('compat'), 'slot': row.get('slot'),
@@ -1544,6 +1551,7 @@ def _planner_mod_summary(mods, row):
                               'sacrificial', 'augment', 'stance', 'aura', 'set', 'exilus',
                               'flawed', 'riven') if flags.get(k)],
         'is_prime': bool(flags.get('prime')),
+        'conclave': bool(row.get('conclave')),
         'lines': lines,
         'support': {'unmodelled': len(effects.get('unmodelled') or {}),
                     'conditional': len(effects.get('conditional') or []),
@@ -1564,18 +1572,26 @@ def planner_library(query):
     cache = _PLANNER.setdefault('library', {})
     cache_key = (row.get('kind'), db.get('content_hash'))
     if cache_key not in cache:
-        rows = [_planner_mod_summary(mods, m)
-                for m in mods['data'].mods_for_kind(db, row.get('kind'))]
-        # The catalog ships Beginner/Intermediate starter copies under the same display name;
-        # the standard copy sorts first so the library reads the way the game's does.
-        rows.sort(key=lambda r: (str(r.get('name') or '').lower(),
-                                 {'': 0, 'intermediate': 1, 'beginner': 2}.get(
-                                     r.get('variant') or '', 3), -(r.get('max_rank') or 0)))
-        cache[cache_key] = rows
-    return {'ok': True, 'total': len(cache[cache_key]),
+        visible, shadowed = [], []
+        for m in mods['data'].mods_for_kind(db, row.get('kind')):
+            (shadowed if m.get('shadowed') else visible).append(_planner_mod_summary(mods, m))
+        # The real card sorts first; a Flawed starter copy keeps its own name (the wiki's) and
+        # sorts by it, so the library reads the way the game's mod station does.
+        order = {'': 0, 'beginner': 1, 'intermediate': 2, 'expert': 3}
+        visible.sort(key=lambda r: (str(r.get('name') or '').lower(),
+                                    order.get(r.get('variant') or '', 4),
+                                    -(r.get('max_rank') or 0)))
+        shadowed.sort(key=lambda r: (str(r.get('name') or '').lower(), -(r.get('max_rank') or 0)))
+        cache[cache_key] = {'rows': visible, 'shadowed': shadowed}
+    packed = cache[cache_key]
+    include_hidden = _qs(query, 'shadowed') == '1'
+    rows = list(packed['rows']) + (list(packed['shadowed']) if include_hidden else [])
+    return {'ok': True, 'total': len(rows),
             'equipment': {'id': row.get('id'), 'name': row.get('name'),
                           'kind': row.get('kind')},
-            'rows': cache[cache_key]}
+            'hidden': {'shadowed': len(packed['shadowed']),
+                       'reason': 'obsolete internal rows wearing a real mod\'s name'},
+            'rows': rows}
 
 
 def planner_unsupported():
@@ -1601,14 +1617,24 @@ def planner_compute(build):
     return out
 
 
+def _planner_payload(raw):
+    """The POST body as an object: anything else (a list, a string, null) is an empty one, so a
+    caller's malformed body becomes a structured answer instead of a raised AttributeError."""
+    return raw if isinstance(raw, dict) else {}
+
+
 def planner_preview(payload):
-    """A hypothetical edit: what changes (brief section 11), from two real engine runs."""
+    """A hypothetical edit: what changes (brief section 11), from two real engine runs.
+
+    Both sides are complete builds: `build` is what the page holds, `next` is that build with
+    the edit applied. The engine's compare does the arithmetic."""
     db, err = _planner_db()
     if err:
         return {'ok': False, 'error': err}
     mods = _builds()
-    a = (payload or {}).get('build') or {}
-    b = (payload or {}).get('next') or {}
+    payload = _planner_payload(payload)
+    a = payload.get('build') or {}
+    b = payload.get('next') or {}
     if not isinstance(a, dict) or not isinstance(b, dict):
         return {'ok': False, 'error': 'build and next must be JSON objects'}
     out = mods['api'].compare(a, b, db)
@@ -1621,8 +1647,12 @@ def planner_explain(payload):
     if err:
         return {'ok': False, 'error': err}
     mods = _builds()
-    build = (payload or {}).get('build') or {}
-    stat = str((payload or {}).get('stat') or '')
+    payload = _planner_payload(payload)
+    build = payload.get('build') or {}
+    stat = str(payload.get('stat') or '')
+    if not isinstance(build, dict):
+        return {'ok': False, 'error': 'build must be a JSON object', 'stat': stat,
+                'text': None, 'available': [], 'result': {'stats': {}, 'damage': {}}}
     computed = mods['api'].compute(build, db)
     text = mods['api'].explain(computed, stat) if stat else None
     traces = ((computed or {}).get('result') or {}).get('traces') or {}
@@ -1874,12 +1904,16 @@ class H(BaseHTTPRequestHandler):
                 b = json.loads(self.rfile.read(ln).decode('utf-8', 'replace') or '{}')
             except Exception as e:
                 return self._send(400, {'ok': False, 'error': 'bad JSON body: %s' % str(e)[:120]})
-            if p == '/api/planner/compute':
-                return self._send(200, planner_compute(b))
-            if p == '/api/planner/preview':
-                return self._send(200, planner_preview(b))
-            if p == '/api/planner/explain':
-                return self._send(200, planner_explain(b))
+            try:
+                if p == '/api/planner/compute':
+                    return self._send(200, planner_compute(b))
+                if p == '/api/planner/preview':
+                    return self._send(200, planner_preview(b))
+                if p == '/api/planner/explain':
+                    return self._send(200, planner_explain(b))
+            except Exception as e:                     # a bad body is an answer, never a 500
+                return self._send(200, {'ok': False, 'error': 'the engine refused this body: %s'
+                                        % str(e)[:160]})
             return self._send(404, {'ok': False, 'error': 'unknown planner route'})
         return self._send(404, {'error': 'not found'})
 

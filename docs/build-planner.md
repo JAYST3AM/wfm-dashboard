@@ -58,11 +58,11 @@ no math lives in the server):
 | Route | Answers |
 |---|---|
 | `GET  /api/planner/meta` | engine version, database provenance + counts, supported triggers, kinds, polarities |
-| `GET  /api/planner/equipment?q=&kind=&slug=` | equipment search / one normalised row (with base damage split) |
-| `GET  /api/planner/library?equip=&q=` | the mod rows for one equipment, each with drain, rank range, flags and refusal counts |
+| `GET  /api/planner/equipment?q=&kind=&limit=` | equipment search, ranked (exact name first), one normalised row each |
+| `GET  /api/planner/equipment/<key>` | one item: its row, its slot layout and its default polarities |
+| `GET  /api/planner/mods?equipment=<key>&q=&shadowed=` | the mod rows that install on that item, each with drain, rank range, flags and refusal counts; `shadowed=1` also lists the catalog's shadow copies |
 | `POST /api/planner/compute` | `{build}` → the full `api.compute` answer |
-| `POST /api/planner/compare` | `{a, b}` → both sides with stats, capacity and deltas |
-| `POST /api/planner/preview` | `{build, next}` → the same build with one slot changed |
+| `POST /api/planner/preview` | `{build, next}` → two real engine runs and the deltas; both sides are complete builds |
 | `POST /api/planner/explain` | `{build, stat}` → the trace for one stat |
 | `GET  /api/planner/unsupported` | the refusal registry |
 

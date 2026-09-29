@@ -284,6 +284,29 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       'base_damage = ' + statOf(sel.api, 'base_damage'));
     await shot('selected-braton-prime');
 
+    /* ------------------------------------------- 2b the library reads one card per name */
+    const libFacts = await page.evaluate(() => {
+      const P = window.WFMPlanner;
+      const rows = P.library() || [];
+      const names = rows.map((r) => (r.shadowed ? '~' : '') + r.name);
+      const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+      return {
+        total: rows.length,
+        dupes: dupes.slice(0, 8),
+        flawed: names.filter((n) => n.indexOf('Flawed ') === 0).length,
+        hidden: P.libraryHidden() || null,
+      };
+    });
+    say('library', libFacts);
+    addCheck('library', 'one card per name - nothing the player could mix up',
+      libFacts.dupes.length === 0, 'no duplicate names',
+      JSON.stringify(libFacts.dupes) + ' of ' + libFacts.total);
+    addCheck('library', 'starter copies wear the game\'s own name (Flawed ...)',
+      libFacts.flawed > 0, 'at least one Flawed copy visible', 'flawed=' + libFacts.flawed);
+    addCheck('library', 'the obsolete leftovers are counted, not silently dropped',
+      !!libFacts.hidden && libFacts.hidden.shadowed > 0 && /obsolete/.test(libFacts.hidden.reason || ''),
+      'hidden.shadowed > 0 with a reason', JSON.stringify(libFacts.hidden));
+
     /* ------------------------------------------------------------------ 3 catalyst */
     await page.click('#plOrokin');
     await page.waitForFunction("(document.getElementById('plOrokinVal')||{}).textContent === 'on'",
@@ -694,6 +717,31 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
     await page.setViewport({ width: 1280, height: 800 });
     await shot('responsive-1280');
 
+    /* ------------------------------------------- 17b the hidden rows are offered back */
+    const hiddenBefore = await page.evaluate(() => (window.WFMPlanner.library() || []).length);
+    await page.evaluate(() => {
+      const b = document.querySelector('#plLibHidden .pl-hidden-link');
+      if (b) b.click();
+    });
+    let revealErr = null;
+    try {
+      await page.waitForFunction((n) => (window.WFMPlanner.library() || []).length > n,
+        { timeout: 10000 }, hiddenBefore);
+    } catch (e) {
+      revealErr = String(e).slice(0, 120);
+    }
+    const revealed = await page.evaluate(() => {
+      const rows = window.WFMPlanner.library() || [];
+      const hidden = rows.filter((r) => r.shadowed);
+      return { total: rows.length, shadowed: hidden.length,
+        named: hidden.slice(0, 3).map((r) => r.name) };
+    });
+    say('library-revealed', revealed);
+    addCheck('library', 'the hidden rows come back on request, each one flagged',
+      revealed.total > hiddenBefore && revealed.shadowed > 0,
+      'more rows, all flagged shadowed',
+      JSON.stringify(revealed) + (revealErr ? ' (' + revealErr + ')' : ''));
+
     /* ------------------------------------------------------------------ 18 keyboard */
     await page.setViewport({ width: 1920, height: 1080 });
     await page.keyboard.press('/');
@@ -771,7 +819,10 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
         '#plGrid .pl-slot[data-kind="' + kind + '"][data-index="' + index + '"]');
       const firstRow = (slotKind) => {
         const rows = [...document.querySelectorAll('#plLibList .pl-row')];
-        return rows.find((el) => el.getAttribute('data-slot') === slotKind) || rows[0];
+        // a plain PvE card: not a shadow copy, not Conclave - so the story reads like a player's
+        const pick = (P.library() || []).find((r) => r.slot === slotKind && !r.shadowed && !r.conclave);
+        return (pick && rows.find((el) => el.getAttribute('data-id') === pick.id)) ||
+          rows.find((el) => el.getAttribute('data-slot') === slotKind) || rows[0];
       };
       const before = P.build().slots.filter((s) => s.mod).length;
       const dt = new DataTransfer();
@@ -825,6 +876,91 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       'panel marked "drop here to remove", one mod fewer',
       'marked: ' + drag.panel_mark + ', removed ' + drag.removed);
     await shot('drag-states');
+
+    /* ------------------------------------------------- 19b the audit round's own stories */
+    // The capacity floor is the engine's number: read it out of the engine answer for this very
+    // build and compare it with what the toolbar hint prints. A page that re-derived it would
+    // drift the day builds/capacity.py changes.
+    const floor = await page.evaluate(() => {
+      const out = window.WFMPlanner.result();
+      const cap = out && out.capacity && out.capacity.capacity;
+      return { engine: cap ? cap.minimum_from_mastery : null,
+        floored: cap ? !!cap.floored_by_mastery : null,
+        hint: (document.getElementById('plMrFloor') || {}).textContent || '' };
+    });
+    say('floor', floor);
+    addCheck('engine-math', 'the toolbar capacity floor is the engine\'s own number',
+      floor.engine !== null && floor.hint.indexOf(String(floor.engine)) >= 0 &&
+      String(floor.floored) === String(floor.hint.indexOf('in use') >= 0),
+      'hint names the engine floor ' + floor.engine + ' and its binding state',
+      floor.hint.trim());
+
+    // A locked Exilus slot refuses a click-install exactly like it refuses a drag; unlocked, the
+    // same click lands. One legality rule, driven by the live adapter switch.
+    const exilus = await page.evaluate(async () => {
+      const P = window.WFMPlanner;
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const search = document.getElementById('plLibSearch');
+      if (search && search.value) {
+        search.value = '';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+        await wait(500);
+      }
+      const candidates = (P.library() || []).filter((m) => m.exilus_ok);
+      if (candidates.length < 2) return { skipped: 'fewer than two exilus-capable mods here' };
+      const row = candidates[0];                        // the locked phase
+      const second = candidates[1];                     // the unlocked phase (a fresh mod)
+      const toggle = document.getElementById('plExilus');
+      const node = (which) => [...document.querySelectorAll('#plLibList .pl-row')]
+        .filter((el) => el.getAttribute('data-id') === which.id)[0];
+      const slotMod = () => {
+        const s = (P.build().slots || []).filter((x) => x.kind === 'exilus')[0];
+        return s && s.mod ? s.mod.id : null;
+      };
+      // locked: whatever happens, the Exilus slot itself must stay empty
+      if (toggle && toggle.getAttribute('aria-pressed') === 'true') { toggle.click(); await wait(450); }
+      P.focusSlot('exilus');
+      if (node(row)) node(row).click();
+      await wait(600);
+      const text = ((document.querySelector('.pl-slot[data-kind="exilus"]') || {}).textContent || '').trim();
+      const locked = { installed: slotMod(), text: text };
+      // unlocked and focused: a click on another exilus mod must land in the Exilus slot
+      if (toggle) { toggle.click(); await wait(500); }
+      P.focusSlot('exilus');
+      if (node(second)) node(second).click();
+      await wait(700);
+      const open = { installed: slotMod() };
+      return { id: row.id, name: row.name, second: second.name,
+        locked_installed: locked.installed, locked_text: locked.text,
+        open_installed: open.installed, want: second.id };
+    });
+    say('exilus-lock', exilus);
+    addCheck('legality', 'the Exilus switch decides: locked, the slot stays empty; unlocked and focused, the mod lands there',
+      !!exilus.skipped || (exilus.locked_installed === null && exilus.open_installed === exilus.want),
+      'locked: Exilus slot empty; unlocked + focused: the mod is in the Exilus slot',
+      exilus.skipped || JSON.stringify({ locked: exilus.locked_installed, unlocked: exilus.open_installed,
+        locked_mod: exilus.name, unlocked_mod: exilus.second }));
+
+
+
+    // The no-answer contract, positive half: with a real result on screen the banner is hidden
+    // and the page declares that it has an answer.
+    const contract = await page.evaluate(async (base) => {
+      const P = window.WFMPlanner;
+      const out = await (await fetch(base + '/api/planner/compute', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(P.build()) })).json();
+      return { hidden: document.getElementById('plError').hidden,
+        answer: document.body.getAttribute('data-planswer'),
+        capUsed: (document.getElementById('plCapUsed') || {}).textContent,
+        ok: out.ok, has_result: !!(out && out.result), error: out.error || null,
+        val_errors: ((out.validation || {}).errors || []).slice(0, 2),
+        banner: (document.getElementById('plError') || {}).textContent || '' };
+    }, BASE);
+    say('answer-contract', contract);
+    addCheck('answer-contract', 'a real answer hides the error banner and says so',
+      contract.hidden === true && contract.answer === 'yes' && contract.capUsed !== '—',
+      'banner hidden, data-planswer=yes, a capacity figure', JSON.stringify(contract));
 
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));

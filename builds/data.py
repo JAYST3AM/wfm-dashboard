@@ -57,10 +57,11 @@ def find_equipment(db, key, all_matches=False):
 def find_mod(db, key, all_matches=False):
     """Mod by canonical id, then slug, then exact name (case-insensitive).
 
-    A name can be ambiguous: the catalog ships Beginner and Intermediate starter copies
-    of some mods under the same display name (Serration exists at max rank 3, 5 and 10).
-    A name lookup therefore prefers the standard variant and, failing that, the copy
-    with the highest rank cap - pass all_matches=True to see every candidate.
+    A name can be ambiguous: the catalog ships starter copies of some mods under one display
+    name, and obsolete internal leftovers wearing a real card's name. The starter copy now
+    carries the wiki's own name ("Flawed Serration"), and `_variant_rank` puts the real card
+    first, then shadow copies, then the highest rank cap - pass all_matches=True for every
+    candidate.
     """
     return _find(index(db, 'mods'), key, all_matches)
 
@@ -76,10 +77,15 @@ def find_all(db, key, kind=None):
 
 
 def _variant_rank(row):
-    """Sort key for duplicate display names: standard variant first, then rank cap."""
+    """Sort key for duplicate display names: the real card first, then a shadow copy, then rank.
+
+    'shadowed' rows are the catalog's obsolete internal leftovers (a rank-10 "Serration" on an
+    /Expert/ path the wiki does not list); a name lookup must never hand one of those back.
+    """
+    shadowed = 1 if row.get('shadowed') else 0
     variant = str(row.get('variant') or '')
-    order = {'': 0, 'intermediate': 1, 'beginner': 2}.get(variant, 3)
-    return (order, -(row.get('max_rank') or 0))
+    order = {'': 0, 'beginner': 1, 'intermediate': 2, 'expert': 3}.get(variant, 4)
+    return (shadowed, order, -(row.get('max_rank') or 0))
 
 
 def _ranked(rows, key):

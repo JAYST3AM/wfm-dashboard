@@ -1,6 +1,6 @@
 {
- "started": "2026-09-29T11:14:35.282Z",
- "base": "http://127.0.0.1:50541",
+ "started": "2026-09-29T11:46:00.809Z",
+ "base": "http://127.0.0.1:8787",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -36,7 +36,7 @@
    "title": "the page names the engine + database it reads",
    "ok": true,
    "expected": "a status line naming the DB",
-   "observed": "\"db 8c3f4101 · 1809 mods · 777 items\"",
+   "observed": "\"db 0132f6af · 1809 mods · 777 items\"",
    "note": "",
    "diagnostic": false
   },
@@ -91,6 +91,33 @@
    "ok": true,
    "expected": "base_damage = 35",
    "observed": "base_damage = 35",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "library",
+   "title": "one card per name - nothing the player could mix up",
+   "ok": true,
+   "expected": "no duplicate names",
+   "observed": "[] of 306",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "library",
+   "title": "starter copies wear the game's own name (Flawed ...)",
+   "ok": true,
+   "expected": "at least one Flawed copy visible",
+   "observed": "flawed=40",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "library",
+   "title": "the obsolete leftovers are counted, not silently dropped",
+   "ok": true,
+   "expected": "hidden.shadowed > 0 with a reason",
+   "observed": "{\"shadowed\":39,\"reason\":\"obsolete internal rows wearing a real mod's name\"}",
    "note": "",
    "diagnostic": false
   },
@@ -207,7 +234,7 @@
    "title": "Heat + Toxin combine to Gas in the engine",
    "ok": true,
    "expected": "gas present",
-   "observed": "{\"impact\":4.6375,\"puncture\":32.4625,\"slash\":55.65,\"gas\":306.075}",
+   "observed": "{\"impact\":4.6375,\"puncture\":32.4625,\"slash\":55.65,\"gas\":166.95}",
    "note": "",
    "diagnostic": false
   },
@@ -216,7 +243,7 @@
    "title": "the DOM shows the same combination",
    "ok": true,
    "expected": "gas in the composition",
-   "observed": "Impact 4.638 1.2%Puncture 32.463 8.1%Slash 55.65 14%Gas 306.075 76.7%Gas 306.075 ← Heat + Toxin · Hellfire R10 + Infected Clip R10burst 4280.707 (average shot x",
+   "observed": "Impact 4.638 1.8%Puncture 32.463 12.5%Slash 55.65 21.4%Gas 166.95 64.3%Gas 166.95 ← Heat + Toxin · Hellfire R5 + Infected Clip R5burst 2787.437 (average shot x ",
    "note": "",
    "diagnostic": false
   },
@@ -225,7 +252,7 @@
    "title": "slot order decides the pair: Cold + Toxin is now Viral",
    "ok": true,
    "expected": "viral present",
-   "observed": "{\"impact\":4.6375,\"puncture\":32.4625,\"slash\":55.65,\"viral\":236.5125}",
+   "observed": "{\"impact\":4.6375,\"puncture\":32.4625,\"slash\":55.65,\"viral\":166.95}",
    "note": "",
    "diagnostic": false
   },
@@ -234,7 +261,7 @@
    "title": "the stat panel followed the swap (Viral, not Gas)",
    "ok": true,
    "expected": "viral and no gas",
-   "observed": "Impact 4.638 1.4%Puncture 32.463 9.9%Slash 55.65 16.9%Viral 236.513 71.8%Viral 236.513 ← Cold + Toxin · Cryo Rounds R5 + Infected Clip R10burst 3534.072 (averag",
+   "observed": "Impact 4.638 1.8%Puncture 32.463 12.5%Slash 55.65 21.4%Viral 166.95 64.3%Viral 166.95 ← Cold + Toxin · Cryo Rounds R5 + Infected Clip R5burst 2787.437 (average ",
    "note": "",
    "diagnostic": false
   },
@@ -243,7 +270,7 @@
    "title": "used capacity in the DOM equals the engine's",
    "ok": true,
    "expected": "ui == engine",
-   "observed": "ui 34 engine 34",
+   "observed": "ui 29 engine 29",
    "note": "",
    "diagnostic": false
   },
@@ -252,7 +279,7 @@
    "title": "the charge table names a rule for every filled slot",
    "ok": true,
    "expected": "one priced row per installed mod (3)",
-   "observed": "3 priced of 7 rows: [\"Slot 1Serrationmatched7 (14)\",\"Slot 2empty - charges nothing\",\"Slot 3Cryo Roundsvacant11\",\"Slot 4Infected Clipvacant16\"]",
+   "observed": "3 priced of 7 rows: [\"Slot 1Serrationmatched7, was 14\",\"Slot 2empty - charges nothing\",\"Slot 3Cryo Roundsvacant11\",\"Slot 4Infected Clipvacant11\"]",
    "note": "",
    "diagnostic": false
   },
@@ -279,7 +306,7 @@
    "title": "Point Strike raises crit chance above the 12% base",
    "ok": true,
    "expected": "> 12",
-   "observed": "45",
+   "observed": "30",
    "note": "",
    "diagnostic": false
   },
@@ -287,8 +314,8 @@
    "section": "crit",
    "title": "the DOM crit chance is that engine number",
    "ok": true,
-   "expected": "ui ~= engine (45)",
-   "observed": "Critical chance45%+33%",
+   "expected": "ui ~= engine (30)",
+   "observed": "Critical chance30%+18%",
    "note": "",
    "diagnostic": false
   },
@@ -324,7 +351,7 @@
    "title": "switching to B and back leaves A untouched",
    "ok": true,
    "expected": "the same 4 mods, incl. the rifle damage mod",
-   "observed": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert, /Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert, /Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod, /Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+   "observed": "/Lotus/Upgrades/Mods/Rifle/WeaponCritChanceMod, /Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod, /Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod, /Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod",
    "note": "",
    "diagnostic": false
   },
@@ -332,8 +359,8 @@
    "section": "config",
    "title": "A still holds its polarity + capacity",
    "ok": true,
-   "expected": "madurai slot, capacity 48",
-   "observed": "polarity madurai, used 48 (was 48)",
+   "expected": "madurai slot, capacity 38",
+   "observed": "polarity madurai, used 38 (was 38)",
    "note": "",
    "diagnostic": false
   },
@@ -342,7 +369,7 @@
    "title": "duplicate copies A into B and switches to it",
    "ok": true,
    "expected": "B active with A's 4 mods",
-   "observed": "config B, /Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert, /Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert, /Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod, /Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+   "observed": "config B, /Lotus/Upgrades/Mods/Rifle/WeaponCritChanceMod, /Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod, /Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod, /Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod",
    "note": "",
    "diagnostic": false
   },
@@ -378,7 +405,7 @@
    "title": "capacity after the reload is the engine's number again",
    "ok": true,
    "expected": "ui == engine",
-   "observed": "ui 48 engine 48",
+   "observed": "ui 38 engine 38",
    "note": "",
    "diagnostic": false
   },
@@ -500,6 +527,15 @@
    "diagnostic": false
   },
   {
+   "section": "library",
+   "title": "the hidden rows come back on request, each one flagged",
+   "ok": true,
+   "expected": "more rows, all flagged shadowed",
+   "observed": "{\"total\":345,\"shadowed\":39,\"named\":[\"Ammo Drum\",\"Arrow Mutation\",\"Arrow Mutation\"]}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
    "section": "keyboard",
    "title": "\"/\" reaches the library search",
    "ok": true,
@@ -563,6 +599,33 @@
    "diagnostic": false
   },
   {
+   "section": "engine-math",
+   "title": "the toolbar capacity floor is the engine's own number",
+   "ok": true,
+   "expected": "hint names the engine floor 0 and its binding state",
+   "observed": "capacity floor 0",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "legality",
+   "title": "the Exilus switch decides: locked, the slot stays empty; unlocked and focused, the mod lands there",
+   "ok": true,
+   "expected": "locked: Exilus slot empty; unlocked + focused: the mod is in the Exilus slot",
+   "observed": "{\"locked\":null,\"unlocked\":\"/Lotus/Upgrades/Mods/Rifle/Event/Arbitration/JumpRefreshOnKillRifleMod\",\"locked_mod\":\"Adhesive Blast\",\"unlocked_mod\":\"Aerial Ace\"}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "answer-contract",
+   "title": "a real answer hides the error banner and says so",
+   "ok": true,
+   "expected": "banner hidden, data-planswer=yes, a capacity figure",
+   "observed": "{\"hidden\":true,\"answer\":\"yes\",\"capUsed\":\"23\",\"ok\":true,\"has_result\":true,\"error\":null,\"val_errors\":[],\"banner\":\"\"}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
    "section": "hygiene",
    "title": "no duplicate id after the whole drive",
    "ok": true,
@@ -618,7 +681,7 @@
    "plannerActive": true,
    "title": "Build planner · WFM Trader",
    "dupes": [],
-   "status": "db 8c3f4101 · 1809 mods · 777 items",
+   "status": "db 0132f6af · 1809 mods · 777 items",
    "gridSlots": 0,
    "pickerOpen": true,
    "libRows": 0
@@ -695,6 +758,15 @@
    },
    "detail_damage": 35
   },
+  "library": {
+   "total": 306,
+   "dupes": [],
+   "flawed": 40,
+   "hidden": {
+    "shadowed": 39,
+    "reason": "obsolete internal rows wearing a real mod's name"
+   }
+  },
   "catalyst": {
    "ui": {
     "used": "0",
@@ -759,25 +831,25 @@
     "types": [
      {
       "element": "gas",
-      "amount": 306.075,
+      "amount": 166.95,
       "sources": [
        {
         "element": "heat",
-        "amount": 153.0375,
+        "amount": 83.475,
         "source": "mod",
         "slot": 2,
-        "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponFireDamageModExpert",
+        "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponFireDamageMod",
         "mod_name": "Hellfire",
-        "rank": 10
+        "rank": 5
        },
        {
         "element": "toxin",
-        "amount": 153.0375,
+        "amount": 83.475,
         "source": "mod",
         "slot": 3,
-        "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+        "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod",
         "mod_name": "Infected Clip",
-        "rank": 10
+        "rank": 5
        }
       ],
       "combined_from": [
@@ -794,7 +866,7 @@
      {
       "stage": "combine",
       "element": "gas",
-      "amount": 306.075,
+      "amount": 166.95,
       "from": [
        "heat",
        "toxin"
@@ -808,7 +880,7 @@
     "notes": []
    },
    "dom": {
-    "composition": "Impact 4.638 1.2%Puncture 32.463 8.1%Slash 55.65 14%Gas 306.075 76.7%Gas 306.075 ← Heat + Toxin · Hellfire R10 + Infected Clip R10burst 4280.707 (average shot x effective fire rate) · sustained 3358.151assumes: assumes the player fires at the arsenal fire rateassumes: reload is uninterrupted and ful",
+    "composition": "Impact 4.638 1.8%Puncture 32.463 12.5%Slash 55.65 21.4%Gas 166.95 64.3%Gas 166.95 ← Heat + Toxin · Hellfire R5 + Infected Clip R5burst 2787.437 (average shot x effective fire rate) · sustained 2186.703assumes: assumes the player fires at the arsenal fire rateassumes: reload is uninterrupted and full",
     "types": "impact,puncture,slash,gas,impact,puncture,slash,gas,gas",
     "hidden": false
    }
@@ -818,7 +890,7 @@
     "types": [
      {
       "element": "viral",
-      "amount": 236.5125,
+      "amount": 166.95,
       "sources": [
        {
         "element": "cold",
@@ -831,12 +903,12 @@
        },
        {
         "element": "toxin",
-        "amount": 153.0375,
+        "amount": 83.475,
         "source": "mod",
         "slot": 3,
-        "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+        "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod",
         "mod_name": "Infected Clip",
-        "rank": 10
+        "rank": 5
        }
       ],
       "combined_from": [
@@ -853,7 +925,7 @@
      {
       "stage": "combine",
       "element": "viral",
-      "amount": 236.5125,
+      "amount": 166.95,
       "from": [
        "cold",
        "toxin"
@@ -867,28 +939,28 @@
     "notes": []
    },
    "dom": {
-    "composition": "Impact 4.638 1.4%Puncture 32.463 9.9%Slash 55.65 16.9%Viral 236.513 71.8%Viral 236.513 ← Cold + Toxin · Cryo Rounds R5 + Infected Clip R10burst 3534.072 (average shot x effective fire rate) · sustained 2772.427assumes: assumes the player fires at the arsenal fire rateassumes: reload is uninterrupted",
+    "composition": "Impact 4.638 1.8%Puncture 32.463 12.5%Slash 55.65 21.4%Viral 166.95 64.3%Viral 166.95 ← Cold + Toxin · Cryo Rounds R5 + Infected Clip R5burst 2787.437 (average shot x effective fire rate) · sustained 2186.703assumes: assumes the player fires at the arsenal fire rateassumes: reload is uninterrupted a",
     "types": "impact,puncture,slash,viral,impact,puncture,slash,viral,viral",
     "hidden": false
    }
   },
   "capacity": {
    "ui": {
-    "used": 34,
+    "used": 29,
     "total": 60,
     "total_dom": "60",
     "rows": [
-     "Slot 1Serrationmatched7 (14)",
+     "Slot 1Serrationmatched7, was 14",
      "Slot 2empty - charges nothing",
      "Slot 3Cryo Roundsvacant11",
-     "Slot 4Infected Clipvacant16",
+     "Slot 4Infected Clipvacant11",
      "Exiluslocked",
      "+3 moreempty slots, charging nothing",
      "Slot 1set to V (item: none)1 forma"
     ],
-    "detail": "Rank 30/30the item's own capacity30Catalyst / Reactordoubles the rank capacity60Total34 used of 6026 freewhat each slot was chargedSlot 1Serrationmatched7 (14)Slot 2empty - charges nothingSlot 3Cryo Roundsvacant11Slot 4Infected Clipvacant16Exiluslocked+3 moreempty slots, charging nothing1 forma spen"
+    "detail": "Rank 30/30the item's own capacity30Catalyst / Reactordoubles the rank capacity60Total29 used of 6031 freewhat each slot was chargedSlot 1Serrationmatched7, was 14Slot 2empty - charges nothingSlot 3Cryo Roundsvacant11Slot 4Infected Clipvacant11Exiluslocked+3 moreempty slots, charging nothing1 forma s"
    },
-   "api_used": 34,
+   "api_used": 29,
    "api_cap": {
     "capacity": {
      "equipment_rank": 30,
@@ -948,14 +1020,14 @@
        "kind": "normal",
        "index": 3,
        "polarity": null,
-       "mod": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+       "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod",
        "mod_name": "Infected Clip",
        "mod_polarity": "naramon",
-       "raw_drain": 16,
-       "adjusted_drain": 16,
+       "raw_drain": 11,
+       "adjusted_drain": 11,
        "adjustment": 0,
        "rule": "vacant",
-       "contribution": -16
+       "contribution": -11
       },
       {
        "kind": "normal",
@@ -1023,13 +1095,13 @@
        "contribution": 0
       }
      ],
-     "total": 34,
-     "remaining": 26
+     "total": 29,
+     "remaining": 31
     },
     "trace": [
      "slot 0: Serration R10 drains 7 (raw 14, matching, -7)",
      "slot 2: Cryo Rounds R5 drains 11 (raw 11, vacant)",
-     "slot 3: Infected Clip R10 drains 16 (raw 16, vacant)"
+     "slot 3: Infected Clip R5 drains 11 (raw 11, vacant)"
     ],
     "notes": [],
     "errors": []
@@ -1039,7 +1111,7 @@
    "dom": {
     "base_damage": "Base Damage35",
     "modded": "Modded base damage92.75+57.75",
-    "crit": "Critical chance45%+33%",
+    "crit": "Critical chance30%+18%",
     "mult": "Critical multiplierx2",
     "status": "Status chance26%",
     "multishot": "Multishotx1",
@@ -1056,30 +1128,30 @@
    "api": {
     "base_damage": 35,
     "modded_base_damage": 92.75,
-    "per_projectile_total": 329.2625,
+    "per_projectile_total": 259.7,
     "multishot": 1,
     "multishot_whole": 1,
     "multishot_extra_chance": 0,
-    "damage_per_shot": 329.2625,
+    "damage_per_shot": 259.7,
     "damage_impact": 4.6375,
     "damage_puncture": 32.4625,
     "damage_slash": 55.65,
-    "damage_viral": 236.5125,
-    "critical_chance": 45,
+    "damage_viral": 166.95,
+    "critical_chance": 30,
     "critical_multiplier": 2,
     "critical_tier": 0,
-    "critical_expected_multiplier": 1.45,
+    "critical_expected_multiplier": 1.3,
     "status_chance": 26,
     "status_procs_per_projectile": 0.26,
     "status_expected_procs_per_shot": 0.26,
     "fire_rate": 9.5833,
     "magazine_size": 75,
     "reload_time": 2.15,
-    "damage_per_shot_expected_crit": 477.4306,
-    "burst_dps": 4575.3609,
-    "sustained_dps": 3589.303
+    "damage_per_shot_expected_crit": 337.61,
+    "burst_dps": 3235.4179,
+    "sustained_dps": 2538.1376
    },
-   "api_crit": 45,
+   "api_crit": 30,
    "api_damage": 92.75
   },
   "trace": {
@@ -1097,20 +1169,20 @@
   },
   "config-a-intact": {
    "mods": [
-    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert",
-    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponCritChanceMod",
     "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
-    "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod"
+    "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod"
    ],
-   "cap_used": 48
+   "cap_used": 38
   },
   "duplicate": {
    "active": "B",
    "mods": [
-    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert",
-    "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponCritChanceMod",
     "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
-    "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod"
+    "/Lotus/Upgrades/Mods/Rifle/WeaponFreezeDamageMod",
+    "/Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod"
    ]
   },
   "persistence": {
@@ -1129,12 +1201,12 @@
    },
    "dom": {
     "equip": "Braton Prime",
-    "capUsed": 48,
+    "capUsed": 38,
     "slots": [
-     "Slot 1…R107V✕",
-     "Slot 3…R511✕",
-     "Slot 4…R1016✕",
-     "Slot 5…R1014✕"
+     "Slot 1SerrationR107V✕",
+     "Slot 3Cryo RoundsR511✕",
+     "Slot 4Infected ClipR511✕",
+     "Slot 5Point StrikeR59✕"
     ],
     "forma": "1"
    },
@@ -1174,8 +1246,8 @@
       "index": 3,
       "polarity": null,
       "mod": {
-       "id": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponToxinDamageModExpert",
-       "rank": 10
+       "id": "/Lotus/Upgrades/Mods/Rifle/WeaponToxinDamageMod",
+       "rank": 5
       }
      },
      {
@@ -1183,8 +1255,8 @@
       "index": 4,
       "polarity": null,
       "mod": {
-       "id": "/Lotus/Upgrades/Mods/Rifle/Expert/WeaponCritChanceModExpert",
-       "rank": 10
+       "id": "/Lotus/Upgrades/Mods/Rifle/WeaponCritChanceMod",
+       "rank": 5
       }
      },
      {
@@ -1214,12 +1286,21 @@
      }
     ]
    },
-   "api_used_after": 48
+   "api_used_after": 38
   },
   "graceful": {
    "version": 1,
    "slots": 0,
    "active": "A"
+  },
+  "library-revealed": {
+   "total": 345,
+   "shadowed": 39,
+   "named": [
+    "Ammo Drum",
+    "Arrow Mutation",
+    "Arrow Mutation"
+   ]
   },
   "keyboard": {
    "search": {
@@ -1249,6 +1330,30 @@
    "panel_mark": true,
    "removed": 1
   },
+  "floor": {
+   "engine": 0,
+   "floored": false,
+   "hint": "capacity floor 0"
+  },
+  "exilus-lock": {
+   "id": "/Lotus/Upgrades/Mods/Rifle/WeaponGrenadeStickyMod",
+   "name": "Adhesive Blast",
+   "second": "Aerial Ace",
+   "locked_installed": null,
+   "locked_text": "ExilusLocked—",
+   "open_installed": "/Lotus/Upgrades/Mods/Rifle/Event/Arbitration/JumpRefreshOnKillRifleMod",
+   "want": "/Lotus/Upgrades/Mods/Rifle/Event/Arbitration/JumpRefreshOnKillRifleMod"
+  },
+  "answer-contract": {
+   "hidden": true,
+   "answer": "yes",
+   "capUsed": "23",
+   "ok": true,
+   "has_result": true,
+   "error": null,
+   "val_errors": [],
+   "banner": ""
+  },
   "hygiene": {
    "dupes": [],
    "console": 0,
@@ -1270,10 +1375,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-29T11:14:57.837Z",
+ "finished": "2026-09-29T11:46:25.388Z",
  "verdict": {
   "pass": true,
-  "checks_total": 66,
+  "checks_total": 73,
   "checks_failed": 0,
   "failed": []
  }

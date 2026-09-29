@@ -214,6 +214,15 @@
 .pl-hintwarn { color: var(--pl-warn); }
 .pl-polarity-note { margin-top: 7px; font-family: var(--mono); line-height: 1.45; }
 
+/* the hidden-rows note: what the server kept out of the list, one click to see it anyway */
+.pl-lib-hidden { padding: 0 4px 6px; }
+.pl-hidden-link {
+  font: 10.5px var(--mono); color: var(--pl-warn); background: #241f14;
+  border: 1px solid #5c4a24; border-radius: 5px; padding: 2px 7px; cursor: pointer;
+}
+.pl-hidden-link:hover { border-color: var(--pl-warn); }
+.pl-variant-hidden { color: var(--pl-warn); border-color: #5c4a24; background: #241f14; }
+
 /* ------------------------------------------------------------------ drag states */
 /* A library row on its way in: legal slots invite, illegal ones refuse - never silently. */
 .pl-slot[data-drop="ok"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -492,3 +501,21 @@ kbd {
   .pl-lib-list { max-height: 46vh; }
   .pl-pop { width: 96vw; }
 }
+
+/* the engine did not answer: say so instead of painting zeros */
+.pl-error {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--foreground);
+  font-size: 12px;
+}
+.pl-error[data-k="busy"] {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.pl-error[hidden] { display: none; }

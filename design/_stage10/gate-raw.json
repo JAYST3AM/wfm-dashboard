@@ -1,7 +1,7 @@
 {
  "meta": {
-  "started": "2026-09-29T11:11:29.312Z",
-  "finished": "2026-09-29T11:14:31.317Z",
+  "started": "2026-09-29T11:46:32.431Z",
+  "finished": "2026-09-29T11:49:35.451Z",
   "base": "http://127.0.0.1:8787",
   "repo": "F:/VSC Projects/wfm-dashboard",
   "node": "v24.13.0",
@@ -1297,7 +1297,7 @@
    "settings_pill": "Not live#st-pill dry",
    "trade_kill_meta": "disarmed",
    "trade_kill_line": "9/25/2026, 23:02:47 Not live",
-   "trade_plan_meta": "· built 52h ago · MR 22",
+   "trade_plan_meta": "· built 53h ago · MR 22",
    "home_alerts": "Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically"
   }
  },
@@ -1550,10 +1550,10 @@
    "state": "trade/orders",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 120,
+   "scanned": 122,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 180,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1565,10 +1565,10 @@
    "state": "trade/orders",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 120,
+   "scanned": 122,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 180,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1580,10 +1580,10 @@
    "state": "trade/orders",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 120,
+   "scanned": 122,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 180,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1595,10 +1595,10 @@
    "state": "trade/orders",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 120,
+   "scanned": 122,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 180,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -15062,6 +15062,7 @@
     "themeFilter",
     "themeGrid",
     "mainnav",
+    "plError",
     "plEquipBtn",
     "plEquipKind",
     "plEquipName",
@@ -15109,6 +15110,7 @@
     "plLibrary",
     "plLibCount",
     "plLibSort",
+    "plLibHidden",
     "plLibSearch",
     "plLibFilters",
     "plLibList",
@@ -15267,7 +15269,7 @@
    {
     "page": "planner",
     "state": "landing",
-    "count": 296,
+    "count": 298,
     "duplicates": []
    },
    {
@@ -15762,7 +15764,7 @@
    "title": "planner landing: the page declares itself and its three columns exist",
    "ok": true,
    "expected": "data-shell=planner, picker + grid + stats present, status names the DB",
-   "rendered": "{\"shell\":\"planner\",\"picker\":true,\"grid\":true,\"stats\":true,\"status\":\"db 8c3f4101 · 1809 mods · 777 items\"}",
+   "rendered": "{\"shell\":\"planner\",\"picker\":true,\"grid\":true,\"stats\":true,\"status\":\"db 0132f6af · 1809 mods · 777 items\"}",
    "note": ""
   },
   {
@@ -16306,7 +16308,7 @@
   "rows": 9,
   "ladder": 12,
   "chips": 4,
-  "meta": "· 1242 sell · 116 buy · 0s ago · ingame+online · 9 of 80 shown",
+  "meta": "· 1238 sell · 115 buy · 0s ago · ingame+online · 9 of 80 shown",
   "item": "· Primed Continuity",
   "err": ""
  },
@@ -16338,7 +16340,7 @@
    "invTotals": "876 stacks (showing 400) Filtered value 31,057p",
    "killMeta": "disarmed",
    "killLine": "9/25/2026, 23:02:47 Not live",
-   "planMeta": "· built 52h ago · MR 22",
+   "planMeta": "· built 53h ago · MR 22",
    "homeAlerts": "Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically",
    "rowCounts": {
     "dealsList": 14,
@@ -16367,7 +16369,7 @@
    "heldChildren": 15,
    "heldHeadish": 0,
    "chips": "MR 22 Trades 22/day left Priced 803/876",
-   "foot": "WFM Trader · updated 21:11 · 471 events",
+   "foot": "WFM Trader · updated 21:46 · 471 events",
    "notLive": [
     "Not live#dim small explain"
    ]

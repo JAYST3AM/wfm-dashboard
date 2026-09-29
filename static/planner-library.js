@@ -381,8 +381,17 @@
     var main = el('div', { class: 'pl-row-main' });
     var nameLine = el('div', { class: 'pl-row-name' });
     nameLine.appendChild(document.createTextNode(row.name || row.id));
-    if (row.variant === 'beginner' || row.variant === 'intermediate') {
-      nameLine.appendChild(el('span', { class: 'pl-variant', text: row.variant }));
+    if (row.variant === 'beginner') {
+      nameLine.appendChild(el('span', { class: 'pl-variant', text: 'flawed',
+        title: 'The starter copy the game calls "' + (row.name || '') + '" - a different mod, ' +
+          'with its own ranks' }));
+    }
+    if (row.shadowed) {
+      nameLine.appendChild(el('span', { class: 'pl-variant pl-variant-hidden', text: 'not in game',
+        title: 'No card in the wiki on this path' }));
+    } else if (row.conclave) {
+      nameLine.appendChild(el('span', { class: 'pl-variant', text: 'conclave',
+        title: 'PvP only - not usable in PvE' }));
     }
     main.appendChild(nameLine);
     var first = (row.lines || [])[0];
@@ -429,6 +438,28 @@
   function setCount(text) {
     var node = $('plLibCount');
     if (node) node.textContent = text;
+  }
+
+  /* The server keeps obsolete internal rows (the /Intermediate/ and /Expert/ leftovers that wear
+     a real card's name) out of the list and says how many. Nothing is dropped in silence: the
+     note offers them back, one click, and each revealed row is badged "not in game". */
+  function renderHiddenNote() {
+    var node = $('plLibHidden');
+    if (!node) return;
+    clear(node);
+    var hidden = P.libraryHidden && P.libraryHidden();
+    if (!hidden || !hidden.shadowed || P.libraryWithHidden && P.libraryWithHidden()) {
+      node.hidden = true;
+      return;
+    }
+    node.hidden = false;
+    var link = el('button', { class: 'pl-hidden-link', type: 'button',
+      text: hidden.shadowed + ' obsolete duplicates hidden',
+      title: 'Rows this item can never slot: ' + (hidden.reason || '') });
+    link.addEventListener('click', function () {
+      if (P.revealShadowed) P.revealShadowed();
+    });
+    node.appendChild(link);
   }
 
   function renderList() {
@@ -480,6 +511,7 @@
   function renderAll() {
     renderFilters();
     renderSort();
+    renderHiddenNote();
     renderList();
   }
 
@@ -639,8 +671,11 @@
       return;
     }
     var focus = P.focused();
-    if (focus && P.modFitsSlot(row, focus.kind)) P.install(focus.kind, focus.index, row);
-    else P.installAuto(row);
+    // one legality rule for every path: the class rules plus the live Exilus switch (the drag
+    // handler and installAuto use the same function, so a click cannot do what a drag cannot)
+    if (focus && P.slotLegal && P.slotLegal(focus.kind, focus.index, row)) {
+      P.install(focus.kind, focus.index, row);
+    } else P.installAuto(row);
   }
 
   function rowIndexFromEvent(ev) {

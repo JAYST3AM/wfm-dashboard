@@ -111,6 +111,10 @@
     computing: false,
     computeSeq: 0,
     rescued: false,           // an unreadable stored payload was replaced (boot rewrites it)
+    library: [],              // the mods that fit this item (server rows)
+    libraryFor: null,
+    libraryHidden: null,      // {shadowed: N, reason: ...}: rows the server kept out by name
+    libraryWithHidden: false,
     error: null
   };
 
@@ -146,20 +150,73 @@
       state.rescued = true;
       return freshStorage();
     }
-    var fresh = freshStorage();
-    var out = Object.assign(fresh, data);
-    out.configs = fresh.configs;
-    CONFIGS.forEach(function (letter) {
-      var cfg = (data.configs || {})[letter];
-      if (cfg && typeof cfg === 'object') {
-        out.configs[letter] = { slots: cfg.slots && typeof cfg.slots === 'object' ? cfg.slots : {},
-                                polarities: cfg.polarities && typeof cfg.polarities === 'object'
-                                  ? cfg.polarities : {} };
+    var clean = cleanV1(data);
+    if (!clean) {
+      state.rescued = true;                 // structural junk is replaced whole, never half-applied
+      return freshStorage();
+    }
+    return clean;
+  }
+
+  var POLARITY_NAMES = ['madurai', 'naramon', 'vazarin', 'zenurik', 'umbral', 'penjaga', 'unairu'];
+
+  // Every field of a v1 document, checked before any of it is trusted: a payload this page
+  // cannot read in full is dropped in full (the boot then rewrites the key). Ranges are checked
+  // here too, because the engine's own coercion must never see a string where it wants a rank.
+  function cleanV1(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    if (Number(data.version) !== STORE_VERSION) return null;
+    var out = freshStorage();
+    function scalar(key, ok, fallback) {
+      return (data[key] === undefined || data[key] === null) ? fallback
+        : (ok(data[key]) ? data[key] : fallback);
+    }
+    out.equipment_id = scalar('equipment_id',
+      function (v) { return typeof v === 'string' && v.length > 0; }, null);
+    out.equipment_rank = scalar('equipment_rank',
+      function (v) { return Number.isInteger(v) && v >= 0; }, null);
+    out.mastery_rank = scalar('mastery_rank',
+      function (v) { return Number.isInteger(v) && v >= 0 && v <= 40; }, 0);
+    out.orokin = scalar('orokin', function (v) { return typeof v === 'boolean'; }, false);
+    out.exilus_unlocked = scalar('exilus_unlocked',
+      function (v) { return typeof v === 'boolean'; }, false);
+    out.active_config = CONFIGS.indexOf(data.active_config) >= 0 ? data.active_config : 'A';
+    var cfgIn = (data.configs === undefined || data.configs === null) ? {} : data.configs;
+    if (typeof cfgIn !== 'object' || Array.isArray(cfgIn)) return null;
+    for (var i = 0; i < CONFIGS.length; i++) {
+      var letter = CONFIGS[i];
+      var cfg = cfgIn[letter];
+      if (cfg === undefined || cfg === null) continue;
+      if (typeof cfg !== 'object' || Array.isArray(cfg)) return null;
+      var slotsIn = (cfg.slots === undefined || cfg.slots === null) ? {} : cfg.slots;
+      var polIn = (cfg.polarities === undefined || cfg.polarities === null) ? {} : cfg.polarities;
+      if (typeof slotsIn !== 'object' || Array.isArray(slotsIn)) return null;
+      if (typeof polIn !== 'object' || Array.isArray(polIn)) return null;
+      var slots = {};
+      var slotKeys = Object.keys(slotsIn);
+      for (var s = 0; s < slotKeys.length; s++) {
+        var entry = slotsIn[slotKeys[s]];
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+        if (typeof entry.id !== 'string' || !entry.id.length) return null;
+        var rank = (entry.rank === undefined || entry.rank === null) ? 0 : entry.rank;
+        if (!Number.isInteger(rank) || rank < 0) return null;
+        slots[slotKeys[s]] = { id: entry.id, rank: rank };
       }
-    });
-    if (CONFIGS.indexOf(out.active_config) < 0) out.active_config = 'A';
-    out.library = Object.assign(fresh.library, data.library || {});
-    out.ui = Object.assign(fresh.ui, data.ui || {});
+      var pols = {};
+      var polKeys = Object.keys(polIn);
+      for (var q = 0; q < polKeys.length; q++) {
+        var value = polIn[polKeys[q]];
+        if (value === undefined || value === null) continue;
+        if (typeof value !== 'string') return null;
+        // '' is meaningful: it is a slot the player cleared, and clearing costs a Forma
+        if (value !== '' && POLARITY_NAMES.indexOf(value) < 0) return null;
+        pols[polKeys[q]] = value;
+      }
+      out.configs[letter] = { slots: slots, polarities: pols };
+    }
+    out.library = (data.library && typeof data.library === 'object' && !Array.isArray(data.library))
+      ? data.library : {};
+    out.ui = (data.ui && typeof data.ui === 'object' && !Array.isArray(data.ui)) ? data.ui : {};
     return out;
   }
 
@@ -214,8 +271,9 @@
       return get(url);
     },
     item: function (key) { return get('/api/planner/equipment/' + encodeURIComponent(key)); },
-    mods: function (key) {
-      return get('/api/planner/mods?equipment=' + encodeURIComponent(key));
+    mods: function (key, includeShadowed) {
+      return get('/api/planner/mods?equipment=' + encodeURIComponent(key) +
+        (includeShadowed ? '&shadowed=1' : ''));
     },
     unsupported: function () { return get('/api/planner/unsupported'); },
     compute: function (build) { return post('/api/planner/compute', build); },
@@ -313,9 +371,14 @@
     var key = slotKey(kind, index);
     var slot = layoutSlot(kind, index);
     var def = slot ? (slot.default_polarity || null) : null;
-    if (!polarity) cfg.polarities[key] = '';
-    else if (polarity === def) delete cfg.polarities[key];
-    else cfg.polarities[key] = polarity;
+    if (!polarity) {
+      if (def) cfg.polarities[key] = '';            // cleared a slot the item polarised: one Forma
+      else delete cfg.polarities[key];              // already vacant as shipped: no Forma
+    } else if (polarity === def) {
+      delete cfg.polarities[key];                   // back to the item's own polarity: no Forma
+    } else {
+      cfg.polarities[key] = polarity;
+    }
     saveStorage();
     recompute();
   }
@@ -358,15 +421,16 @@
 
   function firstLegalSlot(modRow) {
     var order = state.layout.filter(function (s) {
-      return s.unlocked && !slotMod(s.kind, s.index) && modFitsSlot(modRow, s.kind);
+      return slotLegal(s.kind, s.index, modRow) && !slotMod(s.kind, s.index);
     });
     return order.length ? order[0] : null;
   }
 
   function installAuto(modRow) {
     var target = null;
-    if (state.focused && modFitsSlot(modRow, state.focused.kind)) target = state.focused;
-    else target = firstLegalSlot(modRow);
+    if (state.focused && slotLegal(state.focused.kind, state.focused.index, modRow)) {
+      target = state.focused;
+    } else target = firstLegalSlot(modRow);
     if (!target) {
       // No empty compatible slot: the library row stays selected and the drop targets light up.
       state.selectedMod = modRow.id;
@@ -391,11 +455,19 @@
       api.compute(payload).then(function (out) {
         if (seq !== state.computeSeq) return;           // a stale answer never lands
         state.computing = false;
-        state.result = out;
-        state.baseline = out && out.baseline;
-        state.error = out && out.error ? out.error : null;
+        var good = !!(out && out.result);
+        state.result = good ? out : null;               // a refusal is not a result to paint
+        state.baseline = good ? out.baseline : null;
+        state.error = good ? null : ((out && out.error) || 'the engine did not answer');
         renderResult();
         emit('result', out);
+      }).catch(function (err) {
+        if (seq !== state.computeSeq) return;
+        state.computing = false;
+        state.result = null;
+        state.error = 'the engine did not answer (' + ((err && err.message) || 'network') + ')';
+        renderResult();
+        emit('result', null);
       });
     };
     if (immediate) run(); else computeTimer = setTimeout(run, COMPUTE_DEBOUNCE);
@@ -412,9 +484,17 @@
     dot.style.textAlign = 'center';
     dot.style.lineHeight = '9px';
     if (interactive) {
+      dot.setAttribute('tabindex', '0');
       dot.addEventListener('click', function (ev) {
         ev.stopPropagation();
         openPolarityMenu(dot, kind, index);
+      });
+      dot.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          ev.stopPropagation();
+          openPolarityMenu(dot, kind, index);
+        }
       });
     }
     return dot;
@@ -623,8 +703,12 @@
       });
       return row;
     }
-    if (def) box.appendChild(option('As shipped (' + def + ')', def, 'default'));
-    box.appendChild(option('Vacant', null, 'no polarity'));
+    if (def) {
+      box.appendChild(option('As shipped (' + def + ')', def, 'default'));
+    } else {
+      box.appendChild(option('As shipped (vacant)', null, 'default'));
+    }
+    if (def) box.appendChild(option('Vacant', null, 'clears it - costs a Forma'));
     POLARITIES.forEach(function (p) {
       if (p === def) return;
       box.appendChild(option(p, p));
@@ -673,10 +757,13 @@
     var spots = document.querySelectorAll('.pl-slot[data-drop]');
     Array.prototype.forEach.call(spots, function (n) { n.removeAttribute('data-drop'); });
   }
+  // One legality rule for every way a mod can arrive (click, keyboard, auto, drag): the class
+  // rules from the library row, plus the Exilus slot's *live* adapter switch. The layout's own
+  // `unlocked` only says whether the item has the slot at all.
   function slotLegal(kind, index, modRow) {
     var slot = layoutSlot(kind, index);
-    var unlocked = slot ? !!slot.unlocked : true;
-    return unlocked && modFitsSlot(modRow, kind);
+    var open = kind === 'exilus' ? !!state.storage.exilus_unlocked : (!slot || slot.unlocked !== false);
+    return open && modFitsSlot(modRow, kind);
   }
 
   function onSlotDragOver(ev, kind, index, node) {
@@ -792,9 +879,12 @@
     return out;
   }
 
+  var previewSeq = 0;
   function showPreviewFor(next, title, anchor) {
     var base = build();
+    var seq = ++previewSeq;
     api.preview(base, next).then(function (out) {
+      if (seq !== previewSeq) return;                  // the pointer has moved on since
       if (!out || out.ok === false && !out.diff) {
         renderPreview({ title: title, error: out && out.error || 'preview failed' });
         return;
@@ -846,13 +936,24 @@
 
   function hidePreview() {
     if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+    previewSeq++;                                    // a late answer must not reopen the card
     var box = $('plPreview');
     if (box) { box.hidden = true; clear(box); }
   }
 
   // ------------------------------------------------------------------ rendering: capacity + validation
   function renderCapacity() {
-    var out = state.result || {};
+    if (!state.result) {
+      $('plCapUsed').textContent = '—';
+      $('plCapTotal').textContent = '—';
+      $('plCapUsed').className = 'pl-cap-num mono';
+      $('plCapBar').className = 'pl-cap-bar';
+      $('plCapFill').setAttribute('style', 'width:0%');
+      $('plCapBar').setAttribute('aria-label', 'Capacity unknown');
+      $('plCapNote').textContent = state.error ? 'no answer from the engine' : '';
+      return;
+    }
+    var out = state.result;
     var cap = out.capacity && out.capacity.capacity ? out.capacity.capacity : null;
     var used = out.capacity_used === null || out.capacity_used === undefined ? 0 : out.capacity_used;
     var total = cap ? cap.total : null;
@@ -878,6 +979,14 @@
   }
 
   function renderValidation() {
+    if (!state.result) {
+      var empty = $('plValidity');
+      clear(empty);
+      $('plValidityMeta').textContent = '';
+      empty.appendChild(el('div', { class: 'dim small',
+        text: state.error ? 'No answer from the engine.' : 'Nothing to check yet.' }));
+      return;
+    }
     var out = state.result || {};
     var v = out.validation || {};
     var errors = v.errors || [];
@@ -912,10 +1021,16 @@
   }
 
   function renderUnsupported() {
-    var out = state.result || {};
-    var rows = out.unsupported || [];
     var box = $('plUnsupported');
     clear(box);
+    if (!state.result) {
+      $('plUnsupportedMeta').textContent = '';
+      box.appendChild(el('div', { class: 'dim small',
+        text: state.error ? 'No answer from the engine.' : 'Nothing to check yet.' }));
+      return;
+    }
+    var out = state.result;
+    var rows = out.unsupported || [];
     $('plUnsupportedMeta').textContent = rows.length ? '· ' + rows.length + ' mechanic' +
       (rows.length === 1 ? '' : 's') : '';
     if (!rows.length) {
@@ -932,6 +1047,8 @@
   }
 
   function renderResult() {
+    renderError();
+    renderMrHint();              // the capacity floor comes from the engine's answer
     renderGrid();
     renderInspector();
     renderCapacity();
@@ -940,6 +1057,20 @@
     renderStatus();
     renderForma();                 // a polarity change moves the Forma count, not just the stats
     if (window.wfmIcons && window.wfmIcons.render) window.wfmIcons.render(document.body);
+  }
+
+  // No answer, no claims: when the engine did not answer, every panel says so instead of
+  // painting zeros and "everything is calculated".
+  function renderError() {
+    var box = $('plError');
+    if (!box) return;
+    var msg = state.error
+      ? (state.computing ? 'asking the engine…' : String(state.error))
+      : '';
+    box.textContent = msg;
+    box.hidden = !msg;
+    box.setAttribute('data-k', state.computing ? 'busy' : 'error');
+    document.body.setAttribute('data-planswer', state.result ? 'yes' : 'no');
   }
 
   function renderStatus() {
@@ -996,11 +1127,15 @@
     $('plEquipFoot').textContent = picker.rows.length + ' shown';
   }
   var pickerTimer = null;
+  var pickerSeq = 0;
   function loadPicker() {
     if (pickerTimer) clearTimeout(pickerTimer);
     pickerTimer = setTimeout(function () {
       pickerTimer = null;
+      var seq = ++pickerSeq;
+      var asked = picker.q;
       api.equipment(picker.q, picker.kind, 80).then(function (out) {
+        if (seq !== pickerSeq || asked !== picker.q) return;   // a newer query owns the list
         picker.rows = (out && out.rows) || [];
         renderPicker();
         $('plEquipFoot').textContent = out && out.error ? out.error
@@ -1023,8 +1158,10 @@
   }
 
   var libraryCache = {};
-  function selectEquipment(key) {
+  function selectEquipment(key, keepRank) {
     closePicker();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    $('plEquipBtn').focus();                         // never drop the caret into <body>
     api.item(key).then(function (detail) {
       if (!detail || detail.ok === false) {
         flashHint(detail && detail.error || 'That equipment could not be loaded');
@@ -1033,8 +1170,11 @@
       state.equipment = detail.equipment;
       state.layout = detail.slots || [];
       state.polaritiesFromExport = !!detail.polarities_from_export;
+      var same = state.storage.equipment_id === detail.equipment.id;
+      var stored = state.storage.equipment_rank;
       state.storage.equipment_id = detail.equipment.id;
-      state.storage.equipment_rank = null;
+      state.storage.equipment_rank = (keepRank && same && Number.isInteger(stored) &&
+        stored >= 0 && stored <= detail.equipment.max_rank) ? stored : null;
       state.focused = null;
       state.selectedMod = null;
       saveStorage();
@@ -1047,7 +1187,8 @@
       $('plEquipMeta').textContent = bits.join(' · ');
       var rankInput = $('plRank');
       rankInput.max = String(detail.equipment.max_rank);
-      rankInput.value = String(detail.equipment.max_rank);
+      rankInput.value = String(state.storage.equipment_rank === null
+        ? detail.equipment.max_rank : state.storage.equipment_rank);
       $('plRankMax').textContent = '/' + detail.equipment.max_rank;
       $('plPolarityNote').textContent = state.polaritiesFromExport ? ''
         : 'This item has no polarities - set them ' +
@@ -1058,23 +1199,29 @@
     });
   }
 
-  function loadLibrary(id) {
-    var cached = libraryCache[id];
+  function loadLibrary(id, includeShadowed) {
+    var cacheKey = id + (includeShadowed ? '+shadowed' : '');
+    var cached = libraryCache[cacheKey];
     if (cached) {
-      state.library = cached;
+      state.library = cached.rows;
+      state.libraryHidden = cached.hidden;
       state.libraryFor = id;
       emit('library', state.library);
       emit('state', state);
       return;
     }
-    api.mods(id).then(function (out) {
+    api.mods(id, includeShadowed).then(function (out) {
       if (!out || out.ok === false) {
         flashHint(out && out.error || 'The mod library could not be loaded');
         return;
       }
-      libraryCache[id] = out.rows || [];
-      state.library = libraryCache[id];
+      if (state.storage.equipment_id !== id) return;   // the item changed while this was in flight
+      libraryCache[cacheKey] = { rows: out.rows || [], hidden: out.hidden || null };
+      state.library = libraryCache[cacheKey].rows;
+      state.libraryHidden = libraryCache[cacheKey].hidden;
       state.libraryFor = id;
+      state.libraryWithHidden = !!includeShadowed;
+      renderGrid();                    // slot names and refusal chips wait for the library
       emit('library', state.library);
       emit('state', state);
     });
@@ -1145,10 +1292,22 @@
     }
   }
 
+  // The capacity floor belongs to builds/capacity.py (15 + 1 per 2 MR, +1 per Legendary Rank);
+  // this page only prints the figure the engine sent, and says when it is the binding one.
   function renderMrHint() {
-    var mr = Number(state.storage.mastery_rank) || 0;
-    var floor = mr > 30 ? 15 + 15 + (mr - 30) : 15 + Math.floor(mr / 2);
-    $('plMrFloor').textContent = 'capacity floor ' + floor;
+    var node = $('plMrFloor');
+    if (!node) return;
+    var cap = state.result && state.result.capacity && state.result.capacity.capacity;
+    var floor = cap ? cap.minimum_from_mastery : null;
+    if (floor === null || floor === undefined) {
+      node.textContent = '';
+      node.setAttribute('title', 'the floor the engine reports');
+      return;
+    }
+    node.textContent = 'capacity floor ' + floor + (cap.floored_by_mastery ? ' - in use' : '');
+    node.setAttribute('title', cap.floored_by_mastery
+      ? 'held up by the Mastery floor'
+      : 'rank and supercharger beat the floor');
   }
 
   // ------------------------------------------------------------------ keyboard + wiring
@@ -1161,7 +1320,12 @@
       loadPicker();
     });
     $('plEquipSearch').addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { closePicker(); $('plEquipBtn').focus(); }
+      if (e.key === 'Escape') {
+        e.stopPropagation();                         // do not let the document blur the button
+        closePicker();
+        $('plEquipBtn').focus();
+        return;
+      }
       if (e.key === 'Enter') {
         var first = $('plEquipList').querySelector('.pl-eq-row');
         if (first) first.click();
@@ -1348,7 +1512,7 @@
       renderGrid();
       var start = wanted || state.storage.equipment_id;
       if (start) {
-        selectEquipment(start);
+        selectEquipment(start, true);
       } else {
         $('plEquipName').textContent = 'Choose equipment';
         $('plEquipMeta').textContent = (meta.equipment_total || 0) + ' items · ' +
@@ -1369,7 +1533,11 @@
     result: function () { return state.result; },
     equipment: function () { return state.equipment; },
     layout: function () { return state.layout; },
+    error: function () { return state.error; },
     library: function () { return state.library; },
+    libraryHidden: function () { return state.libraryHidden || null; },
+    libraryWithHidden: function () { return !!state.libraryWithHidden; },
+    revealShadowed: function () { loadLibrary(state.libraryFor, true); },
     storage: function () { return state.storage; },
     focused: function () { return state.focused; },
     setFocused: function (kind, index) {
@@ -1380,6 +1548,7 @@
     },
     clearFocused: function () { state.focused = null; renderGrid(); renderInspector(); },
     install: install,
+    slotLegal: slotLegal,
     installAuto: installAuto,
     clearSlot: clearSlot,
     setPolarity: setPolarity,

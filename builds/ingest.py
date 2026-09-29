@@ -228,8 +228,10 @@ def normalise_mod(row, slug_by_ref, source):
         return None
     cls = mod_class(row)
     targets = list(schema.MOD_TARGETS.get(cls, ()))
+    variant = variant_of(unique)
+    display_name = flawed_name(name, variant)
     effects = effects_mod.parse_mod_effects(row)
-    flags = effects_mod.derive_flags(name, row, effects)
+    flags = effects_mod.derive_flags(name, row, effects)     # the catalog's own name, not the label
     polarity = schema.norm_polarity(row.get('polarity'))
     max_rank = effects['max_rank']
     mod_targets = targets
@@ -239,13 +241,17 @@ def normalise_mod(row, slug_by_ref, source):
         mod_targets = [schema.EQUIP_MELEE]
     row_out = {
         'id': unique,
-        'name': name,
-        'slug': slug_by_ref.get(unique) or slugify(name),
+        'name': display_name,
+        'base_name': name,
+        'variant': variant,
+        'is_flawed': variant == 'beginner',
+        'shadowed': False,
+        'shadowed_by': None,
+        'slug': slug_by_ref.get(unique) or slugify(name if variant is None else display_name),
         'type': row.get('type'),
         'compat': row.get('compatName'),
         'class': cls,
         'targets': mod_targets,
-        'variant': variant_of(unique),
         'rarity': row.get('rarity'),
         'polarity': polarity,
         'base_drain': row.get('baseDrain'),
@@ -253,6 +259,7 @@ def normalise_mod(row, slug_by_ref, source):
         'slot': effects_mod.slot_class(row),
         'exilus_ok': effects_mod.exilus_ok(row),
         'flags': flags,
+        'conclave': '/pvpmods/' in unique.lower(),      # PvP-only: the game's own path marker
         'augment_export': bool(row.get('isAugment')),
         'effects': effects,
         'source': source,
@@ -261,15 +268,32 @@ def normalise_mod(row, slug_by_ref, source):
 
 
 def variant_of(unique_name):
-    """'beginner' / 'intermediate' / None: the catalog ships starter copies of several
-    mods under the same display name (Serration exists at 3, 5 and 10 ranks), so the
-    variant has to be carried explicitly or a name lookup picks the wrong one."""
+    """'beginner' / 'intermediate' / 'expert' / None - the catalog ships shadow copies of many
+    mods under one display name, and none of them may be mistaken for the real card:
+
+    * '/Beginner/'     - the starter copy; the game calls these "Flawed X" (wiki: Flawed
+                         Hellfire, ranks 3, `Incompatible = Hellfire`), so they are renamed.
+    * '/Intermediate/' - no internal name on the wiki's mod data (0 of 33 here): not slotable.
+    * '/Expert/'       - the upgraded Primed/Galvanized rows (Primed Blunderbuss, Galvanized
+                         Steel) *and* 75 leftovers that carry a plain mod's name at rank 10
+                         (Hellfire, Point Strike); the wiki lists none of those 75.
+
+    `flawed_name()` renames the starter rows; `build_database()` flags the rest as `shadowed`
+    so the library can never offer them as if they were the card a player owns."""
     low = str(unique_name or '').lower()
     if '/beginner/' in low or low.endswith('beginner'):
         return 'beginner'
     if '/intermediate/' in low or low.endswith('intermediate'):
         return 'intermediate'
+    if '/expert/' in low or low.endswith('expert'):
+        return 'expert'
     return None
+
+
+def flawed_name(name, variant):
+    """The wiki's own name for a starter copy ("Flawed Hellfire"); anything else is unchanged."""
+    return 'Flawed ' + name if variant == 'beginner' and not name.lower().startswith('flawed ') \
+        else name
 
 
 def normalise_equipment(row, kind, slug_by_ref, max_rank_by_ref, source):
@@ -366,6 +390,23 @@ def build_database(mod_rows, equipment_rows, meta):
                      if (r.get('effects') or {}).get('unmodelled'))
     conditional = sum(1 for r in mods.values()
                       if (r.get('effects') or {}).get('conditional'))
+    # Shadow copies: a variant row wearing a real mod's name (Hellfire at rank 10, Point Strike
+    # at rank 10 ...). The wiki's mod data lists no card on those internal paths, so the library
+    # hides them by name and says how many it hid - never silently, never installed by mistake.
+    plain = {}
+    for row in mods.values():
+        if not row.get('variant'):
+            plain.setdefault(row['name'], row['id'])
+    shadowed = 0
+    for row in mods.values():
+        if not row.get('variant'):
+            continue
+        twin = plain.get(row['name'])
+        if twin and twin != row['id']:
+            row['shadowed'] = True
+            row['shadowed_by'] = twin
+            shadowed += 1
+    flawed = sum(1 for r in mods.values() if r.get('is_flawed'))
     by_kind = {}
     for row in equipment.values():
         by_kind[row['kind']] = by_kind.get(row['kind'], 0) + 1
@@ -385,6 +426,7 @@ def build_database(mod_rows, equipment_rows, meta):
         'summary': {'equipment': len(equipment), 'equipment_by_kind': by_kind,
                     'mods': len(mods), 'mods_with_unmodelled_stats': unmodelled,
                     'mods_with_conditional_effects': conditional,
+                    'mods_flawed': flawed, 'mods_shadowed': shadowed,
                     'mods_without_targets': no_targets},
         'notes': notes,
     }
@@ -549,6 +591,8 @@ def main(argv=None):
     say('  mods %d (%d carry stats we do not model, %d carry conditional effects)'
         % (db['summary']['mods'], db['summary']['mods_with_unmodelled_stats'],
            db['summary']['mods_with_conditional_effects']))
+    say('  variants %d flawed (renamed), %d shadow copies hidden by name'
+        % (db['summary']['mods_flawed'], db['summary']['mods_shadowed']))
     return 0
 
 
@@ -569,7 +613,26 @@ FIXTURE_MODS = [
      'polarity': 'madurai', 'baseDrain': 6, 'fusionLimit': 10,
      'levelStats': [{'stats': ['+7.3%% Multishot', 'On Kill:\\n+2.7%% Multishot for 20s.']},
                     {'stats': ['+80%% Multishot', 'On Kill:\\n+30%% Multishot for 20s.']}]},
+    # The shadow copies the real catalog carries: a starter row the game names "Flawed Hellfire",
+    # an obsolete "/Intermediate/" row, and a rank-10 "/Expert/" leftover wearing the plain mod's
+    # name. The starter one is renamed and stays; the other two are flagged as shadow copies.
+    {'name': 'Hellfire',
+     'uniqueName': '/Lotus/Upgrades/Mods/Rifle/Beginner/ElementalDamageHeatModBeginner',
+     'type': 'Primary Mod', 'compatName': 'Rifle', 'rarity': 'Uncommon',
+     'polarity': 'naramon', 'baseDrain': 4, 'fusionLimit': 3,
+     'levelStats': [{'stats': ['+%d%% Heat' % (9 * (i + 1))]} for i in range(4)]},
+    {'name': 'Hellfire',
+     'uniqueName': '/Lotus/Upgrades/Mods/Rifle/Intermediate/ElementalDamageHeatModIntermediate',
+     'type': 'Primary Mod', 'compatName': 'Rifle', 'rarity': 'Uncommon',
+     'polarity': 'naramon', 'baseDrain': 6, 'fusionLimit': 5,
+     'levelStats': [{'stats': ['+%d%% Heat' % (15 * (i + 1))]} for i in range(6)]},
+    {'name': 'Hellfire',
+     'uniqueName': '/Lotus/Upgrades/Mods/Rifle/Expert/ElementalDamageHeatModExpert',
+     'type': 'Primary Mod', 'compatName': 'Rifle', 'rarity': 'Uncommon',
+     'polarity': 'naramon', 'baseDrain': 6, 'fusionLimit': 10,
+     'levelStats': [{'stats': ['+%d%% Heat' % (15 * (i + 1))]} for i in range(11)]},
 ]
+
 
 FIXTURE_EQUIPMENT = [
     {'uniqueName': '/Lotus/Weapons/Tenno/Rifle/BratonPrime', 'name': 'Braton Prime',
@@ -622,6 +685,22 @@ def selftest():
     check('mod: conditional rider refused, base value kept',
           galv['effects']['rank_table']['multishot'] == [7.3, 80]
           and any('On Kill' in c for c in galv['effects']['conditional']))
+    # the three shadow copies of Hellfire: starter renamed, the other two flagged
+    beginner, intermediate, expert = mod_rows[3], mod_rows[4], mod_rows[5]
+    check('variant: a starter copy carries the wiki name "Flawed Hellfire"',
+          beginner['name'] == 'Flawed Hellfire' and beginner['base_name'] == 'Hellfire'
+          and beginner['variant'] == 'beginner' and beginner['is_flawed'] is True,
+          str(beginner['name']))
+    check('variant: the /Intermediate/ and /Expert/ twins are flagged shadow copies',
+          intermediate['shadowed'] is True and expert['shadowed'] is True
+          and intermediate['variant'] == 'intermediate' and expert['variant'] == 'expert',
+          '%s / %s' % (intermediate['shadowed'], expert['shadowed']))
+    check('variant: a shadow copy names the real card it was shadowing',
+          intermediate['shadowed_by'] == heat['id'] and expert['shadowed_by'] == heat['id'],
+          str(intermediate['shadowed_by']))
+    check('variant: the library can count them without scanning names itself',
+          db['summary']['mods_shadowed'] == 2 and db['summary']['mods_flawed'] == 1,
+          str(db['summary']))
     check('mod: galvanized flag', galv['flags']['galvanized'])
     braton = db['equipment']['/Lotus/Weapons/Tenno/Rifle/BratonPrime']
     check('equipment: damage kept per type', braton['damage'] == {'impact': 1.75,

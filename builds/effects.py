@@ -589,12 +589,20 @@ def slot_class(mod_row):
 def exilus_ok(mod_row):
     """Can this mod sit in an Exilus slot? Exilus/utility mods and nothing else.
 
+    Reads both shapes: the exporter's rows carry `isExilus`/`isUtility`, and the ingested
+    rows carry the same fact as `flags.exilus` (ingest.py folds the two keys into one).
+    Validating an ingested row through the export keys alone said "not an Exilus mod" for
+    every Exilus mod, while the library listed the very same rows as Exilus-capable.
+
     The game is stricter than the flag for some items (a few "utility" mods are
-    normal-slot only); Phase 1 follows the export's isExilus/isUtility flags and marks
-    the residual doubt in the docs rather than guessing per-mod.
+    normal-slot only); Phase 1 follows these flags and marks the residual doubt in the
+    docs rather than guessing per-mod.
     """
     row = mod_row or {}
-    return bool(row.get('isExilus')) or bool(row.get('isUtility'))
+    if row.get('isExilus') or row.get('isUtility'):
+        return True
+    flags = row.get('flags') or {}
+    return bool(flags.get('exilus')) if isinstance(flags, dict) else False
 
 
 # ------------------------------------------------------------------ selftest
@@ -703,6 +711,9 @@ def selftest():
           and derive_flags('Umbral Vitality', galv)['umbral'] is True)
     check('exilus_ok follows the export flags',
           exilus_ok({'isExilus': True}) and not exilus_ok({}))
+    check('exilus_ok follows the ingested row shape too',
+          exilus_ok({'flags': {'exilus': True}}) and not exilus_ok({'flags': {'exilus': False}})
+          and not exilus_ok({'flags': 'not a dict'}))
 
     totals, markers, notes = collect_mod_effects(
         [{'kind': 'normal', 'index': 0, 'rank': 10, 'mod': _as_row(serration)},

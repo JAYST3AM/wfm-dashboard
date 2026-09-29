@@ -437,6 +437,21 @@ Three different mods are all named `Serration` (and three `Vital Sense`, three `
 A `name`-keyed lookup silently picks the Beginner variant (it appears first) and under-reports every mod
 value. **Index by `uniqueName`.**
 
+**What the ingester does about it** (found live while wiring the Phase 2 page, 2026-09-29 — the wiki's
+`Module:Mods/data`, fetched `action=raw`, holds 1,635 `InternalName`s and settles all three cases):
+
+| path segment | rows | on the wiki? | treatment |
+|---|---|---|---|
+| `/Beginner/` | 104 | 94 of 104 | renamed to the game's own name — **"Flawed Serration"**, `is_flawed` |
+| `/Intermediate/` | 33 | **0 of 33** | `shadowed` — an internal row, no card in the game |
+| `/Expert/` | 144 | 64 of 144 | the real Primed/Galvanized rows (Primed Blunderbuss) keep their names; the **75 that wear a plain mod's name** (a rank-10 "Hellfire", "Point Strike" at +275%) are `shadowed` |
+
+`Flawed` copies are real, distinct mods (wiki: `Incompatible = Hellfire`) and keep their own row.
+The 108 `shadowed` rows are hidden from the library by name, counted in `summary.mods_shadowed`, and
+offered back with `?shadowed=1` — each flagged, none dropped in silence. Before this, three library
+rows read "Hellfire" and the name-keyed pick landed on the rank-10 leftover: a PvE build silently got
+a mod that does not exist in PvE.
+
 ### 3.5 Other fields the calculator will need
 
 - `compatName` — the equip constraint, and **not** a clean enum: `"Rifle"`, `"WARFRAME"` (uppercase), a

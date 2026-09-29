@@ -216,10 +216,23 @@ def test_the_library_holds_the_mods_that_install_on_the_item(api):
     assert ser['lines'] == ['+165% Damage']
     assert ser['slot'] == 'normal' and ser['targets'] == ['primary']
     assert 'Point Strike' in {r['name'] for r in body['rows']}
-    # the starter copy is a separate row and sorts after the standard one
-    copies = [i for i, r in enumerate(body['rows']) if r['name'] == 'Serration']
-    assert copies == sorted(copies) and not body['rows'][copies[0]]['variant']
-    assert body['rows'][copies[-1]]['variant'] == 'beginner'
+    # one card per name: the starter copy carries the wiki's own name and the /Expert/ leftover
+    # is kept out of the list - and the payload says how many were kept out, and why
+    names = [r['name'] for r in body['rows']]
+    assert names.count('Serration') == 1
+    flawed = next(r for r in body['rows'] if r['name'] == 'Flawed Serration')
+    assert flawed['variant'] == 'beginner' and flawed['base_name'] == 'Serration'
+    assert flawed['shadowed'] is False
+    assert body['hidden']['shadowed'] == 1
+    assert 'obsolete' in body['hidden']['reason']
+    # asking for them is allowed: the same endpoint with &shadowed=1 hands the leftovers over,
+    # each one flagged and pointing at the card it wears the name of
+    _, more = api.get('/api/planner/mods?equipment=' + _quote('/Fixture/BratonPrime') +
+                      '&shadowed=1')
+    assert more['total'] == body['total'] + 1
+    twin = next(r for r in more['rows'] if r['shadowed'])
+    assert twin['name'] == 'Serration' and twin['variant'] == 'expert'
+    assert twin['shadowed_by'] == ser['id']
 
 
 def test_the_library_names_what_it_will_not_calculate(api):
@@ -366,3 +379,48 @@ def test_the_planner_payloads_are_json_safe_and_sized_for_a_ui(api):
         status, body = api.get(path)
         assert status == 200 and body.get('ok') is True, path
         assert len(json.dumps(body)) < 400_000, path
+
+
+def _raw_post(api, path, data):
+    """POST a body that is deliberately not an object (the harness helper only sends dicts)."""
+    req = urllib.request.Request(api.base + path, data=data, method='POST',
+                                 headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.status, json.loads(r.read().decode('utf-8'))
+
+
+def test_a_planner_post_with_a_non_object_body_is_an_answer_not_a_traceback(api):
+    """[] / "text" / null / 7 are valid JSON and invalid builds: answer, never raise."""
+    for path in ('/api/planner/compute', '/api/planner/preview', '/api/planner/explain'):
+        for data in (b'[]', b'"just a string"', b'null', b'7'):
+            status, body = _raw_post(api, path, data)
+            assert status == 200, (path, data, status)
+            assert isinstance(body, dict) and 'ok' in body, (path, data, body)
+            assert body['ok'] is False, (path, data, body)
+
+
+def test_an_unknown_planner_post_route_is_a_404(api):
+    status, body = api.post('/api/planner/no-such-route', {})
+    assert status == 404 and body['ok'] is False and 'unknown planner route' in body['error']
+
+
+def test_meta_carries_the_engine_identity_and_the_kind_list(api):
+    _, meta = api.get('/api/planner/meta')
+    assert meta['engine']['schema_version'] == meta['schema_version']
+    assert meta['engine']['content_hash'] == meta['content_hash']
+    assert meta['categories'] == [k['kind'] for k in meta['kinds']]
+    assert 'primary' in meta['categories']
+
+
+def test_equipment_rows_carry_both_spellings_of_their_key(api):
+    _, body = api.get('/api/planner/equipment?q=braton&limit=5')
+    assert body['rows']
+    for row in body['rows']:
+        assert row['uniqueName'] == row['id']
+        assert row['uniqueName'].startswith('/')
+
+
+def test_explain_survives_a_build_that_is_not_an_object(api):
+    status, body = _raw_post(api, '/api/planner/explain', b'{"build": [1, 2], "stat": "damage"}')
+    assert status == 200 and body['ok'] is False
+    assert 'object' in body['error'] and body['stat'] == 'damage'

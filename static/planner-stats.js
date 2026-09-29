@@ -7,8 +7,10 @@
  *   #plElements - damage composition (combined elements and the mods that built them), the
  *                 multi-shot/crit expectations, DPS with its stated assumptions
  *
- * Every number here is printed straight from the last /api/planner/compute answer. This file
- * adds labels, grouping and units - never a calculation.
+ * Every number here is printed straight from the last /api/planner/compute answer, and every
+ * game rule (capacity, drain, tiers, DPS) is the engine's. The only figures this file derives
+ * are the delta against the engine's own baseline answer and the bars' share of two engine
+ * numbers - no rule of the game is re-implemented here.
  */
 'use strict';
 
@@ -97,9 +99,9 @@
       return;
     }
     if (!out || !out.result) {
-      var why = out && out.validation && (out.validation.errors || []).length
+      var why = (out && out.validation && (out.validation.errors || []).length)
         ? 'This build does not validate - see Validation.'
-        : 'loading…';
+        : (P.error() ? 'No answer from the engine.' : 'loading…');
       body.appendChild(el('div', { class: 'dim small', text: why }));
       if (meta) meta.textContent = '';
       var view = document.getElementById('plStatsView');
@@ -418,6 +420,9 @@
       if (meta) meta.textContent = '';
       return;
     }
+    // the engine states what is left; the page never subtracts to find out
+    var remaining = (out.capacity.drain || {}).remaining;
+    if (remaining === undefined || remaining === null) remaining = null;
     var rows = [];
     rows.push(['Rank ' + fmt.num(cap.equipment_rank) + '/' + fmt.num(cap.max_rank),
       'the item\'s own capacity', fmt.num(cap.rank_capacity)]);
@@ -445,7 +450,8 @@
       el('span', { class: 'pl-cd-key', text: 'Total' }),
       el('span', { class: 'pl-cd-note', text: fmt.num(out.capacity_used) + ' used of '
         + fmt.num(cap.total) }),
-      el('span', { class: 'pl-cd-val', text: fmt.num(cap.total - out.capacity_used) + ' free' })
+      el('span', { class: 'pl-cd-val', text: remaining === null ? '—'
+        : fmt.num(remaining) + ' free' })
     ]));
     var slots = ((out.capacity.drain || {}).per_slot) || [];
     var priced = slots.filter(function (s) { return s.mod_name; });
@@ -470,9 +476,10 @@
         el('span', { class: 'pl-cd-mod', text: slot.mod_name }),
         el('span', { class: 'pl-cd-rule',
           'data-r': slot.rule, text: RULE_TEXT[slot.rule] || slot.rule }),
+        // charged first, then what it would have cost with no polarity help
         el('span', { class: 'pl-cd-val', text: (isAura ? '+' : '')
           + fmt.num(isAura ? slot.contribution : slot.adjusted_drain) +
-          (slot.adjustment || isAura ? ' (' + fmt.num(slot.raw_drain) + ')' : '') })
+          (slot.adjustment || isAura ? ', was ' + fmt.num(slot.raw_drain) : '') })
       ]));
     });
     if (empty > 4) {

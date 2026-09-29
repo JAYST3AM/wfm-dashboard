@@ -39,7 +39,7 @@ are the truth; this brief is a map, not a substitute):
 
 | Path | What it is |
 |---|---|
-| `server.py` | the `/api/planner/*` routes (`meta`, `equipment/<key>`, `equipment?q=`, `library`, `compute`, `compare`, `preview`, `explain`, `unsupported`), `_qs()` query helper, POST-body parsing, planner 404s |
+| `server.py` | the `/api/planner/*` routes (`meta`, `equipment?q=`, `equipment/<key>`, `mods`, `compute`, `preview`, `explain`, `unsupported` — the shipped table is `docs/build-planner.md`), `_qs()` query helper, POST-body parsing, planner 404s |
 | `builds/api.py` | `_compare_side()` extracted so each side of `compare` carries stats + `capacity_used` |
 | `builds/effects.py` | **bug fix**: `slot_class()` now classifies the exporter's mod shape and the ingested shape identically (an Aura was becoming a normal mod at validation time) + a selftest pinning it |
 | `static/planner.html` / `.css` / `.js` | the page, its layout and its core (state + storage v1, API client, picker, toolbar, slot grid, drag & drop, rank/polarity, capacity, validation, preview, keyboard) |

@@ -251,10 +251,11 @@ def test_planner_storage_is_one_key_at_the_servers_version(server):
 #      names a quantity - the whitelist form: formatting a value the engine produced is fine, a
 #      line that also reasons about drain/capacity/stats is one edit away from computing one.
 # The formatting sites this tolerates today: fmt.num / fmt.int (Math.round of an engine value),
-# the capacity bar's width (a percentage of the engine's own used / total), the toolbar's MR-floor
-# hint (Math.floor(mr / 2) - it mirrors capacity.minimum_from_mastery, the figure #plCapNote
-# prints), the stats panel's element-share percentage, and the library popup's pixel positioning.
-QUANTITY = r'(?:drain|damage|health|armou?r|shield|multishot|crit|status|capacity)'
+# the capacity bar's width and the stats panel's element share (a percentage of two engine
+# figures), and the library popup's pixel positioning. The toolbar's capacity floor is no longer
+# on this list: the page reads capacity.minimum_from_mastery off the compute answer, and
+# `mastery` is now one of the watched quantities, so a local floor formula would trip the scan.
+QUANTITY = r'(?:drain|damage|health|armou?r|shield|multishot|crit|status|capacity|mastery)'
 COMPUTE = re.compile(r'\b\w*%s\w*\s*[*/]\s*[\w(]|[)\w]\s*[*/]\s*\w*%s\w*' % (QUANTITY, QUANTITY),
                      re.I)
 ARITH = re.compile(r'Math\.(?:round|floor|ceil)\(|[A-Za-z0-9_)\]]\s*\*\s*[\w(]')

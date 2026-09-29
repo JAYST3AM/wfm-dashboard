@@ -51,10 +51,15 @@ FIXTURE_MODS = [
     ('/Fixture/AuraRifleAmp', 'Rifle Amp', ['+%d%% Rifle Damage' % (5 * (i + 1))
                                             for i in range(6)],
      'Aura', 'Aura', 'madurai', 4),
-    # The catalog's starter copies: same display name, different rank caps (variant).
+    # The catalog's starter copies: same display name, different rank caps (variant). The
+    # Beginner copy is renamed to the wiki's "Flawed Serration"; the Expert leftover keeps the
+    # plain name and is flagged as a shadow copy.
     ('/Lotus/Upgrades/Mods/Rifle/Beginner/WeaponDamageAmountModBeginner', 'Serration',
      ['+%d%% Damage' % (10 * (i + 1)) for i in range(4)], 'Primary Mod', 'Rifle',
      'madurai', 4),
+    ('/Lotus/Upgrades/Mods/Rifle/Expert/WeaponDamageAmountModExpert', 'Serration',
+     ['+%d%% Damage' % (15 * (i + 1)) for i in range(11)], 'Primary Mod', 'Rifle',
+     'madurai', 6),
 ]
 
 FIXTURE_EQUIPMENT = [
@@ -261,13 +266,33 @@ def test_load_reports_a_missing_database_clearly(tmp_path):
 
 
 def test_lookups_prefer_the_standard_variant(db):
-    """Beginner/Intermediate starter copies share a display name with the real mod."""
+    """Beginner/Intermediate starter copies share a display name with the real mod. The starter
+    copy now carries the wiki's own name ("Flawed Serration"), so a name lookup is unambiguous -
+    and the real card is the one that comes back."""
     row = data_mod.find_mod(db, 'Serration')
     assert row['max_rank'] == 10
     assert row['variant'] is None
-    every = data_mod.find_all(db, 'Serration', kind='mods')
-    assert len(every) == 2
-    assert every[-1]['variant'] == 'beginner'
+    assert data_mod.find_mod(db, 'Flawed Serration')['variant'] == 'beginner'
+    # the name is still carried by the plain card and by the /Expert/ leftover, but the lookup
+    # hands back the real one - and a search finds the real card first, the Flawed copy after it
+    matches = data_mod.find_all(db, 'Serration', kind='mods')
+    assert matches[0]['id'] == row['id']
+    assert [m['variant'] for m in matches] == [None, 'expert']   # the Flawed copy has its own name
+    assert matches[1]['shadowed'] is True
+
+
+def test_shadow_copies_are_flagged_and_never_slot_as_the_real_card(db):
+    """A /Beginner/ or /Expert/ row wearing a real mod's name is a shadow copy: flagged, and
+    pointing at the card it would otherwise be mistaken for."""
+    every = data_mod.find_all(db, 'Serration', kind='mods') + \
+        data_mod.find_all(db, 'Flawed Serration', kind='mods')
+    flawed = [r for r in every if r['variant'] == 'beginner']
+    assert flawed and flawed[0]['name'] == 'Flawed Serration'
+    assert flawed[0]['base_name'] == 'Serration' and flawed[0]['is_flawed'] is True
+    assert flawed[0]['shadowed'] is False          # its own name now, nothing to shadow
+    expert = [r for r in every if r['variant'] == 'expert']
+    assert expert and expert[0]['shadowed'] is True
+    assert expert[0]['shadowed_by'] == data_mod.find_mod(db, 'Serration')['id']
 
 
 def test_search_finds_equipment_and_mods(db):
@@ -301,3 +326,16 @@ def test_the_real_database_matches_its_own_content_hash():
     db = data_mod.load(path=path)
     assert db['schema_version'] == ingest.SCHEMA_VERSION
     assert ingest.content_hash(db) == db['content_hash']
+
+
+def test_exilus_ok_accepts_the_ingested_flag():
+    """The library calls a mod Exilus-capable from flags.exilus; the validator must agree.
+
+    The ingester folds isExilus/isUtility into flags.exilus, so a validator reading only the
+    export keys refused every Exilus mod while the same row was offered as Exilus-capable.
+    """
+    from builds import effects
+    assert effects.exilus_ok({'flags': {'exilus': True}}) is True
+    assert effects.exilus_ok({'isExilus': True}) is True
+    assert effects.exilus_ok({'flags': {}}) is False
+    assert effects.exilus_ok({'flags': 'not a dict'}) is False

@@ -22,6 +22,9 @@
 
 <main class="pl-wrap">
 
+  <!-- the engine did not answer: this says so, and every panel below stops making claims -->
+  <div class="pl-error" id="plError" role="status" hidden></div>
+
   <!-- ---------------------------------------------------------------- head: what is being built -->
   <div class="pl-head card">
     <div class="pl-head-main">
@@ -143,6 +146,7 @@
           <div class="card-title" data-icon="stack">Mod library <span class="dim small" id="plLibCount"></span></div>
           <div class="ranges" id="plLibSort" role="group" aria-label="Sort mods"></div>
         </div>
+        <div class="pl-lib-hidden" id="plLibHidden" hidden></div>
         <div class="search pl-search">
           <span class="si" data-icon="magnifying-glass"></span>
           <input id="plLibSearch" type="search" autocomplete="off" spellcheck="false"

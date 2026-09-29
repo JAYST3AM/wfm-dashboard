@@ -76,3 +76,40 @@ The gate was written before the page was finished, on purpose and it earned its 
 Auto-import from the game, owned-mod filtering, recommendations, market/price integration,
 riven solving, and anything that would need an account. The page is offline-first, reads only
 its own API, and stores nothing outside `localStorage`.
+
+## The audit round (after `7d06d63`)
+
+Two independent reads of the Phase 2 diff, then the fixes. **Codex Sol** (`gpt-5.6-sol`, read-only)
+and **space-bunny** (`opencode-go/space-bunny-free` under `opencode`, deny rules on the home tree)
+both came back with findings; space-bunny's verdict was FAIL on two of them.
+
+**What the audits caught and the tree now answers:**
+
+| Finding | Fix |
+|---|---|
+| `renderMrHint` computed `15 + floor(mr/2)` in the page — a second copy of `builds/capacity.py` rule | the hint prints the engine's `capacity.minimum_from_mastery` and says when it binds |
+| A failed `/compute` rendered as "everything is calculated" with capacity 0 and "loading…" forever | a `.pl-error` banner, `data-planswer="no"`, every panel says "No answer from the engine."; the capacity readout prints `—` |
+| Click/keyboard install used `modFitsSlot`, skipping the Exilus lock the drag path honoured | one `slotLegal()` for click, keyboard, auto-install and drag; the toolbar's live adapter switch is the only source |
+| `/preview` and `/explain` raised `AttributeError` on a non-object body (valid JSON `[]`/`"x"`/`null`) | `_planner_payload()` + `try/except` on the planner POST block: a structured answer, never a 500 |
+| `loadStorage` merged partially-valid v1 documents and int-coerced junk inside the engine route | `cleanV1()` validates every field and range; an unreadable payload is replaced whole and rewritten |
+| Preview/picker fetches had no sequence token; a stale answer could paint over a newer one | `previewSeq` / `pickerSeq`; hiding the preview invalidates the in-flight one |
+| The library could land for an item that was no longer selected | the answer carries the item it was asked for; the grid repaints when it lands |
+| Restoring the stored equipment wiped the stored rank | the rank is kept when the equipment is the same and dropped when it changes |
+| Choosing a polarity equal to the item's own (including "vacant") was priced as a Forma change | the entry is removed instead of written; the menu always offers "As shipped", vacant included |
+| `role="button"` polarity dot was unreachable by keyboard; Escape dropped focus to `<body>` | `tabindex` + Enter/Space; the picker's Escape stops there and returns focus to `#plEquipBtn` |
+| The stats panel found "free" capacity by subtracting, and printed per-slot charges without the raw figure | `capacity.drain.remaining` and `charged, was raw` — both engine numbers, nothing derived |
+| The docs' route table listed `/library`, `/compare` and a `?slug=` that never shipped | the table now matches the shipped routes, and the audit briefs point at it |
+| The page-guard test's no-math scan (by its author's own note) tolerated comparisons and a local floor formula | the MR-floor formula is gone and `mastery` is a watched quantity; the scan now trips on a re-derivation |
+
+**Found while fixing the above** (the new gate check earned its keep): the engine's
+`exilus_ok()` read only the exporter's `isExilus`/`isUtility` keys, but the ingester folds those
+into `flags.exilus` — so the validator answered "Aerial Ace is not an Exilus mod" for every
+Exilus mod while the library listed the very same rows as Exilus-capable. `exilus_ok()` now reads
+both shapes, with a selftest and an engine test pinning it; before the fix no Exilus mod could be
+slotted at all, and the page (correctly) showed the engine's refusal.
+
+**Also landed in this round** (found by the same reading): the catalogue's shadow copies — the
+WFCD data ships `/Beginner/`, `/Intermediate/` and `/Expert/` rows wearing real mods' names, some
+of them numerically impossible. They are renamed to the game's own names ("Flawed Serration"),
+flagged, kept out of the library behind a count, and never slotted as the real card; Conclave
+(`/PvPMods/`) rows carry a badge. Verified against the wiki's own `Module:Mods/data`.
