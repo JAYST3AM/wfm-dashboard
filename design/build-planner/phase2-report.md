@@ -170,3 +170,53 @@ category click that used to close the picker, search after a category switch, ou
 Escape, item selection closing and loading, the workspace's regions plus a focused slot and an
 active config at 68px tiles with no overflow, and the diagnostics strip expanding and collapsing
 with a badge on every heading. The five-viewport sweep from the head-card fix still runs.
+
+## Phase 2.5 cleanup - the details get a home
+
+**The floating surfaces are gone.** The brief's complaint that mod details "open over the Live Stats
+/ Why area" had two causes, not one: the details popover was `position: fixed` placed from the
+hovered row's rect (and at 1920 that rect is inside the stats column, x >= 1360), and a *second*
+fixed layer - the hover before/after preview - sat at `right: 18px; bottom: 18px`, the corner the
+workspace occupies. Both now live in one docked pane at the bottom of the library panel
+(`#plModDetail`, 224px, scrolls: a long card scrolls inside the pane, the pane never leaves the
+viewport). Nothing in the workspace floats: the gate counts fixed-position surfaces under
+`.pl-body` and `.pl-head` and requires zero. The pane grows to 224px and never shrinks below
+132px, the list keeps at least 96px; on a short screen, where the library's own head takes 221px of
+a 484px column, the dock scrolls itself the least distance it can (`scrollIntoView({block:
+'nearest'})`) - a no-op at full height.
+
+**The library rows were crushing their polarity glyph.** `.pl-row` declared
+`grid-template-columns: 3px minmax(0,1fr) auto auto` - four columns for four children, with the
+glyph landing in the 3px accent column. It gets a real 15px column now, 9px before the name (the
+gate measures the gap on the rendered rows).
+
+**The loadout outranks the catalogue** without the slots growing: installed tiles carry a stronger
+border and a tinted ground (48% accent mix), the library panel keeps a dimmed hairline border and a
+lighter title, and the polarity glyphs are bigger and carry the game's own letter.
+
+**The Why panel is never an empty box.** On load, a default trace is selected - health for a frame,
+damage for a weapon - and the row it belongs to lights up (the highlight had compared the stat key
+to the trace key, which differ for `modded_base_damage` -> `damage`). Fixing this surfaced a real
+bug: the default-selection code referenced a variable that does not exist in that scope
+(`kind`), and the resulting ReferenceError was swallowed by the event-listener wrapper, so the
+whole tail of `renderStats` - including the highlight - silently never ran.
+
+**The top strip** groups Catalyst/Exilus/Forma as one segment with an inner divider, so the row
+reads as one Arsenal strip instead of unrelated pills. Height is unchanged. The preview and the
+details both update from the keyboard highlight and from selection, so the pane is not a
+mouse-only surface.
+
+**Falsifiability.** `scratch/p25c_falsify.js` measures the page, then restores the old design at
+runtime (fixed details at 1260/700, fixed preview bottom-right, the 3px row column) and measures
+again: fixed layers 0 -> 2, and the polarity glyph's gap from the name 9px -> -10px (i.e. the glyph
+overlaps the name, exactly the report). The dock's own in-view/clear-of-stats checks are structural
+- the node now lives inside the library panel - so CSS alone cannot reproduce the old geometry; the
+gate's fixed-layer and pane-rect checks are what fail if it is moved back out.
+
+**Coverage:** the planner gate gained 8 checks (97 total, 0 failed): hover fills the docked pane on
+screen and clear of the stats, nothing in the workspace floats, the last row of the list still
+opens its details unclipped, the polarity gap, a focused slot differing from an unfocused one, the
+Why panel opening with a trace and its row lit, library/page/stats scroll independence, and the
+five-size sweep (pane inside the viewport, no stats overlap, no page overflow, list >= 90px). The
+console/network watch now classes local resource exhaustion (ERR_NO_BUFFER_SPACE) with the other
+environment-level transients rather than as a page fault.

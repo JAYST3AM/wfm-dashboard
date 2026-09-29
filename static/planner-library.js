@@ -593,33 +593,47 @@
     return box;
   }
 
-  function placeTip(box, anchor) {
-    document.body.appendChild(box);
-    var r = anchor.getBoundingClientRect();
-    var w = box.offsetWidth, h = box.offsetHeight;
-    var y = r.top;
-    var x = r.right + 12;                                   // beside the row when there is room
-    if (x + w > window.innerWidth - 8) x = r.left - w - 12;
-    if (x < 8) {                                            // a narrow viewport has no side room
-      x = r.left;
-      y = r.bottom + 6;
+  // The mod details live in a docked pane inside this panel (#plModDetail). They used to be a
+  // fixed-position popover placed from the hovered row's rect: at 1920 that rect is inside the
+  // stats column, so the card covered the numbers it was meant to explain, and near the bottom of
+  // the list it clipped against the viewport. A dock cannot do either, and it holds still while
+  // the pointer walks down the rows.
+  function dockTip(box) {
+    var pane = document.getElementById('plModDetail');
+    if (!pane) return;
+    // clear only what the dock owns: #plPreview lives in this pane permanently
+    Array.prototype.slice.call(pane.querySelectorAll('.pl-modtip, .pl-modd-empty'))
+      .forEach(function (n) { pane.removeChild(n); });
+    box.classList.remove('card');
+    pane.appendChild(box);
+    pane.scrollTop = 0;
+    // on a short screen the column has to scroll for the pane to be on screen at all; 'nearest'
+    // moves the least it can, and at full height this is a no-op (the pane is already visible)
+    var view = document.getElementById('plWorkspace');
+    if (view) {
+      var pr = pane.getBoundingClientRect();
+      var vr = view.getBoundingClientRect();
+      if (pr.bottom > window.innerHeight || pr.bottom > vr.bottom) {
+        pane.scrollIntoView({ block: 'nearest' });
+      }
     }
-    x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
-    y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
-    box.style.left = Math.round(x) + 'px';
-    box.style.top = Math.round(y) + 'px';
   }
 
-  function showTip(anchor, row) {
-    hideTip();
+  function showDocked(row) {
+    if (!row) return;
     var box = buildTip(row);
-    placeTip(box, anchor);
+    dockTip(box);
     iconize(box);
-    lib.tip = box;
   }
 
+  // the anchor argument is kept so callers stay unchanged; the dock ignores it
+  function showTip(anchor, row) {
+    showDocked(row);
+  }
+
+  // kept for the drag path: the pane deliberately holds its last card, so there is nothing to
+  // tear down and the readout never blinks empty while the pointer moves between rows
   function hideTip() {
-    if (lib.tip && lib.tip.parentNode) lib.tip.parentNode.removeChild(lib.tip);
     lib.tip = null;
   }
 
@@ -684,6 +698,7 @@
   function act(row) {
     cancelHover();
     hideTip();
+    showDocked(row);                                 // selection updates the details too
     P.hidePreview();
     if (installedMap()[row.id]) {                    // the engine refuses duplicates: select it
       P.pick(row);
@@ -723,6 +738,7 @@
 
   function setHl(i, scroll) {
     lib.hl = i;
+    showDocked(lib.rows[i]);          // arrow keys move the details with the highlight
     paintHl();
     if (!scroll) return;
     var list = $('plLibList');

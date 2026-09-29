@@ -167,3 +167,15 @@ each with a `.pl-dg-badge`). New ids: `#plHeadRank` (the rank chip), `#plEmpty` 
 and diagnostics. The equipment popover's close-on-outside handler runs in the capture phase, and
 category chips must update in place - rebuilding them detaches the clicked node and the handler
 then reads the click as outside (that was the picker-closes-on-category bug).
+
+## Phase 2.5 cleanup note
+
+`#plModDetail` (`.pl-modd`) is the one home for mod details: the docked pane at the bottom of the
+library panel. `#plPreview` moved *into* it - never restore it to a fixed corner. `dockTip()` in
+`planner-library.js` clears only `.pl-modtip`/`.pl-modd-empty` from the pane and spares
+`#plPreview`, which is a permanent child. The pane and the list share the leftover column height
+(pane: min 132, max `min(224px, 26vh)`; list: min 96). Nothing under `.pl-body` or `.pl-head` may
+be `position: fixed` - the gate counts them. `.pl-row`'s first grid column is the polarity glyph
+(15px, 9px gap): a 3px first column collapses the glyph onto the name. The stats panel selects a
+default trace on load when `ui.trace` is empty (health for a frame, damage for a weapon) and
+`highlightTraced` compares through `traceKeyFor`, because stat keys and trace keys differ.

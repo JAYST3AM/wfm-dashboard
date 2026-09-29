@@ -76,7 +76,7 @@
         <span class="dim small" id="plMrFloor"></span>
       </div>
     </div>
-    <div class="pl-ctl pl-toggles">
+    <div class="pl-ctl pl-toggles pl-upgrades">
       <button class="pl-toggle" id="plOrokin" aria-pressed="false" data-icon="diamond"
               title="Doubles the capacity">
         <span>Catalyst</span><span class="pl-tog-val" id="plOrokinVal">off</span>
@@ -85,11 +85,11 @@
               title="Unlocks the Exilus slot">
         <span>Exilus</span><span class="pl-tog-val" id="plExilusVal">off</span>
       </button>
-    </div>
-    <div class="pl-ctl pl-forma-item" id="plFormaChip" title="How many polarities this config changes">
-      <span class="pl-lbl">Forma</span>
-      <span class="pl-forma mono" id="plForma">0</span>
-      <span class="dim small" id="plFormaNote">matches the item</span>
+      <div class="pl-forma-item" id="plFormaChip" title="How many polarities this config changes">
+        <span class="pl-lbl">Forma</span>
+        <span class="pl-forma mono" id="plForma">0</span>
+        <span class="dim small" id="plFormaNote">matches the item</span>
+      </div>
     </div>
     <div class="pl-ctl pl-configs">
       <span class="pl-lbl" id="plConfigsLbl">Config</span>
@@ -151,6 +151,10 @@
         </div>
         <div class="pl-filters" id="plLibFilters"></div>
         <div class="pl-lib-list" id="plLibList" role="list"></div>
+        <div class="pl-modd" id="plModDetail" aria-live="polite">
+          <p class="pl-modd-empty">Hover a mod for its card.</p>
+          <div class="pl-preview card" id="plPreview" hidden></div>
+        </div>
       </div>
     </section>
 
@@ -215,7 +219,6 @@
   </section>
 
   <!-- the hover/drag preview: real engine answers for a hypothetical edit (never a guess) -->
-  <div class="pl-preview card" id="plPreview" hidden></div>
 
 </main>
 </div><!-- /shellcol -->

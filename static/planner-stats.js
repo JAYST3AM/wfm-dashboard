@@ -163,6 +163,16 @@
     }
     var view = document.getElementById('plStatsView');
     if (view) view.hidden = false;
+    // One predictable default so the Why panel is not an empty box on load: the value a player
+    // reads first - health for a frame, damage for a weapon. Any click replaces it from then on.
+    if (!P.storage().ui.trace) {
+      var want = isFrameish
+        ? ['health', 'shield', 'armour', 'armor'] : ['base_damage', 'modded_base_damage', 'damage'];
+      for (var wi = 0; wi < want.length; wi++) {
+        var traceKey = traceKeyFor(want[wi]);
+        if (traceKey && traces[traceKey]) { openTrace(traceKey); break; }
+      }
+    }
     highlightTraced();
   }
 
@@ -209,8 +219,10 @@
   function highlightTraced() {
     var rows = document.querySelectorAll('#plStatBody .pl-stat-row');
     Array.prototype.forEach.call(rows, function (node) {
+      // the stat key and the trace key are not always the same word (modded_base_damage -> damage),
+      // so a row highlights when its TRACE is the selected one, not only when the keys match
       node.setAttribute('aria-pressed',
-        node.getAttribute('data-stat') === P.storage().ui.trace ? 'true' : 'false');
+        traceKeyFor(node.getAttribute('data-stat')) === P.storage().ui.trace ? 'true' : 'false');
     });
     var label = document.getElementById('plTraceStat');
     if (label) {

@@ -1,5 +1,5 @@
 {
- "started": "2026-09-29T13:28:33.148Z",
+ "started": "2026-09-29T13:50:11.692Z",
  "base": "http://127.0.0.1:8787",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -766,6 +766,78 @@
    "ok": true,
    "expected": "three collapsible sections, closed by default, each carrying its own summary badge",
    "observed": "{\"count\":3,\"closedBefore\":false,\"afterOpen\":true,\"afterClose\":false,\"badges\":[\"· clean\",\"· 0 mods\",\"· 2 mechanics\"]}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "details",
+   "title": "hovering a row fills the docked pane, on screen and clear of the stats",
+   "ok": true,
+   "expected": "pane holds the card, inside the viewport, no intersection with #plStats",
+   "observed": "{\"top\":834,\"bottom\":966,\"h\":132,\"tip\":true,\"text\":\"\\n          \\n          Adaptation → Slot \",\"inView\":true,\"clearOfStats\":true,\"fixed\":0}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "details",
+   "title": "nothing in the workspace floats (no fixed-position surface)",
+   "ok": true,
+   "expected": "the preview and the details are both docked; the old design had two fixed layers here",
+   "observed": "fixed layers: 0",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "details",
+   "title": "the last row of the list still opens its details on screen, unclipped",
+   "ok": true,
+   "expected": "no bottom-edge clipping at the end of the list",
+   "observed": "{\"bottom\":966,\"innerH\":1080,\"inView\":true,\"clearOfStats\":true,\"pageY\":0}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "library",
+   "title": "the polarity glyph has measurable space before the mod name",
+   "ok": true,
+   "expected": "gap >= 6px between glyph and name, the glyph is a real square, the row stays compact",
+   "observed": "{\"gap\":9,\"polW\":15,\"h\":45,\"name\":\"Abating Link\"}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "loadout",
+   "title": "a focused slot is visually distinguishable from an unfocused one",
+   "ok": true,
+   "expected": "the focused tile carries its own border/shadow/background, not just a caret",
+   "observed": "{\"focused\":true,\"differs\":true,\"on\":{\"border\":\"rgb(255, 138, 30)\",\"shadow\":\"rgb(255, 138, 30) 0px 0px 0px 1px, color(srgb 1 0.541176 0.117647 / 0.18) 0px 2px 10px 0px\",\"bg\":\"rgb(20, 23, 29)\"}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "stats",
+   "title": "the Why panel opens with a trace and the traced row highlighted",
+   "ok": true,
+   "expected": "a default trace (damage for a weapon, health for a frame) with its stat row lit",
+   "observed": "{\"view\":true,\"label\":\"· Health\",\"lines\":2,\"pressed\":1}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "scroll",
+   "title": "the library scrolls on its own without moving the page or the stats",
+   "ok": true,
+   "expected": "independent scrollers, no accidental parent scroll",
+   "observed": "{\"pageSame\":true,\"statsSame\":true,\"listMoved\":true}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "details",
+   "title": "the docked details stay on screen and off the stats at all five sizes",
+   "ok": true,
+   "expected": "five viewports: pane inside the viewport, no stats overlap, no page overflow, the workspace still usable",
+   "observed": "{\"sizes\":5,\"bad\":[]}",
    "note": "",
    "diagnostic": false
   },
@@ -1540,7 +1612,7 @@
      "hide_refused": false
     },
     "ui": {
-     "trace": null
+     "trace": "damage"
     }
    },
    "still_junk": false,
@@ -1718,6 +1790,53 @@
     "· 2 mechanics"
    ]
   },
+  "dock-hover": {
+   "top": 834,
+   "bottom": 966,
+   "h": 132,
+   "tip": true,
+   "text": "\n          \n          Adaptation → Slot ",
+   "inView": true,
+   "clearOfStats": true,
+   "fixed": 0
+  },
+  "dock-last-row": {
+   "bottom": 966,
+   "innerH": 1080,
+   "inView": true,
+   "clearOfStats": true,
+   "pageY": 0
+  },
+  "row-anatomy": {
+   "gap": 9,
+   "polW": 15,
+   "h": 45,
+   "name": "Abating Link"
+  },
+  "focus-look": {
+   "focused": true,
+   "differs": true,
+   "on": {
+    "border": "rgb(255, 138, 30)",
+    "shadow": "rgb(255, 138, 30) 0px 0px 0px 1px, color(srgb 1 0.541176 0.117647 / 0.18) 0px 2px 10px 0px",
+    "bg": "rgb(20, 23, 29)"
+   }
+  },
+  "why-on-load": {
+   "view": true,
+   "label": "· Health",
+   "lines": 2,
+   "pressed": 1
+  },
+  "scroll-independence": {
+   "pageSame": true,
+   "statsSame": true,
+   "listMoved": true
+  },
+  "dock-sweep": {
+   "sizes": 5,
+   "bad": []
+  },
   "hygiene": {
    "dupes": [],
    "console": 0,
@@ -1739,10 +1858,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-29T13:29:20.527Z",
+ "finished": "2026-09-29T13:51:08.096Z",
  "verdict": {
   "pass": true,
-  "checks_total": 89,
+  "checks_total": 97,
   "checks_failed": 0,
   "failed": []
  }

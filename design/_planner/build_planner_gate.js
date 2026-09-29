@@ -116,12 +116,20 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
      The blocked-CDN class is the same one every page of this app shares: warframe.market card
      art and the WFCD image hosts, which are optional decoration and never structural. */
   page.on('console', (m) => {
-    if (m.type() === 'error') R.console.push(m.text().slice(0, 300));
+    if (m.type() !== 'error') return;
+    const text = m.text().slice(0, 300);
+    // a resource the local stack refused under load (ERR_NO_BUFFER_SPACE and friends) shows up
+    // here as well as on requestfailed: same class, same reason, counted the same way
+    if (/Failed to load resource.*ERR_(NO_BUFFER_SPACE|INSUFFICIENT_RESOURCES|CONNECTION|EMPTY_RESPONSE|NETWORK_CHANGED|ABORTED)/i.test(text)) {
+      R.transient = (R.transient || []); R.transient.push({ url: '(console) ' + text.slice(0, 120) });
+      return;
+    }
+    R.console.push(text);
   });
   page.on('pageerror', (e) => R.pageerrors.push(String(e && e.message || e).slice(0, 300)));
   page.on('requestfailed', (r) => {
     const row = { url: r.url().slice(0, 200), err: (r.failure() || {}).errorText };
-    if (/ERR_CONNECTION|ERR_EMPTY_RESPONSE|ERR_NETWORK_CHANGED|ERR_ABORTED/i.test(row.err || '')) {
+    if (/ERR_CONNECTION|ERR_EMPTY_RESPONSE|ERR_NETWORK_CHANGED|ERR_ABORTED|ERR_NO_BUFFER_SPACE|ERR_INSUFFICIENT_RESOURCES|ERR_SOCKET_NOT_CONNECTED/i.test(row.err || '')) {
       R.transient = (R.transient || []); R.transient.push(row);
     } else if (/(warframe\.market|wfcd|githubusercontent|cloudflare|cdn)/i.test(row.url)) {
       R.blocked_cdn.push(row);
@@ -1288,6 +1296,153 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
         diag.afterClose === false && diag.badges.every((b) => b.length > 0),
       'three collapsible sections, closed by default, each carrying its own summary badge',
       JSON.stringify(diag));
+
+    /* ------------- 19g the mod details have a home, and nothing floats over the workspace */
+    await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+
+    // a hover fills the docked pane, which sits under the rows: on screen, off the stats column
+    await page.hover('#plLibList .pl-row:nth-child(4)');
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 700)));
+    const dockA = await page.evaluate(() => {
+      const pane = document.getElementById('plModDetail');
+      const pr = pane.getBoundingClientRect();
+      const sr = document.getElementById('plStats').getBoundingClientRect();
+      return { top: Math.round(pr.top), bottom: Math.round(pr.bottom), h: Math.round(pr.height),
+        tip: !!pane.querySelector('.pl-modtip'),
+        text: pane.textContent.slice(0, 40),
+        inView: pr.top >= 0 && pr.bottom <= window.innerHeight,
+        clearOfStats: pr.right <= sr.left || pr.left >= sr.right || pr.bottom <= sr.top || pr.top >= sr.bottom,
+        fixed: Array.from(document.querySelectorAll('.pl-body *, .pl-head *'))
+          .filter((e) => getComputedStyle(e).position === 'fixed').length };
+    });
+    say('dock-hover', dockA);
+    addCheck('details', 'hovering a row fills the docked pane, on screen and clear of the stats',
+      dockA.tip === true && dockA.inView === true && dockA.clearOfStats === true && dockA.h > 80,
+      'pane holds the card, inside the viewport, no intersection with #plStats',
+      JSON.stringify(dockA));
+    addCheck('details', 'nothing in the workspace floats (no fixed-position surface)',
+      dockA.fixed === 0,
+      'the preview and the details are both docked; the old design had two fixed layers here',
+      'fixed layers: ' + dockA.fixed);
+
+    // the bottom of the list is the case that used to clip against the viewport edge
+    await page.evaluate(() => { const l = document.getElementById('plLibList'); l.scrollTop = l.scrollHeight; });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    await page.hover('#plLibList .pl-row:last-child');
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 700)));
+    const dockB = await page.evaluate(() => {
+      const pr = document.getElementById('plModDetail').getBoundingClientRect();
+      const sr = document.getElementById('plStats').getBoundingClientRect();
+      return { bottom: Math.round(pr.bottom), innerH: window.innerHeight,
+        inView: pr.top >= 0 && pr.bottom <= window.innerHeight,
+        clearOfStats: pr.right <= sr.left || pr.left >= sr.right || pr.bottom <= sr.top || pr.top >= sr.bottom,
+        pageY: window.scrollY };
+    });
+    say('dock-last-row', dockB);
+    addCheck('details', 'the last row of the list still opens its details on screen, unclipped',
+      dockB.inView === true && dockB.clearOfStats === true,
+      'no bottom-edge clipping at the end of the list',
+      JSON.stringify(dockB));
+
+    // the row anatomy: the polarity glyph gets a column of its own with real space after it
+    const rowAnatomy = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('#plLibList .pl-row'));
+      let worst = null;
+      rows.slice(0, 40).forEach((n) => {
+        const pol = n.querySelector('.pl-pol');
+        const name = n.querySelector('.pl-row-name');
+        if (!pol || !name) return;
+        const a = pol.getBoundingClientRect();
+        const b = name.getBoundingClientRect();
+        const gap = Math.round(b.left - a.right);
+        if (!worst || gap < worst.gap) worst = { gap: gap, polW: Math.round(a.width),
+          h: Math.round(n.getBoundingClientRect().height), name: (name.textContent || '').slice(0, 20) };
+      });
+      return worst;
+    });
+    say('row-anatomy', rowAnatomy);
+    addCheck('library', 'the polarity glyph has measurable space before the mod name',
+      !!rowAnatomy && rowAnatomy.gap >= 6 && rowAnatomy.polW >= 12 && rowAnatomy.h <= 48,
+      'gap >= 6px between glyph and name, the glyph is a real square, the row stays compact',
+      JSON.stringify(rowAnatomy));
+
+    // a focused slot reads differently from its neighbours
+    const focusLook = await page.evaluate(() => {
+      const slot = document.querySelector('.pl-slot');
+      if (slot) slot.click();
+      const nodes = Array.from(document.querySelectorAll('#plSlotsPanel .pl-slot'));
+      const pick = (n) => { const c = getComputedStyle(n);
+        return { border: c.borderColor, shadow: c.boxShadow, bg: c.backgroundColor }; };
+      const on = nodes.find((n) => n.getAttribute('data-focus') === 'true');
+      const off = nodes.find((n) => n.getAttribute('data-focus') !== 'true');
+      return { focused: !!on, differs: !!on && !!off && JSON.stringify(pick(on)) !== JSON.stringify(pick(off)),
+        on: on ? pick(on) : null };
+    });
+    say('focus-look', focusLook);
+    addCheck('loadout', 'a focused slot is visually distinguishable from an unfocused one',
+      focusLook.focused === true && focusLook.differs === true,
+      'the focused tile carries its own border/shadow/background, not just a caret',
+      JSON.stringify(focusLook).slice(0, 220));
+
+    // Why is never an empty box: a default trace, and the row it belongs to is lit
+    const why = await page.evaluate(() => ({
+      view: !document.getElementById('plStatsView').hidden,
+      label: document.getElementById('plTraceStat').textContent,
+      lines: document.querySelectorAll('#plTraceBody .pl-tr-line').length,
+      pressed: document.querySelectorAll('#plStatBody .pl-stat-row[aria-pressed="true"]').length
+    }));
+    say('why-on-load', why);
+    addCheck('stats', 'the Why panel opens with a trace and the traced row highlighted',
+      why.view === true && /·/.test(why.label || '') && why.lines >= 2 && why.pressed === 1,
+      'a default trace (damage for a weapon, health for a frame) with its stat row lit',
+      JSON.stringify(why));
+
+    // scrolling: the library scrolls itself, the page and the stats do not follow
+    const scrolls = await page.evaluate(() => {
+      const pageY0 = window.scrollY;
+      const statsTop0 = document.getElementById('plStats').getBoundingClientRect().top;
+      const list = document.getElementById('plLibList');
+      list.scrollTop = 300;
+      return { pageSame: window.scrollY === pageY0,
+        statsSame: document.getElementById('plStats').getBoundingClientRect().top === statsTop0,
+        listMoved: list.scrollTop === 300 };
+    });
+    say('scroll-independence', scrolls);
+    addCheck('scroll', 'the library scrolls on its own without moving the page or the stats',
+      scrolls.pageSame === true && scrolls.statsSame === true && scrolls.listMoved === true,
+      'independent scrollers, no accidental parent scroll',
+      JSON.stringify(scrolls));
+
+    // the same guarantees at every supported size
+    let dockSweep = { sizes: 0, bad: [] };
+    for (const [w, h] of [[1920, 1080], [1536, 864], [1440, 900], [1366, 768], [1280, 800]]) {
+      await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+      await page.hover('#plLibList .pl-row:nth-child(3)');
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
+      const m = await page.evaluate(() => {
+        const pane = document.getElementById('plModDetail').getBoundingClientRect();
+        const sr = document.getElementById('plStats').getBoundingClientRect();
+        const head = document.querySelector('.pl-head').getBoundingClientRect();
+        const bar = document.querySelector('.pl-bar').getBoundingClientRect();
+        return { inView: pane.top >= 0 && pane.bottom <= window.innerHeight,
+          clearOfStats: pane.right <= sr.left || pane.left >= sr.right || pane.bottom <= sr.top || pane.top >= sr.bottom,
+          over: document.documentElement.scrollWidth - window.innerWidth,
+          slotsW: Math.round(document.querySelectorAll('.pl-slot')[0].getBoundingClientRect().width),
+          barRows: Math.round(bar.height), headRows: Math.round(head.height),
+          listH: Math.round(document.getElementById('plLibList').getBoundingClientRect().height) };
+      });
+      dockSweep.sizes++;
+      if (!m.inView || !m.clearOfStats || m.over > 0 || m.slotsW < 60 || m.barRows > 120 || m.listH < 90) {
+        dockSweep.bad.push({ size: w + 'x' + h, m: m });
+      }
+    }
+    say('dock-sweep', dockSweep);
+    addCheck('details', 'the docked details stay on screen and off the stats at all five sizes',
+      dockSweep.bad.length === 0,
+      'five viewports: pane inside the viewport, no stats overlap, no page overflow, the workspace still usable',
+      JSON.stringify(dockSweep).slice(0, 300));
 
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));

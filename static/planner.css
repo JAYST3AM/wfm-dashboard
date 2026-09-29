@@ -119,6 +119,8 @@
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
 }
 .pl-ctl { display: flex; align-items: center; gap: 8px; }
+.pl-upgrades { gap: 6px; }
+.pl-upgrades .pl-forma-item { padding-left: 9px; border-left: 1px solid var(--pl-hair); gap: 6px; }
 .pl-ctl + .pl-ctl { padding-left: 18px; border-left: 1px solid var(--pl-hair); }
 .pl-lbl {
   font-size: 9.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted);
@@ -204,7 +206,24 @@ body.pl-no-equip .pl-empty { display: block; }
 
 /* ------------------------------------------------------------------ 3b. workspace columns */
 .pl-body { display: grid; grid-template-columns: 440px minmax(320px, 1fr) 404px; gap: 10px; align-items: start; }
-.pl-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pl-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+
+/* A docked details pane under the rows is useless if reading it needs a scroll, so with the three
+   columns side by side the workspace takes the height it can and each column handles its own
+   overflow. Narrow widths keep the natural flow (the stats column moves to its own row there). */
+@media (min-width: 1200px) {
+  /* a definite height, not a max: grid rows size to their content, so a max-height alone left
+     the library taller than the viewport and its docked details below the fold */
+  .pl-body { align-items: stretch; grid-template-rows: minmax(0, 1fr);
+    /* 284px of slack: at 1366x768 the control strip wraps to a second row, so the workspace has
+       to start lower - measured, not guessed (the pane's bottom lands ~19px above the fold there) */
+    height: calc(100vh - 284px); min-height: 410px; }
+  .pl-col-build, .pl-col-stats { overflow: auto; }
+  /* not hidden: on a short screen the library's own head plus a floor-height list plus the
+     details pane can exceed the column, and clipping would hide the details entirely */
+  .pl-col-lib { overflow: auto; }
+  .pl-col-lib > .pl-lib { flex: 1; }
+}
 
 /* Panels: one chrome, no shadow, hairline-separated sections. `.card` from style.css still carries
    the surface, the border and the radius; the shadow is what made four equal boxes compete. */
@@ -239,8 +258,8 @@ body.pl-no-equip .pl-empty { display: block; }
 }
 /* an installed mod owns its tile: brighter frame, brighter kind label */
 .pl-slot[data-state="filled"] {
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
-  background: color-mix(in srgb, var(--accent) 4%, var(--pl-sunken));
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--pl-sunken));
 }
 .pl-slot[data-state="filled"] .pl-slot-kind { color: color-mix(in srgb, var(--text) 78%, var(--muted)); }
 .pl-slot:hover { border-color: var(--accent-dim); }
@@ -273,6 +292,10 @@ body.pl-no-equip .pl-empty { display: block; }
   border-style: dashed; background: color-mix(in srgb, var(--accent) 3%, transparent);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
+/* a vacant polarity carries a neutral dash: the dashed square alone read as a broken placeholder,
+   and any real glyph would claim a polarity that is not there */
+.pl-pol[data-p="none"]::after { content: '\2013'; font-size: 9px; opacity: .5; margin-top: -1px; }
+
 /* the empty tile keeps its polarity dot visible - that dot IS the control the panel's note
    points at, so hiding it made the note read as dead space - and says 'add a mod' in the one
    glyph everyone reads as 'add' */
@@ -358,7 +381,8 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
   border-color: color-mix(in srgb, var(--pl-warn) 45%, transparent); }
 
 /* ------------------------------------------------------------------ mod library */
-.pl-lib { display: flex; flex-direction: column; min-height: 0; }
+.pl-lib { display: flex; flex-direction: column; min-height: 0; border-color: var(--pl-hair); }
+.pl-lib .pl-ph-title { font-weight: 600; opacity: .86; }
 .pl-lib .pl-search { margin: 10px 12px 0; }
 .pl-filters { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 12px 0; }
 .pl-chip {
@@ -371,7 +395,7 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
   color: var(--accent); border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
-.pl-lib-list { margin: 9px 6px 0 12px; padding-right: 4px; overflow: auto;
+.pl-lib-list { flex: 1 1 auto; min-height: 96px; margin: 9px 6px 0 12px; padding-right: 4px; overflow: auto;
   max-height: min(62vh, 760px); scrollbar-gutter: stable; }
 /* the list really has more rows than fit: fade the last band so it reads as scrollable
    instead of as a cut-off (the class is toggled by the renderer) */
@@ -382,7 +406,10 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
 
 /* row rhythm: the name leads, the effect line follows, the numbers sit quietly on the right */
 .pl-row {
-  display: grid; grid-template-columns: 3px minmax(0, 1fr) auto auto; gap: 8px; align-items: center;
+  /* the glyph gets its own column: it used to land in the 3px accent column, which is why rows
+     read as `icon glued to name` (the grid had four columns for four children, but the first was
+     sized for a marker, not for a 15px polarity square) */
+  display: grid; grid-template-columns: 15px minmax(0, 1fr) auto auto; gap: 9px; align-items: center;
   padding: 6px 8px; border-radius: 8px; cursor: grab; border: 1px solid transparent;
   min-height: 38px;
 }
@@ -420,10 +447,27 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
 .pl-lib-empty { padding: 22px 8px; text-align: center; font-size: 11.5px; }
 
 /* the mod detail card: what a library row can say when there is room for the whole card */
+/* The details are docked in the library panel, not a floating layer. As a fixed popover they
+   chased the hovered row's rect: over the stats column at 1920 (x >= 1360) and past the bottom
+   edge of the viewport. Docked, they cannot cover the workspace, cannot clip, and do not move
+   while the pointer travels between rows. */
 .pl-modtip {
-  position: fixed; z-index: 72; width: 380px; max-width: 92vw; padding: 9px 11px 10px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .55);
+  position: static; z-index: auto; width: auto; max-width: none; padding: 0;
+  border: 0; background: transparent; box-shadow: none;
 }
+.pl-modd {
+  margin: 8px 12px 10px; padding-top: 8px; border-top: 1px solid var(--pl-hair);
+  /* it must not be the thing that gives: without this the flex column shrank the pane to a
+     sliver while the list kept its height */
+  /* The pane and the list share the leftover height: the pane grows to 224px (a typical card
+     fits without scrolling) and never shrinks below 132px, and the list keeps at least 96px.
+     On a 768-tall screen the library's own head takes 221px of the 484px column, so a fixed
+     224px pane pushed itself out of its card - the details have to give way to fit. */
+  flex: 0 1 auto; height: auto; min-height: 132px; max-height: min(224px, 26vh);
+  overflow: auto; scrollbar-gutter: stable;
+}
+.pl-modd-empty { margin: 0; font-size: 12px; color: var(--muted); }
+.pl-modd .pl-modtip-name { font-size: 13px; }
 .pl-modtip-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
 .pl-modtip-name { font-size: 12.5px; font-weight: 650; }
 .pl-modtip-meta { font: 10.5px var(--mono); color: var(--muted); }
@@ -598,10 +642,15 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
 .pl-cd-empty .pl-cd-mod { font-style: italic; }
 
 /* ------------------------------------------------------------------ preview */
+/* the hover preview used to be a fixed bottom-right card - the corner the Live Stats panel
+   occupies - so the build's own numbers were covered by a card explaining the next change.
+   Docked under the details, it joins the readout instead of competing with the workspace. */
 .pl-preview {
-  position: fixed; z-index: 70; right: 18px; bottom: 18px; width: 460px; max-width: 92vw;
-  padding: 10px 12px; box-shadow: 0 18px 44px rgba(0, 0, 0, .55); pointer-events: none;
+  position: static; z-index: auto; right: auto; bottom: auto; width: auto; max-width: none;
+  margin-top: 10px; padding: 9px 0 0; border: 0; border-top: 1px solid var(--pl-hair);
+  background: transparent; box-shadow: none; pointer-events: auto;
 }
+.pl-preview[hidden] { display: none; }
 .pl-preview-title { font-size: 12px; font-weight: 650; margin-bottom: 6px; }
 .pl-preview[data-fit="no"] .pl-preview-title { color: var(--pl-bad); }
 .pl-preview[data-fit="tight"] .pl-preview-title { color: var(--pl-warn); }

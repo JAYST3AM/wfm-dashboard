@@ -1,7 +1,7 @@
 {
  "meta": {
-  "started": "2026-09-29T13:24:53.861Z",
-  "finished": "2026-09-29T13:27:57.167Z",
+  "started": "2026-09-29T13:53:35.487Z",
+  "finished": "2026-09-29T13:56:38.415Z",
   "base": "http://127.0.0.1:8787",
   "repo": "F:/VSC Projects/wfm-dashboard",
   "node": "v24.13.0",
@@ -1550,10 +1550,10 @@
    "state": "trade/orders",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 115,
+   "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 153,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1565,10 +1565,10 @@
    "state": "trade/orders",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 115,
+   "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 153,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1580,10 +1580,10 @@
    "state": "trade/orders",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 115,
+   "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 153,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1595,10 +1595,10 @@
    "state": "trade/orders",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 115,
+   "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 153,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -15111,6 +15111,8 @@
     "plLibSearch",
     "plLibFilters",
     "plLibList",
+    "plModDetail",
+    "plPreview",
     "plStats",
     "plStatsMeta",
     "plStatsView",
@@ -15133,7 +15135,6 @@
     "plUnsupportedMeta",
     "plUnsupported",
     "plUnsupportedList",
-    "plPreview",
     "plFootEngine",
     "plStatus"
    ]
@@ -15278,7 +15279,7 @@
    {
     "page": "planner",
     "state": "landing",
-    "count": 307,
+    "count": 308,
     "duplicates": []
    },
    {
@@ -15621,7 +15622,7 @@
    "title": "Orders shows its status chips and either a book or an honest reason",
    "ok": true,
    "expected": "chips >= 3, rows or a reason",
-   "rendered": "4 chips, 6 rows, 12 ladder rows, item \"· Primed Continuity\"",
+   "rendered": "4 chips, 7 rows, 12 ladder rows, item \"· Primed Continuity\"",
    "note": ""
   },
   {
@@ -16314,10 +16315,10 @@
   }
  ],
  "orders": {
-  "rows": 6,
+  "rows": 7,
   "ladder": 12,
   "chips": 4,
-  "meta": "· 1232 sell · 112 buy · 0s ago · ingame+online · 6 of 80 shown",
+  "meta": "· 1232 sell · 112 buy · 0s ago · ingame+online · 7 of 80 shown",
   "item": "· Primed Continuity",
   "err": ""
  },
@@ -16378,7 +16379,7 @@
    "heldChildren": 15,
    "heldHeadish": 0,
    "chips": "MR 22 Trades 22/day left Priced 803/876",
-   "foot": "WFM Trader · updated 23:24 · 471 events",
+   "foot": "WFM Trader · updated 23:53 · 471 events",
    "notLive": [
     "Not live#dim small explain"
    ]
@@ -16406,7 +16407,7 @@
    "relMin": null,
    "mhStats": "Mastered319 / 834Buildable now4Owned, not mastered1Missing514",
    "mhHead": "Mastery 22to 23: 112,500 XPItem mastery1,166,000items only",
-   "mhMeta": "· synced 61m ago"
+   "mhMeta": "· synced 2h ago"
   },
   "settings": {
    "notLive": [

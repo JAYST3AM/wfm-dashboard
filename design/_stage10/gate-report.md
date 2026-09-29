@@ -1,6 +1,6 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-29 23:24:53  (2026-09-29T23:24:53.088760+10:00) -> live measurements finished 23:27:57  
+**Run:** 2026-09-29 23:53:34  (2026-09-29T23:53:34.788817+10:00) -> live measurements finished 23:56:38  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
@@ -172,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3196 | 0 | 8988 | 193 | 0 |
-| Kuva Crimson | dark | 17 | 3197 | 0 | 8989 | 193 | 0 |
-| Frost Light | light | 17 | 3197 | 0 | 8989 | 193 | 0 |
-| Cephalon White | light | 17 | 3197 | 0 | 8989 | 193 | 0 |
+| Vor Orange | dark | 17 | 3200 | 0 | 8994 | 193 | 0 |
+| Kuva Crimson | dark | 17 | 3201 | 0 | 8995 | 193 | 0 |
+| Frost Light | light | 17 | 3201 | 0 | 8995 | 193 | 0 |
+| Cephalon White | light | 17 | 3201 | 0 | 8995 | 193 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
@@ -187,7 +187,7 @@ Colours that did **not** change between the dark theme (0) and the light theme (
 
 ids_before.json pages: index=172, collection=28, cards=20, settings=36, item=25, lookup=0
 
-ids found live: index=8316, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=462, planner=307
+ids found live: index=8316, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=462, planner=308
 
 **Missing: 0** 
 
