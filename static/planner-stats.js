@@ -99,8 +99,10 @@
       return;
     }
     if (!out || !out.result) {
-      var why = (out && out.validation && (out.validation.errors || []).length)
-        ? 'This build does not validate - see Validation.'
+      // a refusal carries no numeric result but is still an answer: read the whole thing
+      var full = P.answer ? P.answer() : null;
+      var refused = full && full.validation && (full.validation.errors || []).length;
+      var why = refused ? 'This build does not validate - see Validation.'
         : (P.error() ? 'No answer from the engine.' : 'loading…');
       body.appendChild(el('div', { class: 'dim small', text: why }));
       if (meta) meta.textContent = '';

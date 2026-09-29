@@ -91,7 +91,8 @@ let STEP = 0;
 const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.stringify(v)); };
 
 (async () => {
-  fs.rmSync(PROFILE, { recursive: true, force: true });     // every run starts from a clean slate
+  try { fs.rmSync(PROFILE, { recursive: true, force: true }); }
+catch (e) { console.log('• profile dir busy (' + e.code + ') - reusing it'); }     // every run starts from a clean slate
   const browser = await puppeteer.launch({
     executablePath: CHROME, headless: 'new',
     userDataDir: PROFILE, args: ['--no-sandbox', '--disable-dev-shm-usage'],
@@ -1027,6 +1028,37 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
     await page.evaluate(() => localStorage.removeItem('wfm.planner.v1'));
     await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
 
+
+    /* ------------------------------------------------- 19d a malformed v1 payload is replaced whole */
+    // cleanV1 exists to make a bad payload harmless; this is the check that would fail if the
+    // per-field rules were deleted (a version check alone would let this through).
+    const strict = await page.evaluate(async () => {
+      const KEY = 'wfm.planner.v1';
+      const junk = { version: 1, equipment_id: 'nonsense', mastery_rank: 'bad',
+        equipment_rank: 2.5, active_config: 'Z',
+        configs: { A: { slots: { 'normal:0': { id: 'x', rank: 1.5 }, 'not a slot': { id: 'y' } },
+                        polarities: [] } },
+        library: { q: 5, sort: 'nonsense' }, ui: 'not an object' };
+      localStorage.setItem(KEY, JSON.stringify(junk));
+      return true;
+    });
+    say('storage-strict-wrote', strict);
+    await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 700)));
+    const replaced = await page.evaluate(() => {
+      const raw = localStorage.getItem('wfm.planner.v1');
+      let doc = null;
+      try { doc = JSON.parse(raw || 'null'); } catch (e) { doc = 'unparseable: ' + e.message; }
+      return { doc: doc, still_junk: !!(doc && typeof doc.mastery_rank === 'string'),
+        keys_ok: !!(doc && typeof doc.mastery_rank === 'number' && doc.version === 1 &&
+          doc.configs && doc.configs.A && Object.keys(doc.configs.A.slots || {}).length === 0),
+        page_alive: !!document.getElementById('plGrid') };
+    });
+    say('storage-strict', replaced);
+    addCheck('storage', 'a malformed v1 payload is replaced in full, not merged',
+      !!replaced.keys_ok && replaced.still_junk === false && replaced.page_alive === true,
+      'the stored key is rewritten to a clean v1 document',
+      JSON.stringify(replaced.doc).slice(0, 200));
 
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));

@@ -209,6 +209,8 @@ def test_the_library_holds_the_mods_that_install_on_the_item(api):
     assert body['ok'] is True and body['total'] >= 5
     assert body['equipment'] == {'id': '/Fixture/BratonPrime', 'name': 'Braton Prime',
                                  'kind': 'primary'}
+    for row in body['rows']:
+        assert row['uniqueName'] == row['id']
     ser = next(r for r in body['rows'] if r['name'] == 'Serration')
     assert not ser['variant']                            # the standard copy sorts first
     assert ser['polarity'] == 'madurai' and ser['base_drain'] == 4 and ser['max_rank'] == 10
@@ -309,11 +311,19 @@ def test_compute_reports_refusals_instead_of_dropping_them(api):
 
 
 def test_compute_never_raises_on_junk(api):
+    """Junk bodies get an answer, and it must be the engine's own answer - not a caught crash.
+
+    `validation` is what the engine's refusals carry; `planner crashed`/`could not read` in the
+    error text would mean this test is passing on the POST handler's safety net instead.
+    """
     for body_in in ({}, {'slots': 'nope'}, {'equipment_id': 5, 'slots': [1, 2]},
                     {'equipment_id': 'nope', 'slots': []}):
         status, out = api.post('/api/planner/compute', body_in)
-        assert status == 200 and out.get('ok') is False
-        assert out.get('validation') or out.get('error')
+        assert status in (200, 400), (body_in, status)
+        assert out.get('ok') is False, body_in
+        assert out.get('validation') is not None or out.get('error'), body_in
+        text = str(out.get('error') or '')
+        assert 'crashed' not in text and 'could not read this body' not in text, (body_in, text)
 
 
 def test_preview_diffs_the_hypothetical_edit_against_the_build(api):

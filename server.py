@@ -1550,6 +1550,7 @@ def _planner_mod_summary(mods, row):
         'flags': [k for k in ('primed', 'umbral', 'galvanized', 'archon', 'amalgam',
                               'sacrificial', 'augment', 'stance', 'aura', 'set', 'exilus',
                               'flawed', 'riven') if flags.get(k)],
+        'uniqueName': row.get('id'),
         'is_prime': bool(flags.get('prime')),
         'conclave': bool(row.get('conclave')),
         'lines': lines,
@@ -1572,9 +1573,15 @@ def planner_library(query):
     cache = _PLANNER.setdefault('library', {})
     cache_key = (row.get('kind'), db.get('content_hash'))
     if cache_key not in cache:
-        visible, shadowed = [], []
+        visible, shadowed, conclave = [], [], []
         for m in mods['data'].mods_for_kind(db, row.get('kind')):
-            (shadowed if m.get('shadowed') else visible).append(_planner_mod_summary(mods, m))
+            summary = _planner_mod_summary(mods, m)
+            if summary.get('conclave'):
+                conclave.append(summary)         # PvP-only: not a card this build can use
+            elif m.get('shadowed'):
+                shadowed.append(summary)
+            else:
+                visible.append(summary)
         # The real card sorts first; a Flawed starter copy keeps its own name (the wiki's) and
         # sorts by it, so the library reads the way the game's mod station does.
         order = {'': 0, 'beginner': 1, 'intermediate': 2, 'expert': 3}
@@ -1582,15 +1589,19 @@ def planner_library(query):
                                     order.get(r.get('variant') or '', 4),
                                     -(r.get('max_rank') or 0)))
         shadowed.sort(key=lambda r: (str(r.get('name') or '').lower(), -(r.get('max_rank') or 0)))
-        cache[cache_key] = {'rows': visible, 'shadowed': shadowed}
+        conclave.sort(key=lambda r: (str(r.get('name') or '').lower(), -(r.get('max_rank') or 0)))
+        cache[cache_key] = {'rows': visible, 'shadowed': shadowed, 'conclave': conclave}
     packed = cache[cache_key]
-    include_hidden = _qs(query, 'shadowed') == '1'
-    rows = list(packed['rows']) + (list(packed['shadowed']) if include_hidden else [])
+    include_hidden = _qs(query, 'shadowed') == '1'     # the reveal link asks for both buckets
+    hidden = list(packed['shadowed']) + list(packed.get('conclave') or [])
+    rows = list(packed['rows']) + (hidden if include_hidden else [])
     return {'ok': True, 'total': len(rows),
             'equipment': {'id': row.get('id'), 'name': row.get('name'),
                           'kind': row.get('kind')},
             'hidden': {'shadowed': len(packed['shadowed']),
-                       'reason': 'obsolete internal rows wearing a real mod\'s name'},
+                       'conclave': len(packed.get('conclave') or []),
+                       'reason': 'not a plain PvE card: obsolete internal duplicates and '
+                                 'Conclave-only mods'},
             'rows': rows}
 
 
@@ -1911,8 +1922,13 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, planner_preview(b))
                 if p == '/api/planner/explain':
                     return self._send(200, planner_explain(b))
-            except Exception as e:                     # a bad body is an answer, never a 500
-                return self._send(200, {'ok': False, 'error': 'the engine refused this body: %s'
+            except (TypeError, ValueError, KeyError, AttributeError) as e:
+                # a body the engine cannot read is the caller's mistake: say so, and say 400
+                return self._send(400, {'ok': False, 'error': 'the engine could not read this body: %s'
+                                        % str(e)[:160]})
+            except Exception as e:
+                # anything else is this server misbehaving, and a 500 is the honest signal
+                return self._send(500, {'ok': False, 'error': 'the planner crashed: %s'
                                         % str(e)[:160]})
             return self._send(404, {'ok': False, 'error': 'unknown planner route'})
         return self._send(404, {'error': 'not found'})

@@ -383,8 +383,8 @@
     nameLine.appendChild(document.createTextNode(row.name || row.id));
     if (row.variant === 'beginner') {
       nameLine.appendChild(el('span', { class: 'pl-variant', text: 'flawed',
-        title: 'The starter copy the game calls "' + (row.name || '') + '" - a different mod, ' +
-          'with its own ranks' }));
+        title: 'starter copy of ' + (row.base_name || row.name || '') +
+          ' - different mod, own ranks' }));
     }
     if (row.shadowed) {
       nameLine.appendChild(el('span', { class: 'pl-variant pl-variant-hidden', text: 'not in game',
@@ -448,14 +448,15 @@
     if (!node) return;
     clear(node);
     var hidden = P.libraryHidden && P.libraryHidden();
-    if (!hidden || !hidden.shadowed || P.libraryWithHidden && P.libraryWithHidden()) {
+    var count = hidden ? (hidden.shadowed || 0) + (hidden.conclave || 0) : 0;
+    if (!count || P.libraryWithHidden && P.libraryWithHidden()) {
       node.hidden = true;
       return;
     }
     node.hidden = false;
     var link = el('button', { class: 'pl-hidden-link', type: 'button',
-      text: hidden.shadowed + ' obsolete duplicates hidden',
-      title: 'Rows this item can never slot: ' + (hidden.reason || '') });
+      text: count + ' mods this build cannot use - show',
+      title: hidden.reason || '' });
     link.addEventListener('click', function () {
       if (P.revealShadowed) P.revealShadowed();
     });

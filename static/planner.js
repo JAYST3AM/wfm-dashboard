@@ -582,7 +582,7 @@
     var kind = slot.kind, index = slot.index;
     var entry = slotMod(kind, index);
     var polarity = slotPolarity(kind, index);
-    var unlocked = kind === 'exilus' ? !!state.storage.exilus_unlocked : slot.unlocked !== false;
+    var unlocked = slotIsOpen(kind);
     var drain = drainFor(kind, index);
     var label = kind === 'normal' ? 'Slot ' + (index + 1) : SLOT_LABEL[kind];
     var node = el('button', {
@@ -808,10 +808,17 @@
   // One legality rule for every way a mod can arrive (click, keyboard, auto, drag): the class
   // rules from the library row, plus the Exilus slot's *live* adapter switch. The layout's own
   // `unlocked` only says whether the item has the slot at all.
+  // Whether a slot can take anything at all. For the Exilus slot that is the toolbar's adapter
+  // switch and nothing else - server.py's slot layout hard-codes unlocked: false for Exilus, so
+  // the layout's own field must never be read for that kind (it would say "locked" forever).
+  function slotIsOpen(kind) {
+    if (kind === 'exilus') return !!state.storage.exilus_unlocked;
+    var slot = layoutSlot(kind, null);
+    return !slot || slot.unlocked !== false;
+  }
+
   function slotLegal(kind, index, modRow) {
-    var slot = layoutSlot(kind, index);
-    var open = kind === 'exilus' ? !!state.storage.exilus_unlocked : (!slot || slot.unlocked !== false);
-    return open && modFitsSlot(modRow, kind);
+    return slotIsOpen(kind) && modFitsSlot(modRow, kind);
   }
 
   function onSlotDragOver(ev, kind, index, node) {
@@ -874,8 +881,7 @@
       var movingRow = modRowById((slotMod(dragInstalled.kind, dragInstalled.index) || {}).id);
       if (!movingRow || !slotLegal(kind, index, movingRow)) {
         flashHint(layoutLabel(kind, index) + ' takes no ' + (movingRow ? movingRow.name : 'mod')
-          + (layoutSlot(kind, index) && !layoutSlot(kind, index).unlocked
-            ? ' until the slot is unlocked' : ''));
+          + (slotIsOpen(kind) ? '' : ' until the slot is unlocked'));
         onDragEnd();
         return;
       }
@@ -885,8 +891,7 @@
     }
     var mod = dragMod;
     if (!slotLegal(kind, index, mod)) {
-      var slot = layoutSlot(kind, index);
-      flashHint(slot && !slot.unlocked
+      flashHint(!slotIsOpen(kind)
         ? layoutLabel(kind, index) + ' is locked - unlock it first'
         : mod.name + ' does not go in a ' + kind + ' slot');
       onDragEnd();
@@ -1259,6 +1264,8 @@
       state.library = cached.rows;
       state.libraryHidden = cached.hidden;
       state.libraryFor = id;
+      state.libraryWithHidden = !!includeShadowed;   // the reveal state belongs to this answer
+      renderGrid();
       emit('library', state.library);
       emit('state', state);
       return;

@@ -191,8 +191,8 @@ def test_every_id_the_scripts_bind_to_exists_exactly_once_in_the_page():
 # page's own core - the slot grid, the library list, the stat panel's body, the trace box, the
 # validation list, the capacity readout and the two search boxes. (The storage-backed state - the
 # config tabs, the toolbar toggles - is pinned by the storage test below, not here.)
-CORE_IDS = ('plGrid', 'plLibList', 'plStatBody', 'plTraces', 'plValidity', 'plCapUsed',
-            'plEquipSearch', 'plLibSearch')
+CORE_IDS = ('plError', 'plLibHidden', 'plGrid', 'plLibList', 'plStatBody', 'plTraces',
+            'plValidity', 'plCapUsed', 'plEquipSearch', 'plLibSearch')
 
 
 def test_the_pages_core_ids_survive():

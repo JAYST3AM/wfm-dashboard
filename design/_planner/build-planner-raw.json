@@ -1,5 +1,5 @@
 {
- "started": "2026-09-29T11:56:19.763Z",
+ "started": "2026-09-29T12:05:20.416Z",
  "base": "http://127.0.0.1:8787",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -99,7 +99,7 @@
    "title": "one card per name - nothing the player could mix up",
    "ok": true,
    "expected": "no duplicate names",
-   "observed": "[] of 306",
+   "observed": "[] of 256",
    "note": "",
    "diagnostic": false
   },
@@ -117,7 +117,7 @@
    "title": "the obsolete leftovers are counted, not silently dropped",
    "ok": true,
    "expected": "hidden.shadowed > 0 with a reason",
-   "observed": "{\"shadowed\":39,\"reason\":\"obsolete internal rows wearing a real mod's name\"}",
+   "observed": "{\"shadowed\":39,\"conclave\":50,\"reason\":\"not a plain PvE card: obsolete internal duplicates and Conclave-only mods\"}",
    "note": "",
    "diagnostic": false
   },
@@ -644,6 +644,15 @@
    "diagnostic": false
   },
   {
+   "section": "storage",
+   "title": "a malformed v1 payload is replaced in full, not merged",
+   "ok": true,
+   "expected": "the stored key is rewritten to a clean v1 document",
+   "observed": "{\"version\":1,\"equipment_id\":\"/Lotus/Weapons/Tenno/Rifle/BratonPrime\",\"equipment_rank\":null,\"orokin\":false,\"exilus_unlocked\":false,\"mastery_rank\":28,\"active_config\":\"A\",\"configs\":{\"A\":{\"slots\":{},\"pola",
+   "note": "",
+   "diagnostic": false
+  },
+  {
    "section": "hygiene",
    "title": "no duplicate id after the whole drive",
    "ok": true,
@@ -777,12 +786,13 @@
    "detail_damage": 35
   },
   "library": {
-   "total": 306,
+   "total": 256,
    "dupes": [],
    "flawed": 40,
    "hidden": {
     "shadowed": 39,
-    "reason": "obsolete internal rows wearing a real mod's name"
+    "conclave": 50,
+    "reason": "not a plain PvE card: obsolete internal duplicates and Conclave-only mods"
    }
   },
   "catalyst": {
@@ -1380,6 +1390,45 @@
    "banner_hidden": true,
    "banner_text": ""
   },
+  "storage-strict-wrote": true,
+  "storage-strict": {
+   "doc": {
+    "version": 1,
+    "equipment_id": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "equipment_rank": null,
+    "orokin": false,
+    "exilus_unlocked": false,
+    "mastery_rank": 28,
+    "active_config": "A",
+    "configs": {
+     "A": {
+      "slots": {},
+      "polarities": {}
+     },
+     "B": {
+      "slots": {},
+      "polarities": {}
+     },
+     "C": {
+      "slots": {},
+      "polarities": {}
+     }
+    },
+    "library": {
+     "q": "",
+     "polarity": "",
+     "slot": "",
+     "sort": "name",
+     "hide_refused": false
+    },
+    "ui": {
+     "trace": null
+    }
+   },
+   "still_junk": false,
+   "keys_ok": true,
+   "page_alive": true
+  },
   "hygiene": {
    "dupes": [],
    "console": 0,
@@ -1401,10 +1450,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-29T11:56:46.072Z",
+ "finished": "2026-09-29T12:05:48.848Z",
  "verdict": {
   "pass": true,
-  "checks_total": 75,
+  "checks_total": 76,
   "checks_failed": 0,
   "failed": []
  }

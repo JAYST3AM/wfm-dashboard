@@ -452,6 +452,12 @@ offered back with `?shadowed=1` — each flagged, none dropped in silence. Befor
 rows read "Hellfire" and the name-keyed pick landed on the rank-10 leftover: a PvE build silently got
 a mod that does not exist in PvE.
 
+One honest limit on the rename: the `Flawed ` prefix is applied to every `/Beginner/` row (104 of
+them) and this file's own cross-check found wiki InternalName entries for 94. Where the wiki has
+no entry the prefix describes the row's origin rather than a name the game shipped - which is why
+the library chip reads "starter copy of <real mod>", and why `summary.mods_flawed` counts rows,
+not verified cards.
+
 ### 3.5 Other fields the calculator will need
 
 - `compatName` — the equip constraint, and **not** a clean enum: `"Rifle"`, `"WARFRAME"` (uppercase), a

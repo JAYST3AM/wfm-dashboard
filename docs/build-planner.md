@@ -57,10 +57,10 @@ no math lives in the server):
 
 | Route | Answers |
 |---|---|
-| `GET  /api/planner/meta` | engine version, database provenance + counts, supported triggers, kinds, polarities |
-| `GET  /api/planner/equipment?q=&kind=&limit=` | equipment search, ranked (exact name first), one normalised row each |
+| `GET  /api/planner/meta` | `schema_version`, `content_hash`, `generated`, `game_version`, `kinds[]` (kind/label/count/slots/normal_slots/max_rank), `categories[]` (the kind names), `engine` (schema_version/content_hash/generated), `equipment_total`, `mods_total`, `unsupported`, `storage_version` |
+| `GET  /api/planner/equipment?q=&kind=&limit=` | equipment search, ranked (exact name first), one normalised row each (`id` and `uniqueName` are the same string) |
 | `GET  /api/planner/equipment/<key>` | one item: its row, its slot layout and its default polarities |
-| `GET  /api/planner/mods?equipment=<key>&q=&shadowed=` | the mod rows that install on that item, each with drain, rank range, flags and refusal counts; `shadowed=1` also lists the catalog's shadow copies |
+| `GET  /api/planner/mods?equipment=<key>&shadowed=` | the mod rows that install on that item (`id` = the game's own `uniqueName`, exposed under both names), each with drain, rank range, flags and refusal counts; `shadowed=1` adds the hidden bucket - catalog leftovers and Conclave-only cards - each flagged, and `hidden` counts them either way |
 | `POST /api/planner/compute` | `{build}` → the full `api.compute` answer |
 | `POST /api/planner/preview` | `{build, next}` → two real engine runs and the deltas; both sides are complete builds |
 | `POST /api/planner/explain` | `{build, stat}` → the trace for one stat |
