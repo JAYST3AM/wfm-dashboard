@@ -97,10 +97,10 @@ intermediate. Everything else is one stage per commit.
   branch with its own regression pass, not a ride-along.
 - **`trader/detector.py`** still auto-confirms from the private tree. The public path cannot see it,
   and it is gitignored, so it is documented here rather than touched.
-- **The run queue carries no rank.** A buyer is matched to a row by item and price, so a
-  rank-mismatched whisper cannot be detected from `run_queue.json` alone. The queue and the run queue
-  are built from the same plan lanes today, so the exposure is theoretical — but it is real, and it is
-  the one place where a wrong-looking suggestion would not be caught by the payload.
+- ~~**The run queue carries no rank.**~~ **Closed after the outside review** (round 2, finding 5): queue
+  rows now carry `lane` and a derived `rank`, the Session queue drops a disagreeing buyer with
+  `why.rank_mismatch`, and a row with no rank evidence shows the buyer with `why.rank_unverified`
+  instead of implying it was checked. See `review-round-2.md`.
 - **No packaging.** The app is still run from a checkout (`python server.py`); the spec's packaging
   section is untouched and remains its own piece of work.
 - **The two browser probes the front-end unit wrote were throwaways.** They proved the route and the
@@ -112,3 +112,13 @@ intermediate. Everything else is one stage per commit.
 The app Jay actually runs is supervised (`hermes/cache/scratch/wfm/supervisor.py`) and was serving
 pre-session code until stage 9 — the supervisor respawned it on the new code during this work, so the
 running app is current and `GET /api/session` answers live.
+
+## 7. The review rounds
+
+- `gpt-review-prompt.md` — the brief this package was sent out with.
+- `review-round-2.md` — the FIX verdict that came back, and what was done about each of its seven
+  findings, including the two defects its CI finding was hiding.
+- `workflow-report.md` — the write-capable workflow gate: Whisper → CONTACTED → the check → Confirm,
+  driven through the real UI, PASS 22 of 22 on the pushed revision.
+- `gpt-review-2.md` — the self-contained round-2 report for the next review, with every claim
+  evidenced and the parts this work does not prove listed plainly.
