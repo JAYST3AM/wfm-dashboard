@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-29T11:51:16.162Z · verdict **PASS** · 73 checks, 0 failed*
+*ran 2026-09-29T15:16:07.045Z · verdict **PASS** · 113 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | 992f390  "The audit brief gains the fix round's scope: what a second read should verify in 4d071db" |
-| working tree | clean |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_zjtki09_ |
-| page | http://127.0.0.1:51711/planner.html |
+| commit | 5b0c14e  "Phase 2.5 cleanup: the mod details get a home, the rows get a gutter, the loadout outranks the shop" |
+| working tree | dirty (17 changed paths) |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data__e9tgjr4 |
+| page | http://127.0.0.1:57544/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |
@@ -28,9 +28,9 @@
 | ✅ | select | picking it draws the slot grid (8 normal slots + exilus) | 8 normal slots and an exilus slot | normal0,normal1,normal2,normal3,normal4,normal5,normal6,normal7,exilus |
 | ✅ | select | the build now names that equipment | /Lotus/Weapons/Tenno/Rifle/BratonPrime | /Lotus/Weapons/Tenno/Rifle/BratonPrime |
 | ✅ | select | the engine prices its base damage at the Phase 1 value | base_damage = 35 | base_damage = 35 |
-| ✅ | library | one card per name - nothing the player could mix up | no duplicate names | [] of 306 |
+| ✅ | library | one card per name - nothing the player could mix up | no duplicate names | [] of 256 |
 | ✅ | library | starter copies wear the game's own name (Flawed ...) | at least one Flawed copy visible | flawed=40 |
-| ✅ | library | the obsolete leftovers are counted, not silently dropped | hidden.shadowed > 0 with a reason | {"shadowed":39,"reason":"obsolete internal rows wearing a real mod's name"} |
+| ✅ | library | the obsolete leftovers are counted, not silently dropped | hidden.shadowed > 0 with a reason | {"shadowed":39,"conclave":50,"reason":"not a plain PvE card: obsolete internal duplicates and Conclave-only mods"} |
 | ✅ | catalyst | the Catalyst toggle reaches the engine | build.orokin = true | build.orokin = true |
 | ✅ | catalyst | the capacity bar reads the engine total | ui 60 | ui 60 |
 | ✅ | catalyst | the doubled capacity is what the rank supports (30 -> 60) | 60 | 60 |
@@ -87,10 +87,50 @@
 | ✅ | engine-math | the toolbar capacity floor is the engine's own number | hint names the engine floor 0 and its binding state | capacity floor 0 |
 | ✅ | legality | the Exilus switch decides: locked, the slot stays empty; unlocked and focused, the mod lands there | locked: Exilus slot empty; unlocked + focused: the mod is in the Exilus slot | {"locked":null,"unlocked":"/Lotus/Upgrades/Mods/Rifle/Event/Arbitration/JumpRefreshOnKillRifleMod","locked_mod":"Adhesive Blast","unlocked_mod":"Aeria… |
 | ✅ | answer-contract | a real answer hides the error banner and says so | banner hidden, data-planswer=yes, a capacity figure | {"hidden":true,"answer":"yes","capUsed":"23","ok":true,"has_result":true,"error":null,"val_errors":[],"banner":""} |
+| ✅ | answer-contract | an impossible build shows the engine's own reason, not a dead engine | the refusal code the engine sent appears in #plValidity | {"codes":["duplicate_mod"],"shown":"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod","banner":""} |
+| ✅ | answer-contract | a refusal is not reported as a failure to answer | the refusal reached the page and the error banner stayed hidden | banner hidden: true, codes: duplicate_mod, banner: "" |
+| ✅ | storage | a malformed v1 payload is replaced in full, not merged | the stored key is rewritten to a clean v1 document | {"version":1,"equipment_id":"/Lotus/Weapons/Tenno/Rifle/BratonPrime","equipment_rank":null,"orokin":false,"exilus_unlocked":false,"mastery_rank":28,"a… |
+| ✅ | head-card | at 1920x1080 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
+| ✅ | head-card | at 1536x864 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
+| ✅ | head-card | at 1440x900 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
+| ✅ | head-card | at 1366x768 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
+| ✅ | head-card | at 1280x800 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
+| ✅ | head-card | the head card holds its controls in a light theme too (white card) | the same invariants on the white card of a light palette | {"bg":"rgb(255, 255, 255)","m":{"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipp… |
+| ✅ | picker | the first run invites the choice and hides the empty workspace | hero visible, workspace/controls/diagnostics not rendered, picker offered | {"noEquip":true,"heroShown":true,"workspaceHidden":true,"barHidden":true,"diagHidden":true,"pickerOpen":true} |
+| ✅ | picker | a category click filters the list and keeps the picker open | picker still open, exactly one chip pressed, rows rendered, nothing scrolled out of the ca… | {"heroOpens":true,"category":{"open":true,"pressed":1,"rows":80,"headScrollTop":0,"foot":"80 shown of 121"}} |
+| ✅ | picker | search still works after a category switch | the query filters the category list without closing the picker | {"open":true,"rows":2,"first":"Ash"} |
+| ✅ | picker | a click outside and Escape both close the picker | outside click closes; reopen; Escape closes | {"closedOutside":true,"reopened":true,"closedEsc":true} |
+| ✅ | picker | choosing an item closes the picker and loads the build | picker closed, slots rendered, workspace and diagnostics on, header names the item and its… | {"open":false,"name":"Ash","slots":10,"workspace":true,"diag":true,"chip":"Rank 30 / 30"} |
+| ✅ | layout | the workspace keeps its regions, its selected slot and its active config | five regions sized, one focused slot (>=60px tiles), one selected config, diagnostics a fl… | {"focused":1,"config":1,"head":1682,"bar":1682,"slots":440,"lib":818,"stats":404,"diag":39,"slotHeight":68,"over":0} |
+| ✅ | layout | the diagnostics strip expands and collapses, with a count on every heading | three collapsible sections, closed by default, each carrying its own summary badge | {"count":3,"closedBefore":false,"afterOpen":true,"afterClose":false,"badges":["· clean","· 0 mods","· 2 mechanics"]} |
+| ✅ | details | hovering a row fills the docked pane, on screen and clear of the stats | pane holds the card, inside the viewport, no intersection with #plStats | {"top":948,"bottom":1080,"h":132,"tip":true,"text":"\n          \n          \n        Adaptatio","inView":true,"clearOfStats":true,"fixed":0} |
+| ✅ | details | nothing in the workspace floats (no fixed-position surface) | the preview and the details are both docked; the old design had two fixed layers here | fixed layers: 0 |
+| ✅ | details | the last row of the list still opens its details on screen, unclipped | no bottom-edge clipping at the end of the list | {"bottom":1080,"innerH":1080,"inView":true,"clearOfStats":true,"pageY":285} |
+| ✅ | library | the polarity glyph has measurable space before the mod name | gap >= 6px between glyph and name, the glyph is a real square, the row stays compact | {"gap":9,"polW":15,"h":45,"name":"Abating Link"} |
+| ✅ | loadout | a focused slot is visually distinguishable from an unfocused one | the focused tile carries its own border/shadow/background, not just a caret | {"focused":true,"differs":true,"on":{"border":"rgb(255, 138, 30)","shadow":"rgb(255, 138, 30) 0px 0px 0px 1px, color(srgb 1 0.541176 0.117647 / 0.18) … |
+| ✅ | stats | the Why panel opens with a trace and the traced row highlighted | a default trace (damage for a weapon, health for a frame) with its stat row lit | {"view":true,"label":"· Health","lines":2,"pressed":1} |
+| ✅ | scroll | the library scrolls on its own without moving the page or the stats | independent scrollers, no accidental parent scroll | {"pageSame":true,"statsSame":true,"listMoved":true} |
+| ✅ | details | the docked details stay on screen and off the stats at all five sizes | five viewports: pane inside the viewport, no stats overlap, no page overflow, the workspac… | {"sizes":5,"bad":[]} |
 | ✅ | hygiene | no duplicate id after the whole drive | 0 duplicates | [] |
 | ✅ | hygiene | no console error over the whole drive | 0 console errors | 0:  |
 | ✅ | hygiene | no page error over the whole drive | 0 page errors | 0:  |
 | ✅ | hygiene | no failed request outside the dev-server burst class | 0 failed requests | 0: [] |
+| ✅ | current | the Current Loadout card lists every equipped category from the save | six rows: warframe, primary, secondary, melee, companion, companion weapon | WarframeGauss PrimeConfig A · Rank 30 \\| PrimaryBraton PrimeConfig A · Rank 30 \\| SecondaryKohmakConfig A · Rank 0 \\| MeleeRipkasConfig A · Rank unkno… |
+| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 5 minutes ago /  |
+| ✅ | current | the imported view is read-only: no editable field, only its own buttons | no input/textarea/contenteditable, and refresh/view/clone as the only affordances | editable=0 buttons=plCurrentRefresh,plCurrentView,plCurrentClone |
+| ✅ | current | the card adds no floating surface (the workspace rule holds here too) | no position:fixed element inside #plCurrent | fixed layers: 0 |
+| ✅ | current | the imported build shows its mods with the ranks the save records | Serration at rank 10, read from the copy the save points at | 1SerrationR10 |
+| ✅ | current | the engine's verdict is on the card, unrounded and unreworded | the engine accepted the imported build: 1 mod read, build validates | Braton PrimeConfig A · Rank 301SerrationR10Capacity assumes no Catalyst or Exilus.Forma 1Catalyst unknownExilus unknown1 mods read0 with unmodelled ef… |
+| ✅ | current | the drain the card shows is the drain the engine returns | the card prints the engine number, it does not re-derive it | {"engine_drain":14,"engine_damage":92.75,"shown_has_drain":true,"shown":"Braton PrimeConfig A · Rank 301SerrationR10Capacity assumes no Catalyst or Ex… |
+| ✅ | current | the engine still prices the imported Serration R10 at the Phase 1 value | 92.75 | 92.75 |
+| ✅ | current | cloning fills the planner with the imported build | the planner now holds the Braton Prime build, one mod in slot 1 | /Lotus/Weapons/Tenno/Rifle/BratonPrime slots=normal:0 header=Braton Prime |
+| ✅ | current | cloning does not modify what the source said | the imported snapshot is byte-identical before and after the clone (freshness aside: it is… | identical |
+| ✅ | current | the imported card survives a planner edit and a reload untouched | the planner keeps its own state; the imported view is read from the source each time | rows=6 equipment=/Lotus/Weapons/Tenno/Rifle/BratonPrime |
+| ✅ | current | a broken source is a named, calm state - not an empty card | the card stays, explains itself, and offers no clone | Current Loadout Refresh The save could not be read: unexpected end of dataLooked for C:/somewhere/lastData.dat Clone as Config A Config B Config C Vie… |
+| ✅ | current | a readable save imports as ok | ok | ok |
+| ✅ | current | a truncated save reads as malformed, never as empty | malformed | malformed |
+| ✅ | current | a save without a loadout says so | no_build_data | no_build_data |
+| ✅ | current | a missing file names the path it looked for | missing | missing |
 
 ## The engine facts this run used
 

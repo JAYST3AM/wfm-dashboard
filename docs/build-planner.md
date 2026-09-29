@@ -69,6 +69,14 @@ no math lives in the server):
 Unknown `/api/planner/*` routes answer `404 {"ok": false, "error": "unknown planner route"}`
 instead of falling through to static serving.
 
+### The current loadout card
+
+Phase 3 adds a read-only card at the top of the planner: the player's in-game loadout as the local
+save records it, with each field labelled `verified`, `derived` or `unknown`. Categories clone into
+the planner through the page's own storage validator, and the engine's verdict on the imported
+build is shown unedited. See [player-build-import.md](player-build-import.md) for the audit behind
+every field and for the wiring.
+
 ### Gates for the page
 
 ```bash
@@ -291,7 +299,12 @@ Strength; efficiency above 175% still floors energy cost at 25%.
   planner page shows the same refusals on any build it displays.
 * **Per-ability formulas** — augments, Helminth, Archon Shards, companion and squad buffs.
 * **Later** — Rivens, primers, full fight simulation.
-* **Planner UI, deliberately not in Phase 2** — auto-import of the player's own builds,
-  community build scraping, "improve this build", upgrade recommendations, build popularity,
-  market price integration, buy-missing-mod flows, badges, and AI-generated builds. The page
-  compares builds and previews deltas already, which is the foundation those features need.
+* **Planner UI, deliberately not in Phase 2** — community build scraping, "improve this build",
+  upgrade recommendations, build popularity, market price integration, buy-missing-mod flows,
+  badges, and AI-generated builds. The page compares builds and previews deltas already, which is
+  the foundation those features need.
+* **The player's own builds are imported in Phase 3** — the Current Loadout card reads the local
+  AlecaFrame save, shows it read-only with per-field provenance, and clones any category into the
+  planner. What is importable, what is derived and what stays unknown is documented field by field
+  in [player-build-import.md](player-build-import.md); shared-build collection ("Ways to kill
+  Profit-Taker") remains unbuilt.

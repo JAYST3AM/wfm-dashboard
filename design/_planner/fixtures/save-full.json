@@ -1,0 +1,235 @@
+{
+ "LoadOutPresets": {
+  "NORMAL": [
+   {
+    "l": {
+     "ItemId": {
+      "$oid": "bb02"
+     },
+     "mod": 0
+    },
+    "m": {
+     "ItemId": {
+      "$oid": "bb04"
+     },
+     "mod": 0
+    },
+    "p": {
+     "ItemId": {
+      "$oid": "bb03"
+     },
+     "mod": 0
+    },
+    "s": {
+     "ItemId": {
+      "$oid": "bb01"
+     },
+     "mod": 0
+    }
+   }
+  ],
+  "SENTINEL": [
+   {
+    "l": {
+     "ItemId": {
+      "$oid": "bb06"
+     },
+     "mod": 0
+    },
+    "s": {
+     "ItemId": {
+      "$oid": "bb05"
+     },
+     "mod": 0
+    }
+   }
+  ]
+ },
+ "LongGuns": [
+  {
+   "Configs": [
+    {
+     "Name": "",
+     "Upgrades": [
+      "ab000000000000000000aa01"
+     ]
+    },
+    {
+     "Name": "B",
+     "Upgrades": [
+      null,
+      "ab000000000000000000aa03",
+      "ab000000000000000000aa05"
+     ]
+    }
+   ],
+   "Features": 2,
+   "ItemId": {
+    "$oid": "bb02"
+   },
+   "ItemType": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "Polarized": 1,
+   "XP": 900001
+  }
+ ],
+ "Melee": [
+  {
+   "Configs": [
+    {
+     "Name": "",
+     "Upgrades": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "Lotus/Upgrades/Mods/Melee/WeaponMeleeDamageMod"
+     ]
+    }
+   ],
+   "ItemId": {
+    "$oid": "bb04"
+   },
+   "ItemType": "/Lotus/Weapons/Grineer/Melee/GrineerClaws/GrnClaws"
+  }
+ ],
+ "Pistols": [
+  {
+   "Configs": [
+    {
+     "Name": "",
+     "Upgrades": [
+      "/Lotus/Upgrades/Mods/Pistol/WeaponDamageAmountMod"
+     ]
+    }
+   ],
+   "ItemId": {
+    "$oid": "bb03"
+   },
+   "ItemType": "/Lotus/Weapons/Grineer/Pistols/GrnKohmPistol/GrnKohmPistol",
+   "XP": 0
+  }
+ ],
+ "SentinelWeapons": [
+  {
+   "Configs": [
+    {
+     "Name": "",
+     "Upgrades": []
+    }
+   ],
+   "ItemId": {
+    "$oid": "bb06"
+   },
+   "ItemType": "/Lotus/Types/Sentinels/SentinelWeapons/PrimeLaserRifle",
+   "XP": 1000000
+  }
+ ],
+ "Sentinels": [
+  {
+   "Configs": [
+    {
+     "Name": "",
+     "Upgrades": [
+      "ab000000000000000000aa02"
+     ]
+    }
+   ],
+   "ItemId": {
+    "$oid": "bb05"
+   },
+   "ItemType": "/Lotus/Types/Sentinels/SentinelPowersuits/ArcDronePowerSuit",
+   "XP": 1000000
+  }
+ ],
+ "Suits": [
+  {
+   "Configs": [
+    {
+     "Name": "",
+     "Upgrades": [
+      "ab000000000000000000aa02",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "ab000000000000000000aa04",
+      null,
+      "ab000000000000000000cc01"
+     ]
+    },
+    {
+     "Name": "B",
+     "Upgrades": [
+      null,
+      "ab000000000000000000aa02"
+     ]
+    },
+    {
+     "Name": "C",
+     "Upgrades": []
+    }
+   ],
+   "Features": 5,
+   "ItemId": {
+    "$oid": "bb01"
+   },
+   "ItemType": "/Lotus/Powersuits/Runner/GaussPrime",
+   "Polarity": [
+    {
+     "Slot": 2,
+     "Value": "AP_DEFENSE"
+    },
+    {
+     "Slot": 6,
+     "Value": "AP_ATTACK"
+    }
+   ],
+   "Polarized": 2,
+   "XP": 670000000
+  }
+ ],
+ "Upgrades": [
+  {
+   "ItemId": {
+    "$oid": "ab000000000000000000aa01"
+   },
+   "ItemType": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+   "UpgradeFingerprint": "{\"lvl\": 10}"
+  },
+  {
+   "ItemId": {
+    "$oid": "ab000000000000000000aa02"
+   },
+   "ItemType": "/Lotus/Upgrades/Mods/Warframe/AvatarHealthMaxMod",
+   "UpgradeFingerprint": "{\"lvl\": 8}"
+  },
+  {
+   "ItemId": {
+    "$oid": "ab000000000000000000aa03"
+   },
+   "ItemType": "/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsMod",
+   "UpgradeFingerprint": "{\"lvl\": 5}"
+  },
+  {
+   "ItemId": {
+    "$oid": "ab000000000000000000aa04"
+   },
+   "ItemType": "/Lotus/Upgrades/Mods/Aura/PlayerEnergyRegenAuraMod",
+   "UpgradeFingerprint": "{\"lvl\": 5}"
+  },
+  {
+   "ItemId": {
+    "$oid": "ab000000000000000000aa05"
+   },
+   "ItemType": "/Lotus/Upgrades/Mods/Rifle/WeaponAmmoMaxMod",
+   "UpgradeFingerprint": "{\"lvl\": 3}"
+  }
+ ]
+}

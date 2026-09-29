@@ -1,7 +1,7 @@
 {
  "meta": {
-  "started": "2026-09-29T13:53:35.487Z",
-  "finished": "2026-09-29T13:56:38.415Z",
+  "started": "2026-09-29T15:16:15.706Z",
+  "finished": "2026-09-29T15:19:18.763Z",
   "base": "http://127.0.0.1:8787",
   "repo": "F:/VSC Projects/wfm-dashboard",
   "node": "v24.13.0",
@@ -1297,7 +1297,7 @@
    "settings_pill": "Not live#st-pill dry",
    "trade_kill_meta": "disarmed",
    "trade_kill_line": "9/25/2026, 23:02:47 Not live",
-   "trade_plan_meta": "· built 55h ago · MR 22",
+   "trade_plan_meta": "· built 57h ago · MR 22",
    "home_alerts": "Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically"
   }
  },
@@ -1553,7 +1553,7 @@
    "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 159,
+   "literalCount": 160,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1568,7 +1568,7 @@
    "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 159,
+   "literalCount": 160,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1583,7 +1583,7 @@
    "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 159,
+   "literalCount": 160,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1598,7 +1598,7 @@
    "scanned": 119,
    "low": 0,
    "lowSample": [],
-   "literalCount": 159,
+   "literalCount": 160,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -15096,6 +15096,16 @@
     "plCapNote",
     "plCapBar",
     "plCapFill",
+    "plCurrent",
+    "plCurrentMeta",
+    "plCurrentRefresh",
+    "plCurrentList",
+    "plCurrentActions",
+    "plCurrentConfig",
+    "plCurrentView",
+    "plCurrentClone",
+    "plCurrentDetail",
+    "plCurrentNote",
     "plEmpty",
     "plEmptyPick",
     "plWorkspace",
@@ -15279,7 +15289,7 @@
    {
     "page": "planner",
     "state": "landing",
-    "count": 308,
+    "count": 318,
     "duplicates": []
    },
    {
@@ -16318,7 +16328,7 @@
   "rows": 7,
   "ladder": 12,
   "chips": 4,
-  "meta": "· 1232 sell · 112 buy · 0s ago · ingame+online · 7 of 80 shown",
+  "meta": "· 1234 sell · 109 buy · 0s ago · ingame+online · 7 of 80 shown",
   "item": "· Primed Continuity",
   "err": ""
  },
@@ -16350,7 +16360,7 @@
    "invTotals": "876 stacks (showing 400) Filtered value 31,057p",
    "killMeta": "disarmed",
    "killLine": "9/25/2026, 23:02:47 Not live",
-   "planMeta": "· built 55h ago · MR 22",
+   "planMeta": "· built 57h ago · MR 22",
    "homeAlerts": "Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically",
    "rowCounts": {
     "dealsList": 14,
@@ -16379,7 +16389,7 @@
    "heldChildren": 15,
    "heldHeadish": 0,
    "chips": "MR 22 Trades 22/day left Priced 803/876",
-   "foot": "WFM Trader · updated 23:53 · 471 events",
+   "foot": "WFM Trader · updated 01:16 · 471 events",
    "notLive": [
     "Not live#dim small explain"
    ]
@@ -16407,7 +16417,7 @@
    "relMin": null,
    "mhStats": "Mastered319 / 834Buildable now4Owned, not mastered1Missing514",
    "mhHead": "Mastery 22to 23: 112,500 XPItem mastery1,166,000items only",
-   "mhMeta": "· synced 2h ago"
+   "mhMeta": "· synced 3h ago"
   },
   "settings": {
    "notLive": [

@@ -323,6 +323,10 @@
     },
     unsupported: function () { return get('/api/planner/unsupported'); },
     compute: function (build) { return post('/api/planner/compute', build); },
+    current: function (force) {
+      return force ? post('/api/planner/current/refresh', {}) : get('/api/planner/current');
+    },
+    cloneCurrent: function (body) { return post('/api/planner/clone', body); },
     preview: function (build, next) {
       return post('/api/planner/preview', { build: build, next: next });
     },
@@ -1607,6 +1611,22 @@
   }
 
   // ------------------------------------------------------------------ boot
+  // A v1 document from outside the page (the current-loadout card's clone) enters through the
+  // same validator the page uses for its own storage - rejected whole or accepted whole, stored,
+  // and then rendered by the ordinary path. Nothing here trusts the caller's document.
+  function adopt(doc) {
+    var clean = cleanV1(doc);
+    if (!clean) return false;
+    state.storage = clean;
+    saveStorage();
+    renderToolbar();
+    renderStatus();
+    if (clean.equipment_id) selectEquipment(clean.equipment_id, true);
+    else { renderGrid(); recompute(); }
+    emit('state', state);
+    return true;
+  }
+
   function boot() {
     state.storage = loadStorage();
     renderEmptyState();                  // no item stored = the first-run layout, before any fetch
@@ -1725,6 +1745,7 @@
     duplicateConfig: function () { var b = $('plDup'); if (b) b.click(); },
     explain: function (stat) { return api.explain(build(), stat); },
     save: saveStorage,
+    adopt: adopt,
     on: on,
     emit: emit,
     recompute: recompute,

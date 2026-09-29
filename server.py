@@ -1614,6 +1614,51 @@ def planner_unsupported():
             'marker_keys': mods['unsupported'].MARKER_TO_KEY}
 
 
+def _player_current():
+    """The current-loadout reader, imported where it is used.
+
+    server.py is executed by more than one harness (the gates exec it with scripts/ on sys.path and
+    a stubbed whisper), and a top-level `from scripts import ...` breaks under those bootstraps.
+    Importing here keeps this file's import surface exactly what it was before Phase 3.
+    """
+    from scripts import player_loadout as player_current
+    return player_current
+
+
+def planner_current_payload(force=False):
+    """The imported current loadout: the snapshot, its provenance and its freshness.
+
+    `state` is one of ok / missing / locked / malformed / no_build_data - each one a case the UI
+    explains rather than an error the page has to interpret. No engine maths happens here: the page
+    computes an imported build through the normal /api/planner/compute route.
+    """
+    payload = _player_current().load(force=force)
+    out = {'ok': payload.get('state') == 'ok', 'state': payload.get('state'),
+           'read_at': payload.get('read_at'), 'source_mtime': payload.get('source_mtime'),
+           'cached': payload.get('cached'), 'refreshable': payload.get('refreshable'),
+           'snapshot': payload.get('snapshot'), 'detail': payload.get('detail'),
+           'last_good': payload.get('last_good'),
+           'error': None if payload.get('state') == 'ok'
+           else (payload.get('detail') or {}).get('message', 'current build unavailable')}
+    return out
+
+
+def planner_current_clone(body):
+    """One imported category -> a planner document. Read-only: the snapshot is deep-copied first."""
+    if not isinstance(body, dict):
+        return {'ok': False, 'error': 'body must be a JSON object'}
+    category = body.get('category')
+    if not isinstance(category, str) or not category:
+        return {'ok': False, 'error': 'category is required'}
+    config_name = body.get('config') or 'A'
+    if config_name not in ('A', 'B', 'C'):
+        return {'ok': False, 'error': 'config must be A, B or C'}
+    master = body.get('mastery_rank')
+    if master is not None and not isinstance(master, int):
+        return {'ok': False, 'error': 'mastery_rank must be an integer'}
+    return _player_current().clone(category, config_name, master=master)
+
+
 def planner_compute(build):
     """One build -> the engine's full answer (validation, capacity, stats, baseline, refusals)."""
     db, err = _planner_db()
@@ -1739,6 +1784,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/planner/mods':
             return self._send(200, planner_library(parse_qs(urlparse(self.path).query)))
         if p == '/api/planner/unsupported': return self._send(200, planner_unsupported())
+        if p == '/api/planner/current': return self._send(200, planner_current_payload())
         if p.startswith('/api/planner/'):
             return self._send(404, {'ok': False, 'error': 'unknown planner route'})
         return self._serve_file(p.lstrip('/'))
@@ -1922,6 +1968,10 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, planner_preview(b))
                 if p == '/api/planner/explain':
                     return self._send(200, planner_explain(b))
+                if p == '/api/planner/current/refresh':
+                    return self._send(200, planner_current_payload(force=True))
+                if p == '/api/planner/clone':
+                    return self._send(200, planner_current_clone(b))
             except (TypeError, ValueError, KeyError, AttributeError) as e:
                 # a body the engine cannot read is the caller's mistake: say so, and say 400
                 return self._send(400, {'ok': False, 'error': 'the engine could not read this body: %s'

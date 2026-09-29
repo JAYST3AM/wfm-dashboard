@@ -109,6 +109,30 @@
   </section>
 
   <!-- -------------------------------------------------- 3a. first run: invite the choice, nothing else -->
+  <!-- Current Loadout: the local save's own account of what is equipped, read-only -->
+  <section class="pl-current card" id="plCurrent" aria-label="Current Loadout" hidden>
+    <div class="pl-cur-head">
+      <h2>Current Loadout</h2>
+      <div class="pl-cur-head-side">
+        <span class="dim small" id="plCurrentMeta"></span>
+        <button type="button" class="btn small" id="plCurrentRefresh">Refresh</button>
+      </div>
+    </div>
+    <div class="pl-cur-list" id="plCurrentList"></div>
+    <div class="pl-cur-actions" id="plCurrentActions" hidden>
+      <label class="dim small" for="plCurrentConfig">Clone as</label>
+      <select id="plCurrentConfig" class="pl-cur-config">
+        <option value="A">Config A</option>
+        <option value="B">Config B</option>
+        <option value="C">Config C</option>
+      </select>
+      <button type="button" class="btn small" id="plCurrentView">View build</button>
+      <button type="button" class="btn small primary" id="plCurrentClone">Clone to Planner</button>
+    </div>
+    <div class="pl-cur-detail" id="plCurrentDetail"></div>
+    <p class="pl-cur-note dim small" id="plCurrentNote"></p>
+  </section>
+
   <section class="pl-empty" id="plEmpty" hidden>
     <div class="pl-empty-in">
       <span class="pl-empty-ico" data-icon="blueprint"></span>
@@ -237,6 +261,7 @@
 <script src="/theme.js"></script>
 <script>wfmInitThemeUI();</script>
 <script src="/planner.js"></script>
+<script src="/planner-current.js"></script>
 <script src="/planner-library.js"></script>
 <script src="/planner-stats.js"></script>
 </body>

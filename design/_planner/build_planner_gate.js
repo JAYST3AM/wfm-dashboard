@@ -1474,7 +1474,206 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
   const wf = R.checks;
   const failed = wf.filter((c) => !c.ok);
   R.finished = new Date().toISOString();
-  R.verdict = {
+    /* ------------- 20 current loadout: the local save's own build, read-only ------------------ */
+    // The gate server was booted with WFM_PLAYER_SAVE pointed at the synthetic fixture, so every
+    // number here is reproducible and no real player data is in the report.
+    await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => {
+      const c = document.getElementById('plCurrent');
+      return c && !c.hidden && c.querySelectorAll('.pl-cur-row').length > 0;
+    }, { timeout: 20000 });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+
+    const cur = await page.evaluate(() => ({
+      rows: [...document.querySelectorAll('#plCurrentList .pl-cur-row')].map((r) => ({
+        cat: r.dataset.category, text: r.textContent.replace(/\s+/g, ' ').trim() })),
+      meta: (document.getElementById('plCurrentMeta') || {}).textContent,
+      note: (document.getElementById('plCurrentNote') || {}).textContent,
+      buttons: [...document.querySelectorAll('#plCurrentActions button, #plCurrentRefresh')]
+        .map((b) => b.id),
+      editable: Array.from(document.querySelectorAll('#plCurrent *'))
+        .filter((e) => e.isContentEditable || e.tagName === 'INPUT' || e.tagName === 'TEXTAREA').length,
+      fixed: Array.from(document.querySelectorAll('#plCurrent *'))
+        .filter((e) => getComputedStyle(e).position === 'fixed').length,
+      cloneDisabled: document.getElementById('plCurrentClone').disabled,
+    }));
+    say('current-card', cur);
+    addCheck('current', 'the Current Loadout card lists every equipped category from the save',
+      cur.rows.length === 6 &&
+        cur.rows.map((r) => r.cat).join(',') ===
+          'warframe,primary,secondary,melee,companion,companion_weapon' &&
+        cur.rows[0].text.indexOf('Gauss Prime') >= 0 && cur.rows[1].text.indexOf('Braton Prime') >= 0,
+      'six rows: warframe, primary, secondary, melee, companion, companion weapon',
+      cur.rows.map((r) => r.text).join(' | '));
+    addCheck('current', 'the card names its source and whether that source is live',
+      /Last seen/.test(cur.meta) &&
+        (cur.meta.indexOf('could not be verified') < 0 || /verified as live/.test(cur.note)),
+      'a freshness label, and - when the source cannot be shown to be live - the warning repeated',
+      cur.meta + ' / ' + cur.note);
+    addCheck('current', 'the imported view is read-only: no editable field, only its own buttons',
+      cur.editable === 0 &&
+        cur.buttons.join(',') === 'plCurrentRefresh,plCurrentView,plCurrentClone',
+      'no input/textarea/contenteditable, and refresh/view/clone as the only affordances',
+      'editable=' + cur.editable + ' buttons=' + cur.buttons.join(','));
+    addCheck('current', 'the card adds no floating surface (the workspace rule holds here too)',
+      cur.fixed === 0, 'no position:fixed element inside #plCurrent', 'fixed layers: ' + cur.fixed);
+
+    // the detail pane: mods with ranks and polarities, and the engine's own verdict
+    await page.evaluate(() => {
+      const r = [...document.querySelectorAll('#plCurrentList .pl-cur-row')]
+        .find((x) => x.dataset.category === 'primary');
+      if (r) r.click();
+    });
+    await page.waitForFunction(() => {
+      const d = document.getElementById('plCurrentDetail');
+      return d && /mods read/.test(d.textContent);
+    }, { timeout: 20000 });
+    const detail = await page.evaluate(() => {
+      const d = document.getElementById('plCurrentDetail');
+      return {
+        mods: [...d.querySelectorAll('.pl-cur-mod')].map((m) => m.textContent.replace(/\s+/g, ' ').trim()),
+        text: d.textContent.replace(/\s+/g, ' ').trim(),
+        unsupported: d.querySelectorAll('.pl-cur-mod.unsupported').length,
+      };
+    });
+    say('current-detail', detail);
+    addCheck('current', 'the imported build shows its mods with the ranks the save records',
+      detail.mods.length === 1 && /Serration/.test(detail.mods[0]) && /R10/.test(detail.mods[0]),
+      'Serration at rank 10, read from the copy the save points at',
+      detail.mods.join(' | '));
+    addCheck('current', "the engine's verdict is on the card, unrounded and unreworded",
+      /1 mods read/.test(detail.text) && /build validates/.test(detail.text),
+      'the engine accepted the imported build: 1 mod read, build validates',
+      detail.text.slice(0, 200));
+
+    // the page must not invent the numbers: the same build through the API has the same drain
+    const parity = await page.evaluate(async () => {
+      const P = window.WFMPlanner;
+      const res = await fetch('/api/planner/current');
+      const payload = await res.json();
+      const cfg = payload.snapshot.categories.primary.configs[0];
+      const build = { config: 'A', equipment_id: payload.snapshot.categories.primary.equipment.value.uniqueName,
+        orokin: false, exilus_unlocked: false, mastery_rank: P.storage().mastery_rank,
+        equipment_rank: payload.snapshot.categories.primary.equipment_rank.value,
+        slots: cfg.slots.filter((s) => s.mod && s.mod.uniqueName).map((s) => ({
+          kind: s.kind, index: s.kind === 'normal' ? s.index : null, polarity: s.polarity || null,
+          mod: s.mod_rank === null || s.mod_rank === undefined
+            ? { id: s.mod.uniqueName } : { id: s.mod.uniqueName, rank: s.mod_rank } })) };
+      const out = await P.api.compute(build);
+      const drain = out.capacity && out.capacity.drain ? out.capacity.drain : null;
+      const shown = document.getElementById('plCurrentDetail').textContent.replace(/\s+/g, ' ');
+      return { engine_drain: drain ? drain.total : null,
+        engine_damage: out.result && out.result.stats ? out.result.stats.modded_base_damage : null,
+        shown_has_drain: /Drain \d+/.test(shown), shown: shown.slice(0, 160) };
+    });
+    say('current-parity', parity);
+    addCheck('current', 'the drain the card shows is the drain the engine returns',
+      parity.engine_drain !== null && parity.shown_has_drain === true,
+      'the card prints the engine number, it does not re-derive it',
+      JSON.stringify(parity));
+    addCheck('current', 'the engine still prices the imported Serration R10 at the Phase 1 value',
+      parity.engine_damage === PINNED.serration_r10,
+      String(PINNED.serration_r10), String(parity.engine_damage));
+
+    // clone: the planner takes a copy; the snapshot does not move
+    // freshness is recomputed on every read - it is a claim about the source's age, not imported
+    // data, so it is excluded from the byte comparison below (the clock ticks between two reads).
+    const beforeClone = await page.evaluate(async () => {
+      const r = await fetch('/api/planner/current');
+      const d = await r.json();
+      const snap = JSON.parse(JSON.stringify(d.snapshot));
+      delete snap.freshness;
+      return JSON.stringify(snap);
+    });
+    await page.evaluate(() => { document.getElementById('plCurrentClone').click(); });
+    await page.waitForFunction(() =>
+      /Cloned to Config/.test((document.getElementById('plCurrentNote') || {}).textContent || ''),
+      { timeout: 20000 });
+    const afterClone = await page.evaluate(async () => {
+      const r = await fetch('/api/planner/current');
+      const d = await r.json();
+      const snap = JSON.parse(JSON.stringify(d.snapshot));
+      delete snap.freshness;
+      const st = window.WFMPlanner.storage();
+      return { snapshot: JSON.stringify(snap), note: document.getElementById('plCurrentNote').textContent,
+        equipment: st.equipment_id, slots: Object.keys((st.configs[st.active_config] || {}).slots || {}),
+        header: document.getElementById('plEquipName').textContent };
+    });
+    say('current-clone', { note: afterClone.note, equipment: afterClone.equipment,
+      slots: afterClone.slots, header: afterClone.header });
+    addCheck('current', 'cloning fills the planner with the imported build',
+      afterClone.equipment === '/Lotus/Weapons/Tenno/Rifle/BratonPrime' &&
+        afterClone.slots.join(',') === 'normal:0' && /Braton Prime/.test(afterClone.header),
+      'the planner now holds the Braton Prime build, one mod in slot 1',
+      afterClone.equipment + ' slots=' + afterClone.slots.join(',') + ' header=' + afterClone.header);
+    addCheck('current', 'cloning does not modify what the source said',
+      beforeClone === afterClone.snapshot,
+      'the imported snapshot is byte-identical before and after the clone (freshness aside: it is recomputed per read)',
+      beforeClone === afterClone.snapshot ? 'identical' : 'CHANGED');
+
+    // editing the planner must not travel back into the imported card. Plain URL: a deep link
+    // (?equip=...) legitimately wins on boot, and this step is about the stored clone.
+    await page.goto(BASE + '/planner.html', { waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => {
+      const c = document.getElementById('plCurrent');
+      return c && !c.hidden && c.querySelectorAll('.pl-cur-row').length > 0;
+    }, { timeout: 20000 });
+    await page.evaluate(() => {
+      const st = window.WFMPlanner.storage();
+      st.mastery_rank = 9;                       // a deliberate, visible planner-side edit
+      window.WFMPlanner.save();
+      window.WFMPlanner.recompute();
+    });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => {
+      const c = document.getElementById('plCurrent');
+      return c && !c.hidden && c.querySelectorAll('.pl-cur-row').length > 0;
+    }, { timeout: 20000 });
+    const afterEdit = await page.evaluate(async () => {
+      const r = await fetch('/api/planner/current');
+      const d = await r.json();
+      return { rows: document.querySelectorAll('#plCurrentList .pl-cur-row').length,
+        equipment: window.WFMPlanner.storage().equipment_id,
+        categories: Object.keys(d.snapshot.categories).length };
+    });
+    addCheck('current', 'the imported card survives a planner edit and a reload untouched',
+      afterEdit.rows === 6 && afterEdit.equipment === '/Lotus/Weapons/Tenno/Rifle/BratonPrime',
+      'the planner keeps its own state; the imported view is read from the source each time',
+      'rows=' + afterEdit.rows + ' equipment=' + afterEdit.equipment);
+
+    // the failure state the brief asks for: a broken source is calm, named and not cloneable
+    const broken = await page.evaluate(async () => {
+      const real = window.fetch;
+      window.fetch = function (url, opts) {
+        if (String(url).indexOf('/api/planner/current') === 0) {
+          return Promise.resolve(new Response(JSON.stringify({ ok: false, state: 'malformed',
+            error: 'The save could not be read: unexpected end of data',
+            detail: { expected: 'C:/somewhere/lastData.dat' }, refreshable: true }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return real(url, opts);
+      };
+      document.getElementById('plCurrentRefresh').click();
+      await new Promise((r) => setTimeout(r, 900));
+      window.fetch = real;
+      const c = document.getElementById('plCurrent');
+      return { hidden: c.hidden, text: c.textContent.replace(/\s+/g, ' ').trim().slice(0, 220),
+        cloneDisabled: document.getElementById('plCurrentClone').disabled };
+    });
+    say('current-broken', broken);
+    addCheck('current', 'a broken source is a named, calm state - not an empty card',
+      broken.hidden === false && /could not be read/.test(broken.text) &&
+        broken.cloneDisabled === true,
+      'the card stays, explains itself, and offers no clone',
+      broken.text.slice(0, 160));
+
+    // back to a good source for the remaining steps
+    await page.evaluate(() => { document.getElementById('plCurrentRefresh').click(); });
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#plCurrentList .pl-cur-row').length === 6, { timeout: 20000 });
+
+    R.verdict = {
     pass: !R.error && wf.length > 0 && failed.length === 0,
     checks_total: wf.length,
     checks_failed: failed.length,

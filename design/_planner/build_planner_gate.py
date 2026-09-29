@@ -26,6 +26,9 @@ from urllib.request import urlopen
 REPO = r'F:/VSC Projects/wfm-dashboard'
 OUT = os.path.join(REPO, 'design', '_planner')
 RAW = os.path.join(OUT, 'build-planner-raw.json')
+FIXTURES = os.path.join(OUT, 'fixtures')
+SAVE_ENV = 'WFM_PLAYER_SAVE'
+CACHE_ENV = 'WFM_PLAYER_CACHE'
 REPORT = os.path.join(OUT, 'build-planner-report.md')
 SHOTS = os.path.join(tempfile.gettempdir(), 'planner-gate-shots')
 NODE_GATE = os.path.join(OUT, 'build_planner_gate.js')
@@ -63,6 +66,44 @@ def wait_ready(base, timeout=90):
         except Exception:
             time.sleep(0.4)
     return False
+
+
+def read_current(base):
+    with urlopen(base + '/api/planner/current', timeout=15) as r:
+        return json.loads(r.read().decode('utf-8'))
+
+
+def source_state_checks(base, data):
+    """Phase 3: every failure mode of the local source, measured on the booted server.
+
+    The card's happy path is measured in the browser; these are the states a player hits when the
+    save is missing or damaged, and each one must be a named state rather than an empty card.
+    """
+    cases = [
+        ('a readable save imports as ok', 'save-full.json', 'ok'),
+        ('a truncated save reads as malformed, never as empty', 'save-malformed.json', 'malformed'),
+        ('a save without a loadout says so', 'save-empty.json', 'no_build_data'),
+        ('a missing file names the path it looked for', 'does-not-exist.dat', 'missing'),
+    ]
+    checks = []
+    saved = os.environ.get(SAVE_ENV)
+    for title, name, want in cases:
+        os.environ[SAVE_ENV] = os.path.join(FIXTURES, name)
+        os.environ[CACHE_ENV] = os.path.join(data, 'current-%s.json' % want)
+        try:
+            payload = read_current(base)
+            got = payload.get('state')
+            ok = got == want
+            if want == 'missing':
+                ok = ok and 'expected' in (payload.get('detail') or {})
+            checks.append({'section': 'current', 'title': title, 'ok': bool(ok),
+                           'expected': want, 'observed': str(got), 'note': '', 'diagnostic': False})
+        except Exception as e:                                     # the server should still answer
+            checks.append({'section': 'current', 'title': title, 'ok': False, 'expected': want,
+                           'observed': 'error: %s' % e, 'note': '', 'diagnostic': False})
+    if saved is not None:
+        os.environ[SAVE_ENV] = saved
+    return checks
 
 
 def git_facts():
@@ -193,6 +234,10 @@ def main():
     if not wait_ready(base):
         print('server never answered /api/planner/meta - aborting')
         sys.exit(2)
+    # Phase 3: the current-loadout card reads a synthetic, reproducible source. The gate never
+    # points at the real AlecaFrame save, so no player data reaches the report.
+    os.environ[SAVE_ENV] = os.path.join(FIXTURES, 'save-full.json')
+    os.environ[CACHE_ENV] = os.path.join(data, 'current-ok.json')
     env = dict(os.environ)
     env['WFM_BASE'] = base
     env['WFM_RAW'] = RAW
@@ -211,6 +256,15 @@ def main():
     else:
         raw = {'error': 'the node gate wrote no raw JSON (exit %s)' % proc.returncode,
                'verdict': {'pass': False, 'checks_total': 0, 'checks_failed': 0}}
+    extra = source_state_checks(base, data)
+    if isinstance(raw.get('checks'), list):
+        raw['checks'].extend(extra)
+        failed = [c for c in raw['checks'] if not c.get('ok')]
+        verdict = raw.setdefault('verdict', {})
+        verdict['checks_total'] = len(raw['checks'])
+        verdict['checks_failed'] = len(failed)
+        verdict['failed'] = [c.get('section', '') + ' / ' + c.get('title', '') for c in failed]
+        verdict['pass'] = not failed
     text = build_report(raw, facts, boot_lines, data)
     with open(REPORT, 'w', encoding='utf-8') as fh:
         fh.write(text)
