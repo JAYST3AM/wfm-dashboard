@@ -1151,6 +1151,144 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
     await page.evaluate(() => { localStorage.removeItem('wfm.theme'); });
     await page.keyboard.press('Escape');
 
+    /* ------------------------------- 19f the picker story + the workspace it lands you in */
+    await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+    await page.evaluate(() => { localStorage.removeItem('wfm.planner.v1'); });
+    await page.goto(BASE + '/planner.html', { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+
+    // first run: the page invites the choice instead of showing panels full of nothing
+    const firstRun = await page.evaluate(() => ({
+      noEquip: document.body.classList.contains('pl-no-equip'),
+      heroShown: !!document.getElementById('plEmpty').offsetHeight,
+      workspaceHidden: !document.getElementById('plWorkspace').offsetHeight,
+      barHidden: !document.getElementById('plBar').offsetHeight,
+      diagHidden: document.getElementById('plDiag').hidden,
+      pickerOpen: !document.getElementById('plEquipPop').hidden
+    }));
+    say('picker-first-run', firstRun);
+    addCheck('picker', 'the first run invites the choice and hides the empty workspace',
+      firstRun.noEquip && firstRun.heroShown && firstRun.workspaceHidden && firstRun.barHidden &&
+        firstRun.diagHidden === true,
+      'hero visible, workspace/controls/diagnostics not rendered, picker offered',
+      JSON.stringify(firstRun));
+
+    // the hero's own button opens the picker
+    await page.evaluate(() => document.getElementById('plEmptyPick').click());
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
+    const heroOpens = await page.evaluate(() => !document.getElementById('plEquipPop').hidden);
+
+    // the reported bug: a category click must filter, not close
+    await page.evaluate(() => {
+      const chips = Array.from(document.querySelectorAll('#plEquipKinds .pl-chip'));
+      const target = chips.find((c) => /warframe/i.test(c.textContent || '')) || chips[1];
+      target.click();
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const category = await page.evaluate(() => ({
+      open: !document.getElementById('plEquipPop').hidden,
+      pressed: document.querySelectorAll('#plEquipKinds .pl-chip[aria-pressed="true"]').length,
+      rows: document.querySelectorAll('#plEquipList .pl-eq-row').length,
+      headScrollTop: document.querySelector('.pl-head').scrollTop,
+      foot: document.getElementById('plEquipFoot').textContent
+    }));
+    say('picker-category', category);
+    addCheck('picker', 'a category click filters the list and keeps the picker open',
+      heroOpens && category.open === true && category.pressed === 1 && category.rows > 0 &&
+        category.headScrollTop === 0,
+      'picker still open, exactly one chip pressed, rows rendered, nothing scrolled out of the card',
+      JSON.stringify({ heroOpens: heroOpens, category: category }));
+
+    // and search still works on the filtered list
+    await page.type('#plEquipSearch', 'ash');
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const afterSearch = await page.evaluate(() => ({
+      open: !document.getElementById('plEquipPop').hidden,
+      rows: document.querySelectorAll('#plEquipList .pl-eq-row').length,
+      first: (document.querySelector('#plEquipList .pl-eq-name') || {}).textContent
+    }));
+    say('picker-search-after-category', afterSearch);
+    addCheck('picker', 'search still works after a category switch',
+      afterSearch.open === true && afterSearch.rows > 0,
+      'the query filters the category list without closing the picker',
+      JSON.stringify(afterSearch));
+
+    // a click outside closes it
+    await page.evaluate(() => document.body.click());
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+    const closedOutside = await page.evaluate(() => document.getElementById('plEquipPop').hidden);
+
+    // Escape closes it too
+    await page.evaluate(() => document.getElementById('plEquipBtn').click());
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
+    const reopened = await page.evaluate(() => !document.getElementById('plEquipPop').hidden);
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+    const closedEsc = await page.evaluate(() => document.getElementById('plEquipPop').hidden);
+    addCheck('picker', 'a click outside and Escape both close the picker',
+      closedOutside === true && reopened === true && closedEsc === true,
+      'outside click closes; reopen; Escape closes',
+      JSON.stringify({ closedOutside: closedOutside, reopened: reopened, closedEsc: closedEsc }));
+
+    // choosing an item closes it and loads the build
+    await page.evaluate(() => document.getElementById('plEquipBtn').click());
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
+    await page.evaluate(() => { document.querySelector('#plEquipList .pl-eq-row').click(); });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 1600)));
+    const picked = await page.evaluate(() => ({
+      open: !document.getElementById('plEquipPop').hidden,
+      name: document.getElementById('plEquipName').textContent,
+      slots: document.querySelectorAll('.pl-slot').length,
+      workspace: !!document.getElementById('plWorkspace').offsetHeight,
+      diag: !document.getElementById('plDiag').hidden,
+      chip: (document.getElementById('plHeadRank') || {}).textContent
+    }));
+    say('picker-picked', picked);
+    addCheck('picker', 'choosing an item closes the picker and loads the build',
+      picked.open === false && picked.slots > 0 && picked.workspace && picked.diag &&
+        picked.name !== 'Choose equipment' && /Rank /.test(picked.chip || ''),
+      'picker closed, slots rendered, workspace and diagnostics on, header names the item and its rank',
+      JSON.stringify(picked));
+
+    // the workspace itself: regions, a selectable slot, an active config, no overflow
+    await page.evaluate(() => { const s = document.querySelector('.pl-slot'); if (s) s.click(); });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+    const workspace = await page.evaluate(() => {
+      const w = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().width) : 0; };
+      const h = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().height) : 0; };
+      return { focused: document.querySelectorAll('.pl-slot[data-focus="true"]').length,
+        config: document.querySelectorAll('#plConfigs [aria-selected="true"]').length,
+        head: w('.pl-head'), bar: w('.pl-bar'), slots: w('#plSlotsPanel'), lib: w('#plLibrary'),
+        stats: w('#plStats'), diag: h('#plDiag'),
+        slotHeight: h('.pl-slot'), over: document.documentElement.scrollWidth - window.innerWidth };
+    });
+    say('workspace', workspace);
+    addCheck('layout', 'the workspace keeps its regions, its selected slot and its active config',
+      workspace.focused === 1 && workspace.config === 1 &&
+        workspace.head > 600 && workspace.bar > 600 && workspace.slots > 300 &&
+        workspace.lib > 300 && workspace.stats > 300 && workspace.diag < 90 &&
+        workspace.slotHeight >= 60 && workspace.over <= 0,
+      'five regions sized, one focused slot (>=60px tiles), one selected config, diagnostics a flat strip, no overflow',
+      JSON.stringify(workspace));
+
+    // diagnostics collapse and expand
+    const diag = await page.evaluate(() => {
+      const parts = document.querySelectorAll('#plDiag .pl-dg');
+      const first = parts[0];
+      const closedBefore = first.open;
+      first.open = true;
+      const afterOpen = first.open;
+      first.open = false;
+      return { count: parts.length, closedBefore: closedBefore, afterOpen: afterOpen,
+        afterClose: first.open, badges: Array.from(parts).map((d) => d.querySelector('.pl-dg-badge').textContent) };
+    });
+    say('diagnostics', diag);
+    addCheck('layout', 'the diagnostics strip expands and collapses, with a count on every heading',
+      diag.count === 3 && diag.closedBefore === false && diag.afterOpen === true &&
+        diag.afterClose === false && diag.badges.every((b) => b.length > 0),
+      'three collapsible sections, closed by default, each carrying its own summary badge',
+      JSON.stringify(diag));
+
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
     const final = await page.evaluate(() => {

@@ -189,7 +189,8 @@
       title: (row.hint ? row.hint + ' · ' : '') + (hasTrace ? 'click for the trace'
         : 'the engine reports this value without a breakdown') });
     node.appendChild(el('span', { class: 'pl-stat-name', text: row.label }));
-    node.appendChild(el('span', { class: 'pl-stat-val', text: unitText(value, row.unit) }));
+    node.appendChild(el('span', { class: 'pl-stat-val' + (delta !== null ? ' changed' : ''),
+      text: unitText(value, row.unit) }));
     if (delta !== null && row.unit !== 'tier') {
       node.appendChild(el('span', { class: 'pl-stat-delta ' + (delta > 0 ? 'up' : 'down'),
         text: (delta > 0 ? '+' : '') + fmt.num(delta) + (row.unit === 'percent' ? '%' : ''),

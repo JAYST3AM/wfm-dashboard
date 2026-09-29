@@ -130,3 +130,43 @@ rendering, locked slots, malformed storage) are where this page's bugs live.
 gate drives a legal swap; the illegal one is enforced by the same `slotLegal` call the other paths
 assert); the library counts in the gate are structural (one card per name, no duplicate, hidden
 buckets counted) rather than pinned numbers, so a data refresh moves them without a red gate.
+
+## Phase 2.5 - the UX pass (after the three audit rounds)
+
+The brief: make the planner feel like an Arsenal rather than an admin dashboard, and fix the
+equipment picker. Both are in. `static/planner.{html,css,js}` were restructured; the engine kept
+every rule it had.
+
+**The picker bug, root cause.** The category chips' click handler called `renderPickerKinds()`,
+which rebuilt the chip row - detaching the very button the click was still being dispatched on. The
+document-level close-on-outside handler then ran `plEquipPop.contains(ev.target)` against a node
+that was no longer in the document, read it as "outside", and closed the picker. Fixed twice over:
+the chips update their `aria-pressed` in place, and the close decision now runs in the CAPTURE
+phase (before any handler can mutate the DOM under it) with a detached-target guard, so a future
+renderer cannot re-break it. Category clicks filter and keep the picker open; item selection,
+outside clicks and Escape close it; search keeps working across a category switch.
+
+**Hierarchy.** The page now reads top to bottom as: equipment header (identity and rank only - the
+engine/database telemetry line moved to the footer) -> one build-control row (rank, mastery,
+catalyst/exilus as switches, forma, config A/B/C, capacity with an engine-computed bar) -> the
+workspace (slots 440px and framed as the hero, library, live stats) -> a flat, collapsible
+diagnostics strip (validation / capacity detail / not-calculated, each with a count badge, closed
+by default, no placeholder boxes on a valid build). Before an item is chosen the workspace,
+controls and diagnostics step aside for a first-run hero.
+
+**Arsenal language.** Slot tiles share one height (68px) so the grid aligns whatever a slot holds;
+installed mods own their frame, empty tiles keep their polarity dot and invite; the focused slot
+carries an accent ring and a left bar; aura/exilus/stance sit in their own tinted strip; drag
+targets colour by what they will do; config tabs are bigger with a ring on the active one; the
+library's last band fades when it scrolls; values the build moved are marked in the stats.
+
+**The last page-side division is gone.** The capacity bar's percentage came from
+`Math.round(used / total * 100)` in `planner.js` - the one arithmetic the page test tolerated by
+name. `builds/capacity.py` now returns `drain.used_pct` and the page prints it, so the engine owns
+every figure on screen without exception.
+
+**Coverage.** The planner gate gained seven checks (89 total, 0 failed): the first-run state, the
+category click that used to close the picker, search after a category switch, outside-click and
+Escape, item selection closing and loading, the workspace's regions plus a focused slot and an
+active config at 68px tiles with no overflow, and the diagnostics strip expanding and collapsing
+with a badge on every heading. The five-viewport sweep from the head-card fix still runs.

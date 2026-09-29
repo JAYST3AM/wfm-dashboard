@@ -463,6 +463,19 @@
     node.appendChild(link);
   }
 
+
+  /* A list with more rows than fit gets the .scrolly class: the CSS fades its last band so it
+     reads as scrollable rather than as cut off. Re-marked on every render and on resize. */
+  function markOverflow() {
+    var list = document.getElementById('plLibList');
+    if (!list) return;
+    list.classList.toggle('scrolly', list.scrollHeight > list.clientHeight + 4);
+  }
+  if (!window.__plLibOverflowWired) {
+    window.__plLibOverflowWired = true;
+    window.addEventListener('resize', function () { markOverflow(); });
+  }
+
   function renderList() {
     var list = $('plLibList');
     if (!list) return;
@@ -507,6 +520,8 @@
     list.appendChild(frag);
     iconize(list);
     setCount('· ' + rows.length + (rows.length === total ? ' mods' : ' of ' + total));
+    markOverflow();
+
   }
 
   function renderAll() {

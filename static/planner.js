@@ -531,7 +531,8 @@
         ? 'Polarity: ' + polarity + ' - click to change' : 'Polarity: vacant - click to set',
       role: interactive ? 'button' : null, 'aria-label': 'Slot polarity'
     }, [polarity ? POL_SHORT[polarity] || '' : '']);
-    dot.style.font = '7px/11px var(--mono)';
+    // the letter rides the dot (POL_SHORT); the dot is bigger now, so the glyph grows with it
+    dot.style.font = '700 8.5px var(--mono)';
     dot.style.textAlign = 'center';
     dot.style.lineHeight = '9px';
     if (interactive) {
@@ -576,7 +577,11 @@
       aux.forEach(function (slot) { strip.appendChild(slotEl(slot)); });
       grid.appendChild(strip);
     }
-    $('plGridMeta').textContent = '· ' + normal.length + ' slots' +
+    var filled = 0;
+    for (var i = 0; i < normal.length; i++) {
+      if (slotMod(normal[i].kind, normal[i].index)) filled++;   // the layout has no mod field
+    }
+    $('plGridMeta').textContent = '· ' + filled + ' of ' + normal.length + ' filled' +
       (aux.length ? ' + ' + aux.map(function (s) { return SLOT_LABEL[s.kind].toLowerCase(); })
         .join(' / ') : '');
   }
@@ -1008,7 +1013,21 @@
   }
 
   // ------------------------------------------------------------------ rendering: capacity + validation
+  /* Before an item is chosen there is nothing to build, so the workspace, the controls and the
+     diagnostics step aside and the page invites the one useful action. The class drives it all
+     (see the .pl-empty block in planner.css); the hero itself carries the button that opens the
+     picker. */
+  function renderEmptyState() {
+    var has = !!state.storage.equipment_id;
+    document.body.classList.toggle('pl-no-equip', !has);
+    var diag = $('plDiag');
+    if (diag) diag.hidden = !has;
+    var chip = $('plHeadRank');
+    if (chip && !has) { chip.hidden = true; chip.textContent = ''; }
+  }
+
   function renderCapacity() {
+    renderEmptyState();
     if (!state.result) {
       $('plCapUsed').textContent = '—';
       $('plCapTotal').textContent = '—';
@@ -1030,7 +1049,10 @@
     $('plCapUsed').className = 'pl-cap-num mono' + (over ? ' over' : '');
     var bar = $('plCapBar');
     bar.className = 'pl-cap-bar' + (over ? ' over' : (total !== null && used === total ? ' warn' : ''));
-    var pct = total ? Math.min(100, Math.round(used / total * 100)) : 0;
+    // The engine sends used_pct with the drain total (builds/capacity.py): same two numbers,
+     // divided once, in the one place allowed to divide them.
+    var drain = out.capacity && out.capacity.drain ? out.capacity.drain : null;
+    var pct = drain && drain.used_pct !== undefined && drain.used_pct !== null ? drain.used_pct : 0;
     $('plCapFill').setAttribute('style', 'width:' + pct + '%');
     bar.setAttribute('aria-label', 'Capacity ' + used + ' of ' + (total === null ? '?' : total));
     var notes = [];
@@ -1053,6 +1075,7 @@
       var empty = $('plValidity');
       clear(empty);
       $('plValidityMeta').textContent = '';
+      $('plValidityMeta').removeAttribute('data-k');
       empty.appendChild(el('div', { class: 'dim small',
         text: state.error ? 'No answer from the engine.' : 'Nothing to check yet.' }));
       return;
@@ -1062,6 +1085,8 @@
     var warnings = v.warnings || [];
     var box = $('plValidity');
     clear(box);
+    $('plValidityMeta').setAttribute('data-k',
+      errors.length ? 'error' : (warnings.length ? 'warning' : 'ok'));
     $('plValidityMeta').textContent = errors.length || warnings.length
       ? '· ' + errors.length + ' error' + (errors.length === 1 ? '' : 's') +
         (warnings.length ? ', ' + warnings.length + ' warning' + (warnings.length === 1 ? '' : 's') : '')
@@ -1169,7 +1194,14 @@
         text: k.label + (k.count ? ' ' + k.count : '') });
       b.addEventListener('click', function () {
         picker.kind = k.kind;
-        renderPickerKinds();
+        // Update the pressed state IN PLACE. Rebuilding this row would detach the button the
+        // click is still being dispatched on, and the document-level close handler would then
+        // see a target that is no longer inside the popover - which closed the picker on every
+        // category click. The handler below also runs in the capture phase now, so this cannot
+        // come back if a future renderer forgets.
+        box.querySelectorAll('.pl-chip').forEach(function (c) {
+          c.setAttribute('aria-pressed', c === b ? 'true' : 'false');
+        });
         loadPicker();
       });
       box.appendChild(b);
@@ -1261,6 +1293,14 @@
       rankInput.value = String(state.storage.equipment_rank === null
         ? detail.equipment.max_rank : state.storage.equipment_rank);
       $('plRankMax').textContent = '/' + detail.equipment.max_rank;
+      var chip = $('plHeadRank');
+      if (chip) {
+        var shownRank = state.storage.equipment_rank === null ||
+          state.storage.equipment_rank === undefined ? detail.equipment.max_rank
+          : state.storage.equipment_rank;
+        chip.hidden = false;
+        chip.textContent = 'Rank ' + shownRank + ' / ' + detail.equipment.max_rank;
+      }
       $('plPolarityNote').textContent = state.polaritiesFromExport ? ''
         : 'This item has no polarities - set them ' +
           'with the polarity dots.';
@@ -1388,6 +1428,10 @@
     $('plEquipBtn').addEventListener('click', function () {
       if (picker.open) closePicker(); else openPicker();
     });
+    $('plEmptyPick').addEventListener('click', function () {
+      openPicker();
+      $('plEquipSearch').focus();
+    });
     $('plEquipSearch').addEventListener('input', function (e) {
       picker.q = e.target.value;
       loadPicker();
@@ -1491,10 +1535,15 @@
       });
     }());
     document.addEventListener('click', function (ev) {
-      if (picker.open && !$('plEquipPop').contains(ev.target) &&
-          !$('plEquipBtn').contains(ev.target)) closePicker();
-      if (popMenu && !popMenu.contains(ev.target)) closePolarityMenu();
-    });
+      // Capture phase: this decides whether a click was outside BEFORE any handler can re-render
+      // the element that was clicked (a detached target used to read as outside). The isConnected
+      // guard covers the other direction: a target already swapped out by an earlier handler is
+      // ours, not a click outside.
+      var t = ev.target;
+      if (!t || !t.isConnected) return;
+      if (picker.open && !$('plEquipPop').contains(t) && !$('plEquipBtn').contains(t)) closePicker();
+      if (popMenu && !popMenu.contains(t)) closePolarityMenu();
+    }, true);
     document.addEventListener('keydown', function (ev) {
       var tag = (ev.target && ev.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') {
@@ -1560,6 +1609,7 @@
   // ------------------------------------------------------------------ boot
   function boot() {
     state.storage = loadStorage();
+    renderEmptyState();                  // no item stored = the first-run layout, before any fetch
     if (state.rescued) saveStorage();     // the unreadable payload is replaced, not left sitting
     var params = new URLSearchParams(window.location.search);
     var wanted = params.get('equip');
@@ -1590,6 +1640,7 @@
         $('plEquipName').textContent = 'Choose equipment';
         $('plEquipMeta').textContent = (meta.equipment_total || 0) + ' items · ' +
           (meta.mods_total || 0) + ' mods';
+        renderEmptyState();
         openPicker();
       }
       state.ready = true;

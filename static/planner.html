@@ -15,8 +15,11 @@
 </head>
 <body data-shell="planner" data-shell-actions="">
 <!-- The chrome (header, left rail #mainnav) is rendered by /shell.js from data-shell="planner".
-     Everything below is this page's own body: toolbar, slot grid, mod library, stat panel. -->
-
+     Everything below is this page's own body, in the order the eye should read it:
+       1. what is being built (the equipment header)
+       2. the build controls (rank, mastery, adapters, forma, config, capacity)
+       3. the workspace - slots, the mod library, what the engine says it produces
+       4. the diagnostics strip, flat and collapsible, for when something needs explaining -->
 <div class="shellbody">
 <div class="shellcol">
 
@@ -25,13 +28,12 @@
   <!-- the engine did not answer: this says so, and every panel below stops making claims -->
   <div class="pl-error" id="plError" role="status" hidden></div>
 
-  <!-- ---------------------------------------------------------------- head: what is being built -->
-  <div class="pl-head card">
+  <!-- -------------------------------------------------- 1. equipment header: what is being built -->
+  <header class="pl-head" id="plHead">
     <div class="pl-head-main">
-      <h1 class="pl-title" data-icon="blueprint">Build planner</h1>
       <div class="pl-picker">
         <button class="pl-equip" id="plEquipBtn" aria-haspopup="listbox" aria-expanded="false"
-                aria-controls="plEquipPop">
+                aria-controls="plEquipPop" title="Change the item being built">
           <span class="pl-equip-kind" id="plEquipKind">—</span>
           <span class="pl-equip-name" id="plEquipName">Choose equipment</span>
           <span class="pl-equip-meta" id="plEquipMeta">search the whole catalogue</span>
@@ -48,17 +50,17 @@
           <div class="pl-pop-foot dim small" id="plEquipFoot"></div>
         </div>
       </div>
+      <span class="pl-equip-rank" id="plHeadRank" hidden></span>
     </div>
     <div class="pl-head-side">
-      <span class="pl-status dim small" id="plStatus" title="The engine and database this page is reading"></span>
       <button class="btn" id="plCopy" data-icon="clipboard-text" title="Copy this build as JSON">Copy build</button>
       <button class="btn" id="plReset" data-icon="trash-simple" title="Clear every slot in this config">Clear config</button>
     </div>
-  </div>
+  </header>
 
-  <!-- ---------------------------------------------------------------- toolbar: item + config state -->
-  <div class="pl-bar card" id="plBar">
-    <div class="pl-bar-item">
+  <!-- -------------------------------------------------- 2. the build controls: one row, one read -->
+  <section class="pl-bar" id="plBar" aria-label="Build controls">
+    <div class="pl-ctl">
       <label class="pl-lbl" for="plRank">Rank</label>
       <div class="pl-rankctl">
         <input id="plRank" class="pl-num" type="number" min="0" max="40" step="1" value="30"
@@ -66,29 +68,31 @@
         <span class="dim small" id="plRankMax">/30</span>
       </div>
     </div>
-    <div class="pl-bar-item">
-      <label class="pl-lbl" for="plMr">Mastery rank</label>
+    <div class="pl-ctl">
+      <label class="pl-lbl" for="plMr">Mastery</label>
       <div class="pl-rankctl">
         <input id="plMr" class="pl-num" type="number" min="0" max="40" step="1" value="28"
                aria-label="Mastery rank">
         <span class="dim small" id="plMrFloor"></span>
       </div>
     </div>
-    <div class="pl-bar-item pl-toggles">
-      <button class="pl-toggle" id="plOrokin" aria-pressed="false" data-icon="diamond">
-        <span>Catalyst / Reactor</span><span class="pl-tog-val" id="plOrokinVal">off</span>
+    <div class="pl-ctl pl-toggles">
+      <button class="pl-toggle" id="plOrokin" aria-pressed="false" data-icon="diamond"
+              title="Doubles the capacity">
+        <span>Catalyst</span><span class="pl-tog-val" id="plOrokinVal">off</span>
       </button>
-      <button class="pl-toggle" id="plExilus" aria-pressed="false" data-icon="lock-open">
-        <span>Exilus adapter</span><span class="pl-tog-val" id="plExilusVal">off</span>
+      <button class="pl-toggle" id="plExilus" aria-pressed="false" data-icon="lock-open"
+              title="Unlocks the Exilus slot">
+        <span>Exilus</span><span class="pl-tog-val" id="plExilusVal">off</span>
       </button>
     </div>
-    <div class="pl-bar-item pl-forma-item" id="plFormaChip" title="This config uses the item's own polarities">
+    <div class="pl-ctl pl-forma-item" id="plFormaChip" title="How many polarities this config changes">
       <span class="pl-lbl">Forma</span>
       <span class="pl-forma mono" id="plForma">0</span>
       <span class="dim small" id="plFormaNote">matches the item</span>
     </div>
-    <div class="pl-bar-item pl-configs">
-      <span class="pl-lbl">Config</span>
+    <div class="pl-ctl pl-configs">
+      <span class="pl-lbl" id="plConfigsLbl">Config</span>
       <div class="pl-tabs" id="plConfigs" role="tablist" aria-label="Build configs"></div>
       <button class="pl-dup" id="plDup" data-icon="copy"
               title="Copy this config into the next one">Duplicate</button>
@@ -102,49 +106,41 @@
       </div>
       <div class="pl-cap-bar" id="plCapBar" role="img" aria-label="Capacity used"><i id="plCapFill"></i></div>
     </div>
-  </div>
+  </section>
 
-  <div class="pl-body">
+  <!-- -------------------------------------------------- 3a. first run: invite the choice, nothing else -->
+  <section class="pl-empty" id="plEmpty" hidden>
+    <div class="pl-empty-in">
+      <span class="pl-empty-ico" data-icon="blueprint"></span>
+      <h2 class="pl-empty-title">Choose equipment to begin</h2>
+      <p class="pl-empty-sub">Search the catalogue, then fill the slots.</p>
+      <button class="btn pl-empty-btn" id="plEmptyPick" data-icon="magnifying-glass">Choose equipment</button>
+    </div>
+  </section>
 
-    <!-- -------------------------------------------------------------- left: the build itself -->
+  <!-- -------------------------------------------------- 3b. the workspace: slots · library · stats -->
+  <div class="pl-body" id="plWorkspace">
+
+    <!-- left: the build itself - the hero of the page -->
     <section class="pl-col pl-col-build">
-      <div class="card pl-card">
-        <div class="card-head">
-          <div class="card-title" data-icon="grid-four">Mod slots <span class="dim small" id="plGridMeta"></span></div>
-          <div class="ranges" id="plGridHint">click a slot, then a mod</div>
+      <div class="card pl-card pl-slots" id="plSlotsPanel">
+        <div class="pl-ph">
+          <h3 class="pl-ph-title" data-icon="grid-four">Mod slots</h3>
+          <span class="pl-ph-meta dim small" id="plGridMeta"></span>
+          <div class="ranges pl-ph-range" id="plGridHint">click a slot, then a mod</div>
         </div>
         <div class="pl-grid" id="plGrid"></div>
         <div class="pl-grid-foot dim small" id="plPolarityNote"></div>
       </div>
-
-      <div class="card pl-card" id="plValidityCard">
-        <div class="card-head">
-          <div class="card-title" data-icon="seal-check">Validation <span class="dim small" id="plValidityMeta"></span></div>
-        </div>
-        <div class="pl-valid" id="plValidity"></div>
-      </div>
-
-      <div class="card pl-card" id="plCapCard">
-        <div class="card-head">
-          <div class="card-title" data-icon="calculator">Capacity detail <span class="dim small" id="plCapDetailMeta"></span></div>
-        </div>
-        <div class="pl-capdetail" id="plCapBody"></div>
-      </div>
-
-      <div class="card pl-card">
-        <div class="card-head">
-          <div class="card-title" data-icon="info">Not calculated <span class="dim small" id="plUnsupportedMeta"></span></div>
-        </div>
-        <div class="pl-unsup" id="plUnsupported"><div class="dim small" id="plUnsupportedList">nothing yet</div></div>
-      </div>
     </section>
 
-    <!-- -------------------------------------------------------------- middle: what can go in -->
+    <!-- middle: what can go in -->
     <section class="pl-col pl-col-lib">
       <div class="card pl-card pl-lib" id="plLibrary">
-        <div class="card-head">
-          <div class="card-title" data-icon="stack">Mod library <span class="dim small" id="plLibCount"></span></div>
-          <div class="ranges" id="plLibSort" role="group" aria-label="Sort mods"></div>
+        <div class="pl-ph">
+          <h3 class="pl-ph-title" data-icon="stack">Mod library</h3>
+          <span class="pl-ph-meta dim small" id="plLibCount"></span>
+          <div class="ranges pl-ph-range" id="plLibSort" role="group" aria-label="Sort mods"></div>
         </div>
         <div class="pl-lib-hidden" id="plLibHidden" hidden></div>
         <div class="search pl-search">
@@ -158,14 +154,13 @@
       </div>
     </section>
 
-    <!-- -------------------------------------------------------------- right: what it produces -->
+    <!-- right: what it produces -->
     <section class="pl-col pl-col-stats">
       <div class="card pl-card pl-stats" id="plStats">
-        <div class="card-head">
-          <div class="card-title" data-icon="chart-line">Stats
-            <span class="dim small" id="plStatsMeta"></span>
-          </div>
-          <div class="ranges" id="plStatsView" role="group" aria-label="Stat view">
+        <div class="pl-ph">
+          <h3 class="pl-ph-title" data-icon="chart-line">Live stats</h3>
+          <span class="pl-ph-meta dim small" id="plStatsMeta"></span>
+          <div class="ranges pl-ph-range" id="plStatsView" role="group" aria-label="Stat view">
             <span class="pl-hintkey dim small">click a stat for its trace</span>
           </div>
         </div>
@@ -173,8 +168,9 @@
       </div>
 
       <div class="card pl-card pl-trace" id="plTraces">
-        <div class="card-head">
-          <div class="card-title" data-icon="list-dashes">Why <span class="dim small" id="plTraceStat"></span></div>
+        <div class="pl-ph">
+          <h3 class="pl-ph-title" data-icon="list-dashes">Why</h3>
+          <span class="pl-ph-meta dim small" id="plTraceStat"></span>
           <button class="btn pl-mini" id="plTraceCopy" data-icon="copy" hidden>Copy</button>
         </div>
         <div class="pl-trace-body" id="plTraceBody">
@@ -183,14 +179,40 @@
       </div>
 
       <div class="card pl-card pl-elements" id="plElements">
-        <div class="card-head">
-          <div class="card-title" data-icon="atom">Damage &amp; elements <span class="dim small" id="plDamageMeta"></span></div>
+        <div class="pl-ph">
+          <h3 class="pl-ph-title" data-icon="atom">Damage &amp; elements</h3>
+          <span class="pl-ph-meta dim small" id="plDamageMeta"></span>
         </div>
         <div class="pl-elem-body" id="plElemBody"></div>
       </div>
     </section>
 
   </div><!-- /pl-body -->
+
+  <!-- -------------------------------------------------- 4. diagnostics: flat, collapsible -->
+  <section class="pl-diag" id="plDiag" aria-label="Build diagnostics" hidden>
+    <details class="pl-dg" id="plValidityCard" data-diag="validation">
+      <summary>
+        <span class="pl-dg-title" data-icon="seal-check">Validation</span>
+        <span class="pl-dg-badge" id="plValidityMeta"></span>
+      </summary>
+      <div class="pl-valid" id="plValidity"></div>
+    </details>
+    <details class="pl-dg" id="plCapCard" data-diag="capacity">
+      <summary>
+        <span class="pl-dg-title" data-icon="calculator">Capacity detail</span>
+        <span class="pl-dg-badge" id="plCapDetailMeta"></span>
+      </summary>
+      <div class="pl-capdetail" id="plCapBody"></div>
+    </details>
+    <details class="pl-dg" id="plUnsupportedCard" data-diag="unsupported">
+      <summary>
+        <span class="pl-dg-title" data-icon="info">Not calculated</span>
+        <span class="pl-dg-badge" id="plUnsupportedMeta"></span>
+      </summary>
+      <div class="pl-unsup" id="plUnsupported"><div class="dim small" id="plUnsupportedList">nothing yet</div></div>
+    </details>
+  </section>
 
   <!-- the hover/drag preview: real engine answers for a hypothetical edit (never a guess) -->
   <div class="pl-preview card" id="plPreview" hidden></div>
@@ -201,6 +223,7 @@
 
 <footer class="pl-foot" title="Every number on this page comes from the local build engine (builds/) reading data/build_data.json">
   <span>engine: <code>builds/</code> · <span id="plFootEngine">loading…</span></span> ·
+  <span class="pl-status dim small" id="plStatus" title="The engine and database this page is reading"></span> ·
   <a href="/docs/build-planner.md" target="_blank" rel="noopener">how it calculates</a> ·
   <a href="/">back to dashboard</a>
 </footer>

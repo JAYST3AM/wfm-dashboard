@@ -208,6 +208,9 @@ def capacity_breakdown(equipment, slots, equipment_rank=None, orokin=False,
     # The floor can exceed the (possibly supercharged) rank capacity on a low-rank item.
     capacity_total = max(doubled, minimum) + aura_stance
     remaining = capacity_total - total_drain
+    # The bar the page draws is a percentage of two engine figures, so the engine computes it -
+    # the page printing it is display, and the page dividing it would be a second engine.
+    used_pct = 0 if not capacity_total else min(100, int(round(total_drain * 100.0 / capacity_total)))
     if remaining < 0:
         errors.append(_err('capacity_exceeded',
                            'drain %d exceeds capacity %d by %d'
@@ -222,7 +225,8 @@ def capacity_breakdown(equipment, slots, equipment_rank=None, orokin=False,
             'stance_bonus': stance_total, 'total': capacity_total,
             'floored_by_mastery': inferred,
         },
-        'drain': {'per_slot': per_slot, 'total': total_drain, 'remaining': remaining},
+        'drain': {'per_slot': per_slot, 'total': total_drain, 'remaining': remaining,
+                  'used_pct': used_pct},
         'trace': trace, 'notes': notes, 'errors': errors,
     }
 
@@ -283,6 +287,8 @@ def selftest():
     out = capacity_breakdown(weapon, [{'kind': 'normal', 'index': 0,
                                        'polarity': 'madurai', 'mod': serration}],
                              equipment_rank=30, orokin=True, mastery_rank=30)
+    check('the capacity bar percentage is the engine\'s own',
+          out['drain']['used_pct'] == 12, str(out['drain']))
     check('rank 30 + Orokin Catalyst = 60 capacity', out['capacity']['total'] == 60,
           str(out['capacity']))
     check('Serration R10 in a matching slot costs 7 drain', out['drain']['total'] == 7,

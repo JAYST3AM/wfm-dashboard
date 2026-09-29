@@ -155,3 +155,15 @@ WFMPlanner = {
   el(tag, attrs, children),    // tiny DOM helper (no innerHTML for anything from the API)
 }
 ```
+
+## Phase 2.5 layout note
+
+The page keeps every id above and the storage contract unchanged; what moved is the composition.
+The equipment header carries identity and rank only (the engine/database line lives in the footer),
+the build controls are one row, the workspace is slots / library / stats, and validation, capacity
+detail and not-calculated became a flat `<details>` strip (`#plDiag`, `.pl-dg`, closed by default,
+each with a `.pl-dg-badge`). New ids: `#plHeadRank` (the rank chip), `#plEmpty` + `#plEmptyPick`
+(the first-run hero). `body.pl-no-equip` is the first-run state and hides the controls, workspace
+and diagnostics. The equipment popover's close-on-outside handler runs in the capture phase, and
+category chips must update in place - rebuilding them detaches the clicked node and the handler
+then reads the click as outside (that was the picker-closes-on-category bug).

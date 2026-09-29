@@ -1,12 +1,21 @@
 /* WFM Trader - the build planner page.
  *
- * One page, three columns: the build (slots + capacity + validation), the mod library, and what
- * the engine says it produces (stats + traces + refusals). Colours, radii and typography come
- * from the dashboard's variables in style.css - this file only adds the planner's own density
- * layer, and it never hard-codes a colour that already has a variable.
+ * The page reads top to bottom in the order the eye should:
+ *   1. .pl-head    what is being built (the equipment header, not a page title - the shell owns that)
+ *   2. .pl-bar     the build controls: rank, mastery, adapters, forma, config, capacity
+ *   3. .pl-body    the workspace - slots (hero) · mod library · live stats
+ *   4. .pl-diag    validation / capacity detail / not-calculated, flat and collapsible
  *
- * Widths: 1280 is the floor (three columns still fit), 1920 the target (wide library, wider
- * stat rail); below 1180 the stat rail drops under the library, below 900 everything stacks.
+ * Visual rules this file keeps:
+ *   - the slot panel is the hero: strongest frame, biggest name type, everything else supports it
+ *   - one card chrome, not four competing ones: panels keep .card from style.css but drop its
+ *     shadow, and sections inside a panel are separated by hairlines instead of new boxes
+ *   - secondary information is quieter, never gone: diagnostics live in the collapsed strip
+ *   - colours, radii and type come from the dashboard variables; polarity and damage hues are the
+ *     only literals, and they are vocabulary the game itself defines
+ *
+ * Widths: 1280 is the floor (three columns still fit), 1920 the target. Below 1180 the stat rail
+ * drops under the library, below 900 everything stacks.
  */
 
 .pl-wrap { padding: 10px 16px 26px; max-width: 1560px; margin: 0 auto; min-width: 0; }
@@ -18,14 +27,17 @@
   --pol-zenurik: #a06bf0;  --pol-penjaga: #3fc4a6;   --pol-umbra: #cfd6e4;
   --pol-universal: #e8eaf0;
   --pl-ok: #4fd08a; --pl-warn: #e2b13c; --pl-bad: #ff6b6b;
-  --pl-row: 30px;
+  --pl-move: #7ec8ff;
+  --pl-hair: color-mix(in srgb, var(--border) 60%, transparent);
+  --pl-sunken: var(--panel2);
 }
 
 /* a polarity dot: colour + one letter, the same letters the engine uses in its traces */
 .pl-pol {
-  flex: 0 0 auto; width: 11px; height: 11px; border-radius: 3px; position: relative;
-  background: color-mix(in srgb, currentColor 22%, transparent); color: var(--muted);
-  border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
+  flex: 0 0 auto; width: 15px; height: 15px; border-radius: 4px; position: relative;
+  display: grid; place-items: center; font: 700 9px/1 var(--mono); color: var(--muted);
+  background: color-mix(in srgb, currentColor 26%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 70%, transparent);
 }
 .pl-pol[data-p="madurai"] { color: var(--pol-madurai); }
 .pl-pol[data-p="naramon"] { color: var(--pol-naramon); }
@@ -36,49 +48,52 @@
 .pl-pol[data-p="universal"] { color: var(--pol-universal); }
 .pl-pol[data-p="none"] { color: var(--border); background: transparent; border-style: dashed; }
 
-/* ------------------------------------------------------------------ head */
+/* ------------------------------------------------------------------ 1. equipment header */
 .pl-head {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  padding: 10px 14px; margin-bottom: 10px; position: relative; flex-wrap: wrap;
+  padding: 12px 16px; margin-bottom: 8px; position: relative; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+  border-left: 3px solid var(--accent);
 }
 /* The head hosts the equipment dropdown, and that is the whole of this rule.
    `.card` (style.css) sets overflow: hidden to round its corners - but a clipping box is also a
    scroll container, and this card's popover is taller than the card. Two things followed: the
    popover was clipped at the card's edge, and focusing the search input (which the picker does on
    open, and the page does on boot) made the browser scroll the card to reveal it - so the title,
-   the selector and the buttons slid up out of their own card, leaving it looking empty.
-   Measured before the fix at 1366x768: head scrollTop 51 against clientHeight 56 / scrollHeight
-   695, with .pl-head-main painted 40px above the card's top edge. No other card on this page is
-   affected: every one of them has scrollHeight == clientHeight, and none holds a popover. */
+   the selector and the buttons slid up out of their own card, leaving it looking empty. This panel
+   no longer takes .card at all (see the note on panels below), but the rule stays: nothing here
+   may clip the popover. */
 .pl-head { overflow: visible; }
-.pl-head-main { display: flex; align-items: center; gap: 14px; min-width: 0; flex-wrap: wrap; row-gap: 8px; }
-.pl-title {
-  display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 650;
-  letter-spacing: .3px; white-space: nowrap;
-}
-.pl-title .i { color: var(--accent); }
+.pl-head-main { display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap; row-gap: 8px; }
 .pl-head-side { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; flex-wrap: wrap; }
 .pl-status { font-family: var(--mono); white-space: nowrap; }
+.pl-equip-rank {
+  font: 650 11px var(--mono); color: var(--accent); border: 1px solid var(--accent-dim);
+  background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 999px;
+  padding: 2px 9px; white-space: nowrap;
+}
+.pl-equip-rank[hidden] { display: none; }
 
 .pl-picker { position: relative; min-width: 0; }
 .pl-equip {
-  display: flex; align-items: baseline; gap: 9px; max-width: 100%; padding: 7px 11px;
+  display: flex; align-items: baseline; gap: 9px; max-width: 100%; padding: 8px 12px;
   background: var(--panel2); color: var(--text); border: 1px solid var(--border);
   border-radius: 10px; cursor: pointer; text-align: left; font: inherit;
 }
 .pl-equip:hover { border-color: var(--accent-dim); }
-.pl-equip[aria-expanded="true"] { border-color: var(--accent-dim); background: var(--panel); }
+.pl-equip:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+.pl-equip[aria-expanded="true"] { border-color: var(--accent); background: var(--panel); }
 .pl-equip-kind {
   font-size: 9.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted);
   border-right: 1px solid var(--border); padding-right: 9px;
 }
-.pl-equip-name { font-size: 14px; font-weight: 650; white-space: nowrap; max-width: 44vw;
-  overflow: hidden; text-overflow: ellipsis; }
+.pl-equip-name { font-size: 17px; font-weight: 700; letter-spacing: .1px; white-space: nowrap;
+  max-width: 44vw; overflow: hidden; text-overflow: ellipsis; }
 .pl-equip-meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
 .pl-caret { color: var(--muted); font-size: 11px; }
 
 .pl-pop {
-  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 480px; max-width: 92vw;
+  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 520px; max-width: 92vw;
   padding: 10px; box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
 }
 .pl-search { margin-bottom: 8px; }
@@ -95,20 +110,24 @@
 .pl-eq-kind { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 .pl-eq-nums { font-family: var(--mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 
-/* ------------------------------------------------------------------ toolbar */
+/* ------------------------------------------------------------------ 2. build controls */
+/* One strip, six groups, read left to right. No card chrome: it sits between the equipment header
+   and the workspace as part of the same surface. */
 .pl-bar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
-  padding: 9px 14px; margin-bottom: 10px;
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 22px;
+  padding: 9px 16px 11px; margin-bottom: 8px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
 }
-.pl-bar-item { display: flex; align-items: center; gap: 8px; }
+.pl-ctl { display: flex; align-items: center; gap: 8px; }
+.pl-ctl + .pl-ctl { padding-left: 18px; border-left: 1px solid var(--pl-hair); }
 .pl-lbl {
   font-size: 9.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted);
   white-space: nowrap;
 }
 .pl-rankctl { display: flex; align-items: center; gap: 5px; }
 .pl-num {
-  width: 54px; padding: 4px 6px; background: var(--panel2); color: var(--text);
-  border: 1px solid var(--border); border-radius: 8px; font: 12.5px var(--mono);
+  width: 52px; padding: 4px 6px; background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; font: 700 13px var(--mono);
   font-variant-numeric: tabular-nums; text-align: center;
 }
 .pl-num:hover { border-color: var(--accent-dim); }
@@ -116,13 +135,14 @@
 
 .pl-toggles { gap: 6px; }
 .pl-toggle {
-  display: flex; align-items: center; gap: 7px; padding: 5px 10px; background: var(--panel2);
-  border: 1px solid var(--border); border-radius: 9px; color: var(--muted); font: inherit;
+  display: flex; align-items: center; gap: 7px; padding: 5px 11px; background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font: inherit;
   font-size: 12px; cursor: pointer;
 }
 .pl-toggle:hover { border-color: var(--accent-dim); color: var(--text); }
-.pl-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim);
-  background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pl-toggle:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+.pl-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .pl-toggle .i { font-size: 13px; }
 .pl-tog-val { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
 .pl-toggle[aria-pressed="true"] .pl-tog-val { color: var(--accent); }
@@ -130,13 +150,15 @@
 .pl-configs { gap: 10px; }
 .pl-tabs { display: flex; gap: 4px; }
 .pl-tab {
-  width: 30px; height: 26px; display: grid; place-items: center; background: var(--panel2);
+  width: 36px; height: 30px; display: grid; place-items: center; background: var(--panel2);
   border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer;
-  font: 650 12px var(--mono);
+  font: 700 13px var(--mono);
 }
 .pl-tab:hover { color: var(--text); border-color: var(--accent-dim); }
+.pl-tab:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
 .pl-tab[aria-selected="true"] {
   color: #10131a; background: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .pl-tab .pl-tab-dot { position: absolute; }
 .pl-tab-wrap { position: relative; display: inline-flex; }
@@ -146,71 +168,172 @@
   color: var(--muted); font: 9.5px/12px var(--mono); text-align: center;
 }
 
-.pl-bar-cap { flex: 1 1 260px; min-width: 190px; }
+.pl-bar-cap { flex: 1 1 300px; min-width: 220px; margin-left: auto; }
 .pl-cap-head { display: flex; align-items: baseline; gap: 6px; }
-.pl-cap-num { font-size: 13px; font-weight: 700; }
+.pl-cap-num { font-size: 20px; font-weight: 700; line-height: 1; }
+.pl-cap-num.dim { font-size: 14px; font-weight: 600; }
 .pl-cap-num.over { color: var(--pl-bad); }
-.pl-cap-note { font-family: var(--mono); margin-left: 4px; }
+.pl-cap-sep { font-size: 14px; color: var(--muted); }
+.pl-cap-note { font-family: var(--mono); margin-left: 6px; }
 .pl-cap-bar {
-  margin-top: 5px; height: 6px; border-radius: 4px; overflow: hidden; background: var(--panel2);
+  margin-top: 6px; height: 8px; border-radius: 5px; overflow: hidden; background: var(--panel2);
   border: 1px solid var(--border);
 }
-.pl-cap-bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .12s ease; }
+.pl-cap-bar > i { display: block; height: 100%; width: 0; background: var(--accent);
+  transition: width .12s ease; }
 .pl-cap-bar.over > i { background: var(--pl-bad); }
 .pl-cap-bar.warn > i { background: var(--pl-warn); }
 
-/* ------------------------------------------------------------------ body columns */
-.pl-body { display: grid; grid-template-columns: 348px minmax(320px, 1fr) 430px; gap: 10px; align-items: start; }
+/* ------------------------------------------------------------------ 3a. first run */
+/* No item chosen: the workspace, the controls and the diagnostics are noise, so they are hidden
+   and the page invites the one action it wants. */
+body.pl-no-equip .pl-bar,
+body.pl-no-equip .pl-body,
+body.pl-no-equip .pl-diag { display: none; }
+.pl-empty { display: none; }
+body.pl-no-equip .pl-empty { display: block; }
+.pl-empty-in {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 54px 20px 58px; text-align: center;
+  background: var(--panel); border: 1px dashed var(--border); border-radius: var(--r);
+}
+.pl-empty-ico { font-size: 30px; color: var(--accent); opacity: .85; }
+.pl-empty-title { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: .2px; }
+.pl-empty-sub { margin: 0; color: var(--muted); font-size: 12.5px; }
+.pl-empty-btn { margin-top: 10px; }
+
+/* ------------------------------------------------------------------ 3b. workspace columns */
+.pl-body { display: grid; grid-template-columns: 440px minmax(320px, 1fr) 404px; gap: 10px; align-items: start; }
 .pl-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.pl-card { padding: 10px 12px 12px; }
-.pl-card .card-head { align-items: center; margin-bottom: 8px; flex-wrap: wrap; row-gap: 6px; }
-.pl-card .card-title { display: flex; align-items: center; gap: 7px; }
-#plGridHint { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Panels: one chrome, no shadow, hairline-separated sections. `.card` from style.css still carries
+   the surface, the border and the radius; the shadow is what made four equal boxes compete. */
+.pl-card { padding: 0 0 10px; box-shadow: none; }
+.pl-ph {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap; row-gap: 6px;
+  padding: 9px 12px 8px; border-bottom: 1px solid var(--pl-hair);
+}
+.pl-ph-title {
+  display: flex; align-items: center; gap: 7px; margin: 0;
+  font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--text);
+}
+.pl-ph-title .i { color: var(--accent); }
+.pl-ph-meta { font-family: var(--mono); }
+.pl-ph-range { margin-left: auto; display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  justify-content: flex-end; }
 #plGridHint .pl-rank-range { width: 84px; }
 
-/* ------------------------------------------------------------------ slot grid */
-.pl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+/* the hero panel: the slots carry the accent edge that the equipment header does not */
+.pl-slots { border-top: 2px solid var(--accent); }
+
+/* ------------------------------------------------------------------ slot grid: the loadout */
+.pl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 10px 12px 0; }
 .pl-slot {
-  position: relative; display: grid; grid-template-columns: 13px minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto auto; align-items: center; gap: 1px 7px; min-height: 46px;
-  padding: 5px 7px 6px; background: var(--panel2); border: 1px solid var(--border);
-  border-radius: 9px; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  position: relative; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto; align-items: center; gap: 1px 8px; height: 68px;
+  padding: 7px 9px 8px; overflow: hidden;
+  background: var(--pl-sunken); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
 }
+/* an installed mod owns its tile: brighter frame, brighter kind label */
+.pl-slot[data-state="filled"] {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: color-mix(in srgb, var(--accent) 4%, var(--pl-sunken));
+}
+.pl-slot[data-state="filled"] .pl-slot-kind { color: color-mix(in srgb, var(--text) 78%, var(--muted)); }
 .pl-slot:hover { border-color: var(--accent-dim); }
 .pl-slot:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
-.pl-slot[data-state="empty"] .pl-slot-name { color: var(--muted); font-weight: 400; }
-.pl-slot[data-state="blocked"] { opacity: .55; cursor: not-allowed; }
-.pl-slot[data-focus="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim) inset; }
-.pl-slot[data-drop="ok"] { border-color: var(--pl-ok); background: color-mix(in srgb, var(--pl-ok) 12%, var(--panel2)); }
-.pl-slot[data-drop="bad"] { border-color: var(--pl-bad); background: color-mix(in srgb, var(--pl-bad) 12%, var(--panel2)); }
 .pl-slot-kind {
-  grid-area: 1 / 1 / 2 / -1; font: 9px/1.2 var(--mono); letter-spacing: .5px;
+  grid-area: 1 / 1 / 2 / -1; font: 9px/1.2 var(--mono); letter-spacing: .6px;
   text-transform: uppercase; color: var(--muted);
 }
 .pl-slot-name {
-  grid-area: 2 / 2 / 3 / 3; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  grid-area: 2 / 2 / 3 / 3; font-size: 13.5px; font-weight: 680; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
-.pl-slot-sub { grid-area: 3 / 2 / 4 / 3; font: 9.5px var(--mono); color: var(--muted); }
+.pl-slot-sub { grid-area: 3 / 2 / 4 / 3; font: 10px var(--mono); color: var(--muted); }
 .pl-slot-drain {
-  grid-area: 2 / 3 / 5 / 4; align-self: center; font: 700 12px var(--mono); color: var(--text);
+  grid-area: 2 / 3 / 5 / 4; align-self: center; font: 700 15px var(--mono); color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .pl-slot-drain.up { color: var(--pl-bad); }
 .pl-slot .pl-pol { grid-area: 2 / 1 / 5 / 2; align-self: center; }
 .pl-slot-x {
-  position: absolute; right: 3px; top: 3px; width: 15px; height: 15px; border: 0; border-radius: 4px;
+  position: absolute; right: 4px; top: 4px; width: 16px; height: 16px; border: 0; border-radius: 4px;
   background: transparent; color: var(--muted); cursor: pointer; font: 11px/1 var(--mono); opacity: 0;
 }
-.pl-slot:hover .pl-slot-x { opacity: 1; }
+.pl-slot:hover .pl-slot-x, .pl-slot-x:focus-visible { opacity: 1; }
 .pl-slot-x:hover { color: var(--pl-bad); background: var(--panel); }
 .pl-slot-empty-hint { grid-column: 2 / -1; font-size: 10.5px; color: var(--muted); }
 
-/* exilus / aura / stance read as their own strip under the eight normal slots */
-.pl-grid-aux {
-  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
-  margin-top: 4px; padding-top: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+/* an empty slot invites: dashed frame, a plus where the polarity dot goes, no fake data */
+.pl-slot[data-state="empty"] {
+  border-style: dashed; background: color-mix(in srgb, var(--accent) 3%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
+/* the empty tile keeps its polarity dot visible - that dot IS the control the panel's note
+   points at, so hiding it made the note read as dead space - and says 'add a mod' in the one
+   glyph everyone reads as 'add' */
+.pl-slot[data-state="empty"] .pl-pol { opacity: .9; }
+.pl-slot[data-state="empty"] .pl-slot-name::before {
+  content: '+ '; color: color-mix(in srgb, var(--accent) 80%, var(--muted)); font-weight: 700;
+}
+.pl-slot[data-state="empty"] .pl-slot-name { color: var(--muted); font-weight: 500; }
+.pl-slot[data-state="empty"] .pl-slot-empty-hint { color: color-mix(in srgb, var(--accent) 70%, var(--muted)); }
+.pl-slot[data-state="empty"]:hover {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.pl-slot[data-state="blocked"] { opacity: .5; cursor: not-allowed; }
+
+/* the selected slot is unmistakable: accent ring, lifted surface, accent name */
+.pl-slot[data-focus="true"] {
+  border-color: var(--accent); background: var(--panel);
+  box-shadow: 0 0 0 1px var(--accent), 0 2px 10px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.pl-slot[data-focus="true"] .pl-slot-kind { color: var(--accent); }
+.pl-slot[data-focus="true"]::before {
+  content: ''; position: absolute; left: -1px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 2px; background: var(--accent);
+}
+
+/* drag targets say what they will do */
+.pl-slot[data-drop="ok"] { border-color: var(--pl-ok); border-style: solid;
+  background: color-mix(in srgb, var(--pl-ok) 10%, var(--pl-sunken)); }
+.pl-slot[data-drop="move"] { border-color: var(--pl-move); border-style: solid;
+  background: color-mix(in srgb, var(--pl-move) 10%, var(--pl-sunken)); }
+.pl-slot[data-drop="bad"] { border-color: var(--pl-bad); border-style: solid;
+  background: color-mix(in srgb, var(--pl-bad) 10%, var(--pl-sunken)); opacity: .85; }
+.pl-slot[draggable="true"] { cursor: grab; }
+body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
+.pl-lib-drop { border-color: var(--pl-bad) !important; box-shadow: inset 0 0 0 1px var(--pl-bad); }
+
+/* aura / exilus / stance: same tiles, their own strip, an accent that marks them as special */
+.pl-grid-aux {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px;
+  margin-top: 6px; padding-top: 10px;
+  border-top: 1px solid var(--pl-hair);
+}
+.pl-grid-aux .pl-slot { background: color-mix(in srgb, var(--accent) 5%, var(--pl-sunken)); }
+.pl-grid-aux .pl-slot[data-state="empty"] { background: transparent; }
+.pl-grid-aux .pl-slot .pl-slot-kind { color: color-mix(in srgb, var(--accent) 80%, var(--muted)); }
+
+.pl-polarity-note { margin-top: 7px; font-family: var(--mono); line-height: 1.45; }
+.pl-grid-foot { padding: 8px 12px 0; font-family: var(--mono); }
+.pl-rank-range { width: 96px; accent-color: var(--accent); }
+.pl-hintwarn { color: var(--pl-warn); }
+
+/* an installed mod with mechanics the engine refuses: always visible, never a hidden caveat */
+.pl-slot-refused {
+  grid-area: 4 / 2 / 5 / 4; justify-self: start; font: 9.5px/14px var(--mono);
+  color: var(--pl-warn); border: 1px solid color-mix(in srgb, var(--pl-warn) 45%, transparent);
+  background: color-mix(in srgb, var(--pl-warn) 12%, transparent); border-radius: 5px;
+  padding: 0 6px; cursor: help; white-space: nowrap;
+}
+.pl-slot-refused:hover { border-color: var(--pl-warn); }
+
+/* the polarity picker popover */
 .pl-polmenu { position: fixed; z-index: 80; width: 240px; padding: 6px; }
 .pl-polmenu-head { padding: 3px 6px 6px; font-family: var(--mono); }
 .pl-polopt {
@@ -220,131 +343,63 @@
 }
 .pl-polopt:hover { background: var(--panel2); }
 .pl-polopt[data-on="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.pl-rank-range { width: 96px; accent-color: var(--accent); }
-.pl-hintwarn { color: var(--pl-warn); }
-.pl-polarity-note { margin-top: 7px; font-family: var(--mono); line-height: 1.45; }
 
 /* the hidden-rows note: what the server kept out of the list, one click to see it anyway */
-.pl-lib-hidden { padding: 0 4px 6px; }
+.pl-lib-hidden { padding: 8px 12px 0; }
 .pl-hidden-link {
-  font: 10.5px var(--mono); color: var(--pl-warn); background: #241f14;
-  border: 1px solid #5c4a24; border-radius: 5px; padding: 2px 7px; cursor: pointer;
+  font: 10.5px var(--mono); color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 3px 9px; cursor: pointer;
 }
+.pl-hidden-link:hover { color: var(--accent); border-color: var(--accent-dim); }
 .pl-hidden-link:hover { border-color: var(--pl-warn); }
-.pl-variant-hidden { color: var(--pl-warn); border-color: #5c4a24; background: #241f14; }
-
-/* ------------------------------------------------------------------ drag states */
-/* A library row on its way in: legal slots invite, illegal ones refuse - never silently. */
-.pl-slot[data-drop="ok"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.pl-slot[data-drop="move"] {
-  border-color: #7ec8ff; box-shadow: inset 0 0 0 1px #7ec8ff;
-}
-.pl-slot[data-drop="bad"] {
-  border-color: var(--pl-bad); box-shadow: inset 0 0 0 1px var(--pl-bad); opacity: .8;
-}
-.pl-slot[draggable="true"] { cursor: grab; }
-body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
-.pl-lib-drop {
-  border-color: var(--pl-bad) !important;
-  box-shadow: inset 0 0 0 1px var(--pl-bad);
-}
-.pl-lib-drop::after {
-  content: 'drop here to remove'; position: absolute; right: 12px; top: 8px;
-  font: 10px var(--mono); color: var(--pl-bad);
-}
-
-/* An installed mod with mechanics the engine refuses: always visible, never a hidden caveat. */
-.pl-slot-refused {
-  grid-area: 4 / 2 / 5 / 4; justify-self: start; font: 9.5px/13px var(--mono);
-  color: var(--pl-warn); border: 1px solid #5c4a24; background: #241f14; border-radius: 5px;
-  padding: 0 5px; cursor: help; white-space: nowrap;
-}
-.pl-slot-refused:hover { border-color: var(--pl-warn); }
-#plLibrary { position: relative; }
-
-/* Forma readout + config duplicate */
-.pl-forma-item { gap: 7px; }
-.pl-forma {
-  font: 700 13px var(--mono); color: var(--accent); min-width: 12px; text-align: right;
-}
-.pl-dup {
-  margin-left: 4px; background: transparent; color: var(--muted); border: 1px solid var(--border);
-  border-radius: var(--r); padding: 3px 8px; font-size: 11px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 5px;
-}
-.pl-dup:hover { color: var(--text); border-color: var(--muted); }
-
-.pl-capdetail { display: flex; flex-direction: column; gap: 2px; }
-.pl-cd-row, .pl-cd-slot {
-  display: grid; grid-template-columns: minmax(84px, auto) minmax(0, 1fr) auto; gap: 8px;
-  align-items: baseline; padding: 3px 4px; border-radius: 6px; font-size: 11px;
-}
-.pl-cd-row:hover, .pl-cd-slot:hover { background: var(--panel2); }
-.pl-cd-key { font-family: var(--mono); font-size: 10.5px; color: var(--text); white-space: nowrap; }
-.pl-cd-note { color: var(--muted); }
-.pl-cd-val { font: 650 11.5px var(--mono); font-variant-numeric: tabular-nums; text-align: right;
-  white-space: nowrap; }
-.pl-cd-total { border-top: 1px solid var(--border); margin-top: 3px; padding-top: 5px; }
-.pl-cd-total .pl-cd-val { color: var(--accent); }
-.pl-cd-head { margin: 8px 0 3px; font: 9.5px var(--mono); text-transform: uppercase;
-  letter-spacing: .7px; color: var(--muted); }
-.pl-cd-slot { grid-template-columns: minmax(56px, auto) minmax(0, 1fr) auto auto; }
-.pl-cd-slotname { font: 10px var(--mono); color: var(--muted); }
-.pl-cd-mod { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-cd-rule {
-  font: 9.5px var(--mono); padding: 0 5px; border-radius: 5px; border: 1px solid var(--border);
-  color: var(--muted); white-space: nowrap;
-}
-.pl-cd-rule[data-r="matching"] { color: var(--pl-ok); border-color: #2c5f45; }
-.pl-cd-rule[data-r="mismatched"], .pl-cd-rule[data-r="mismatched_umbra"] {
-  color: var(--pl-bad); border-color: #6b2f2f;
-}
-.pl-cd-rule[data-r="forma"] { color: var(--accent); border-color: var(--accent-dim); }
-.pl-cd-forma .pl-cd-mod { color: var(--muted); }
-.pl-capdetail .pl-cd-slot .pl-cd-val { color: var(--text); }
-.pl-cd-empty { opacity: .62; }
-.pl-cd-empty .pl-cd-mod { font-style: italic; }
-.pl-valid { display: flex; flex-direction: column; gap: 5px; }
-.pl-val-row {
-  display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 7px; align-items: baseline;
-  font-size: 11.5px; line-height: 1.4;
-}
-.pl-val-row[data-k="error"] .i { color: var(--pl-bad); }
-.pl-val-row[data-k="warning"] .i { color: var(--pl-warn); }
-.pl-val-row[data-k="ok"] .i { color: var(--pl-ok); }
-.pl-val-code { font: 10px var(--mono); color: var(--muted); }
-.pl-unsup { display: flex; flex-direction: column; gap: 5px; max-height: 190px; overflow: auto; }
-.pl-unsup-row { font-size: 11px; line-height: 1.45; }
-.pl-unsup-name { font-family: var(--mono); font-size: 10.5px; color: var(--accent); }
-.pl-unsup-why { color: var(--muted); }
+.pl-variant-hidden { color: var(--pl-warn);
+  border-color: color-mix(in srgb, var(--pl-warn) 45%, transparent); }
 
 /* ------------------------------------------------------------------ mod library */
 .pl-lib { display: flex; flex-direction: column; min-height: 0; }
-.pl-filters { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.pl-lib .pl-search { margin: 10px 12px 0; }
+.pl-filters { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 12px 0; }
 .pl-chip {
-  padding: 3px 8px; background: var(--panel2); border: 1px solid var(--border); border-radius: 999px;
-  color: var(--muted); font-size: 10.5px; cursor: pointer;
+  padding: 3px 9px; background: var(--panel2); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--muted); font-size: 10.5px; cursor: pointer; font-family: inherit;
 }
 .pl-chip:hover { color: var(--text); border-color: var(--accent-dim); }
-.pl-chip[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); }
-.pl-lib-list { margin: 8px -4px 0; overflow: auto; max-height: min(62vh, 760px); }
+.pl-chip:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+.pl-chip[aria-pressed="true"] {
+  color: var(--accent); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+.pl-lib-list { margin: 9px 6px 0 12px; padding-right: 4px; overflow: auto;
+  max-height: min(62vh, 760px); scrollbar-gutter: stable; }
+/* the list really has more rows than fit: fade the last band so it reads as scrollable
+   instead of as a cut-off (the class is toggled by the renderer) */
+.pl-lib-list.scrolly {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent 100%);
+}
+
+/* row rhythm: the name leads, the effect line follows, the numbers sit quietly on the right */
 .pl-row {
-  display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto; gap: 7px; align-items: center;
-  padding: 5px 7px; border-radius: 8px; cursor: grab; border: 1px solid transparent;
+  display: grid; grid-template-columns: 3px minmax(0, 1fr) auto auto; gap: 8px; align-items: center;
+  padding: 6px 8px; border-radius: 8px; cursor: grab; border: 1px solid transparent;
+  min-height: 38px;
 }
 .pl-row:hover { background: var(--panel2); border-color: var(--border); }
-.pl-row[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 13%, transparent);
+.pl-row[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent);
   border-color: var(--accent-dim); }
+.pl-row[aria-selected="true"]::before { content: ''; }
 .pl-row[data-dragging="true"] { opacity: .55; }
 .pl-row-main { min-width: 0; }
-.pl-row-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden;
+.pl-row-name { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 .pl-row-name .pl-variant {
   font: 9px var(--mono); color: var(--muted); border: 1px solid var(--border); border-radius: 5px;
   padding: 0 4px; margin-left: 5px; text-transform: uppercase; letter-spacing: .4px;
 }
 .pl-row-lines { font: 10.5px var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; }
+  text-overflow: ellipsis; margin-top: 1px; }
 .pl-row-flags { display: flex; gap: 3px; }
 .pl-flag {
   font: 9px/14px var(--mono); text-transform: uppercase; letter-spacing: .4px; padding: 0 4px;
@@ -352,15 +407,18 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
   color: color-mix(in srgb, var(--text) 72%, var(--muted));
 }
 .pl-flag[data-f="primed"], .pl-flag[data-f="prime"] { color: var(--accent); border-color: var(--accent-dim); }
-.pl-flag[data-f="galvanized"] { color: #7ec8ff; border-color: #2a4d68; }
+.pl-flag[data-f="galvanized"] { color: var(--pl-move); border-color: color-mix(in srgb, var(--pl-move) 45%, transparent); }
 .pl-flag[data-f="umbra"] { color: var(--pol-umbra); }
-.pl-flag[data-f="augment"] { color: #ff8ac2; border-color: #6a3350; }
-.pl-flag[data-f="aura"], .pl-flag[data-f="stance"] { color: var(--pol-naramon); border-color: #5a4a1c; }
+.pl-flag[data-f="augment"] { color: #ff8ac2; border-color: color-mix(in srgb, #ff8ac2 45%, transparent); }
+.pl-flag[data-f="aura"], .pl-flag[data-f="stance"] { color: var(--pol-naramon);
+  border-color: color-mix(in srgb, var(--pol-naramon) 45%, transparent); }
 .pl-row-right { display: flex; align-items: center; gap: 6px; }
-.pl-row-drain { font: 700 12px var(--mono); min-width: 18px; text-align: right; }
+.pl-row-drain { font: 700 12.5px var(--mono); min-width: 18px; text-align: right;
+  font-variant-numeric: tabular-nums; }
 .pl-row-drain .at { color: var(--muted); font-weight: 400; }
 .pl-row-warn { color: var(--pl-warn); font-size: 11px; }
-.pl-lib-empty { padding: 14px 8px; text-align: center; font-size: 11.5px; }
+.pl-lib-empty { padding: 22px 8px; text-align: center; font-size: 11.5px; }
+
 /* the mod detail card: what a library row can say when there is room for the whole card */
 .pl-modtip {
   position: fixed; z-index: 72; width: 380px; max-width: 92vw; padding: 9px 11px 10px;
@@ -383,35 +441,41 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
 .pl-lib-list::-webkit-scrollbar, .pl-pop-list::-webkit-scrollbar, .pl-unsup::-webkit-scrollbar,
 .pl-stat-body::-webkit-scrollbar { width: 9px; }
 
-/* ------------------------------------------------------------------ stat panel */
-.pl-stats .pl-stat-body { max-height: min(56vh, 700px); overflow: auto; }
-.pl-stat-group { margin-bottom: 9px; }
+/* ------------------------------------------------------------------ live stats */
+.pl-stats .pl-stat-body { max-height: min(56vh, 700px); overflow: auto; padding: 6px 8px 2px; }
+.pl-stat-group { margin-bottom: 10px; }
 .pl-stat-group > .pl-sg-head {
-  font: 10px var(--mono); text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
-  padding: 5px 6px 3px; position: sticky; top: 0; background: var(--panel); z-index: 2;
+  font: 9.5px var(--mono); text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
+  padding: 6px 6px 4px; position: sticky; top: 0; background: var(--panel); z-index: 2;
+  border-bottom: 1px solid var(--pl-hair);
 }
 .pl-stat-row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: baseline;
-  width: 100%; padding: 4px 6px; border: 1px solid transparent; border-radius: 7px;
+  width: 100%; padding: 5px 6px; border: 1px solid transparent; border-radius: 7px;
   background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
 .pl-stat-row:hover { background: var(--panel2); border-color: var(--border); }
+.pl-stat-row:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
 .pl-stat-row[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent);
   border-color: var(--accent-dim); }
 .pl-stat-name { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 .pl-stat-row.has-trace .pl-stat-name { color: var(--text); }
-.pl-stat-val { font: 650 12.5px var(--mono); font-variant-numeric: tabular-nums; }
-.pl-stat-delta { font: 10.5px var(--mono); min-width: 52px; text-align: right; color: var(--muted); }
+.pl-stat-val { font: 700 13.5px var(--mono); font-variant-numeric: tabular-nums; }
+/* the build moved this number: the value is the accent, the delta says which way */
+.pl-stat-val.changed { color: var(--accent); }
+.pl-stat-delta { font: 10.5px var(--mono); min-width: 52px; text-align: right; color: var(--muted);
+  font-variant-numeric: tabular-nums; }
 .pl-stat-delta.up { color: var(--pl-ok); }
 .pl-stat-delta.down { color: var(--pl-bad); }
 .pl-stat-base { color: var(--muted); font-size: 10.5px; font-family: var(--mono); }
 
-.pl-trace-body { font-size: 11.5px; line-height: 1.5; }
+/* the trace: one line per source, the engine's own arithmetic on show */
+.pl-trace-body { font-size: 11.5px; line-height: 1.5; padding: 8px 12px 2px; }
 .pl-tr-label { font: 10px var(--mono); text-transform: uppercase; letter-spacing: .6px;
   color: var(--muted); margin-bottom: 5px; }
 .pl-tr-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px;
-  padding: 2.5px 0; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  padding: 3px 0; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 .pl-tr-line:first-of-type { border-top: 0; }
 .pl-tr-src { color: var(--text); }
 .pl-tr-src .mod { color: var(--accent); font-family: var(--mono); font-size: 10.5px; }
@@ -421,9 +485,8 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
 .pl-tr-note { margin-top: 6px; color: var(--muted); font-size: 10.5px; line-height: 1.45; }
 .pl-tr-note code { font-family: var(--mono); color: var(--text); }
 
-.pl-elem-body { display: flex; flex-direction: column; gap: 6px; }
-/* the damage-type palette: the colours the game uses for each element, on the split bar,
-   the legend swatches and the composition lines */
+/* damage & elements */
+.pl-elem-body { display: flex; flex-direction: column; gap: 8px; padding: 9px 12px 2px; }
 :root {
   --dmg-impact: #c8ccd6; --dmg-puncture: #8fa8d8; --dmg-slash: #e2563c; --dmg-heat: #ff7a2f;
   --dmg-cold: #5fc6f0; --dmg-electricity: #b98cff; --dmg-toxin: #7fd45c; --dmg-blast: #f0a53c;
@@ -459,6 +522,81 @@ body.pl-dragging-installed .pl-lib-list .pl-row { opacity: .5; }
 .pl-elem-swatch { width: 8px; height: 8px; border-radius: 2px; }
 .pl-dmg-split { font: 10.5px var(--mono); color: var(--muted); }
 
+/* ------------------------------------------------------------------ 4. diagnostics strip */
+/* Flat and collapsible: a valid build shows one quiet row of summaries, never a wall of
+   placeholder boxes. Details come on demand. */
+.pl-diag {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  margin-top: 10px; align-items: start;
+}
+.pl-diag[hidden] { display: none; }
+.pl-dg {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+  min-width: 0;
+}
+.pl-dg[open] { border-color: var(--accent-dim); }
+.pl-dg > summary {
+  display: flex; align-items: center; gap: 9px; padding: 9px 12px; cursor: pointer;
+  list-style: none; font: 700 11px/1.2 inherit; letter-spacing: .8px; text-transform: uppercase;
+}
+.pl-dg > summary::-webkit-details-marker { display: none; }
+.pl-dg > summary:hover { color: var(--accent); }
+.pl-dg > summary:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: -2px; }
+.pl-dg-title { display: flex; align-items: center; gap: 7px; }
+.pl-dg-title .i { color: var(--accent); }
+.pl-dg-badge { margin-left: auto; font: 10.5px var(--mono); color: var(--muted);
+  text-transform: none; letter-spacing: 0; }
+.pl-dg[data-diag="validation"] .pl-dg-badge[data-k="error"] { color: var(--pl-bad); }
+.pl-dg[data-diag="validation"] .pl-dg-badge[data-k="warning"] { color: var(--pl-warn); }
+.pl-dg[data-diag="validation"] .pl-dg-badge[data-k="ok"] { color: var(--pl-ok); }
+.pl-dg > *:not(summary) { padding: 2px 12px 12px; }
+.pl-dg .pl-capdetail { display: flex; flex-direction: column; gap: 2px; }
+.pl-valid { display: flex; flex-direction: column; gap: 5px; }
+.pl-val-row {
+  display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 7px; align-items: baseline;
+  font-size: 11.5px; line-height: 1.4;
+}
+.pl-val-row[data-k="error"] .i { color: var(--pl-bad); }
+.pl-val-row[data-k="warning"] .i { color: var(--pl-warn); }
+.pl-val-row[data-k="ok"] .i { color: var(--pl-ok); }
+.pl-val-code { font: 10px var(--mono); color: var(--muted); }
+.pl-unsup { display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow: auto; }
+.pl-unsup-row { font-size: 11px; line-height: 1.45; }
+.pl-unsup-name { font-family: var(--mono); font-size: 10.5px; color: var(--accent); }
+.pl-unsup-why { color: var(--muted); }
+
+/* the capacity-detail rows (inside the diagnostics strip) */
+.pl-cd-row, .pl-cd-slot {
+  display: grid; grid-template-columns: minmax(84px, auto) minmax(0, 1fr) auto; gap: 8px;
+  align-items: baseline; padding: 3px 4px; border-radius: 6px; font-size: 11px;
+}
+.pl-cd-row:hover, .pl-cd-slot:hover { background: var(--panel2); }
+.pl-cd-key { font-family: var(--mono); font-size: 10.5px; color: var(--text); white-space: nowrap; }
+.pl-cd-note { color: var(--muted); }
+.pl-cd-val { font: 650 11.5px var(--mono); font-variant-numeric: tabular-nums; text-align: right;
+  white-space: nowrap; }
+.pl-cd-total { border-top: 1px solid var(--border); margin-top: 3px; padding-top: 5px; }
+.pl-cd-total .pl-cd-val { color: var(--accent); }
+.pl-cd-head { margin: 8px 0 3px; font: 9.5px var(--mono); text-transform: uppercase;
+  letter-spacing: .7px; color: var(--muted); }
+.pl-cd-slot { grid-template-columns: minmax(56px, auto) minmax(0, 1fr) auto auto; }
+.pl-cd-slotname { font: 10px var(--mono); color: var(--muted); }
+.pl-cd-mod { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-cd-rule {
+  font: 9.5px var(--mono); padding: 0 5px; border-radius: 5px; border: 1px solid var(--border);
+  color: var(--muted); white-space: nowrap;
+}
+.pl-cd-rule[data-r="matching"] { color: var(--pl-ok);
+  border-color: color-mix(in srgb, var(--pl-ok) 45%, transparent); }
+.pl-cd-rule[data-r="mismatched"], .pl-cd-rule[data-r="mismatched_umbra"] {
+  color: var(--pl-bad); border-color: color-mix(in srgb, var(--pl-bad) 45%, transparent);
+}
+.pl-cd-rule[data-r="forma"] { color: var(--accent); border-color: var(--accent-dim); }
+.pl-cd-forma .pl-cd-mod { color: var(--muted); }
+.pl-capdetail .pl-cd-slot .pl-cd-val { color: var(--text); }
+.pl-cd-empty { opacity: .62; }
+.pl-cd-empty .pl-cd-mod { font-style: italic; }
+
 /* ------------------------------------------------------------------ preview */
 .pl-preview {
   position: fixed; z-index: 70; right: 18px; bottom: 18px; width: 460px; max-width: 92vw;
@@ -490,18 +628,18 @@ kbd {
 
 /* ------------------------------------------------------------------ responsive */
 @media (max-width: 1560px) {
-  .pl-body { grid-template-columns: 330px minmax(300px, 1fr) 390px; }
+  .pl-body { grid-template-columns: 412px minmax(300px, 1fr) 384px; }
 }
 @media (max-width: 1320px) {
-  .pl-body { grid-template-columns: 318px minmax(280px, 1fr) 360px; }
+  .pl-body { grid-template-columns: 390px minmax(280px, 1fr) 350px; }
   .pl-status { display: none; }
   .pl-equip-meta { display: none; }
+  .pl-diag { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1180px) {
-  .pl-body { grid-template-columns: 318px minmax(280px, 1fr); }
-  .pl-col-stats { grid-column: 1 / -1; }
-  .pl-col-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
-    align-items: start; }
+  .pl-body { grid-template-columns: 390px minmax(280px, 1fr); }
+  .pl-col-stats { grid-column: 1 / -1; display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
   .pl-col-stats > .pl-card { margin: 0; }
 }
 @media (max-width: 900px) {
@@ -510,6 +648,7 @@ kbd {
   .pl-col-stats { display: flex; flex-direction: column; }
   .pl-lib-list { max-height: 46vh; }
   .pl-pop { width: 96vw; }
+  .pl-diag { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* the engine did not answer: say so instead of painting zeros */
