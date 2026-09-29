@@ -313,14 +313,15 @@ def row_for(q, slug):
     return [r for r in q if r['slug'] == slug][0]
 
 
-def test_a_buyer_with_no_rank_evidence_on_a_ranked_lane_says_so(ts):
-    """The run queue picks buyers per lane, but the row it writes used to carry no rank, so a
-    ranked-lane sale showed a buyer nothing could check. It still shows the buyer - it is the best
-    one for that lane - and states that the rank could not be verified from the data."""
+def test_a_buyer_with_no_rank_evidence_on_a_ranked_lane_is_not_actionable(ts):
+    """The run queue picks buyers per lane, and a row written before it named lanes carries no rank:
+    the pairing cannot be checked from here, so the row exposes NO buyer to whisper at and states
+    why. Showing an unverifiable buyer with a caveat was the older behaviour - an actionable button
+    whose rank nobody can check is the thing that had to go (outside review, round 3)."""
     q = ts.build_queue(plan_doc(), advisor_doc(), report_doc(), runqueue_doc())
     row = row_for(q, 'primed_continuity')
-    assert row['rank'] == 0 and row['buyer'] is not None
-    assert row['why']['rank_unverified'] in (True, 'queue row names no rank for this buyer')
+    assert row['rank'] == 0 and row['buyer'] is None
+    assert row['why']['rank_unverified'] == 'the run queue names no lane for this buyer'
 
 
 def test_a_buyer_whose_rank_disagrees_can_never_land_on_the_row(ts):

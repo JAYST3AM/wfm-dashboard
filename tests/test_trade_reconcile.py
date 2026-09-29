@@ -255,13 +255,17 @@ def test_inv_of_is_none_when_the_report_has_no_such_item(ts):
 
 
 def test_the_check_says_when_it_counted_the_whole_item(ts):
+    """A rank-0 trade whose evidence is the rank-10 lane's row: the count has to come from somewhere,
+    and the whole item's is the number that really moves - but it is not this lane's own evidence, so
+    the check shows the numbers and stays AMBIGUOUS instead of claiming an exact match."""
     report = {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 4}]}
     pending = [pend(rank=0, qty=1, inv=5)]
     out = ts.propose(pending, ts.inv_now_map(report, pending), 1268,
                      inv_basis=ts.inv_basis_map(report, pending))
     p = out['proposals'][0]
-    assert p['verdict'] == ts.EXACT and p['copies_left'] == 1
+    assert p['verdict'] == ts.AMBIGUOUS and p['copies_left'] == 1
     assert 'basis: item total' in p['evidence'], p['evidence']
+    assert any('the whole item, not this lane' in x for x in p['evidence'])
 
 
 def test_an_item_level_count_that_did_not_move_is_still_ambiguous(ts):

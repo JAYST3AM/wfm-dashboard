@@ -38,6 +38,9 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: trade_schema
+from trade_schema import money_of   # noqa: E402  (one reader for what a record moved)
+
 try:
     from zoneinfo import ZoneInfo
 except ImportError:                     # pragma: no cover - Python without zoneinfo
@@ -144,8 +147,10 @@ def reading_conflicts(readings):
 
 def trade_totals(events):
     """Exact totals over the whole trade log (all events, every kind)."""
-    earned = sum(int(e.get('total') or 0) for e in events if e.get('kind') == 'sale')
-    spent = sum(int(e.get('total') or 0) for e in events if e.get('kind') == 'purchase')
+    # money_of: `total`, or `plat x qty` for a record written before the canonical shape, so a
+    # historical sale cannot vanish from a total (outside review, round 3).
+    earned = sum(money_of(e) for e in events if e.get('kind') == 'sale')
+    spent = sum(money_of(e) for e in events if e.get('kind') == 'purchase')
     kinds = {}
     for e in events:
         k = e.get('kind') or '?'
@@ -180,10 +185,10 @@ def window_trades(events, lo, hi):
         if ts is None or not (lo < ts <= hi):
             continue
         if e.get('kind') == 'sale':
-            earned += int(e.get('total') or 0)
+            earned += money_of(e)
             count += 1
         elif e.get('kind') == 'purchase':
-            spent += int(e.get('total') or 0)
+            spent += money_of(e)
             count += 1
     return count, earned, spent
 
@@ -257,7 +262,7 @@ def check_reconciliation(all_rows, anchors, events, tolerance, readings=None):
         extra += 1 if hits > 1 else 0
         if hits:
             covered_events += 1
-            covered_net += int(e.get('total') or 0) * (1 if kind == 'sale' else -1)
+            covered_net += money_of(e) * (1 if kind == 'sale' else -1)
     rowed_net = sum(r['trades_net'] for r in all_rows)
     rowed_events = sum(r['trades'] for r in all_rows)
     add('trade_coverage',

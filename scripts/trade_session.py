@@ -30,7 +30,14 @@ the session + queue first, then the reconciliation proposal, then the canonical 
 import hashlib
 import json
 import os
+import sys
+import threading
 import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import trade_schema as schema   # noqa: E402  (one record shape, one lane identity)
 
 FILE = 'trade_session.json'
 VERSION = 1
@@ -44,12 +51,51 @@ SKIPPED = 'SKIPPED'
 HELD = 'HELD'
 STATES = (READY, CONTACTED, POSSIBLE, COMPLETED, SKIPPED, HELD)
 
+# A lane that names less than the whole item: a mod rank or a relic refinement. The report carries
+# one row per item, so evidence for one of these can only be whole-item evidence unless the report
+# itself names the lane - and a whole-item delta could be another lane's copy selling.
+NARROWED_LANES = ('r',) + schema.REFINEMENTS
+
 QUEUE_LIMIT = 12          # a session queue is a session's worth of work, not the whole plan
 STALE_PENDING_S = 6 * 3600  # a CONTACTED trade older than this is flagged, never auto-resolved
 PENDING_KEEP = 40         # finished/abandoned pending rows kept for recovery
 
 
 # --------------------------------------------------------------------------- io
+def lane_is_narrowed(lane):
+    """Does this lane name less than the whole item (a mod rank, a relic refinement)?
+
+    A row whose lane is empty sells the item as the item, so whole-item evidence is its own evidence.
+    """
+    n = schema.norm_lane(lane)
+    return n.startswith('r') or n in schema.REFINEMENTS
+
+
+def _settled(doc, tid):
+    """Has this trade already been settled in the session? Never evicted, so a retry is safe.
+
+    `confirmed` is capped for display; the idempotency key is `settled`, which is not. An id is a
+    score of bytes, and a session store that had forgotten one would let a retry count the same sale
+    twice (outside review, round 3: the capped list is why an evicted id could settle again).
+    """
+    if not tid:
+        return False
+    want = str(tid)
+    for key in ('settled', 'confirmed'):
+        for x in (doc.get(key) or []):
+            if str(x) == want:
+                return True
+    return False
+
+
+def _mark_settled(doc, tid):
+    if not tid:
+        return doc
+    ids = [str(x) for x in (doc.get('settled') or []) if str(x) != str(tid)]
+    doc['settled'] = [str(tid)] + ids
+    return doc
+
+
 def jload(path, default=None):
     try:
         with open(path, encoding='utf-8') as f:
@@ -108,7 +154,7 @@ def save(data_dir, doc):
 
 # --------------------------------------------------------------------------- doc shape
 def empty(now=None):
-    return {'version': VERSION, 'session': None, 'pending': [], 'confirmed': [],
+    return {'version': VERSION, 'session': None, 'pending': [], 'confirmed': [], 'settled': [],
             'updated_ts': int(now or time.time())}
 
 
@@ -135,6 +181,7 @@ def normalise(doc):
             r['state'] = r.get('state') if r.get('state') in STATES else READY
             r['qty'] = max(1, int(r.get('qty') or 1))
             r['rank'] = int(r['rank']) if isinstance(r.get('rank'), int) else r.get('rank')
+            r['lane'] = lane_of(r)
         s['queue'] = q
         if s['cursor'] >= len(q):
             s['cursor'] = max(0, len(q) - 1)
@@ -149,7 +196,12 @@ def normalise(doc):
     out['pending'] = [p for p in (doc.get('pending') or []) if isinstance(p, dict)][-PENDING_KEEP:]
     for p in out['pending']:
         p['state'] = p.get('state') if p.get('state') in STATES else CONTACTED
+        p['lane'] = lane_of(p) or None          # every pending row has its lane, derived if need be
     out['confirmed'] = [str(x) for x in (doc.get('confirmed') or []) if x][-500:]
+    # `settled` is the idempotency key for a retry and is deliberately NOT capped: the visible
+    # `confirmed` list is trimmed for display, and a retry of a trade remembered only there could
+    # settle a second time. An id is a score of bytes; a long-running store stays small.
+    out['settled'] = [str(x) for x in (doc.get('settled') or []) if x]
     # The two keys a recoverable confirm needs, and they must survive a save: `confirming` is the
     # durable intent written before the trade reaches trade_log, `recovered` the note that the next
     # load finished or undid one. Dropping them here would silently break crash recovery.
@@ -169,8 +221,33 @@ def new_session_id(now):
                           int(now * 1000) & 0xFFFF)
 
 
-def row_key(slug, rank):
-    return '%s#%s' % (slug, 'r%s' % rank if rank is not None else 'any')
+def row_key(slug, rank=None, lane=None):
+    """The identity of a queue or pending row: its slug and its lane (trade_schema.lane_key).
+
+    The lane, not the rank, is what tells two rows apart. Intact and Radiant versions of one relic
+    share a slug and have no rank at all, and a mod's rank is part of the order rather than a
+    different stack, so a slug alone pairs the wrong pair of them. `row_key(slug, rank)` still
+    spells a mod's lane the way stored state always did (`'x#r0'`), so nothing that resolves today
+    stops resolving.
+    """
+    if lane is None:
+        lane = 'rank %d' % rank if rank is not None else ''
+    return schema.lane_key(slug, lane)
+
+
+def lane_of(row):
+    """A row's lane: `'rank 6'`, `'intact'`, `'radiant'`, `''` for no dimension (trade_schema)."""
+    return schema.lane_of(row)
+
+
+def key_of(row, slug=None):
+    """The identity of a row dict — what pending rows, inventory maps and the confirm tail key on."""
+    return schema.key_of(row, slug)
+
+
+def money_of(ev):
+    """The platinum a stored event moved: `total`, or `plat × qty` for a pre-canonical record."""
+    return schema.money_of(ev)
 
 
 def _int(v):
@@ -182,19 +259,8 @@ def _int(v):
 
 # --------------------------------------------------------------------------- queue
 def _rank_of(row):
-    """The rank a recommendation was made for. report rows use lane_rank, plans use 'rank N'."""
-    if not isinstance(row, dict):
-        return None
-    if isinstance(row.get('lane_rank'), int):
-        return row['lane_rank']
-    if isinstance(row.get('rank'), int):
-        return row['rank']
-    lane = row.get('lane')
-    if isinstance(lane, str) and lane.startswith('rank '):
-        tail = lane[5:].strip()
-        if tail.isdigit():
-            return int(tail)
-    return None
+    """The rank a recommendation was made for (trade_schema.rank_of: lane_rank, rank or 'rank N')."""
+    return schema.rank_of(row)
 
 
 def _advisor_of(advisor, slug):
@@ -218,12 +284,39 @@ def _report_of(report, slug):
     return {}
 
 
-def _runqueue_of(runqueue, slug):
-    """The live buyer row for a slug, if the run queue names one (it carries no rank of its own)."""
+def _runqueue_any(runqueue, slug):
+    """Any live buyer row for this slug, whatever lane it names - for diagnosis only.
+
+    The queue never pairs a buyer from here: it exists so a row can say *why* it has none (the run
+    queue holds a buyer for another rank or another refinement of this item).
+    """
     if not isinstance(runqueue, dict):
         return None
     for row in (runqueue.get('queue') or []):
         if isinstance(row, dict) and row.get('slug') == slug and row.get('buyer'):
+            return row
+    return None
+
+
+def _runqueue_of(runqueue, slug, lane=None):
+    """The live buyer row for one LANE of an item, if the run queue names one.
+
+    Keyed on (slug, lane), not on the slug: two relic refinements or two mod ranks of one item are
+    different rows, and taking the first slug match is exactly how a Radiant row gets an Intact
+    buyer. When a lane is asked for and the row does not name one, there is no match - the caller
+    then says the pairing is unverified rather than implying it was checked. `lane=None` keeps the
+    old slug-only lookup for callers that genuinely have no lane.
+    """
+    if not isinstance(runqueue, dict):
+        return None
+    want = None if lane is None else schema.norm_lane(lane)
+    for row in (runqueue.get('queue') or []):
+        if not isinstance(row, dict) or row.get('slug') != slug or not row.get('buyer'):
+            continue
+        if want is None:
+            return row
+        row_lane = schema.lane_of(row)
+        if row_lane and schema.norm_lane(row_lane) == want:
             return row
     return None
 
@@ -327,8 +420,10 @@ def build_queue(plan, advisor, report, runqueue, limit=QUEUE_LIMIT):
     runqueue = runqueue if isinstance(runqueue, dict) else {}
     rows, seen = [], set()
 
-    def add(slug, name, qty, price, rank, source):
-        key = row_key(slug, rank)
+    def add(slug, name, qty, price, rank, source, lane=None):
+        slug = str(slug or '').strip().lower()
+        lane = schema.lane_of({'lane': lane}) if lane else (schema.lane_of({'rank': rank}) if rank is not None else '')
+        key = row_key(slug, lane=lane)
         if key in seen or not slug:
             return
         rep = _report_of(report, slug)
@@ -343,23 +438,26 @@ def build_queue(plan, advisor, report, runqueue, limit=QUEUE_LIMIT):
             or _int(rep.get('wts'))
         if not price or qty < 1:
             return
-        rq = _runqueue_of(runqueue, slug)
+        rq = _runqueue_of(runqueue, slug, lane or None)
+        alt = _runqueue_any(runqueue, slug) if (rq is None and lane) else None
         buyer = _buyer(rq, runqueue.get('summary'))
-        rq_rank = _rank_of(rq) if rq else None
-        mismatch = None
-        if buyer and rq_rank is not None and rank is not None and rq_rank != rank:
-            buyer = None                      # never pair a rank-10 stack with a rank-0 order
-            mismatch = 'buyer is for rank %s' % rq_rank
+        note = None
+        if lane and buyer is None:
+            # A lane was asked for, so only a buyer naming the same lane may be acted on. A row for
+            # another lane is a different stack's order and one from an older producer names no lane
+            # at all, so neither can be checked from here: the row says which it is and exposes no
+            # actionable whisper either way (outside review, round 3).
+            alt_lane = schema.lane_of(alt) if alt else ''
+            if alt_lane:
+                note = ('rank_mismatch', 'buyer is for %s' % alt_lane)
+            elif alt is not None:
+                note = ('rank_unverified', 'the run queue names no lane for this buyer')
         why = _why(rep, adv, buyer, runqueue)
-        if mismatch:
-            why['rank_mismatch'] = mismatch
-        elif buyer and rank is not None and rq_rank is None:
-            # The row is a ranked-lane sale (a mod rank, a relic refinement) and the run queue gave
-            # no rank for this buyer, so the pairing cannot be checked from here. It is shown - the
-            # run queue picks buyers per lane - but it says so instead of implying it was verified.
-            why['rank_unverified'] = 'queue row names no rank for this buyer'
+        if note:
+            why[note[0]] = note[1]
         rows.append({'slug': slug, 'name': name or rep.get('name') or adv.get('name') or slug,
-                     'rank': rank, 'qty': qty, 'price': price, 'cat': rep.get('cat') or adv.get('cat'),
+                     'lane': lane, 'rank': rank, 'qty': qty, 'price': price,
+                     'cat': rep.get('cat') or adv.get('cat'),
                      'buyer': buyer, 'why': why, 'confidence': _confidence(why),
                      'source': source, 'state': READY, 'added_ts': int(time.time())})
         seen.add(key)
@@ -368,7 +466,7 @@ def build_queue(plan, advisor, report, runqueue, limit=QUEUE_LIMIT):
         if not isinstance(row, dict):
             continue
         add(row.get('slug'), row.get('name'), row.get('per_trade') or row.get('qty'),
-            row.get('price'), _rank_of(row), 'plan')
+            row.get('price'), _rank_of(row), 'plan', lane=lane_of(row))
     ranked = advisor.get('ranked')
     if isinstance(ranked, list):
         for slug in ranked:
@@ -376,18 +474,21 @@ def build_queue(plan, advisor, report, runqueue, limit=QUEUE_LIMIT):
             if str(adv.get('recommendation') or '').lower() not in ('list', 'sell'):
                 continue
             add(slug, adv.get('name'), adv.get('recommended_quantity'),
-                adv.get('recommended_price'), _rank_of(adv), 'advisor')
+                adv.get('recommended_price'), _rank_of(adv), 'advisor', lane=lane_of(adv))
     return rows[:max(1, int(limit))]
 
 
 # --------------------------------------------------------------------------- contact (the whisper)
-def pending_id(slug, rank, buyer, now):
-    raw = '%s|%s|%s|%d' % (slug, rank, buyer or '', int(now))
+def pending_id(slug, rank, buyer, now, lane=None):
+    """A stable id for one contacted trade: the same contact gets the same id, and two lanes of one
+    item never share one - Intact and Radiant copies of a relic have the same slug and no rank, so
+    the lane has to be part of the hash."""
+    raw = '%s|%s|%s|%s|%d' % (slug, lane if lane is not None else '', rank, buyer or '', int(now))
     return 'p-%d-%s' % (int(now * 1000), hashlib.sha1(raw.encode('utf-8')).hexdigest()[:6])
 
 
 def contact(doc, slug, rank=None, qty=1, price=None, buyer=None, now=None,
-            inv_before=None, plat_before=None, kind='sell', note='', inv_basis=None):
+            inv_before=None, plat_before=None, kind='sell', note='', inv_basis=None, lane=None):
     """A whisper went out: mark the queue row CONTACTED and open one pending trade.
 
     This is the only writer of a pending row, and it is called from exactly one place in the app -
@@ -400,21 +501,24 @@ def contact(doc, slug, rank=None, qty=1, price=None, buyer=None, now=None,
     doc.setdefault('session', None)
     if not isinstance(doc.get('pending'), list):
         doc['pending'] = []
+    lane = schema.lane_of({'lane': lane}) if lane else (schema.lane_of({'rank': rank}) if rank is not None else '')
+    want = schema.lane_key(slug, lane)
     row = None
     for r in ((doc.get('session') or {}).get('queue') or []):
-        if r.get('slug') == slug and (rank is None or r.get('rank') == rank):
+        if key_of(r) == want:
             row = r
             break
-    key = (slug, rank, buyer)
+    key = (want, buyer)
     for p in doc['pending']:
-        if (p.get('slug'), p.get('rank'), p.get('buyer')) == key and p.get('state') in (CONTACTED, POSSIBLE):
+        if (key_of(p), p.get('buyer')) == key and p.get('state') in (CONTACTED, POSSIBLE):
             p['ts'] = now
             p['note'] = str(note or p.get('note') or '')[:160]
             if row is not None:
                 row['state'] = CONTACTED
             return p
-    pend = {'id': pending_id(slug, rank, buyer, now), 'session_id': (doc.get('session') or {}).get('id'),
-            'slug': slug, 'name': (row or {}).get('name') or slug, 'rank': rank,
+    pend = {'id': pending_id(slug, rank, buyer, now, lane=lane),
+            'session_id': (doc.get('session') or {}).get('id'),
+            'slug': slug, 'name': (row or {}).get('name') or slug, 'rank': rank, 'lane': lane or None,
             'qty': max(1, int(qty or (row or {}).get('qty') or 1)),
             'expected_plat': _int(price) or (row or {}).get('price'), 'buyer': buyer or None,
             'kind': kind, 'ts': now, 'state': CONTACTED,
@@ -451,7 +555,7 @@ def start(doc, queue, now=None, account=None, plat_start=None, session_id=None):
     return doc, True
 
 
-def focus(doc, index=None, slug=None, now=None):
+def focus(doc, index=None, slug=None, now=None, lane=None):
     """Point the session at a queue row. Returns the row (or None)."""
     s = (doc or {}).get('session') or {}
     q = s.get('queue') or []
@@ -460,20 +564,23 @@ def focus(doc, index=None, slug=None, now=None):
     if isinstance(index, int) and 0 <= index < len(q):
         s['cursor'] = index
     elif slug:
+        want = schema.lane_key(slug, lane) if lane is not None else None
         for i, r in enumerate(q):
-            if r.get('slug') == slug:
+            if r.get('slug') == slug and (want is None or key_of(r) == want):
                 s['cursor'] = i
                 break
     return q[min(s.get('cursor') or 0, len(q) - 1)]
 
 
-def set_state(doc, slug, rank=None, state=SKIPPED, note='', now=None):
+def set_state(doc, slug, rank=None, state=SKIPPED, note='', now=None, lane=None):
     """SKIPPED / HELD / READY on a queue row, and the matching session counter. Idempotent."""
     s = (doc or {}).get('session') or {}
     q = s.get('queue') or []
+    want = schema.lane_key(slug, lane) if lane is not None else None
     hit = None
     for r in q:
-        if r.get('slug') == slug and (rank is None or r.get('rank') == rank):
+        if r.get('slug') == slug and (want is not None and key_of(r) == want
+                                      or want is None and (rank is None or r.get('rank') == rank)):
             hit = r
             break
     if hit is None:
@@ -547,16 +654,20 @@ def summary(doc, now=None, limits=None):
     return out
 
 
-def inv_of(report, slug, rank=None):
+def inv_of(report, slug, rank=None, lane=None):
     """(copies, basis) - sellable copies of one item, from the same report.json the app renders.
 
-    The report carries one row per lane (item + rank). A lane the report does not mention would
-    otherwise snapshot as None and leave that trade UNKNOWN for ever, so this falls back to the
-    item's total sellable count across lanes - the number that really moves when a copy sells - and
-    says which of the two it used ('lane' / 'item') so the check can be honest about its basis.
+    The report carries one row per item, tagged with `lane_rank` when it is a mod rank. A lane the
+    report does not mention would otherwise snapshot as None and leave that trade UNKNOWN for ever,
+    so this falls back to the item's total sellable count across lanes - the number that really
+    moves when a copy sells - and says which of the two it used ('lane' / 'item') so the check can
+    be honest about its basis. `lane` may be given instead of `rank` (a relic refinement); the
+    report carries no refinement rows today, so those come back as the item total on purpose. The
+    caller decides what that basis is worth: see NARROWED_LANES in propose().
     """
     total, seen = 0, False
     item_total = None
+    want = schema.norm_lane(lane_of({'lane': lane})) if lane is not None else None
     for field in ('sell_now', 'patient'):
         for row in ((report or {}).get(field) or []):
             if not isinstance(row, dict) or row.get('slug') != slug:
@@ -567,7 +678,11 @@ def inv_of(report, slug, rank=None):
             if item_total is None:
                 item_total = 0
             item_total += n
-            if rank is not None and row.get('lane_rank') == rank:
+            if want:
+                row_lane = schema.lane_of(row)
+                if row_lane and schema.norm_lane(row_lane) == want:
+                    total, seen = n, True
+            elif want is None and rank is not None and row.get('lane_rank') == rank:
                 total, seen = n, True
     if seen:
         return total, 'lane'
@@ -585,24 +700,24 @@ def inv_now_map(report, pending):
         if not isinstance(p, dict) or p.get('state') not in (CONTACTED, POSSIBLE):
             continue
         slug, rank = p.get('slug'), p.get('rank')
-        key = row_key(slug, rank)
+        key = key_of(p)
         if key in out:
             continue
-        n, _basis = inv_of(report, slug, rank)
+        n, _basis = inv_of(report, slug, rank, lane=lane_of(p))
         if n is not None:
             out[key] = n
     return out
 
 
 def inv_basis_map(report, pending):
-    """{row_key: 'lane' | 'item'} - which count inv_now_map used, so a check can say so."""
+    """{lane key: 'lane' | 'item'} - which count inv_now_map used, so a check can say so."""
     out = {}
     for p in pending or []:
         if not isinstance(p, dict) or p.get('state') not in (CONTACTED, POSSIBLE):
             continue
-        key = row_key(p.get('slug'), p.get('rank'))
+        key = key_of(p)
         if key not in out:
-            _n, basis = inv_of(report, p.get('slug'), p.get('rank'))
+            _n, basis = inv_of(report, p.get('slug'), p.get('rank'), lane=lane_of(p))
             if basis:
                 out[key] = basis
     return out
@@ -683,6 +798,10 @@ def propose(pending, inv_now, plat_now, now=None, inv_basis=None):
     """
     now = int(now or time.time())
     out, counts = [], {EXACT: 0, AMBIGUOUS: 0, NOTHING: 0, UNKNOWN: 0}
+    watchers = {}
+    for p in pending or []:
+        if isinstance(p, dict) and p.get('state') in (CONTACTED, POSSIBLE):
+            watchers[key_of(p)] = watchers.get(key_of(p), 0) + 1
     for p in pending or []:
         if not isinstance(p, dict) or p.get('state') not in (CONTACTED, POSSIBLE):
             continue
@@ -690,7 +809,7 @@ def propose(pending, inv_now, plat_now, now=None, inv_basis=None):
         qty = max(1, int(p.get('qty') or 1))
         expected = _int(p.get('expected_plat'))
         total = (expected or 0) * qty
-        now_inv = _int((inv_now or {}).get(row_key(slug, rank)))
+        now_inv = _int((inv_now or {}).get(key_of(p)))
         before = _int(p.get('inv_before'))
         plat_before = _int(p.get('plat_before'))
         age = now - int(p.get('ts') or now)
@@ -727,11 +846,24 @@ def propose(pending, inv_now, plat_now, now=None, inv_basis=None):
                                                     ('that stack', 'untouched'))
             else:
                 verdict, why = NOTHING, _evidence(('copies left', left), ('platinum', delta_plat))
-        if (inv_basis or {}).get(row_key(slug, rank)) == 'item':
+        basis = (inv_basis or {}).get(key_of(p))
+        if basis == 'item':
             why = _evidence(('basis', 'item total')) + why
+        if verdict == EXACT and basis == 'item' and lane_is_narrowed(p.get('lane') or rank):
+            # Whole-item evidence for a lane that names less than the item: the copies that moved may
+            # be another rank's or another refinement's. It is shown with its numbers and offered for
+            # confirmation, but it is not claimed as an exact match (outside review, round 3).
+            verdict = AMBIGUOUS
+            why = _evidence(('basis', 'the whole item, not this lane')) + why
+        if verdict == EXACT and watchers.get(key_of(p), 0) > 1:
+            # Two live pending trades on one lane would each read the same single movement as their
+            # own. One physical sale cannot satisfy two trades, so neither of them can be exact.
+            verdict = AMBIGUOUS
+            why = _evidence(('same lane', '%d pending trades; one movement cannot be split'
+                             % watchers[key_of(p)])) + why
         counts[verdict] += 1
         out.append({'verdict': verdict, 'pending_id': p.get('id'), 'slug': slug, 'name': p.get('name'),
-                    'rank': rank, 'qty': qty, 'buyer': p.get('buyer'), 'age_s': age,
+                    'lane': lane_of(p), 'rank': rank, 'qty': qty, 'buyer': p.get('buyer'), 'age_s': age,
                     'expected_plat': expected, 'total_plat': total or None,
                     'inv_before': before, 'inv_now': now_inv,
                     'plat_before': plat_before, 'plat_now': _int(plat_now),
@@ -756,7 +888,8 @@ def trade_draft(pending, plat=None, quote=None):
         plat = (quote or {}).get('plat')
     unit = _int(plat) or _int((pending.get('expected_plat'))) or 0
     draft = {'kind': 'sale', 'slug': slug, 'item': slug, 'name': pending.get('name'),
-             'rank': rank, 'qty': qty, 'plat': unit, 'total': unit * qty,
+             'rank': rank, 'lane': pending.get('lane') or '', 'qty': qty,
+             'plat': unit, 'total': unit * qty,
              'user': pending.get('buyer'), 'buyer': pending.get('buyer'),
              'source': 'session', 'session_id': pending.get('session_id'),
              'pending_id': pending.get('id'), 'ts': int(pending.get('ts') or time.time())}
@@ -787,7 +920,11 @@ def append_event(data_dir, rec):
     """Append one event to trade_log.json atomically, refusing a duplicate id.
 
     trade_log had four writers and none of them used tmp+os.replace (design/_session/audit-backend).
-    Returns (record, created_bool).
+    This is now the one writer, so the record shape is enforced here as well as in confirm(): a
+    caller that hands over `{kind: 'sale', qty: 3, plat: 48}` gets `total: 144` stored, and one that
+    hands over a sale with no price at all gets a ValueError instead of an unsummable row.
+
+    Returns (record, created_bool). Raises ValueError on a record that cannot be canonicalised.
     """
     path = os.path.join(data_dir, TRADE_LOG)
     hist = jload(path)
@@ -798,9 +935,7 @@ def append_event(data_dir, rec):
             except Exception:
                 pass
         hist = []
-    rec = dict(rec or {})
-    rec.setdefault('ts', int(time.time()))
-    rec['id'] = trade_id(rec)
+    rec = schema.canonical(rec, now=int(time.time()))
     for old in hist:
         if isinstance(old, dict) and old.get('id') == rec['id']:
             return old, False
@@ -856,18 +991,17 @@ def _finalise(data_dir, doc, written, rec, now, pending_id=None, rank=None):
     slug = rec.get('slug') or rec.get('item')
     if rank is None:
         rank = rec.get('rank')
-    money = _int(rec.get('total'))
-    if money is None:
-        money = (_int(rec.get('plat')) or 0) * max(1, int(rec.get('qty') or 1))
-    if tid and tid in [str(x) for x in (doc.get('confirmed') or [])]:
+    lane = schema.lane_of(rec)
+    money = money_of(rec)
+    if tid and _settled(doc, tid):
         doc.pop('confirming', None)              # already settled: only the intent needs clearing
         return doc
 
     pid = pending_id if pending_id is not None else rec.get('pending_id')
+    want = key_of(rec)
     for p in doc.get('pending', []):
         if (pid and p.get('id') == pid) or \
-           (not pid and p.get('slug') == slug and p.get('rank') == rank
-                and p.get('state') in (CONTACTED, POSSIBLE)):
+           (not pid and key_of(p) == want and p.get('state') in (CONTACTED, POSSIBLE)):
             p['state'] = COMPLETED
             p['completed_ts'] = now
             p['completed_trade'] = tid
@@ -875,7 +1009,7 @@ def _finalise(data_dir, doc, written, rec, now, pending_id=None, rank=None):
     s = doc.get('session')
     if s:
         for r in (s.get('queue') or []):
-            if r.get('slug') == slug and (rank is None or r.get('rank') == rank):
+            if key_of(r) == want:
                 r['state'] = COMPLETED
                 r['completed_ts'] = now
                 break
@@ -883,11 +1017,15 @@ def _finalise(data_dir, doc, written, rec, now, pending_id=None, rank=None):
         t['trades'] = int(t.get('trades') or 0) + 1
         t['earned_plat'] = round(float(t.get('earned_plat') or 0) + money, 2)
         s.setdefault('done', []).insert(0, {'id': tid, 'slug': slug, 'name': rec.get('name'),
-                                            'rank': rank, 'qty': max(1, int(rec.get('qty') or 1)),
+                                            'lane': lane or None, 'rank': rank,
+                                            'qty': max(1, int(rec.get('qty') or 1)),
                                             'plat': money, 'buyer': rec.get('user') or rec.get('buyer'),
                                             'ts': now})
         s['done'] = s['done'][:200]
         advance(doc, now)
+    # The idempotency key for a retry: never evicted (unlike `confirmed`, which the UI caps), so a
+    # retry of a trade whose id has fallen out of the visible list still cannot settle twice.
+    _mark_settled(doc, tid)
     doc.setdefault('confirmed', []).append(tid)
     doc['confirmed'] = doc['confirmed'][-400:]
     doc.pop('confirming', None)
@@ -895,8 +1033,22 @@ def _finalise(data_dir, doc, written, rec, now, pending_id=None, rank=None):
     return doc
 
 
+_CONFIRM_LOCK = threading.RLock()      # the server is threaded; confirm is a read-modify-write
+
+
 def confirm(data_dir, rec, now=None, source='user'):
     """Complete a trade: append it, close the pending row, move the session on. Idempotent.
+
+    Serialised: the dashboard's server is a ThreadingHTTPServer, so two Confirm clicks (or a click and
+    a retry) arriving together would otherwise both read the session store, both decide the trade was
+    new, and settle it twice. The lock covers the whole transaction, not just the file write.
+    """
+    with _CONFIRM_LOCK:
+        return _confirm(data_dir, rec, now=now, source=source)
+
+
+def _confirm(data_dir, rec, now=None, source='user'):
+    """The body of confirm(), under its lock.
 
     rec is either a proposal's `trade` draft, a manual sale ({'slug','qty','plat',...}) or a
     correction (an explicit 'id' updates nothing - a new id is a new record). -> (result, created)
@@ -913,28 +1065,15 @@ def confirm(data_dir, rec, now=None, source='user'):
         rec['qty'] = max(1, int(rec.get('qty') or 1))
     except (TypeError, ValueError):
         return {'ok': False, 'error': 'qty must be a number'}, False
-    # Canonical record shape, the one the whole repo already reads (see scripts/log_trade.py):
-    # `plat` is the price per copy and `total` is the money for the trade. server.trades_payload(),
-    # session_stats and plat_ledger all sum `total`, so a record that only carried `plat` vanished
-    # from every earnings figure, and one with `plat` holding the sum double counted it.
-    qty = rec['qty']
-    unit = _int(rec.get('plat') if rec.get('plat') is not None else rec.get('price'))
-    money = _int(rec.get('total'))
-    if unit is None and money is not None:
-        unit = int(round(float(money) / qty))
-    if money is None and unit is not None:
-        money = unit * qty
-    if unit is None or unit < 0 or money is None or money < 0:
-        return {'ok': False, 'error': 'plat must be a number'}, False
-    rec['plat'], rec['total'] = unit, money
-    rec['rank'] = _int(rec.get('rank'))
-    rec.setdefault('ts', now)
-    rec.setdefault('src', 'session')
-    rec['source'] = str(rec.get('source') or source)[:24]
+    # The record shape is not decided here any more: trade_schema.canonical() owns it, so the route
+    # (/api/session/confirm), /api/trades, this path and the retry all store exactly the same fields.
+    # It refuses a sale that carries no price rather than storing one nothing can sum.
+    try:
+        rec = schema.canonical(rec, source=source, now=now)
+    except ValueError as e:
+        return {'ok': False, 'error': str(e)}, False
     rec['confirmed_ts'] = now
-    if not rec.get('id'):
-        rec['id'] = trade_id(rec)
-    if str(rec['id']) in [str(x) for x in doc.get('confirmed', [])]:
+    if str(rec['id']) in [str(x) for x in (doc.get('settled') or [])]:
         return {'ok': True, 'already': True, 'trade': rec, 'session_payload': None,
                 'summary': summary(doc, now)}, False
 

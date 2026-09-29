@@ -294,6 +294,23 @@ def test_the_event_route_never_double_logs_the_same_event(live, seeded):
         == first['id']
 
 
+def test_the_trades_route_stores_the_money_a_sale_omits(live):
+    """The writer boundary, through the route: {kind: sale, qty: 3, plat: 48} has no `total`, and
+    every reader sums `total` - so the route must store one rather than an unsummable record."""
+    base, d = live
+    out = call(base, '/api/trades', {'kind': 'sale', 'slug': 'x', 'qty': 3, 'plat': 48})[1]
+    assert out['ok'] is True
+    stored = json.loads(open(os.path.join(d, 'trade_log.json'), encoding='utf-8').read())[0]
+    assert stored['plat'] == 48 and stored['total'] == 144
+
+
+def test_the_trades_route_refuses_a_sale_with_no_price(live):
+    base, d = live
+    code, out = call(base, '/api/trades', {'kind': 'sale', 'slug': 'x', 'qty': 3})
+    assert code == 400 and out['ok'] is False and 'price' in out['error']
+    assert not os.path.exists(os.path.join(d, 'trade_log.json'))
+
+
 def test_a_lane_the_report_does_not_carry_still_gets_a_count(live, seeded):
     """Found on the live store, not in a fixture: the plan sells an unranked lane (rank 0) while
     report.json only carries the maxed lane (rank 10) for that item. The old lookup took the exact
@@ -309,13 +326,16 @@ def test_a_lane_the_report_does_not_carry_still_gets_a_count(live, seeded):
     assert p['inv_before'] == 4 and p['inv_basis'] == 'item', p
     assert p['plat_before'] == 1220
 
-    # the stacks really went down, so the check is a proposal now instead of a permanent unknown
+    # the stacks really went down, so the check is a proposal now instead of a permanent unknown -
+    # and it is AMBIGUOUS, not exact: the evidence is the whole item's count while the trade is for
+    # one rank of it, so a copy of another rank selling would look the same (review round 3)
     write_json(os.path.join(d, 'report.json'),
                {'sell_now': [{'slug': 'primed_continuity', 'lane_rank': 10, 'sellable_count': 1}]})
     write_json(os.path.join(d, 'plat_history.json'), [{'ts': 1, 'plat': 1364}])
     check = call(base, '/api/session')[1]['proposals'][0]
-    assert check['verdict'] == 'exact' and check['copies_left'] == 3
+    assert check['verdict'] == 'ambiguous' and check['copies_left'] == 3
     assert 'basis: item total' in check['evidence']
+    assert any('the whole item, not this lane' in x for x in check['evidence'])
 
 
 def test_a_lane_the_report_does_carry_is_counted_as_that_lane(live, seeded):

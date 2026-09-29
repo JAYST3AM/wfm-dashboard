@@ -124,7 +124,9 @@ def test_the_renderer_paints_from_the_shared_fan_out_and_polls_nothing():
 def test_the_loop_actions_use_the_endpoints_that_exist():
     assert "sessionPost('start', {})" in SESS
     assert "sessionPost('focus', { index:" in SESS
-    assert "sessionPost('state', { slug: f.slug" in SESS
+    assert "const body = { slug: f.slug, rank: f.rank ?? null, state }" in SESS
+    assert "if (f.lane) body.lane = f.lane" in SESS, \
+        'two lanes of one item share a slug: the state change has to name its lane'
     assert "? 'start' : 'end'" in SESS
     assert "'SKIPPED'" in SESS and "'HELD'" in SESS, 'the two states the panel sets'
     assert "fetch('/api/session/' + action" in SESS and "method: 'POST'" in SESS

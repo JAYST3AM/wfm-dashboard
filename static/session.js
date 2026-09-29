@@ -86,13 +86,15 @@ function sessionHomeWhisper() {
   if (!q || !q.buyer) return '';
   const st = String(q.buyer_status || 'offline');
   const rank = (top.lane || '').replace(/[^0-9]/g, '');
+  const lane = String(top.lane || '');          // the plan lane verbatim: 'rank 6' or 'radiant'
   return `
     <div class="ordrow" data-kind="buy" data-st="${escHtml(st)}">
       <span class="orduser" title="the buyer the run queue found">${escHtml(q.buyer)}</span>
       <span class="ordp" title="what they pay each">${ordPrice(q.buy_price)}</span>
       <span class="ordst" title="${escHtml(q.why || 'from the run queue')}"><i class="orddot ${escHtml(st)}"></i>${escHtml(st)}</span>
       <button class="ordwsp" data-item="${escHtml(top.slug)}" data-user="${escHtml(q.buyer)}"
-        data-price="${escHtml(String(q.my_price || top.price || ''))}" data-rank="${escHtml(rank)}" data-kind="buy"
+        data-price="${escHtml(String(q.my_price || top.price || ''))}" data-rank="${escHtml(rank)}"
+        data-lane="${escHtml(lane)}" data-kind="buy"
         title="Send this whisper in game">Whisper buyer</button>
       <span class="ordres" aria-live="polite"></span>
     </div>`;
@@ -139,6 +141,7 @@ function sessionQueueRows(rows, live) {
 function sessionBuyerRow(f, b, say) {
   const st = String(b.status || 'offline');
   const rank = (f.rank === null || f.rank === undefined) ? '' : String(f.rank);
+  const lane = String(f.lane || '');           // 'rank 6' / 'intact' / 'radiant': the row's own lane
   const plat = (b.plat === null || b.plat === undefined) ? '' : String(b.plat);
   return `
     <div class="ordrow" data-kind="buy" data-st="${escHtml(st)}">
@@ -146,7 +149,8 @@ function sessionBuyerRow(f, b, say) {
       <span class="ordp" title="what they pay each">${ordPrice(b.plat)}</span>
       <span class="ordst" title="${escHtml(b.why || 'from the run queue')}"><i class="orddot ${escHtml(st)}"></i>${escHtml(st)}</span>
       <button class="ordwsp" data-item="${escHtml(f.slug || '')}" data-user="${escHtml(b.user || '')}"
-        data-price="${escHtml(plat)}" data-rank="${escHtml(rank)}" data-kind="buy"
+        data-price="${escHtml(plat)}" data-rank="${escHtml(rank)}" data-lane="${escHtml(f.lane || '')}"
+        data-kind="buy"
         title="Send this whisper in game">Whisper</button>
       <span class="ordres" aria-live="polite">${escHtml(say || '')}</span>
     </div>`;
@@ -379,7 +383,9 @@ async function sessionAct(btn) {
   if (btn.id === 'sessionSkip' || btn.id === 'sessionHold') {
     if (!f) return;
     const state = btn.id === 'sessionSkip' ? 'SKIPPED' : 'HELD';
-    if (await sessionPost('state', { slug: f.slug, rank: f.rank ?? null, state })) await load();
+    const body = { slug: f.slug, rank: f.rank ?? null, state };
+    if (f.lane) body.lane = f.lane;                     // two lanes of one item share a slug
+    if (await sessionPost('state', body)) await load();
   }
 }
 

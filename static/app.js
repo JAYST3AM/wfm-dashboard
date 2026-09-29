@@ -926,6 +926,9 @@ async function ordWhisper(btn) {
     kind: btn.dataset.kind === 'sell' ? 'sell' : 'buy', mode: 'send' };
   const rk = Number(btn.dataset.rank);
   if (isFinite(rk)) body.rank = rk;
+  /* the lane the row is about ('rank 6', 'radiant'): two lanes of one item share a slug, and the
+     session's own rows name theirs, so the contact lands on the right one */
+  if (btn.dataset.lane) body.lane = btn.dataset.lane;
   const old = btn.textContent;
   btn.disabled = true; btn.textContent = 'Sending';
   let say = 'no answer from the server', ok = false;

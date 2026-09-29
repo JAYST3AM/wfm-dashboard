@@ -10,6 +10,9 @@ Usage: python session_stats.py [--root DIR] [--gap MIN] [--last N]
 """
 import json, os, sys, time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling helper: trade_schema
+from trade_schema import money_of   # noqa: E402  (one reader for what a record moved)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GAP = 45
 TRADE_KINDS = ('sale', 'purchase')
@@ -48,8 +51,9 @@ def session(win, events, points, prices):
         kinds[k] = kinds.get(k, 0) + 1
     sales = [e for e in evs if e.get('kind') == 'sale']
     buys = [e for e in evs if e.get('kind') == 'purchase']
-    gross = sum(e.get('total') or 0 for e in sales)
-    spent = sum(e.get('total') or 0 for e in buys)
+    # money_of: `total`, or `plat x qty` for a record written before the canonical shape.
+    gross = sum(money_of(e) for e in sales)
+    spent = sum(money_of(e) for e in buys)
     units = sum(int(e.get('qty') or 0) for e in sales)
     bought = sum(int(e.get('qty') or 0) for e in buys)
     p0 = pts[0] if pts else None
@@ -58,7 +62,7 @@ def session(win, events, points, prices):
     net = round(gross - spent, 2)
     def v(p, k):
         return p.get(k) if p else None
-    best = max(sales, key=lambda e: e.get('total') or 0) if sales else None
+    best = max(sales, key=lambda e: money_of(e)) if sales else None
     states = [e.get('slug') for e in evs if e.get('slug')]
     est = sum((prices.get(s) or {}).get('wts') or 0 for s in states) or None
     if sales or buys:

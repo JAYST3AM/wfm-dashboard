@@ -147,17 +147,24 @@ def plat_history_payload():
                 first_ts=hist[0]['ts'] if hist else None,
                 first_plat=hist[0]['plat'] if hist else None, n=len(hist))
 
+def _money_of(ev):
+    """The platinum a stored event moved; trade_schema.money_of owns it (one reader, every total)."""
+    return _session().money_of(ev)
+
+
 def trades_payload():
     hist = jload(os.path.join(DATA, 'trade_log.json')) or []
     tot = dict(earned=0, spent=0, net=0, sales=0, purchases=0, items=0)
+    # schema.money_of: `total` when the record has it, and `plat x qty` for a pre-canonical one, so
+    # historical money cannot disappear from a total (outside review, round 3).
     for e in hist:
         k = e.get('kind')
         if k == 'sale':
-            tot['earned'] += e.get('total') or 0
+            tot['earned'] += _money_of(e)
             tot['sales'] += 1
             tot['items'] += e.get('qty') or 0
         elif k == 'purchase':
-            tot['spent'] += e.get('total') or 0
+            tot['spent'] += _money_of(e)
             tot['purchases'] += 1
             tot['items'] += e.get('qty') or 0
     tot['net'] = tot['earned'] - tot['spent']
@@ -747,7 +754,7 @@ def item_display_name(item):
 def whisper_post(body):
     """POST /api/whisper -> (http_status, payload).
 
-    body: {'item', 'user', 'price', 'kind': 'buy'|'sell', 'rank'?, 'mode': 'copy'|'send'}.
+    body: {'item', 'user', 'price', 'kind': 'buy'|'sell', 'rank'?, 'lane'?, 'mode': 'copy'|'send'}.
     Builds the message through scripts/whisper.py (whisper.message(item, price, kind, rank)),
     copies it (whisper.copy) and, in send mode, sends it and reports the module's own reason.
     503 when whisper.py is not installed, 429 when the local cooldown trips, 400 on bad input -
@@ -824,15 +831,28 @@ def whisper_post(body):
             ts = _session()
             doc = ts.load(DATA)
             if doc.get('session'):
-                inv, plat, _basis = _session_before(item, rank)
-                row_qty = 1
+                # Which lane this whisper is for: the button names it when it knows it (the session
+                # rows do), and otherwise it is derived from the rank. Two refinements of one relic
+                # share a slug and have no rank, so the lane is what picks the right queue row.
+                lane = str(body.get('lane') or '').strip()
+                want = ts.key_of({'slug': item, 'lane': lane}) if lane else None
+                row_qty, row_lane = 1, ''
                 for r in (doc['session'].get('queue') or []):
-                    if r.get('slug') == item and (rank is None or r.get('rank') == rank):
-                        row_qty = r.get('qty') or 1
+                    if r.get('slug') != item:
+                        continue
+                    if want is not None and ts.key_of(r) != want:
+                        continue
+                    if want is None and (rank is None or r.get('rank') == rank):
+                        row_qty, row_lane = r.get('qty') or 1, ts.lane_of(r)
                         break
+                    row_qty, row_lane = r.get('qty') or 1, ts.lane_of(r)
+                    break
+                if not lane:
+                    lane = row_lane or (('rank %d' % rank) if rank is not None else '')
+                inv, plat, _basis = _session_before(item, rank, lane)
                 out['contact'] = ts.contact(doc, item, rank=rank, qty=row_qty, price=price,
                                            buyer=user, inv_before=inv, plat_before=plat,
-                                           kind=kind)
+                                           kind=kind, lane=lane)
                 ts.save(DATA, doc)
         except Exception as e:
             out['contact'] = None
@@ -1023,16 +1043,17 @@ def _session_plat_now():
     return best
 
 
-def _session_before(slug, rank=None):
-    """(sellable copies of that stack, platinum) right now - the 'before' side of reconciliation.
+def _session_before(slug, rank=None, lane=None):
+    """(sellable copies of that lane, platinum) right now - the 'before' side of reconciliation.
 
     Read from the same payloads the app renders: report.json for the stack, the newest platinum
     reading. Both may be None when the data is not there yet; None is stored as None and never
-    guessed at later.
+    guessed at later. `lane` identifies which lane of the item (a mod rank, a relic refinement):
+    a slug alone cannot tell two lanes apart.
     """
     report = jload(os.path.join(DATA, 'report.json')) or {}
     ts = _session()
-    inv, basis = ts.inv_of(report, slug, rank)
+    inv, basis = ts.inv_of(report, slug, rank, lane=lane)
     return inv, _session_plat_now(), basis
 
 
@@ -1088,14 +1109,14 @@ def session_post(action, body):
         for p in (doc.get('pending') or []):
             if p.get('state') not in (ts.CONTACTED, ts.POSSIBLE):
                 continue
-            key = (p.get('slug'), p.get('rank'))
+            key = ts.key_of(p)                    # (slug, lane): never a slug on its own
             if key not in cache:
-                cache[key] = _session_before(*key)
+                cache[key] = _session_before(p.get('slug'), p.get('rank'), ts.lane_of(p))
             inv, plat, basis = cache[key]
             if inv is not None:
-                inv_now[ts.row_key(*key)] = inv
+                inv_now[key] = inv
             if basis:
-                inv_basis[ts.row_key(*key)] = basis
+                inv_basis[key] = basis
             if plat is not None:
                 plat_now = plat
         out = ts.propose(doc.get('pending') or [], inv_now, plat_now, inv_basis=inv_basis)
@@ -1118,10 +1139,13 @@ def session_post(action, body):
             rank = int(rank) if rank not in (None, '') else None
         except (TypeError, ValueError):
             return 400, {'ok': False, 'error': 'rank must be a number'}
-        inv, plat, basis = _session_before(slug, rank)
+        lane = str(body.get('lane') or '').strip()
+        if not lane and rank is not None:
+            lane = 'rank %d' % rank
+        inv, plat, basis = _session_before(slug, rank, lane)
         pend = ts.contact(doc, slug, rank=rank, qty=body.get('qty') or 1, price=body.get('price'),
                           buyer=body.get('user') or body.get('buyer'), inv_before=inv,
-                          plat_before=plat, note=body.get('note') or '', inv_basis=basis)
+                          plat_before=plat, note=body.get('note') or '', inv_basis=basis, lane=lane)
         ts.save(DATA, doc)
         return 200, {'ok': True, 'pending': pend, 'session_payload': session_payload()}
     if action == 'focus':
@@ -1135,7 +1159,7 @@ def session_post(action, body):
         if state not in ts.STATES:
             return 400, {'ok': False, 'error': 'bad state', 'states': list(ts.STATES)}
         row = ts.set_state(doc, body.get('slug'), rank=body.get('rank'), state=state,
-                           note=body.get('note') or '')
+                           note=body.get('note') or '', lane=body.get('lane'))
         if row is None:
             return 404, {'ok': False, 'error': 'no such queue row'}
         ts.save(DATA, doc)
@@ -1371,6 +1395,10 @@ class H(BaseHTTPRequestHandler):
                 hist = jload(os.path.join(DATA, 'trade_log.json')) or []
                 return self._send(200, {'ok': True, 'n': len(hist), 'id': rec.get('id'),
                                         'created': created, 'totals': trades_payload()['totals']})
+            except ValueError as e:
+                # the record cannot be canonicalised (a sale with no price): the caller's mistake,
+                # not a server fault, and nothing was written
+                return self._send(400, {'ok': False, 'error': str(e)})
             except Exception as e:
                 return self._send(500, {'ok': False, 'error': str(e)})
         if p in ('/api/trader/plan', '/api/trader/cycle', '/api/trader/watch'):
