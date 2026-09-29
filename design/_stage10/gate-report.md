@@ -1,6 +1,6 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-29 16:45:46  (2026-09-29T16:45:46.679382+10:00) -> live measurements finished 16:48:50  
+**Run:** 2026-09-29 17:04:59  (2026-09-29T17:04:59.008514+10:00) -> live measurements finished 17:08:00  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
@@ -121,11 +121,11 @@ Parity rows: 35, mismatches: 0.
 
 ## 5. Copy diet
 
-**Repo test** `C:\Users\jayde\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe -m pytest tests/test_copy_diet.py -q` -> rc 0 in 1.7s
+**Repo test** `C:\Users\jayde\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe -m pytest tests/test_copy_diet.py -q` -> rc 0 in 0.9s
 
 ```
 .                                                                        [100%]
-1 passed in 0.51s
+1 passed in 0.04s
 ```
 
 **Rendered scan** (visible text nodes, >8 words or >90 chars): 0 offender(s) {}
@@ -170,10 +170,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3185 | 0 | 8976 | 193 | 0 |
-| Kuva Crimson | dark | 17 | 3186 | 0 | 8977 | 193 | 0 |
-| Frost Light | light | 17 | 3186 | 0 | 8977 | 193 | 0 |
-| Cephalon White | light | 17 | 3186 | 0 | 8977 | 193 | 0 |
+| Vor Orange | dark | 17 | 3180 | 0 | 8970 | 193 | 0 |
+| Kuva Crimson | dark | 17 | 3181 | 0 | 8971 | 193 | 0 |
+| Frost Light | light | 17 | 3181 | 0 | 8971 | 193 | 0 |
+| Cephalon White | light | 17 | 3181 | 0 | 8971 | 193 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
@@ -185,7 +185,7 @@ Colours that did **not** change between the dark theme (0) and the light theme (
 
 ids_before.json pages: index=172, collection=28, cards=20, settings=36, item=25, lookup=0
 
-ids found live: index=8280, collection=803, cards=246, settings=1722, item=250, item-deeplink=251, lookup=460
+ids found live: index=8298, collection=803, cards=246, settings=1722, item=250, item-deeplink=251, lookup=461
 
 **Missing: 0** 
 

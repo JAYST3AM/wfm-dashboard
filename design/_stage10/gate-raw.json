@@ -1,7 +1,7 @@
 {
  "meta": {
-  "started": "2026-09-29T06:45:51.427Z",
-  "finished": "2026-09-29T06:48:50.176Z",
+  "started": "2026-09-29T07:05:00.192Z",
+  "finished": "2026-09-29T07:08:00.217Z",
   "base": "http://127.0.0.1:8787",
   "repo": "F:/VSC Projects/wfm-dashboard",
   "node": "v24.13.0",
@@ -1528,10 +1528,10 @@
    "state": "trade/orders",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 115,
+   "scanned": 110,
    "low": 0,
    "lowSample": [],
-   "literalCount": 152,
+   "literalCount": 146,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1543,10 +1543,10 @@
    "state": "trade/orders",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 115,
+   "scanned": 110,
    "low": 0,
    "lowSample": [],
-   "literalCount": 152,
+   "literalCount": 146,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1558,10 +1558,10 @@
    "state": "trade/orders",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 115,
+   "scanned": 110,
    "low": 0,
    "lowSample": [],
-   "literalCount": 152,
+   "literalCount": 146,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1573,10 +1573,10 @@
    "state": "trade/orders",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 115,
+   "scanned": 110,
    "low": 0,
    "lowSample": [],
-   "literalCount": 152,
+   "literalCount": 146,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -3041,6 +3041,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -3501,6 +3502,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -3961,6 +3963,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -4421,6 +4424,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -4881,6 +4885,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -5341,6 +5346,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -5801,6 +5807,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -6261,6 +6268,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -6721,6 +6729,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -7181,6 +7190,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -7641,6 +7651,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -8101,6 +8112,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -8561,6 +8573,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -9021,6 +9034,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -9481,6 +9495,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -9941,6 +9956,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -10401,6 +10417,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -10861,6 +10878,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -14605,6 +14623,7 @@
     "sessionStartBox",
     "sessionStart",
     "sessionSay",
+    "sessionQueueCard",
     "sessionQueueMeta",
     "sessionQueueList",
     "sessionPendingCard",
@@ -14758,109 +14777,109 @@
    {
     "page": "index",
     "state": "landing #home",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#inventory",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#trade",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/deals",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/trends",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/rivens",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/wl",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/ducats",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/craft",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/relicev",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/sets",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/baro",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/meta",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/news",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#tools/player",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#trade/orders",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
     "page": "index",
     "state": "#trade/session",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    },
    {
@@ -14938,7 +14957,7 @@
    {
     "page": "lookup",
     "state": "landing",
-    "count": 460,
+    "count": 461,
     "duplicates": []
    }
   ]
@@ -15221,7 +15240,7 @@
    "title": "Orders shows its status chips and either a book or an honest reason",
    "ok": true,
    "expected": "chips >= 3, rows or a reason",
-   "rendered": "4 chips, 6 rows, 12 ladder rows, item \"· Primed Continuity\"",
+   "rendered": "4 chips, 5 rows, 12 ladder rows, item \"· Primed Continuity\"",
    "note": ""
   },
   {
@@ -15890,10 +15909,10 @@
   }
  ],
  "orders": {
-  "rows": 6,
+  "rows": 5,
   "ladder": 12,
   "chips": 4,
-  "meta": "· 1240 sell · 118 buy · 0s ago · ingame+online · 6 of 80 shown",
+  "meta": "· 1239 sell · 117 buy · 0s ago · ingame+online · 5 of 80 shown",
   "item": "· Primed Continuity",
   "err": ""
  },
@@ -15954,7 +15973,7 @@
    "heldChildren": 15,
    "heldHeadish": 0,
    "chips": "MR 22 Trades 22/day left Priced 803/876",
-   "foot": "WFM Trader · updated 16:45 · 471 events",
+   "foot": "WFM Trader · updated 17:05 · 471 events",
    "notLive": [
     "Not live#dim small explain"
    ]
@@ -15982,7 +16001,7 @@
    "relMin": null,
    "mhStats": "Mastered319 / 834Buildable now4Owned, not mastered1Missing514",
    "mhHead": "Mastery 22to 23: 112,500 XPItem mastery1,166,000items only",
-   "mhMeta": "· synced 27m ago"
+   "mhMeta": "· synced 46m ago"
   },
   "settings": {
    "notLive": [

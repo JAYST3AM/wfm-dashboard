@@ -1,14 +1,14 @@
 # WFM Trader — Trading Session WORKFLOW gate
 
-**Run:** 2026-09-29 16:48:50 +1000  
-**Drives:** `Whisper → CONTACTED → reconcile check → Confirm`, through the real UI at http://127.0.0.1:62621  
-**Server:** `server.py` on the throwaway data dir `C:\Users\jayde\AppData\Local\Temp\wfm-workflow-gate-yulm89u9\data` (never the repo's real `data/`)  
+**Run:** 2026-09-29 17:08:00 +1000  
+**Drives:** `Whisper → CONTACTED → reconcile check → Confirm`, through the real UI at http://127.0.0.1:57687  
+**Server:** `server.py` on the throwaway data dir `C:\Users\jayde\AppData\Local\Temp\wfm-workflow-gate-urwap6we\data` (never the repo's real `data/`)  
 **Driver:** `design/_session/workflow_gate.js` (puppeteer-core F:/VSC Projects/pb-bench/node_modules/puppeteer-core, node v24.13.0)  
-**Repo revision at run time:** `eeb42d0`, working tree dirty: M design/_stage10/gate-raw.json; M design/_stage10/gate-report.md; M static/app.js; M tests/test_home_layout.py; M tests/test_trade_session_panel.py; ?? design/_session/home_buyer_gate.js; ?? design/_session/home_buyer_gate.py; ?? design/_session/lane_buyer_check.js; ?? tests/test_lane_buyer.py  
+**Repo revision at run time:** `24fc895`, working tree dirty: M design/_session/workflow_gate.js; M design/_stage10/gate-raw.json; M design/_stage10/gate-report.md; M static/index.html; M static/session.css; M static/session.js; M tests/test_trade_session_panel.py  
 
 ## Verdict
 
-**PASS — 22 of 22 workflow checks passed**.
+**PASS — 23 of 23 workflow checks passed**.
 
 ## What it drove, and what it saw
 
@@ -27,7 +27,7 @@ The fixture (written into the throwaway dir by this launcher, and nothing else i
 | step | checks | failed |
 |---|---|---|
 | load | 3 | 0 |
-| start | 2 | 0 |
+| start | 3 | 0 |
 | whisper | 4 | 0 |
 | reconcile | 4 | 0 |
 | confirm | 7 | 0 |
@@ -39,25 +39,26 @@ Workflow checks (these decide the verdict) come first; labelled DIAGNOSTIC rows 
 
 | step | check | kind | ok | expected | observed |
 |---|---|---|---|---|---|
-| load | the Session panel renders and paints from GET /api/session | workflow | yes | panel open, Start visible, the panel painted a state | panel_open=true start_hidden=false focus="No session open yet." |
+| load | the Session panel renders and paints from GET /api/session | workflow | yes | panel open, Start rendered, the panel painted a state | panel_open=true start_visible=true focus="No session open yet." |
 | load | no console errors on the Session surface | workflow | yes | 0 console errors while the panel loaded | 0 console error(s) at load, 0 transient net-stack row(s) |
 | load | no failed request outside the documented blocked-CDN class | workflow | yes | 0 failed requests | 0 failed (0 blocked-CDN excluded) |
-| start | Start opened a real session with a queue | workflow | yes | a session with at least one queue row | session=s-20260929-1648-6020 queue_rows=1 (dom rows 1) |
+| start | the Start control steps aside once a session is live | workflow | yes | the start box is out of the flow while the loop owns the panel | start_visible=false start_hidden=false |
+| start | Start opened a real session with a queue | workflow | yes | a session with at least one queue row | session=s-20260929-1708-ec50 queue_rows=1 (dom rows 1) |
 | start | the focus card is on the seeded item and offers a buyer to whisper | workflow | yes | one buyer row with one Whisper button on the focus item | buyer="GateBuyer" whisper_btns=1 focus="Primed Continuity R0 3 copies 48p list lowest sell 70p highest buy 45p high ready Why this trade? Open live orders Mark " |
 | whisper | the app reports the whisper as SENT (not merely copied) | workflow | yes | the row says "Sent to game" | row answer: "Sent to game" |
-| whisper | the sent whisper opened a CONTACTED pending trade | workflow | yes | state=CONTACTED with an id | state=CONTACTED id=p-1790664533000-0eec5e slug=primed_continuity |
+| whisper | the sent whisper opened a CONTACTED pending trade | workflow | yes | state=CONTACTED with an id | state=CONTACTED id=p-1790665683000-3801de slug=primed_continuity |
 | whisper | the contact snapshotted the stack and the platinum it went out at | workflow | yes | copies=4 plat=1220 asked=48p x3 | copies=4 plat=1220 asked=48p x3 basis= buyer=GateBuyer |
 | whisper | the pending trade is on screen (Waiting on a confirmation) | workflow | yes | at least one pending row | 1 row(s): "0s ago Primed Continuity R0 GateBuyer 3 @ 48p" |
 | reconcile | the simulated game save landed in the throwaway data dir | workflow | yes | report sellable_count=1, plat=1364 | report=1 plat=1364 |
 | reconcile | the check is an EXACT match on copies left and platinum arrived | workflow | yes | verdict=exact copies_left=3 platinum=+144 | verdict=exact copies_left=3 platinum=+144 asked=144 evidence=["copies left: 3","platinum: +144","asked: 144"] |
-| reconcile | the check reached the screen and offers the Confirm click | workflow | yes | a check row with a Confirm button, from the panel the user is looking at | app-cadence (no interaction: the check rode the app's own refresh); rows=1 buttons=["Confirm"] card="sold Primed Continuity R0 GateBuyer 3 @ 48p each copies left: 3 platinum: +144 asked: 144 Confirm" |
+| reconcile | the check reached the screen and offers the Confirm click | workflow | yes | a check row with a Confirm button, from the panel the user is looking at | app-cadence (no interaction: the check rode the app's own refresh); rows=1 buttons=["Confirm 144p"] card="sold Primed Continuity R0 GateBuyer 3 @ 48p each copies left: 3 platinum: +144 asked: 144 Conf |
 | reconcile | the check writes nothing on its own (a proposal, never a trade) | workflow | yes | no trade_log.json before the Confirm click | trade_log.json absent |
-| confirm | one trade was written to trade_log.json | workflow | yes | exactly one record for primed_continuity with an id | records=1 id=t-1790664533000-0e5c9b slug=primed_continuity qty=3 plat=48 total=144 source=session |
+| confirm | one trade was written to trade_log.json | workflow | yes | exactly one record for primed_continuity with an id | records=1 id=t-1790665683000-47a3b2 slug=primed_continuity qty=3 plat=48 total=144 source=session |
 | confirm | the money recorded for the trade is what the check asked for | workflow | yes | total=144p (3 x 48p, the "asked: 144" the check showed) | total=144p |
 | confirm | the record's plat is the price per copy, the shape confirm() documents | workflow | yes | plat=48p (the per-copy price the row showed: "3 @ 48p each") | plat=48p |
 | confirm | the session credited exactly the money the trade paid | workflow | yes | earned_plat=144p (3 x 48p) | earned_plat=144p |
 | confirm | the session counted the trade and closed the pending row | workflow | yes | summary.trades=1 and no pending trade left | trades=1 earned=144 pending=0 |
-| confirm | the store shows the queue row and the pending row completed | workflow | yes | queue row COMPLETED, pending COMPLETED, the trade id in confirmed[] | queue=COMPLETED pending=COMPLETED confirmed=["t-1790664533000-0e5c9b"] |
+| confirm | the store shows the queue row and the pending row completed | workflow | yes | queue row COMPLETED, pending COMPLETED, the trade id in confirmed[] | queue=COMPLETED pending=COMPLETED confirmed=["t-1790665683000-47a3b2"] |
 | confirm | the screen shows one trade and no check left to confirm | workflow | yes | the meta line reads 1 trade; the Checks card offers nothing | meta="· 1 TRADE · 0 LEFT · STARTED 30S AGO" confirm_btns=[] focus="Session complete 1 trade +144pp earned 1m +144pp average highest sale Primed Continuity +144pp" |
 | hygiene | every connection-level failure clears on a direct recheck | workflow | yes | each refused URL answers when asked again from node | 0 refusal(s), 0 cleared: [] |
 | hygiene | no console error or failed request outside that class, over the whole drive | workflow | yes | 0 console errors, 0 failed requests | 0 console error(s), 0 failed request(s) |
@@ -86,6 +87,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
  "pending_meta": "",
  "kpis": "",
  "start_hidden": false,
+ "start_visible": true,
  "buyer_user": null,
  "whisper_btns": 0,
  "whisper_say": null,
@@ -103,7 +105,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
 ```json
 {
  "dom": {
-  "meta": "\u00b7 0 TRADES \u00b7 1 LEFT \u00b7 STARTED 0S AGO",
+  "meta": "\u00b7 0 TRADES \u00b7 1 LEFT \u00b7 STARTED 1S AGO",
   "focus": "Primed Continuity R0 3 copies 48p list lowest sell 70p highest buy 45p high ready Why this trade? Open live orders Mark sold GateBuyer 48p ingame Whisper",
   "queue": "ready Primed Continuity R0 3 x 48p Focus",
   "pending": "Nothing waiting on a confirmation.",
@@ -112,6 +114,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   "pending_meta": "",
   "kpis": "EARNED 0p TRADES 0 LEFT TODAY 6 QUEUE 1/1",
   "start_hidden": false,
+  "start_visible": false,
   "buyer_user": "GateBuyer",
   "whisper_btns": 1,
   "whisper_say": "",
@@ -123,8 +126,8 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   "hash": "#trade/session"
  },
  "session": {
-  "id": "s-20260929-1648-6020",
-  "started_ts": 1790664532,
+  "id": "s-20260929-1708-ec50",
+  "started_ts": 1790665682,
   "ended_ts": null,
   "account": "GateAccount",
   "cursor": 0,
@@ -170,7 +173,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
     },
     "source": "plan",
     "state": "READY",
-    "added_ts": 1790664532
+    "added_ts": 1790665682
    }
   ],
   "done": [],
@@ -209,8 +212,8 @@ Each block is what the driver actually read — DOM text the panel painted, the 
    "sent": true,
    "reason": "",
    "contact": {
-    "id": "p-1790664533000-0eec5e",
-    "session_id": "s-20260929-1648-6020",
+    "id": "p-1790665683000-3801de",
+    "session_id": "s-20260929-1708-ec50",
     "slug": "primed_continuity",
     "name": "Primed Continuity",
     "rank": 0,
@@ -219,7 +222,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
     "expected_plat": 48,
     "buyer": "GateBuyer",
     "kind": "buy",
-    "ts": 1790664533,
+    "ts": 1790665683,
     "state": "CONTACTED",
     "inv_before": 4,
     "plat_before": 1220,
@@ -230,8 +233,8 @@ Each block is what the driver actually read — DOM text the panel painted, the 
  },
  "pending": [
   {
-   "id": "p-1790664533000-0eec5e",
-   "session_id": "s-20260929-1648-6020",
+   "id": "p-1790665683000-3801de",
+   "session_id": "s-20260929-1708-ec50",
    "slug": "primed_continuity",
    "name": "Primed Continuity",
    "rank": 0,
@@ -240,7 +243,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
    "expected_plat": 48,
    "buyer": "GateBuyer",
    "kind": "buy",
-   "ts": 1790664533,
+   "ts": 1790665683,
    "state": "CONTACTED",
    "inv_before": 4,
    "plat_before": 1220,
@@ -250,8 +253,8 @@ Each block is what the driver actually read — DOM text the panel painted, the 
  ],
  "queue_row_state": "READY",
  "session_after": {
-  "id": "s-20260929-1648-6020",
-  "started_ts": 1790664532,
+  "id": "s-20260929-1708-ec50",
+  "started_ts": 1790665682,
   "ended_ts": null,
   "account": "GateAccount",
   "cursor": 0,
@@ -297,8 +300,8 @@ Each block is what the driver actually read — DOM text the panel painted, the 
     },
     "source": "plan",
     "state": "CONTACTED",
-    "added_ts": 1790664532,
-    "contacted_ts": 1790664533
+    "added_ts": 1790665682,
+    "contacted_ts": 1790665683
    }
   ],
   "done": [],
@@ -335,18 +338,18 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   },
   "plat_history": [
    {
-    "ts": 1790660933,
+    "ts": 1790662083,
     "plat": 1220
    },
    {
-    "ts": 1790664533,
+    "ts": 1790665683,
     "plat": 1364
    }
   ]
  },
  "pending_before": {
-  "id": "p-1790664533000-0eec5e",
-  "session_id": "s-20260929-1648-6020",
+  "id": "p-1790665683000-3801de",
+  "session_id": "s-20260929-1708-ec50",
   "slug": "primed_continuity",
   "name": "Primed Continuity",
   "rank": 0,
@@ -355,7 +358,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   "expected_plat": 48,
   "buyer": "GateBuyer",
   "kind": "buy",
-  "ts": 1790664533,
+  "ts": 1790665683,
   "state": "CONTACTED",
   "inv_before": 4,
   "plat_before": 1220,
@@ -364,19 +367,19 @@ Each block is what the driver actually read — DOM text the panel painted, the 
  },
  "expected_delta": 144,
  "dom": {
-  "checks": "sold Primed Continuity R0 GateBuyer 3 @ 48p each copies left: 3 platinum: +144 asked: 144 Confirm",
+  "checks": "sold Primed Continuity R0 GateBuyer 3 @ 48p each copies left: 3 platinum: +144 asked: 144 Confirm 144p",
   "checks_meta": "\u00b7 1 TO CONFIRM",
   "check_rows": [
-   "sold Primed Continuity R0 GateBuyer 3 @ 48p each copies left: 3 platinum: +144 asked: 144 Confirm"
+   "sold Primed Continuity R0 GateBuyer 3 @ 48p each copies left: 3 platinum: +144 asked: 144 Confirm 144p"
   ],
   "confirm_btns": [
-   "Confirm"
+   "Confirm 144p"
   ],
   "meta": "\u00b7 0 TRADES \u00b7 1 LEFT \u00b7 STARTED 30S AGO"
  },
  "proposal": {
   "verdict": "exact",
-  "pending_id": "p-1790664533000-0eec5e",
+  "pending_id": "p-1790665683000-3801de",
   "slug": "primed_continuity",
   "name": "Primed Continuity",
   "lane": "rank 0",
@@ -411,10 +414,10 @@ Each block is what the driver actually read — DOM text the panel painted, the 
    "user": "GateBuyer",
    "buyer": "GateBuyer",
    "source": "session",
-   "session_id": "s-20260929-1648-6020",
-   "pending_id": "p-1790664533000-0eec5e",
-   "ts": 1790664533,
-   "id": "t-1790664533000-0e5c9b"
+   "session_id": "s-20260929-1708-ec50",
+   "pending_id": "p-1790665683000-3801de",
+   "ts": 1790665683,
+   "id": "t-1790665683000-47a3b2"
   }
  },
  "refresh_mode": "app-cadence (no interaction: the check rode the app's own refresh)",
@@ -422,7 +425,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   "feat_session_proposals": 1,
   "session_payload_proposals": 1,
   "session_payload_source": "static/session.js sessionPayload()",
-  "checks_card_text": "sold\nPrimed Continuity R0\nGateBuyer\n3 @ 48p each\ncopies left: 3\nplatinum: +144\nasked: 144\nConfirm",
+  "checks_card_text": "sold\nPrimed Continuity R0\nGateBuyer\n3 @ 48p each\ncopies left: 3\nplatinum: +144\nasked: 144\nConfirm 144p",
   "checks_meta_text": "\u00b7 1 TO CONFIRM"
  }
 }
@@ -441,11 +444,11 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   "confirm_btns": []
  },
  "summary": {
-  "id": "s-20260929-1648-6020",
+  "id": "s-20260929-1708-ec50",
   "active": true,
-  "started_ts": 1790664532,
+  "started_ts": 1790665682,
   "ended_ts": null,
-  "seconds": 31,
+  "seconds": 30,
   "trades": 1,
   "earned_plat": 144,
   "average_plat": 144,
@@ -456,7 +459,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
   "completed_rows": 1,
   "plat_start": 1220,
   "best": {
-   "id": "t-1790664533000-0e5c9b",
+   "id": "t-1790665683000-47a3b2",
    "slug": "primed_continuity",
    "name": "Primed Continuity",
    "lane": "rank 0",
@@ -464,7 +467,7 @@ Each block is what the driver actually read — DOM text the panel painted, the 
    "qty": 3,
    "plat": 144,
    "buyer": "GateBuyer",
-   "ts": 1790664562
+   "ts": 1790665712
   },
   "trades_left_today": 6,
   "trade_cap": 20,
@@ -485,18 +488,18 @@ Each block is what the driver actually read — DOM text the panel painted, the 
    "user": "GateBuyer",
    "buyer": "GateBuyer",
    "source": "session",
-   "session_id": "s-20260929-1648-6020",
-   "pending_id": "p-1790664533000-0eec5e",
-   "ts": 1790664533,
-   "id": "t-1790664533000-0e5c9b",
+   "session_id": "s-20260929-1708-ec50",
+   "pending_id": "p-1790665683000-3801de",
+   "ts": 1790665683,
+   "id": "t-1790665683000-47a3b2",
    "src": "session",
-   "confirmed_ts": 1790664562
+   "confirmed_ts": 1790665712
   }
  ],
  "store_queue_row_state": "COMPLETED",
  "store_pending_state": "COMPLETED",
  "store_confirmed": [
-  "t-1790664533000-0e5c9b"
+  "t-1790665683000-47a3b2"
  ]
 }
 ```
@@ -531,16 +534,16 @@ Blocked-CDN requests excluded (missing card/warframe art, counted, never hidden)
 | whisper transport | stubbed (GATE_WHISPER=stubbed) |
 | the queue the server BUILT from the throwaway payloads | primed_continuity |
 | the session the driver started names the fixture account | `GateAccount` (plat_start=1220) |
-| the CONTACTED snapshot the server took | id=p-1790664533000-0eec5e state=CONTACTED copies=4 plat=1220 asked=48p x3 |
+| the CONTACTED snapshot the server took | id=p-1790665683000-3801de state=CONTACTED copies=4 plat=1220 asked=48p x3 |
 | the trade the Confirm click wrote | {"kind": "sale", "slug": "primed_continuity", "item": "primed_continuity", "name": "Primed Continuity", "rank": 0, "lane": "rank 0", "qty": 3, "plat": 48, "total": 144, "user": "GateBuyer", "buyer": "GateBuyer", "source" |
 
 Gate server stdout (the boot script proving which data dir it used):
 
 ```
-GATE_DATA=C:\Users\jayde\AppData\Local\Temp\wfm-workflow-gate-yulm89u9\data
+GATE_DATA=C:\Users\jayde\AppData\Local\Temp\wfm-workflow-gate-urwap6we\data
 GATE_ROOT=F:\VSC Projects\wfm-dashboard
 GATE_WHISPER=stubbed
-gate server on http://127.0.0.1:62621/
+gate server on http://127.0.0.1:57687/
 ```
 
 The repo's REAL `data/` files, before → after (informational only: the developer's own supervised app may write them at any time, so no claim is made from this):
@@ -551,9 +554,9 @@ The repo's REAL `data/` files, before → after (informational only: the develop
 | trade_log.json | 132901 bytes @1790339727 | 132901 bytes @1790339727 | same |
 | whisper_log.json | 2717 bytes @1790599272 | 2717 bytes @1790599272 | same |
 | report.json | 103419 bytes @1790354374 | 103419 bytes @1790354374 | same |
-| plat_history.json | 13330 bytes @1790662752 | 13330 bytes @1790662752 | same |
+| plat_history.json | 13384 bytes @1790664912 | 13384 bytes @1790664912 | same |
 | trader_limits.json | 530 bytes @1790345450 | 530 bytes @1790345450 | same |
-| sync_log.json | 3853 bytes @1790663990 | 3853 bytes @1790663990 | same |
+| sync_log.json | 3853 bytes @1790664892 | 3853 bytes @1790664892 | same |
 
 ## What this gate does NOT prove
 
