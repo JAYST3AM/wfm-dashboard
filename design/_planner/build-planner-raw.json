@@ -1,5 +1,5 @@
 {
- "started": "2026-09-29T12:06:32.900Z",
+ "started": "2026-09-29T12:26:07.840Z",
  "base": "http://127.0.0.1:8787",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -630,7 +630,7 @@
    "title": "an impossible build shows the engine's own reason, not a dead engine",
    "ok": true,
    "expected": "the refusal code the engine sent appears in #plValidity",
-   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod\",\"banner\":\"\"}",
+   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhes\",\"banner\":\"\"}",
    "note": "",
    "diagnostic": false
   },
@@ -649,6 +649,60 @@
    "ok": true,
    "expected": "the stored key is rewritten to a clean v1 document",
    "observed": "{\"version\":1,\"equipment_id\":\"/Lotus/Weapons/Tenno/Rifle/BratonPrime\",\"equipment_rank\":null,\"orokin\":false,\"exilus_unlocked\":false,\"mastery_rank\":28,\"active_config\":\"A\",\"configs\":{\"A\":{\"slots\":{},\"pola",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "head-card",
+   "title": "at 1920x1080 the selector sits in the head card and the dropdown hangs off it, unclipped",
+   "ok": true,
+   "expected": "button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-testable and inside the viewport; no horizontal overflow",
+   "observed": "{\"btnInsideHead\":true,\"headContainsChildren\":true,\"headScrollTop\":0,\"headClearsBar\":true,\"popAnchored\":true,\"popUnclipped\":true,\"searchVisible\":true,\"popInViewport\":true,\"docOverflowX\":0,\"head\":{\"y\":63,\"bottom\":121},\"pop\":{\"x\":379,\"y\":116,\"bottom\":759}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "head-card",
+   "title": "at 1536x864 the selector sits in the head card and the dropdown hangs off it, unclipped",
+   "ok": true,
+   "expected": "button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-testable and inside the viewport; no horizontal overflow",
+   "observed": "{\"btnInsideHead\":true,\"headContainsChildren\":true,\"headScrollTop\":0,\"headClearsBar\":true,\"popAnchored\":true,\"popUnclipped\":true,\"searchVisible\":true,\"popInViewport\":true,\"docOverflowX\":0,\"head\":{\"y\":63,\"bottom\":121},\"pop\":{\"x\":379,\"y\":116,\"bottom\":660}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "head-card",
+   "title": "at 1440x900 the selector sits in the head card and the dropdown hangs off it, unclipped",
+   "ok": true,
+   "expected": "button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-testable and inside the viewport; no horizontal overflow",
+   "observed": "{\"btnInsideHead\":true,\"headContainsChildren\":true,\"headScrollTop\":0,\"headClearsBar\":true,\"popAnchored\":true,\"popUnclipped\":true,\"searchVisible\":true,\"popInViewport\":true,\"docOverflowX\":0,\"head\":{\"y\":63,\"bottom\":121},\"pop\":{\"x\":379,\"y\":116,\"bottom\":676}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "head-card",
+   "title": "at 1366x768 the selector sits in the head card and the dropdown hangs off it, unclipped",
+   "ok": true,
+   "expected": "button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-testable and inside the viewport; no horizontal overflow",
+   "observed": "{\"btnInsideHead\":true,\"headContainsChildren\":true,\"headScrollTop\":0,\"headClearsBar\":true,\"popAnchored\":true,\"popUnclipped\":true,\"searchVisible\":true,\"popInViewport\":true,\"docOverflowX\":0,\"head\":{\"y\":63,\"bottom\":121},\"pop\":{\"x\":379,\"y\":116,\"bottom\":616}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "head-card",
+   "title": "at 1280x800 the selector sits in the head card and the dropdown hangs off it, unclipped",
+   "ok": true,
+   "expected": "button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-testable and inside the viewport; no horizontal overflow",
+   "observed": "{\"btnInsideHead\":true,\"headContainsChildren\":true,\"headScrollTop\":0,\"headClearsBar\":true,\"popAnchored\":true,\"popUnclipped\":true,\"searchVisible\":true,\"popInViewport\":true,\"docOverflowX\":0,\"head\":{\"y\":63,\"bottom\":121},\"pop\":{\"x\":379,\"y\":116,\"bottom\":630}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "head-card",
+   "title": "the head card holds its controls in a light theme too (white card)",
+   "ok": true,
+   "expected": "the same invariants on the white card of a light palette",
+   "observed": "{\"bg\":\"rgb(255, 255, 255)\",\"m\":{\"btnInsideHead\":true,\"headContainsChildren\":true,\"headScrollTop\":0,\"headClearsBar\":true,\"popAnchored\":true,\"popUnclipped\":true,\"searchVisible\":true,\"popInViewport\":true,\"docOverflowX\":0,\"head\":{\"y\":63,\"bottom\":121},\"pop\":{\"x\":379,\"y\":116,\"bottom\":759}}}",
    "note": "",
    "diagnostic": false
   },
@@ -1386,7 +1440,7 @@
    "engine_codes": [
     "duplicate_mod"
    ],
-   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mods/Rifle/WeaponGrenadeStickyModAdhesive Blast carries stats the engine does not model: grenades have #% chance ",
+   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhesive Blast carries stats the engine does not model: grenades have #% chance to stick to surfaces.code · unmodel",
    "banner_hidden": true,
    "banner_text": ""
   },
@@ -1429,6 +1483,126 @@
    "keys_ok": true,
    "page_alive": true
   },
+  "head-card-1920": {
+   "btnInsideHead": true,
+   "headContainsChildren": true,
+   "headScrollTop": 0,
+   "headClearsBar": true,
+   "popAnchored": true,
+   "popUnclipped": true,
+   "searchVisible": true,
+   "popInViewport": true,
+   "docOverflowX": 0,
+   "head": {
+    "y": 63,
+    "bottom": 121
+   },
+   "pop": {
+    "x": 379,
+    "y": 116,
+    "bottom": 759
+   }
+  },
+  "head-card-1536": {
+   "btnInsideHead": true,
+   "headContainsChildren": true,
+   "headScrollTop": 0,
+   "headClearsBar": true,
+   "popAnchored": true,
+   "popUnclipped": true,
+   "searchVisible": true,
+   "popInViewport": true,
+   "docOverflowX": 0,
+   "head": {
+    "y": 63,
+    "bottom": 121
+   },
+   "pop": {
+    "x": 379,
+    "y": 116,
+    "bottom": 660
+   }
+  },
+  "head-card-1440": {
+   "btnInsideHead": true,
+   "headContainsChildren": true,
+   "headScrollTop": 0,
+   "headClearsBar": true,
+   "popAnchored": true,
+   "popUnclipped": true,
+   "searchVisible": true,
+   "popInViewport": true,
+   "docOverflowX": 0,
+   "head": {
+    "y": 63,
+    "bottom": 121
+   },
+   "pop": {
+    "x": 379,
+    "y": 116,
+    "bottom": 676
+   }
+  },
+  "head-card-1366": {
+   "btnInsideHead": true,
+   "headContainsChildren": true,
+   "headScrollTop": 0,
+   "headClearsBar": true,
+   "popAnchored": true,
+   "popUnclipped": true,
+   "searchVisible": true,
+   "popInViewport": true,
+   "docOverflowX": 0,
+   "head": {
+    "y": 63,
+    "bottom": 121
+   },
+   "pop": {
+    "x": 379,
+    "y": 116,
+    "bottom": 616
+   }
+  },
+  "head-card-1280": {
+   "btnInsideHead": true,
+   "headContainsChildren": true,
+   "headScrollTop": 0,
+   "headClearsBar": true,
+   "popAnchored": true,
+   "popUnclipped": true,
+   "searchVisible": true,
+   "popInViewport": true,
+   "docOverflowX": 0,
+   "head": {
+    "y": 63,
+    "bottom": 121
+   },
+   "pop": {
+    "x": 379,
+    "y": 116,
+    "bottom": 630
+   }
+  },
+  "head-card-light": {
+   "btnInsideHead": true,
+   "headContainsChildren": true,
+   "headScrollTop": 0,
+   "headClearsBar": true,
+   "popAnchored": true,
+   "popUnclipped": true,
+   "searchVisible": true,
+   "popInViewport": true,
+   "docOverflowX": 0,
+   "head": {
+    "y": 63,
+    "bottom": 121
+   },
+   "pop": {
+    "x": 379,
+    "y": 116,
+    "bottom": 759
+   }
+  },
   "hygiene": {
    "dupes": [],
    "console": 0,
@@ -1450,10 +1624,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-29T12:07:00.501Z",
+ "finished": "2026-09-29T12:26:47.038Z",
  "verdict": {
   "pass": true,
-  "checks_total": 76,
+  "checks_total": 82,
   "checks_failed": 0,
   "failed": []
  }

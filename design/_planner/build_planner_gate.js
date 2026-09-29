@@ -64,8 +64,11 @@ const OUT = path.join(REPO, 'design', '_planner');
 const RAW = process.env.WFM_RAW || path.join(OUT, 'build-planner-raw.json');
 const SHOTS = process.env.WFM_SHOTS ||
   path.join(process.env.TEMP || 'C:/Users/jayde/AppData/Local/Temp', 'planner-gate-shots');
+// One profile per run. A shared dir meant an orphaned Chrome from an earlier run left its lock
+// behind and puppeteer refused to launch (or the startup rmSync died with EPERM) - a stale dir
+// must never be able to fail this gate.
 const PROFILE = path.join(process.env.TEMP || 'C:/Users/jayde/AppData/Local/Temp',
-  'planner-gate-profile');
+  'planner-gate-profile-' + process.pid);
 const VIEWPORTS = [[1920, 1080], [1536, 864], [1440, 900], [1366, 768], [1280, 800]];
 const EQUIP = process.env.WFM_EQUIP || '/Lotus/Weapons/Tenno/Rifle/BratonPrime';
 const PINNED = {
@@ -92,7 +95,7 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
 
 (async () => {
   try { fs.rmSync(PROFILE, { recursive: true, force: true }); }
-catch (e) { console.log('• profile dir busy (' + e.code + ') - reusing it'); }     // every run starts from a clean slate
+  catch (e) { console.log('• profile dir busy (' + e.code + ') - reusing it'); }   // ours + fresh: nothing to remove
   const browser = await puppeteer.launch({
     executablePath: CHROME, headless: 'new',
     userDataDir: PROFILE, args: ['--no-sandbox', '--disable-dev-shm-usage'],
@@ -1064,6 +1067,89 @@ catch (e) { console.log('• profile dir busy (' + e.code + ') - reusing it'); }
       !!replaced.keys_ok && replaced.still_junk === false && replaced.page_alive === true,
       'the stored key is rewritten to a clean v1 document',
       JSON.stringify(replaced.doc).slice(0, 200));
+
+    /* ------------------------------- 19e the head card holds its own controls (five viewports) */
+    // `.card` clips, and a clipping box is also a scroll container. This card contains the
+    // equipment popover, so focusing the search input used to scroll the head's content clean out
+    // of its own card (scrollTop 51 with clientHeight 56 at 1366x768) and clip the popover at the
+    // card's edge. These checks fail on either symptom.
+    const headMeasure = () => page.evaluate(() => {
+      const rect = (s) => {
+        const e = document.querySelector(s);
+        if (!e) return null;
+        const b = e.getBoundingClientRect();
+        return { x: b.x, y: b.y, w: b.width, h: b.height, bottom: b.bottom, right: b.right };
+      };
+      const headEl = document.querySelector('.pl-head');
+      const head = rect('.pl-head'); const btn = rect('#plEquipBtn'); const bar = rect('.pl-bar');
+      const popEl = document.getElementById('plEquipPop'); const pop = rect('#plEquipPop');
+      // Probe BELOW the card's bottom edge but inside the popover's box: that band is exactly what
+      // a clipping card cuts off. (Probing inside the card's box proves nothing - with the old
+      // overflow the card scrolled, which pulled the popover up into its own visible area.)
+      const probeY = Math.min(Math.max(head.bottom + 20, pop.y + 8), pop.bottom - 8);
+      const probe = document.elementFromPoint(pop.x + pop.w / 2, probeY);
+      const s = document.getElementById('plEquipSearch'); const sb = s.getBoundingClientRect();
+      const hit = document.elementFromPoint(sb.x + sb.width / 2, sb.y + sb.height / 2);
+      return {
+        btnInsideHead: btn.y >= head.y - 1 && btn.bottom <= head.bottom + 1 &&
+          btn.x >= head.x - 1 && btn.right <= head.right + 1,
+        headContainsChildren: Array.from(headEl.querySelectorAll('.pl-title,.pl-picker,.pl-head-side'))
+          .every((k) => { const b = k.getBoundingClientRect();
+            return b.top >= head.y - 1 && b.bottom <= head.bottom + 1; }),
+        headScrollTop: headEl.scrollTop,
+        headClearsBar: head.bottom <= bar.y + 1,
+        popAnchored: Math.abs(pop.x - btn.x) <= 2 && (pop.y - btn.bottom) >= 2 &&
+          (pop.y - btn.bottom) <= 14,
+        popUnclipped: !!(probe && popEl.contains(probe)),
+        searchVisible: !!(hit && (s === hit || s.contains(hit))),
+        popInViewport: pop.right <= window.innerWidth + 1 && pop.bottom <= window.innerHeight + 1,
+        docOverflowX: document.documentElement.scrollWidth - window.innerWidth,
+        head: { y: Math.round(head.y), bottom: Math.round(head.bottom) },
+        pop: { x: Math.round(pop.x), y: Math.round(pop.y), bottom: Math.round(pop.bottom) }
+      };
+    });
+    const headOk = (m) => m.btnInsideHead && m.headContainsChildren && m.headScrollTop === 0 &&
+      m.headClearsBar && m.popAnchored && m.popUnclipped && m.searchVisible && m.popInViewport &&
+      m.docOverflowX <= 0;
+
+    for (const [vw, vh] of [[1920, 1080], [1536, 864], [1440, 900], [1366, 768], [1280, 800]]) {
+      await page.setViewport({ width: vw, height: vh, deviceScaleFactor: 1 });
+      await page.goto(BASE + '/planner.html', { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
+      const wasOpen = await page.evaluate(() => !document.getElementById('plEquipPop').hidden);
+      if (!wasOpen) { await page.click('#plEquipBtn'); }
+      // the exact trigger: focus the search field inside the card
+      await page.evaluate(() => document.getElementById('plEquipSearch').focus());
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 350)));
+      const m = await headMeasure();
+      say('head-card-' + vw, m);
+      addCheck('head-card', 'at ' + vw + 'x' + vh + ' the selector sits in the head card and the dropdown hangs off it, unclipped',
+        headOk(m),
+        'button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, ' +
+        'hit-testable and inside the viewport; no horizontal overflow',
+        JSON.stringify(m));
+    }
+
+    // and in a light theme, where the card is white and the clipping was most visible
+    await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+    await page.evaluate(() => { localStorage.setItem('wfm.theme', '28'); });   // Cephalon White
+    await page.goto(BASE + '/planner.html', { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 700)));
+    if (await page.evaluate(() => document.getElementById('plEquipPop').hidden)) {
+      await page.click('#plEquipBtn');
+    }
+    await page.evaluate(() => document.getElementById('plEquipSearch').focus());
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 350)));
+    const light = await headMeasure();
+    const lightBg = await page.evaluate(() =>
+      getComputedStyle(document.querySelector('.pl-head')).backgroundColor);
+    say('head-card-light', light);
+    addCheck('head-card', 'the head card holds its controls in a light theme too (white card)',
+      headOk(light) && lightBg === 'rgb(255, 255, 255)',
+      'the same invariants on the white card of a light palette',
+      JSON.stringify({ bg: lightBg, m: light }));
+    await page.evaluate(() => { localStorage.removeItem('wfm.theme'); });
+    await page.keyboard.press('Escape');
 
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));

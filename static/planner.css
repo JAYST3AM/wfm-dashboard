@@ -41,6 +41,16 @@
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
   padding: 10px 14px; margin-bottom: 10px; position: relative; flex-wrap: wrap;
 }
+/* The head hosts the equipment dropdown, and that is the whole of this rule.
+   `.card` (style.css) sets overflow: hidden to round its corners - but a clipping box is also a
+   scroll container, and this card's popover is taller than the card. Two things followed: the
+   popover was clipped at the card's edge, and focusing the search input (which the picker does on
+   open, and the page does on boot) made the browser scroll the card to reveal it - so the title,
+   the selector and the buttons slid up out of their own card, leaving it looking empty.
+   Measured before the fix at 1366x768: head scrollTop 51 against clientHeight 56 / scrollHeight
+   695, with .pl-head-main painted 40px above the card's top edge. No other card on this page is
+   affected: every one of them has scrollHeight == clientHeight, and none holds a popover. */
+.pl-head { overflow: visible; }
 .pl-head-main { display: flex; align-items: center; gap: 14px; min-width: 0; flex-wrap: wrap; row-gap: 8px; }
 .pl-title {
   display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 650;
