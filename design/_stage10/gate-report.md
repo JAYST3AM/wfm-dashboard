@@ -1,8 +1,8 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-29 21:46:31  (2026-09-29T21:46:31.717878+10:00) -> live measurements finished 21:49:35
-**App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)
-**Raw numbers:** design/_stage10/gate-raw.json
+**Run:** 2026-09-29 22:25:59  (2026-09-29T22:25:59.985203+10:00) -> live measurements finished 22:29:04  
+**App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
+**Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
 
 ## Verdict
@@ -159,7 +159,7 @@ none
 | rendered: settings status pill | Not live#st-pill dry |
 | rendered: trade kill-switch chip | disarmed |
 | rendered: trade kill-switch line | 9/25/2026, 23:02:47 Not live |
-| rendered: trade plan header | · built 53h ago · MR 22 |
+| rendered: trade plan header | · built 54h ago · MR 22 |
 | rendered: home alerts | Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically |
 
 How the badge is derived (read live from `app.js`, not assumed): `dry = set.dry_run === true || plan.dry_run === true`, then the chip prints `Not live - nothing is posted` when dry. The two inputs are `scripts/trader/settings.json` and `data/trader_plan.json`; **`data/config.json` carries no `dry_run` key at all**, so it is not the gate for this badge. Both real inputs are `true` above, and the rendered copy is the Not-live wording - the badge cannot claim Live while posting is locked.
@@ -172,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3203 | 0 | 9015 | 193 | 0 |
-| Kuva Crimson | dark | 17 | 3204 | 0 | 9016 | 193 | 0 |
-| Frost Light | light | 17 | 3204 | 0 | 9016 | 193 | 0 |
-| Cephalon White | light | 17 | 3204 | 0 | 9016 | 193 | 0 |
+| Vor Orange | dark | 17 | 3199 | 0 | 9001 | 193 | 0 |
+| Kuva Crimson | dark | 17 | 3200 | 0 | 9002 | 193 | 0 |
+| Frost Light | light | 17 | 3200 | 0 | 9002 | 193 | 0 |
+| Cephalon White | light | 17 | 3200 | 0 | 9002 | 193 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
@@ -189,7 +189,7 @@ ids_before.json pages: index=172, collection=28, cards=20, settings=36, item=25,
 
 ids found live: index=8316, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=462, planner=298
 
-**Missing: 0**
+**Missing: 0** 
 
 Sanctioned removals/moves applied (6):
 - btnExportPng (index) <- removed from the header 2026-09-29 (Jay: the export drew a stale, price-less report and a share action did not belong in the daily header; static/export.js stays dormant)
@@ -205,5 +205,5 @@ None: every check found the DOM and the store it needs. When a container is miss
 
 ---
 
-Re-run: `python design/_stage10/gate.py` (needs the app served at http://127.0.0.1:8787).
+Re-run: `python design/_stage10/gate.py` (needs the app served at http://127.0.0.1:8787). 
 This file is rewritten on every run; gate-raw.json holds the full machine-readable numbers.
