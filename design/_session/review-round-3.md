@@ -4,6 +4,9 @@ The round-2 package came back **FIX** with four correctness gaps and nine counte
 the answer to each, in the order the review ranked them, with the cause as it existed in the code, the
 fix, and the evidence. Nothing here is a plan: every claim names a file, a test or a run.
 
+**Code revision for this report: `4688d3a`** (main) — the commit the reviewer should check out.
+This file is the only thing added after it, so the code is byte-for-byte what was reviewed.
+
 **Verdict being answered:** "Round 2 fixes several real defects and materially improves the workflow,
 but four correctness gaps remain before this should be treated as fully closed."
 
@@ -48,6 +51,10 @@ can arrive by (live, or replayed by `recover()`) both leave exactly one mark.
 **Fixed (thread):** `confirm()` is now a thin wrapper around `_confirm()` under a module-level
 `threading.RLock()`, so the read-modify-write is atomic for the whole transaction — not just for the
 file write — and no caller can reach the unguarded body.
+
+The lock is a `threading.RLock` inside the process that serves the dashboard, which is what the
+review asked for: `ThreadingHTTPServer` was letting two clicks interleave. It does not cover two
+separate server processes pointed at one data directory, and nothing in this repo does that.
 
 **Tests:** `test_an_id_evicted_from_the_visible_list_cannot_settle_twice` empties `confirmed`, saves,
 retries, and asserts the totals, `done` and the log are unchanged. `test_two_simultaneous_confirms_settle_exactly_once`
@@ -175,6 +182,9 @@ lane, and the check treated it as unlaned.
 ## Evidence: the suite, both gates, and the live files
 
 - `python -m pytest tests -q` — **1898 passed, 5 skipped** on Windows.
+- CI on the pushed revision, run `36528689054` — **completed success**, and the step conclusions
+  show the test step itself ran: `1647 passed, 256 skipped` on the Linux runner (the skip count is
+  the private-engine tests plus the Windows-only paths, not failures).
 - `python design/_stage10/gate.py` (the read-only UI gate, against the running app) — **PASS, 0 of 118
   checks failed, 37 page states driven**.
 - `python design/_session/workflow_gate.py` (the write-capable gate: Whisper -> CONTACTED -> check ->
