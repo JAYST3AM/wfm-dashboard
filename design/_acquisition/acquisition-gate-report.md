@@ -48,10 +48,23 @@ python design/_acquisition/acquisition_gate.py --falsify
 | `source/bounty (solaris)` | PASS | Solaris: Orb Vallis (Venus) |
 | `source/bounty (deimos)` | PASS | Deimos: Cambion Drift (Deimos) |
 | `source/bounty (hex)` | PASS | Hex: Höllvania |
-| `source/vendor-shaped-sources-labelled` | PASS | vendor-shaped sources present:  |
+| `source/vendor-shaped-sources-labelled` | PASS | vendor-shaped sources present: Key |
+| `source/bounty-indexed` | PASS | no bounty-stage rows in the index |
+| `source/bounty-keeps-its-level-band` | PASS | 0 of 1077 bounty rows have no level band:  |
+| `source/bounty-keeps-its-stage` | PASS | 0 bounty rows dropped the stage:  |
+| `source/key-indexed` | PASS | no key rows in the index |
+| `source/key-names-the-key` | PASS | 0 key rows show only a rotation:  |
+| `source/key-resolves-when-it-is-a-node` | PASS | 6 of 217 key rows resolved to a region |
+| `source/objective-indexed` | PASS | no transient rows in the index |
+| `source/objective-named` | PASS | 0 transient rows have no objective:  |
+| `source/vendor-indexed` | PASS | 1717 vendor rows reach the index (the syndicates file used to contribute none) |
+| `source/vendor-placed-or-marked` | PASS | 0 vendor rows claim nothing at all:  |
+| `source/unverified-vendor-not-guessed` | PASS | 0 unverified vendors were given a system:  |
+| `enemy/crewship-indexed` | PASS | no crewship drops in the index |
+| `enemy/crewship-is-railjack` | PASS | 0 crewship drops claim no system:  |
 | `multi-source/kept-separate` | PASS | an item with two or more source kinds: ('Forma Blueprint', ['relics', 'missions', 'other']) |
 
-**44 checks, 0 failed.**
+**57 checks, 0 failed.**
 
 ## Falsification: does the gate catch breakage?
 

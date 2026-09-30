@@ -23,6 +23,7 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +31,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, 'scripts'))
 
 import acquisition_hierarchy as AH          # noqa: E402
+import obtain_index as OI                   # noqa: E402  (its curated vendor map, for the gate)
 
 INDEX = os.path.join(ROOT, 'data', 'obtain_index.json')
 STORE = os.path.join(ROOT, 'static', 'collection_log.json')
@@ -79,6 +81,18 @@ def _load(path):
             return json.load(fh)
     except Exception:
         return None
+
+
+def other_rows(index):
+    for name in sorted(index):
+        for row in (index[name].get('other') or []):
+            yield name, row
+
+
+def enemy_rows(index):
+    for name in sorted(index):
+        for row in (index[name].get('enemies') or []):
+            yield name, row
 
 
 def mission_rows(index):
@@ -241,6 +255,66 @@ def check_variants(res, index):
               all(isinstance(k, str) and k for k in kinds), json.dumps(kinds))
 
 
+def check_source_precision(res, index):
+    """Every source type keeps the field that locates the reward - not just a chance and a rarity.
+
+    The audit (design/_acquisition/acquisition-audit.md) found four families where the pipeline
+    threw that field away: bounties lost their level band and stage, key/quest rows lost the key's
+    name, transient rows lost their objective, and the standing stores never reached the index.
+    """
+    rows = [(name, r) for name, r in other_rows(index)]
+
+    bounty = [(n, r) for n, r in rows if r.get('reward_source') == 'bounty stage']
+    res.check('source/bounty-indexed', bool(bounty), 'no bounty-stage rows in the index')
+    vague = ['%s: %r' % (n, r.get('detail')) for n, r in bounty
+             if not re.search(r'Level\s+\d+', str(r.get('detail') or ''))]
+    res.check('source/bounty-keeps-its-level-band', not vague,
+              '%d of %d bounty rows have no level band: %s' % (len(vague), len(bounty), '; '.join(vague[:3])))
+    # Which part of the bounty is the answer, and the drop table names it in its own words:
+    # 'Final stage', 'PROFIT-TAKER - PHASE 3', 'Subsequent Completions'.  Match the idea, not the
+    # capitalisation of one word - a row that names neither is the bug.
+    nostage = ['%s: %r' % (n, r.get('detail')) for n, r in bounty
+               if not re.search(r'stage|phase|completion', str(r.get('detail') or ''), re.I)]
+    res.check('source/bounty-keeps-its-stage', not nostage,
+              '%d bounty rows dropped the stage: %s' % (len(nostage), '; '.join(nostage[:3])))
+
+    key = [(n, r) for n, r in rows if r.get('source') == 'Key']
+    res.check('source/key-indexed', bool(key), 'no key rows in the index')
+    unnamed = ['%s: %r' % (n, r.get('detail')) for n, r in key
+               if str(r.get('detail') or '').strip() in ('C', 'A', 'B', '')]
+    res.check('source/key-names-the-key', not unnamed,
+              '%d key rows show only a rotation: %s' % (len(unnamed), '; '.join(unnamed[:3])))
+    placed = [(n, r) for n, r in key if r.get('region')]
+    res.check('source/key-resolves-when-it-is-a-node', len(placed) > 0,
+              '%d of %d key rows resolved to a region' % (len(placed), len(key)))
+
+    trans = [(n, r) for n, r in rows if r.get('source') == 'Transient']
+    res.check('source/objective-indexed', bool(trans), 'no transient rows in the index')
+    generic = ['%s: %r' % (n, r.get('detail')) for n, r in trans
+               if str(r.get('detail') or '').strip().lower() in ('transientrewards', 'transient', '')]
+    res.check('source/objective-named', not generic,
+              '%d transient rows have no objective: %s' % (len(generic), '; '.join(generic[:3])))
+
+    vendor = [(n, r) for n, r in rows if r.get('reward_source') == 'vendor']
+    res.check('source/vendor-indexed', len(vendor) > 100,
+              '%d vendor rows reach the index (the syndicates file used to contribute none)'
+              % len(vendor))
+    placeless = ['%s/%s' % (n, r.get('vendor')) for n, r in vendor
+                 if not r.get('region') and not r.get('unresolved')]
+    res.check('source/vendor-placed-or-marked', not placeless,
+              '%d vendor rows claim nothing at all: %s' % (len(placeless), '; '.join(placeless[:3])))
+    guessed = ['%s/%s' % (n, r.get('vendor')) for n, r in vendor
+               if r.get('vendor') in OI.VENDOR_UNVERIFIED and r.get('system')]
+    res.check('source/unverified-vendor-not-guessed', not guessed,
+              '%d unverified vendors were given a system: %s' % (len(guessed), '; '.join(guessed[:3])))
+
+    crew = [(n, r) for n, r in enemy_rows(index) if 'crewship' in str(r.get('enemy') or '').lower()]
+    res.check('enemy/crewship-indexed', bool(crew), 'no crewship drops in the index')
+    unplaced = ['%s' % n for n, r in crew if r.get('system') != 'Railjack']
+    res.check('enemy/crewship-is-railjack', not unplaced,
+              '%d crewship drops claim no system: %s' % (len(unplaced), '; '.join(unplaced[:3])))
+
+
 def check_multi_source(res, index):
     """An item with more than one legitimate route keeps all of them, separated."""
     found = None
@@ -340,6 +414,7 @@ def run(falsify=False):
     check_unresolved_marked(res, index['items'])
     check_variants(res, index['items'])
     check_source_types(res, index['items'], store)
+    check_source_precision(res, index['items'])
     check_multi_source(res, index['items'])
 
     for name, ok, detail in res.rows:

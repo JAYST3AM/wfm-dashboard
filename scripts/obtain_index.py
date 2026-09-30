@@ -199,6 +199,34 @@ def walk_rewards(node, chain=()):
             yield from walk_rewards(val, chain)
 
 
+def walk_rewards_ctx(node, chain=(), ctx=None):
+    """Like walk_rewards, but carry the nearest container that holds the locating facts.
+
+    A bounty's `bountyLevel` and `stage`, a key's `keyName`, a transient row's `objectiveName` all
+    live on an ancestor dict, not on the reward row - so a walker that yields only the row throws
+    away the only thing that tells a player where the reward is.
+    """
+    if isinstance(node, dict):
+        if any(k in node for k in CTX_KEYS):
+            # Inherit whatever an ancestor already told us: a bounty's `bountyLevel` sits on the
+            # bounty while its `stage` sits on the reward entry, so a walker that swapped the whole
+            # context would lose the level band the moment it reached the stage.
+            inherited = dict(ctx or {})
+            inherited.update({k: node[k] for k in CTX_KEYS if k in node})
+            ctx = inherited
+        if 'itemName' in node and isinstance(node.get('itemName'), str):
+            yield chain, node, ctx
+            return
+        for key, val in node.items():
+            yield from walk_rewards_ctx(val, chain + (str(key),), ctx)
+    elif isinstance(node, list):
+        for val in node:
+            yield from walk_rewards_ctx(val, chain, ctx)
+
+
+CTX_KEYS = ('bountyLevel', 'stage', 'keyName', 'objectiveName')
+
+
 def rotation_of(chain):
     for part in reversed(chain):
         if part in ('A', 'B', 'C'):
@@ -348,7 +376,18 @@ def index_enemies(blueprint_doc, enemy_doc):
     def add(item, enemy, chance, rarity):
         if not item or not enemy:
             return
-        out.setdefault(item, []).append({'enemy': enemy, 'chance': chance, 'rarity': rarity})
+        rec = {'enemy': enemy, 'chance': chance, 'rarity': rarity,
+               'reward_source': 'enemy drop'}
+        # A Railjack crewship is only found in a Proxima, so the system is known even though the
+        # exact Proxima is not named in the file (the level band in the enemy name is a tier, and
+        # nothing in the cached data decodes the tier to a region - so it is not claimed).
+        if 'crewship' in enemy.lower():
+            rec['system'] = 'Railjack'
+            rec['reward_source'] = 'enemy drop (Railjack crewship)'
+            rec['unresolved'] = ['which Proxima this crewship patrols is not confirmed']
+            rec['provenance'] = {'chance': 'blueprintLocations.json (community mirror of the DE tables)',
+                                 'hierarchy': 'the enemy name says crewship; no region in the data'}
+        out.setdefault(item, []).append(rec)
 
     rows = blueprint_doc.get('blueprintLocations') if isinstance(blueprint_doc, dict) else blueprint_doc
     for row in (rows or []):
@@ -393,20 +432,126 @@ def index_other(label, doc):
     """
     out = {}
     system, region, reward = HUB_SOURCES.get(label, (None, None, None))
-    for chain, row in walk_rewards(doc):
+    for chain, row, ctx in walk_rewards_ctx(doc):
         item = row['itemName']
-        detail = clean_chain(chain) or label
+        rot = rotation_of(chain)
+        # The named table (a bounty's level band and stage, a key's name, an objective) is what a
+        # player actually looks for; the rotation letter alone is not an answer.
+        named = (ctx or {}).get('bountyLevel') or (ctx or {}).get('keyName') \
+            or (ctx or {}).get('objectiveName')
+        if named:
+            # DE's own level bands carry doubled spaces ('Level  105 - 110'); the text is kept,
+            # the spacing tidied.
+            named = ' '.join(str(named).split())
+        bits = [named] if named else [clean_chain(chain) or label]
+        if (ctx or {}).get('stage'):
+            bits.append(str((ctx or {})['stage']))
+        if rot:
+            bits.append('rotation %s' % rot)
+        detail = ' \u00b7 '.join([b for b in bits if b])
         rec = {'source': label, 'detail': detail,
                'chance': row.get('chance'), 'rarity': row.get('rarity')}
+        if named:
+            rec['key'] = named if (ctx or {}).get('keyName') else None
+            rec['objective'] = named if (ctx or {}).get('objectiveName') else None
+            rec['table'] = named
+        if rot:
+            rec['rotation'] = rot
+            rec['path'] = clean_chain(chain)
+        if label == 'Key' and named:
+            # A key table is named after the mission or activity it opens ("Mutalist Alad V
+            # Assassinate", "Kullervo's Hold"), so the key name is a node name: resolve it against
+            # the game export rather than claiming the whole Star Chart.
+            found = hierarchy.lookup_region(named, index=_HIER.get('index'))
+            if found:
+                rec['system'], rec['region'] = found
+                rec['region_source'] = 'game export (the key name is a node name)'
+                rec['access'] = '%s required' % named
+                rec['reward_source'] = 'key or quest reward'
         if system or region or reward:
-            rec['system'] = system
-            rec['region'] = region
+            rec['system'] = rec.get('system') or system
+            rec['region'] = rec.get('region') or region
             rec['reward_source'] = reward
-            rec['hierarchy'] = ' \u2192 '.join([p for p in (system, region, label) if p])
+            # For a key or a transient table the table's own name IS the place ("Mutalist Alad V
+            # Assassinate"), so it names the node.  For a bounty the place is the open world plus
+            # the table's name, and the level band and stage belong in the detail.
+            node_name = named if label in ('Key', 'Transient') else label
+            rec['hierarchy'] = ' \u2192 '.join(
+                [p for p in (rec.get('system') or system, rec.get('region') or region,
+                             node_name) if p])
             rec['provenance'] = {'chance': '%s (community mirror of the DE tables)' % label,
-                                 'hierarchy': 'curated source labelling (see docs/build-planner.md)'
+                                 'hierarchy': 'curated source labelling (see docs/acquisition-and-drops.md)'
                                               if region else 'the drop table groups it under no region'}
         out.setdefault(item, []).append(rec)
+    return out
+
+
+# Where each standing store is, so a vendor row is a place and not just a syndicate name.  The
+# game's export carries no region entry for a hub (only the relays appear, as RelayStationSanctuary),
+# so these are curated - same as the open-world bounty hubs above.
+VENDOR_HUBS = {
+    'Ostron': ('Open World', 'Cetus (Plains of Eidolon, Earth)'),
+    'The Quills': ('Open World', 'Cetus (Plains of Eidolon, Earth)'),
+    'Solaris United': ('Open World', 'Fortuna (Orb Vallis, Venus)'),
+    'Vox Solaris': ('Open World', 'Fortuna (Orb Vallis, Venus)'),
+    'Ventkids': ('Open World', 'Fortuna (Orb Vallis, Venus)'),
+    'NecraLoid': ('Open World', 'Necralisk (Deimos)'),
+    'Entrati': ('Open World', 'Necralisk (Deimos)'),
+    'The Holdfasts': ('Zariman Ten Zero', 'Chrysalith (Zariman Ten Zero)'),
+    'Steel Meridian': ('Star Chart', 'Relays'),
+    'Cephalon Suda': ('Star Chart', 'Relays'),
+    'The Perrin Sequence': ('Star Chart', 'Relays'),
+    'Red Veil': ('Star Chart', 'Relays'),
+    'Arbiters of Hexis': ('Star Chart', 'Relays'),
+    'New Loka': ('Star Chart', 'Relays'),
+    'Cephalon Simaris': ('Star Chart', 'Relays'),
+    'Conclave': ('Star Chart', 'Relays'),
+}
+# Vendors whose home this repo has not verified: the row keeps the vendor's own label and says so
+# rather than claiming a place.  ('Kahl's Garrison' is reached from the Drifter's Camp, and
+# 'Operational Supply' is an event store - neither is confirmed, so neither is asserted.)
+VENDOR_UNVERIFIED = ('Kahl\'s Garrison', 'Operational Supply')
+
+
+def index_syndicates(doc):
+    """syndicates.json -> {itemName: [vendor rows]}.
+
+    The file's shape is {syndicates: {vendor: [rows]}} and its rows carry `item` rather than
+    `itemName`, so the generic walker never saw them: 18 vendors and ~1700 rows were being dropped.
+    """
+    out = {}
+    syn = (doc or {}).get('syndicates') if isinstance(doc, dict) else None
+    for vendor, rows in (syn or {}).items():
+        hub, where = VENDOR_HUBS.get(vendor, (None, None))
+        for row in (rows or []):
+            if not isinstance(row, dict):
+                continue
+            item = row.get('item')
+            if not isinstance(item, str) or not item:
+                continue
+            place = row.get('place') or vendor
+            rank = ''
+            if ',' in str(place):
+                rank = str(place).split(',', 1)[1].strip()
+            bits = []
+            if rank:
+                bits.append('Rank %s' % rank) if rank.isdigit() else bits.append(rank)
+            if row.get('standing'):
+                bits.append('%s standing' % row['standing'])
+            rec = {'source': 'Vendor', 'vendor': vendor, 'detail': ' \u00b7 '.join(bits),
+                   'chance': row.get('chance'), 'rarity': row.get('rarity'),
+                   'standing': row.get('standing'), 'cost': row.get('cost'),
+                   'place': place, 'reward_source': 'vendor'}
+            if hub:
+                rec['system'], rec['region'] = hub, where
+                rec['hierarchy'] = '%s \u2192 %s \u2192 %s' % (hub, where, vendor)
+                rec['provenance'] = {'chance': 'syndicates.json (community mirror of the DE tables)',
+                                     'hierarchy': 'curated standing-store labelling (see docs/acquisition-and-drops.md)'}
+            else:
+                rec['unresolved'] = ['where this vendor trades is not confirmed']
+                rec['provenance'] = {'chance': 'syndicates.json (community mirror of the DE tables)',
+                                     'hierarchy': 'the vendor is named by the drop table, its hub is not'}
+            out.setdefault(item, []).append(rec)
     return out
 
 
@@ -472,6 +617,17 @@ def build(offline=False):
                 if row not in bucket:
                     bucket.append(row)
 
+    # Standing stores: {syndicates: {vendor: [rows]}} is a shape the reward walker cannot read, so
+    # it gets its own pass.  18 vendors and ~1700 rows used to be dropped on the floor.
+    vendor_rows = index_syndicates(drop_docs.get('syndicates.json') or {})
+    for item, rows in vendor_rows.items():
+        bucket = items.setdefault(item, {}).setdefault('other', [])
+        for row in rows[:MAX_OTHER]:
+            if row not in bucket and len(bucket) < MAX_OTHER:
+                bucket.append(row)
+    sources['syndicates.json'] = {'vendors': len(VENDOR_HUBS) + len(VENDOR_UNVERIFIED),
+                                  'items': len(vendor_rows), 'reward_source': 'vendor'}
+
     for item, doc in items.items():
         doc['name'] = item
         mkt = market.get(item)
@@ -519,6 +675,8 @@ def build(offline=False):
                                          for r in d.get('missions') or [] if r.get('unresolved')),
         'with_enemies': sum(1 for d in items.values() if d.get('enemies')),
         'with_other': sum(1 for d in items.values() if d.get('other')),
+        'with_vendor': sum(1 for d in items.values()
+                           if any(r.get('reward_source') == 'vendor' for r in (d.get('other') or []))),
         'with_market': sum(1 for d in items.values() if d.get('market')),
         'with_research': sum(1 for d in items.values() if d.get('research')),
         'with_wiki': sum(1 for d in items.values() if d.get('wiki')),
@@ -1080,13 +1238,13 @@ def wiki_fill(doc, offline=False, sleep_s=0.4, limit=None, introduced=None):
 def selftest():
     ok = fail = 0
 
-    def check(label, cond):
+    def check(label, cond, detail=None):
         nonlocal ok, fail
         if cond:
             ok += 1
         else:
             fail += 1
-            print('FAIL: %s' % label)
+            print('FAIL: %s%s' % (label, ('  [%s]' % detail) if detail else ''))
 
     relics = {'relics': [
         {'tier': 'Axi', 'relicName': 'A1', 'state': 'Intact',
@@ -1119,6 +1277,56 @@ def selftest():
             {'enemyName': 'H-09 Apex', 'items': [{'itemName': 'Steel Essence', 'chance': 100, 'rarity': 'Common'}]}]})
     check('blueprint locations indexed', enemies['Lavan Glazio Mk Iii'][0]['enemy'].startswith('Taro Crewship'))
     check('enemy table items indexed', enemies['Steel Essence'][0]['chance'] == 100)
+
+    # Every source type must keep the field that locates the reward (audit 2026-09-30).
+    bounty = index_other('Cetus bounty', {'cetusBountyRewards': [{
+        'bountyLevel': 'Level 5 - 15 Cetus Bounty',
+        'rewards': {'A': [{'itemName': 'Gara Chassis Blueprint', 'chance': 7.52, 'rarity': 'Rare',
+                           'stage': 'Stage 2, Stage 3 of 4, and Stage 3 of 5'}]}}]})
+    brow = bounty['Gara Chassis Blueprint'][0]
+    check('bounty keeps its level band and stage',
+          brow['detail'] == 'Level 5 - 15 Cetus Bounty \u00b7 Stage 2, Stage 3 of 4, and Stage 3 of 5'
+          ' \u00b7 rotation A', brow['detail'])
+    check('bounty names its open world',
+          brow['hierarchy'] == 'Open World \u2192 Plains of Eidolon (Earth) \u2192 Cetus bounty',
+          brow['hierarchy'])
+    keys = index_other('Key', {'keyRewards': [
+        {'keyName': 'Mutalist Alad V Assassinate',
+         'rewards': {'C': [{'itemName': 'Mesa Neuroptics Blueprint', 'chance': 38.72,
+                            'rarity': 'Common'}]}}]})
+    krow = keys['Mesa Neuroptics Blueprint'][0]
+    check('a key row says which key', krow['detail'].startswith('Mutalist Alad V Assassinate'),
+          krow['detail'])
+    check('a key row resolves the key as a node', krow.get('region') == 'Eris',
+          '%s / %s' % (krow.get('system'), krow.get('region')))
+    trans = index_other('Transient', {'transientRewards': [
+        {'objectiveName': 'Hallowed Flame Mission Caches',
+         'rewards': {'A': [{'itemName': 'Forma Blueprint', 'chance': 4.43, 'rarity': 'Uncommon'}]}}]})
+    check('a transient row names its objective',
+          trans['Forma Blueprint'][0]['detail'].startswith('Hallowed Flame Mis'),
+          trans['Forma Blueprint'][0]['detail'])
+    vendors = index_syndicates({'syndicates': {'NecraLoid': [
+        {'item': 'Bonewidow Casing Blueprint', 'place': 'NecraLoid (Loid), Clearance Modus',
+         'standing': 3500, 'cost': 3500, 'chance': 100, 'rarity': 'Common'}]}})
+    vrow = vendors['Bonewidow Casing Blueprint'][0]
+    check('a vendor row is a place a player can stand in',
+          vrow['region'] == 'Necralisk (Deimos)' and vrow['reward_source'] == 'vendor',
+          '%s / %s' % (vrow.get('region'), vrow.get('reward_source')))
+    check('a vendor row states the rank and the standing',
+          'Clearance Modus' in vrow['detail'] and '3500 standing' in vrow['detail'], vrow['detail'])
+    unknown = index_syndicates({'syndicates': {'Some New Store': [
+        {'item': 'Widget', 'place': 'Some New Store, Neutral', 'standing': 10, 'chance': 100}]}})
+    check('an unverified vendor is marked, not placed',
+          bool(unknown['Widget'][0].get('unresolved')) and 'system' not in unknown['Widget'][0],
+          json.dumps(unknown['Widget'][0].get('unresolved'))[:80])
+    crew = index_enemies({'blueprintLocations': [{'itemName': 'Lavan Glazio Mk Iii', 'enemies': [
+        {'enemyName': 'Taro Crewship (Level 51 - 100)', 'enemyItemDropChance': 20,
+         'enemyBlueprintDropChance': 20}]}]}, None)
+    crow = crew['Lavan Glazio Mk Iii'][0]
+    check('a Railjack crewship drop says Railjack', crow.get('system') == 'Railjack',
+          str(crow.get('system')))
+    check('and admits the Proxima is unknown', bool(crow.get('unresolved')),
+          json.dumps(crow.get('unresolved'))[:60])
 
     other = index_other('Sortie', {'sortieRewards': [
         {'itemName': 'Legendary Core', 'chance': 2.5, 'rarity': 'Legendary'}]})

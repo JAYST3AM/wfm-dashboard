@@ -62,9 +62,25 @@ resolved fields. No page parses a location out of a label.
   **cache**, a bonus reward table, a bounty stage, a vendor, an enemy drop, a relic reward.
 - `variant` marks a reward-table variant of the same node (`Falling Glory (Caches)` is Falling Glory
   its cache table), so two tables are never merged into one row.
+- `access` names a prerequisite where one is real (a key table's key, e.g. `Mutalist Alad V
+  Assassinate required`).
 - `provenance` keeps the source identity separate from the display text, so a source refresh does
   not require a UI change. `node_match: case-insensitive` records that DE's two datasets spell a
   node differently (`Kala-Azar` vs `Kala-azar`).
+
+`planet` plus `node` is never what a card shows. What each source type renders:
+
+| item | card line |
+| --- | --- |
+| `Seer Blueprint` (Star Chart) | `Star Chart → Mercury → Tolstoj` · `Assassination · 38.72%` |
+| `Ash Systems Blueprint` (Railjack) | `Railjack → Venus Proxima → Falling Glory` · `Skirmish · rotation A · 13.33%` |
+| `Gara Chassis Blueprint` (bounty) | `Open World → Plains of Eidolon (Earth) → Cetus bounty` · `Level 5 - 15 Cetus Bounty · Stage 2, Stage 3 of 4, and Stage 3 of 5 · rotation A · 7.52% · Rare` |
+| `Mesa Neuroptics Blueprint` (key) | `Star Chart → Eris → Mutalist Alad V Assassinate` · `Mutalist Alad V Assassinate · rotation C · 38.72%` |
+| `Lavos` component (vendor) | `Open World → Necralisk (Deimos) → Entrati` · `Acquaintance · 5000 standing · 100%` |
+| `Baruuk` component (vendor) | `Open World → Fortuna (Orb Vallis, Venus) → Vox Solaris` · `Agent · 5000 standing` |
+| `Atlas` component (vendor) | `Star Chart → Relays → Cephalon Simaris` · `Complete The Jordas Precept · 50000 standing` |
+| `Narin` component (Zariman) | `Zariman Ten Zero → Everview Arc` · `Void Flood · rotation C · 8.33%` |
+| `Lavan Glazio Mk Iii` (crewship) | `Railjack → Enemy: Taro Crewship (Level 51 - 100)` · `20% - Uncommon`, with the note *which Proxima this crewship patrols is not confirmed* |
 
 ## Navigation systems
 
@@ -99,15 +115,27 @@ A normal Star Chart planet is **never** inferred from a drop-table prefix.
 
 ## Numbers today
 
-On the current data (435 drop-table mission rows): **346 nodes placed from the game's own export**,
-**85 nodes named by the drop-table label and flagged unconfirmed**, and **4 rows whose navigation
-system is not confirmed** (the Perita Rebellion tables). No row is left without a place at all.
+On the current data:
+
+- **435 drop-table mission rows**: 346 nodes placed from the game's own export, 85 nodes named by
+  the drop-table label and flagged unconfirmed, 4 rows whose navigation system is not confirmed
+  (the Perita Rebellion tables). No row is left without a place at all.
+- **1503 items** carry a standing-store (vendor) row, with the rank and the standing named.
+- **Every bounty row keeps its level band and its stage** (`Level 50 - 70 Cetus Bounty · Stage 2,
+  Stage 3 of 4, and Stage 3 of 5 · rotation A`), instead of collapsing to a rotation letter.
+- **Every key/quest row names its key** (`Mutalist Alad V Assassinate · rotation C`) and resolves it
+  as a node when the key's name is a node name.
+- **Every transient row names its objective** (`Hallowed Flame Mission Caches`), instead of the
+  placeholder `Transient: transientRewards`.
+- **206 items** carry an enemy drop; Railjack crewships are placed in Railjack and say the Proxima
+  is unknown rather than inventing one.
 
 ## The regression, and how to check it
 
-`scripts/obtain_index.py --selftest` checks the resolver's rules. `tests/test_acquisition_hierarchy.py`
-holds the hermetic rules plus the real-data cases (which skip when the export is not cached, as on
-CI). The end-to-end gate is:
+`scripts/obtain_index.py --selftest` (41 checks) covers the record rules: the hierarchy fields, one
+case per source type, and that an unverified vendor is marked rather than placed.
+`tests/test_acquisition_hierarchy.py` holds the hermetic resolver rules plus the real-data cases
+(which skip when the export is not cached, as on CI). The end-to-end gate is:
 
 ```
 python design/_acquisition/acquisition_gate.py --falsify
@@ -115,18 +143,29 @@ python design/_acquisition/acquisition_gate.py --falsify
 
 It reads the built index and the collection store and fails if a known Railjack node renders as its
 drop-table planet, if a hierarchy loses its rotation or chance, if a source type renders without
-enough to locate it, or if provenance disappears. `--falsify` then breaks the resolver three ways —
-flattening the label, trusting the drop-table label as the region, and keeping the `(Caches)`/`(Extra)`
-suffix — and requires the gate to catch each one. Ash Systems Blueprint is the named case: its row
-must read `Railjack → Venus Proxima → Falling Glory` and must keep `rotation A` / `13.33%`.
+enough to locate it (no level band, no key name, no objective, no vendor place), or if provenance
+disappears. `--falsify` then breaks the resolver three ways — flattening the label, trusting the
+drop-table label as the region, and keeping the `(Caches)`/`(Extra)` suffix — and requires the gate
+to catch each one. Ash Systems Blueprint is the named case: its row must read
+`Railjack → Venus Proxima → Falling Glory` and must keep `rotation A` / `13.33%`.
 
 ## Known limitations
 
 - **Retired and renamed nodes.** 85 rows name a node the game's current export does not list. They
   show the verified system and region and say the node itself is unconfirmed. Fixing them properly
   means a historical region list, which no official source publishes.
+- **Two vendors have no confirmed home.** Kahl's Garrison and Operational Supply are named by the
+  drop table; the row says their location is unconfirmed rather than guessing a hub. The other 16
+  standing stores are labelled from the hub they trade in (relays, Cetus, Fortuna, Necralisk, the
+  Chrysalith).
 - **Open-world landscapes are labelled by hand.** The export has no region entry for the Plains of
-  Eidolon or the Orb Vallis, so the four hub labels are curated in `HUB_SOURCES` rather than derived.
+  Eidolon or the Orb Vallis, so the hub labels (in `HUB_SOURCES` and `VENDOR_HUBS`) are curated
+  rather than derived.
+- **An enemy drop has no mission.** 206 items name the enemy that drops them but no cached file maps
+  an enemy to the node that spawns it, so a boss or a mission enemy shows its name and its odds and
+  says the place is unknown. A Railjack crewship is the exception: the enemy type proves the system.
+- **A relic says which relic, not where the relic drops.** The index carries the era, the relic name
+  and whether it is vaulted; fissure and vault data are not in any cached file.
 - **The Perita Rebellion** (4 rows) sits in a region family the export files under the Tau content;
   its navigation system is left unconfirmed rather than called the Star Chart.
 - **Reward-table names on Duviri.** Several Duviri rows are reward tables rather than nodes

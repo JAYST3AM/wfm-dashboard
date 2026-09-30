@@ -708,11 +708,28 @@ def build_item_obtain(name, index):
                                  'node': mission.get('node')}
             lines.append(line)
         for enemy in (doc.get('enemies') or [])[:1]:
-            lines.append({'k': 'enemy', 'part': part, 'label': 'Enemy: ' + (enemy.get('enemy') or '?'),
-                          'detail': ' - '.join([b for b in ('%s%%' % clean_num(enemy.get('chance')),
-                                                            enemy.get('rarity')) if b])})
-        for other in (doc.get('other') or [])[:1]:
+            named = enemy.get('enemy') or '?'
+            label = ('%s \u2192 Enemy: %s' % (enemy['system'], named)) if enemy.get('system') \
+                else ('Enemy: ' + named)
+            line = {'k': 'enemy', 'part': part, 'label': label,
+                    'detail': ' - '.join([b for b in ('%s%%' % clean_num(enemy.get('chance')),
+                                                      enemy.get('rarity')) if b])}
+            if enemy.get('unresolved'):
+                line['note'] = '; '.join(enemy['unresolved'])
+            if enemy.get('system'):
+                line['where'] = {'system': enemy.get('system'), 'region': enemy.get('region'),
+                                 'node': named}
+            lines.append(line)
+        shown_sources = set()
+        for other in (doc.get('other') or []):
             src = other.get('source') or 'Source'
+            if src in shown_sources:
+                continue
+            # One line per source kind, up to three: an item that drops from a mission AND a bounty
+            # AND a vendor must show all three, not just whichever sorted first.
+            if len(shown_sources) >= 3:
+                break
+            shown_sources.add(src)
             text = other.get('detail') or ''
             chance, rarity = other.get('chance'), other.get('rarity')
             if chance is None and not rarity:
@@ -723,10 +740,21 @@ def build_item_obtain(name, index):
                     'introduced' if src.startswith('WFCD') else 'other')
                 lines.append({'k': kind, 'part': part, 'label': src, 'detail': '', 'text': text})
             else:
-                lines.append({'k': 'other', 'part': part,
-                              'label': '%s: %s' % (src, text),
-                              'detail': ' - '.join([b for b in ('%s%%' % clean_num(chance),
-                                                                rarity) if b])})
+                # When the source has a verified home, the label is the place and the named table
+                # (a bounty's level band and stage, a key's name, an objective) rides in the detail.
+                where_text = other.get('hierarchy')
+                bits = ([text] if where_text and text else []) + [
+                    b for b in ('%s%%' % clean_num(chance), rarity) if b]
+                line = {'k': 'other', 'part': part,
+                        'label': where_text or '%s: %s' % (src, text),
+                        'detail': ' \u00b7 '.join([b for b in bits if b])}
+                if other.get('unresolved'):
+                    line['note'] = '; '.join(other['unresolved'])
+                if where_text:
+                    line['where'] = {'system': other.get('system'), 'region': other.get('region'),
+                                     'node': text or src, 'reward_source': other.get('reward_source'),
+                                     'access': other.get('access')}
+                lines.append(line)
         if doc.get('market'):
             market = doc['market']
             bits = []

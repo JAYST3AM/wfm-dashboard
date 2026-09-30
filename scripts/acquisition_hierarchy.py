@@ -444,6 +444,23 @@ def label(rec):
     return ' \u2192 '.join([p for p in parts if p])
 
 
+def lookup_region(name, index=None):
+    """(system, region) for a bare name the drop table uses as a *node* name, or None.
+
+    Key/quest reward tables are named after the mission they open ("Mutalist Alad V Assassinate"),
+    so the name can be resolved the same way a node is - and when it cannot, the caller says so
+    instead of guessing a system.
+    """
+    if not name:
+        return None
+    if index is None:
+        index, _dictionary, _known = load_all()
+    for rec in (index.get(str(name)) or []):
+        if rec.get('system') and rec.get('region'):
+            return rec['system'], rec['region']
+    return None
+
+
 def reward_source(mode, rotation=None, bucket=None, variant=None, system=None):
     """How the item is obtained (mission completion, cache, bounty stage, ...), not just where."""
     if bucket in ('bounty', 'bounties'):
