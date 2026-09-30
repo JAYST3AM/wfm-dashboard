@@ -25,9 +25,22 @@ Returns errors and warnings - never raises, never half-applies. Codes:
 Warnings (allowed, but surfaced): mastery rank below the item requirement, unmodelled
 mod effects, negative ability efficiency, DPS withheld for exotic triggers.
 """
+import math
+
 from . import capacity as capacity_mod
 from . import effects as effects_mod
 from . import schema
+
+# Every code this module can emit, in one place: the docstring above is the prose, this is the
+# list a check can compare against (Phase 4 pins that none of them is a condition state).
+CODES = (
+    'unknown_equipment', 'unknown_mod', 'incompatible_mod_type', 'normal_in_aura_slot',
+    'aura_in_normal_slot', 'stance_in_normal_slot', 'stance_on_non_melee', 'mod_not_exilus',
+    'exilus_not_unlocked', 'duplicate_slot', 'invalid_slot_index', 'invalid_polarity',
+    'invalid_rank', 'rank_exceeds_max', 'duplicate_mod', 'capacity_exceeded',
+    'invalid_equipment_rank', 'mod_slot_kind_mismatch', 'invalid_mastery_rank',
+    'invalid_slot_kind', 'too_many_errors', 'stance_on_non_melee',
+)
 
 
 def error(code, message, **extra):
@@ -42,12 +55,35 @@ def warning(code, message, **extra):
     return out
 
 
+# Mastery Rank 30 plus the ten Legendary Ranks the current game has; a stated value outside this
+# is a malformed build, not a very experienced player.
+MAX_MASTERY_RANK = 40
+
+
+# Re-exported: the engines and the tests have always imported `as_int` from here, and it lives in
+# its own module so that `validation` and `capacity` cannot depend on each other.
+from .coerce import as_int  # noqa: F401
+
+
+def as_build(build):
+    """A build that is not an object is not a build: it becomes an empty one, so every caller
+    below answers with a validation error instead of an AttributeError. Phase 4's rule - malformed
+    input must not crash the engine - starts here."""
+    return build if isinstance(build, dict) else {}
+
+
 def resolve_equipment(build, db):
     """The build's equipment row, or (None, error) when it cannot be resolved."""
+    build = as_build(build)
     key = build.get('equipment_id') or build.get('equipment') or build.get('equipment_slug')
     if not key:
         return None, error('unknown_equipment', 'the build names no equipment',
                            field='equipment_id')
+    # A dict/list here used to reach a dict lookup and raise `unhashable type` *inside* compute,
+    # whose contract is that a bad build never raises. A non-string key names no equipment.
+    if not isinstance(key, str):
+        return None, error('unknown_equipment',
+                           'equipment id %r is not a string' % (key,), field='equipment_id')
     row = (db.get('equipment') or {}).get(key)
     if row is None:
         for candidate in (db.get('equipment') or {}).values():
@@ -73,6 +109,9 @@ def resolve_mod(ref, db):
     key = ref.get('id') or ref.get('slug') or ref.get('name')
     if not key:
         return None, None, error('unknown_mod', 'a slot\'s mod names no id', field='slots[].mod')
+    if not isinstance(key, str):
+        return None, None, error('unknown_mod', 'a slot\'s mod id %r is not a string' % (key,),
+                                 field='slots[].mod')
     row = (db.get('mods') or {}).get(key)
     if row is None:
         for candidate in (db.get('mods') or {}).values():
@@ -88,10 +127,15 @@ def resolve_mod(ref, db):
         return row, None, error('invalid_rank', '%s: rank %r is not a valid rank'
                                 % (row.get('name'), rank), mod=row.get('id'),
                                 field='slots[].mod.rank')
-    if row.get('max_rank') is not None and rank > row['max_rank']:
+    # A row with no documented max rank still gets the engine's ceiling: a rank of 10**1000 used
+    # to reach the capacity arithmetic and blow up the drain percentage there.
+    ceiling = row.get('max_rank')
+    if ceiling is None:
+        ceiling = schema.MAX_MOD_RANK
+    if rank > ceiling:
         return row, rank, error('rank_exceeds_max',
                                 '%s: rank %s is above its max rank %s'
-                                % (row.get('name'), rank, row['max_rank']),
+                                % (row.get('name'), rank, ceiling),
                                 mod=row.get('id'), field='slots[].mod.rank')
     return row, rank, None
 
@@ -102,6 +146,7 @@ def validate_build(build, db, max_errors=50):
     `build` is the brief's configuration shape (see docs/build-planner.md):
     equipment id, rank, Orokin state, Forma count, slot polarities and ordered slots.
     """
+    build = as_build(build)
     errors, warnings = [], []
     build = build or {}
     equipment, err = resolve_equipment(build, db)
@@ -220,7 +265,12 @@ def validate_build(build, db, max_errors=50):
                             'equipment rank %r is outside 0..%d' % (rank, max_rank),
                             field='equipment_rank'))
 
-    mastery = int(build.get('mastery_rank') or 0)
+    raw_mastery = build.get('mastery_rank')
+    mastery = as_int(raw_mastery, 0, minimum=0, maximum=MAX_MASTERY_RANK)
+    if raw_mastery is not None and mastery != raw_mastery:
+        errors.append(error('invalid_mastery_rank',
+                            'mastery rank %r is not a whole number in 0..%d'
+                            % (raw_mastery, MAX_MASTERY_RANK), field='mastery_rank'))
     req = equipment.get('mastery_req')
     if req and mastery and mastery < req:
         warnings.append(warning('mastery_below_requirement',

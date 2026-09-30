@@ -1,6 +1,6 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-29 23:53:34  (2026-09-29T23:53:34.788817+10:00) -> live measurements finished 23:56:38  
+**Run:** 2026-09-30 12:49:32  (2026-09-30T12:49:32.379850+10:00) -> live measurements finished 12:52:34  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
@@ -123,7 +123,7 @@ Parity rows: 35, mismatches: 0.
 
 ## 5. Copy diet
 
-**Repo test** `C:\Users\jayde\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe -m pytest tests/test_copy_diet.py -q` -> rc 0 in 0.5s
+**Repo test** `C:\Users\jayde\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe -m pytest tests/test_copy_diet.py -q` -> rc 0 in 0.4s
 
 ```
 .                                                                        [100%]
@@ -159,7 +159,7 @@ none
 | rendered: settings status pill | Not live#st-pill dry |
 | rendered: trade kill-switch chip | disarmed |
 | rendered: trade kill-switch line | 9/25/2026, 23:02:47 Not live |
-| rendered: trade plan header | · built 55h ago · MR 22 |
+| rendered: trade plan header | · built 68h ago · MR 22 |
 | rendered: home alerts | Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically |
 
 How the badge is derived (read live from `app.js`, not assumed): `dry = set.dry_run === true || plan.dry_run === true`, then the chip prints `Not live - nothing is posted` when dry. The two inputs are `scripts/trader/settings.json` and `data/trader_plan.json`; **`data/config.json` carries no `dry_run` key at all**, so it is not the gate for this badge. Both real inputs are `true` above, and the rendered copy is the Not-live wording - the badge cannot claim Live while posting is locked.
@@ -172,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3200 | 0 | 8994 | 193 | 0 |
-| Kuva Crimson | dark | 17 | 3201 | 0 | 8995 | 193 | 0 |
-| Frost Light | light | 17 | 3201 | 0 | 8995 | 193 | 0 |
-| Cephalon White | light | 17 | 3201 | 0 | 8995 | 193 | 0 |
+| Vor Orange | dark | 17 | 3199 | 0 | 9002 | 193 | 0 |
+| Kuva Crimson | dark | 17 | 3200 | 0 | 9003 | 193 | 0 |
+| Frost Light | light | 17 | 3200 | 0 | 9003 | 193 | 0 |
+| Cephalon White | light | 17 | 3200 | 0 | 9003 | 193 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
@@ -187,7 +187,7 @@ Colours that did **not** change between the dark theme (0) and the light theme (
 
 ids_before.json pages: index=172, collection=28, cards=20, settings=36, item=25, lookup=0
 
-ids found live: index=8316, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=462, planner=308
+ids found live: index=8316, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=462, planner=330
 
 **Missing: 0** 
 

@@ -39,8 +39,10 @@ Nothing here reads files, the market or the network. Sim input:
 mod row (with its parsed effect tables) and the rank it is equipped at.
 """
 from . import capacity as capacity_mod
+from . import conditions
 from . import effects as effects_mod
-from . import elements, schema, trace as trace_mod
+from . import elements, schema, statuses, trace as trace_mod
+from . import unsupported as unsupported_mod
 
 # Trigger types whose effective fire rate is simply the modded fire rate (wiki table).
 SUPPORTED_TRIGGERS = ('auto', 'semi', 'held', 'duplex')
@@ -73,12 +75,45 @@ def calculate(equipment, mod_slots=None, options=None):
     options:   {'faction': None|'grineer'|..., 'quantize': False,
                 'trigger_override': None}
     """
-    opts = {'faction': None, 'quantize': False, 'trigger_override': None}
-    opts.update(options or {})
+    opts = {'faction': None, 'quantize': False, 'trigger_override': None, 'context': None,
+            'strict': False, 'hypothetical': False}
+    opts.update(options if isinstance(options, dict) else {})
     equip = _normalise_equipment(equipment)
     kind = equip.get('kind') or schema.EQUIP_PRIMARY
     totals, unsupported, notes = collect_mod_effects(mod_slots)
     traces, stats = {}, {}
+
+    # --- the evaluation context and the conditions it resolves (Phase 4, 4.3 + 4.5) --------
+    # `options.faction` predates the context and still works: it IS the target faction. A context
+    # that names one wins, because it is the newer, more explicit statement.
+    ctx = conditions.normalise_context(opts.get('context'))
+    if ctx['target_faction'] is None and opts.get('faction'):
+        ctx['target_faction'] = str(opts['faction']).strip().lower()
+    mode = ('hypothetical' if opts.get('hypothetical')
+            else 'strict' if opts.get('strict') else 'stated_inputs')
+    condition_rows = []
+
+    def condition_applies(row):
+        """Does this condition's contribution go into the number?
+
+        `satisfied` yes; `not_satisfied` no (a reported zero); `unknown`/`unsupported` no -
+        unless the caller explicitly asked for a hypothetical evaluation, in which case the
+        contribution is shown as-if satisfied and the row keeps saying `hypothetical`.
+        """
+        if row.get('applied'):
+            return True
+        return bool(row.get('hypothetical')) and row.get('state') == conditions.UNKNOWN
+
+    faction_stats = sorted(s for s in totals if s.startswith('faction_'))
+    faction_rows = {}
+    for stat in faction_stats:
+        want = stat[len('faction_'):]
+        row = conditions.evaluate('target_faction', ctx, faction=want)
+        if mode == 'hypothetical' and row['state'] == conditions.UNKNOWN:
+            row = dict(row, hypothetical=True)
+        condition_rows.append(row)
+        faction_rows[stat] = row
+
 
     base_dist = {t: float(v) for t, v in (equip.get('damage') or {}).items() if v}
     base_total = float(equip.get('damage_total') or sum(base_dist.values()) or 0.0)
@@ -99,13 +134,35 @@ def calculate(equipment, mod_slots=None, options=None):
             'documented special case Phase 1 does not model'
             % (element, element), equipment=equip.get('id')))
 
+    # --- the first-shot condition (4.6: the second mechanic) ------------------
+    # 'damage on first shot in magazine' is a base-damage bonus that only applies to one shot, so
+    # it was silently ignored before Phase 4. It is now a condition: applied only when the attack
+    # context says this is the first shot, reported either way.
+    first_shot_pct = 0.0
+    first_shot_row = None
+    if totals.get('damage_on_first_shot'):
+        row = conditions.evaluate('first_shot', ctx)
+        if mode == 'hypothetical' and row['state'] == conditions.UNKNOWN:
+            row = dict(row, hypothetical=True)
+        first_shot_row = row
+        condition_rows.append(row)
+        if condition_applies(row):
+            first_shot_pct = _pct(totals, 'damage_on_first_shot')
+
     # --- base damage multiplier ------------------------------------------------
-    damage_bonus = 1.0 + _pct(totals, 'damage') / 100.0
+    damage_bonus = 1.0 + (_pct(totals, 'damage') + first_shot_pct) / 100.0
     t_base = trace_mod.trace('damage_multiplier', 1.0, 'ratio', 'Base damage multiplier')
     for row in _rows(totals, 'damage'):
         trace_mod.add(t_base, trace_mod.modifier(row['mod_name'], 'base',
                                                  row['value'], mod=row['mod'], rank=row['rank']))
+    for row in _rows(totals, 'damage_on_first_shot'):
+        trace_mod.add(t_base, trace_mod.modifier(
+            row['mod_name'], 'base', row['value'], mod=row['mod'], rank=row['rank'],
+            condition='first_shot', state=(first_shot_row or {}).get('state')))
     trace_mod.finish(t_base, damage_bonus)
+    if totals.get('damage_on_first_shot') and first_shot_row:
+        trace_mod.note(t_base, 'first-shot bonus: %s (%s)'
+                       % (first_shot_row['state'], first_shot_row['reason']))
     traces['damage_multiplier'] = t_base
     modded_base = base_total * damage_bonus
     stats['base_damage'] = trace_mod._num(base_total)
@@ -308,18 +365,81 @@ def calculate(equipment, mod_slots=None, options=None):
                      'damage); the arsenal shows the unquantized values')
     stats['damage_per_shot_expected_crit'] = trace_mod._num(per_shot_crit)
 
+    # --- the viral status mechanic (4.4) ----------------------------------------
+    # Evaluated when the build can actually apply viral procs, or when the caller described a
+    # target that already carries them. A build with no viral damage and no target state is not
+    # asked the question at all, which is what keeps every Phase 1 number untouched.
+    viral_row = None
+    consumed = [f for f in ('target_faction',)
+                if any(s.startswith('faction_') for s in totals)]
+    if any(s == 'damage_on_first_shot' for s in totals):
+        consumed.append('attack.shot_index')
+    if per_projectile.get('viral') or conditions.has(ctx, 'target', 'viral_stacks'):
+        viral_row = statuses.evaluate(ctx)
+        consumed += ['target.viral_stacks', 'target.protection', 'target.immune_to']
+        if mode == 'hypothetical' and viral_row['state'] == conditions.UNKNOWN:
+            viral_row = dict(viral_row, hypothetical=True)
+        condition_rows.append(viral_row)
+        t_viral = trace_mod.trace('viral_amplifier', 1.0, 'ratio',
+                                  'Viral amplification (damage to health)')
+        trace_mod.note(t_viral, statuses.FORMULA)
+        trace_mod.note(t_viral, 'source: %s' % statuses.SOURCE)
+        # `hypothetical` shows a condition as-if satisfied, but an unknown viral row has no
+        # `amplifier` key at all ("a refusal carries no number"), so there is nothing to apply and
+        # nothing to trace. Dereferencing it here raised KeyError on the HTTP route (adversarial
+        # review F1).
+        if condition_applies(viral_row) and viral_row.get('amplifier') is not None:
+            row = statuses.trace_rows(viral_row)
+            trace_mod.add(t_viral, row)
+            trace_mod.finish(t_viral, viral_row['amplifier'])
+            # the multiplier is a headline scalar like critical_multiplier, so it lives in stats as
+            # well as in its trace; the state travels beside it in `conditions`
+            stats['viral_amplifier'] = trace_mod._num(viral_row['amplifier'])
+            # The wiki's own output: the modded damage x the amplifier. `damage_to_health` uses
+            # this build's damage_per_shot (no crit assumption); the crit-weighted companion uses
+            # the same per-shot figure the rest of the panel quotes. Both are kept out of every
+            # Phase 1 stat, so the unconditional answers cannot move - and both carry a trace that
+            # names the formula, the source and the amplifier that was applied.
+            amp = viral_row['amplifier']
+            stats['damage_to_health'] = trace_mod._num(per_shot * amp)
+            stats['damage_to_health_expected_crit'] = trace_mod._num(per_shot_crit * amp)
+            t_health = trace_mod.trace('damage_to_health', per_shot, 'flat',
+                                       'Damage per shot to health (viral-amplified)')
+            trace_mod.note(t_health, '%s - modded_damage is this build\'s damage_per_shot'
+                           % statuses.FORMULA)
+            trace_mod.note(t_health, 'source: %s' % statuses.SOURCE)
+            trace_mod.add(t_health, statuses.trace_rows(viral_row))
+            trace_mod.finish(t_health, per_shot * amp, intermediate=amp)
+            traces['damage_to_health'] = t_health
+            t_healthc = trace_mod.trace('damage_to_health_expected_crit', per_shot_crit, 'flat',
+                                        'Damage per shot to health, crit-weighted')
+            trace_mod.note(t_healthc, 'damage_per_shot_expected_crit x viral amplifier')
+            trace_mod.add(t_healthc, statuses.trace_rows(viral_row))
+            trace_mod.finish(t_healthc, per_shot_crit * amp, intermediate=amp)
+            traces['damage_to_health_expected_crit'] = t_healthc
+        else:
+            trace_mod.finish(t_viral, None)
+            trace_mod.note(t_viral, 'withheld: %s (%s)'
+                           % (viral_row['state'], viral_row['reason']))
+        traces['viral_amplifier'] = t_viral
+
     # --- faction damage (applied last, never in the arsenal total) --------------
-    faction_key = 'faction_%s' % opts['faction'] if opts.get('faction') else None
+    # 4.3: the first condition source with a full pipeline - context -> condition -> state ->
+    # effect -> number or refusal. The multiplier now comes from the condition rows above, never
+    # from a bare 'is a faction option set' test, so a bonus that is simply unknown is reported as
+    # withheld instead of being quietly multiplied by 1.
     faction_multiplier = 1.0
-    if faction_key:
-        faction_multiplier = 1.0 + _pct(totals, faction_key) / 100.0
-        if faction_multiplier != 1.0:
-            notes.append('faction damage x%.4g applies to every type but is not part of '
-                         'the arsenal total (wiki)' % faction_multiplier)
-    for stat in totals:
-        if stat.startswith('faction_') and not faction_key:
-            notes.append('%s mod equipped but no target faction requested; bonus not '
-                         'applied' % stat.replace('_', ' '))
+    for stat in faction_stats:
+        if condition_applies(faction_rows[stat]):
+            faction_multiplier *= 1.0 + _pct(totals, stat) / 100.0
+    if faction_multiplier != 1.0:
+        notes.append('faction damage x%.4g applies to every type but is not part of '
+                     'the arsenal total (wiki)' % faction_multiplier)
+    for stat in faction_stats:
+        row = faction_rows[stat]
+        if not condition_applies(row):
+            notes.append('%s: %s - %s'
+                         % (stat.replace('_', ' '), row['state'], row['reason']))
 
     # --- DPS --------------------------------------------------------------------
     trigger = (opts.get('trigger_override') or equip.get('trigger') or '').strip().lower()
@@ -352,9 +472,49 @@ def calculate(equipment, mod_slots=None, options=None):
                                    'model: %s' % ', '.join(equip['traits'][:4]),
                                    equipment=equip.get('id')))
 
+    # --- the evaluation block (4.5) --------------------------------------------
+    # Three kinds of answer, named: a deterministic result (every condition that bears on it was
+    # satisfied by the stated inputs), a conditional result (something that bears on it is unknown,
+    # so the numbers below are the stated-inputs answer with those contributions withheld), and a
+    # refused result (the caller asked for strict semantics and a condition could not be resolved,
+    # so the affected stats are withheld entirely rather than answered).
+    blocked = [r for r in condition_rows if r['state'] in (conditions.UNKNOWN,
+                                                          conditions.UNSUPPORTED)]
+    refused_stats = []
+    if mode == 'strict' and blocked:
+        for key in ('damage_per_shot', 'damage_per_shot_expected_crit', 'burst_dps',
+                    'sustained_dps', 'damage_to_health', 'damage_to_health_expected_crit'):
+            if key in stats and stats[key] is not None:
+                stats[key] = None
+                refused_stats.append(key)
+        for row in blocked:
+            unsupported.append(_marker(
+                'calculation_refused', 'the %s condition is %s: %s'
+                % (row['condition'], row['state'], row['reason']),
+                condition=row['condition'], state=row['state'],
+                reason_code=row['reason_code'], stats=refused_stats,
+                equipment=equip.get('id')))
+    evaluation = {
+        'mode': mode,
+        'state': ('refused' if refused_stats
+                  else 'conditional' if blocked else 'deterministic'),
+        'context_supplied': ctx['supplied'],
+        'context_ignored': ctx['ignored'],
+        'withheld': [r['condition'] for r in condition_rows if not condition_applies(r)],
+        'consumed': list(consumed),
+        'refused_stats': refused_stats,
+        # `state` above is about the conditions this engine can reason about. Mechanics it cannot
+        # model are refused as *effects* and counted here, so one payload carries both facts and a
+        # reader never has to infer one from the other.
+        'unsupported_effects': len([m for m in unsupported
+                                    if m.get('code') in unsupported_mod.MARKER_TO_KEY]),
+    }
+
     result = {
         'equipment': {'id': equip.get('id'), 'name': equip.get('name'), 'kind': kind,
                       'trigger': trigger or None},
+        'conditions': condition_rows,
+        'evaluation': evaluation,
         'stats': stats,
         'damage': {
             'per_projectile': {k: trace_mod._num(v) for k, v in per_projectile.items()},
@@ -381,6 +541,34 @@ def calculate(equipment, mod_slots=None, options=None):
         'unsupported': unsupported,
         'notes': notes,
     }
+    if refused_stats:
+        _withhold_mirrors(result, refused_stats)
+    return result
+
+
+# Where else a refused stat's number is reported. The page reads `result.dps` and `result.damage`
+# as well as `stats`, so a refusal that nulled only `stats` still left the same figure on screen in
+# the damage card (adversarial review F2). Every mirror of a refused stat is nulled with it, and
+# the gate walks these paths.
+MIRROR_PATHS = {
+    'burst_dps': (('dps', 'burst', 'value'),),
+    'sustained_dps': (('dps', 'sustained', 'value'),),
+    'damage_per_shot': (('damage', 'per_shot_total'),),
+}
+
+
+def _withhold_mirrors(result, refused):
+    """Null every other place a refused stat's number appears, traces included."""
+    for stat in refused:
+        for path in MIRROR_PATHS.get(stat, ()):
+            node = result
+            for key in path[:-1]:
+                node = node.get(key) if isinstance(node, dict) else None
+            if isinstance(node, dict) and path[-1] in node:
+                node[path[-1]] = None
+        trace = (result.get('traces') or {}).get(stat)
+        if isinstance(trace, dict):
+            trace['final'] = None
     return result
 
 

@@ -134,7 +134,11 @@
       active_config: 'A',
       configs: configs,
       library: { q: '', polarity: '', slot: '', sort: 'name', hide_refused: false },
-      ui: { trace: null }
+      ui: { trace: null },
+      // Phase 4: what the caller states about the target. Blank/absent means NOT STATED, which
+      // the engine answers as `unknown` - never as zero or false. The page sends only the parts
+      // the user actually stated, so "not stated" survives the trip.
+      target: { faction: '', viral_stacks: null, protection: '', shot: null, strict: false }
     };
   }
 
@@ -229,10 +233,64 @@
     }
     out.library = cleanLibrary(data.library);
     if (out.library === null) return null;
+    var cleanTargetOut = cleanTarget(data.target);
+    if (cleanTargetOut === null) return null;
+    out.target = cleanTargetOut;
     if (data.ui !== undefined && data.ui !== null &&
         (typeof data.ui !== 'object' || Array.isArray(data.ui))) return null;
     out.ui = (data.ui && typeof data.ui === 'object') ? data.ui : {};
     return bad ? null : out;
+  }
+
+  // The Phase 4 target block, validated like every other member of v1: what the caller stated is
+  // kept exactly as stated (blank and null are meaningful - they mean NOT STATED, which the engine
+  // answers as unknown), and a member that is present and wrong fails the document like any other.
+  var TARGET_FACTIONS = ['', 'grineer', 'corpus', 'infested', 'orokin', 'murmur', 'sentient'];
+  var TARGET_LANDINGS = ['', 'health', 'armor', 'shields', 'overguard'];
+
+  // undefined/null -> null (not stated); a whole number or a numeric string in range -> it; anything
+  // else -> false, which the caller turns into "this document is not v1".
+  function numericField(value, lo, hi) {
+    if (value === undefined || value === null) return null;
+    var n = (typeof value === 'number') ? value
+      : (typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN);
+    // A fractional count is in range but is not a count: it is kept as stated and the engine
+    // answers unknown (a refusal, not a rounding). Only shape and range fail the document.
+    if (!isFinite(n) || n < lo || n > hi) return false;
+    return n;
+  }
+
+  function cleanTarget(raw) {
+    var out = freshStorage().target;
+    if (raw === undefined || raw === null) return out;
+    if (typeof raw !== 'object' || Array.isArray(raw)) return null;
+    var keys = Object.keys(raw);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] !== 'faction' && keys[i] !== 'viral_stacks' && keys[i] !== 'protection' &&
+          keys[i] !== 'shot' && keys[i] !== 'strict') return null;
+    }
+    if (raw.faction !== undefined && raw.faction !== null) {
+      if (typeof raw.faction !== 'string' || TARGET_FACTIONS.indexOf(raw.faction) < 0) return null;
+      out.faction = raw.faction;
+    }
+    if (raw.protection !== undefined && raw.protection !== null) {
+      if (typeof raw.protection !== 'string' || TARGET_LANDINGS.indexOf(raw.protection) < 0) return null;
+      out.protection = raw.protection;
+    }
+    // A count written as a numeric string ("6") is unambiguous, so it is coerced rather than
+    // failing the whole document - losing a planner's build over a quoted digit would be worse
+    // than the quote. Anything else is a shape v1 does not define and fails like every other.
+    var stacks = numericField(raw.viral_stacks, 0, 10);
+    if (stacks === false) return null;
+    out.viral_stacks = stacks;
+    var shot = numericField(raw.shot, 1, 999);
+    if (shot === false) return null;
+    out.shot = shot;
+    if (raw.strict !== undefined && raw.strict !== null) {
+      if (typeof raw.strict !== 'boolean') return null;
+      out.strict = raw.strict;
+    }
+    return out;
   }
 
   var LIB_SLOTS = ['', 'normal', 'aura', 'stance', 'exilus'];
@@ -267,12 +325,37 @@
   }
 
   var saveTimer = null;
+
+  function writeStorage() {
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state.storage)); }
+    catch (e) { /* a full quota must not break the page */ }
+  }
+
+  // A debounced write is a write the browser can lose: navigating away (or closing the tab) inside
+  // the debounce window drops the user's last edit. The debounce stays - it is what keeps a drag
+  // from writing on every frame - but a pending write is flushed on the way out.
+  function flushStorage() {
+    if (!saveTimer) return;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    writeStorage();
+  }
+
+  if (window.addEventListener) {
+    window.addEventListener('pagehide', flushStorage);
+    window.addEventListener('beforeunload', flushStorage);
+  }
+  if (document.addEventListener) {
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') flushStorage();
+    });
+  }
+
   function saveStorage() {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       saveTimer = null;
-      try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state.storage)); }
-      catch (e) { /* a full quota must not break the page */ }
+      writeStorage();
     }, SAVE_DEBOUNCE);
   }
 
@@ -373,7 +456,7 @@
         mod: entry ? { id: entry.id, rank: entry.rank } : null
       };
     });
-    return {
+    var out = {
       config: state.storage.active_config,
       equipment_id: state.storage.equipment_id,
       equipment_rank: state.storage.equipment_rank === null ? undefined
@@ -383,7 +466,45 @@
       exilus_unlocked: !!state.storage.exilus_unlocked,
       slots: slots
     };
+    var options = optionsFor();
+    if (options) out.options = options;
+    return out;
   }
+
+  // The evaluation options, built only from what was stated. An unstated field is absent, which is
+  // what lets the engine tell 'unknown' apart from a stated value.
+  function targetState() {
+    if (!state.storage.target || typeof state.storage.target !== 'object') {
+      state.storage.target = { faction: '', viral_stacks: null, protection: '', shot: null,
+        strict: false };
+    }
+    return state.storage.target;
+  }
+
+  function optionsFor() {
+    var t = targetState();
+    var context = {};
+    if (t.faction) context.target_faction = String(t.faction);
+    var target = {};
+    var stacks = statedNumber(t.viral_stacks);
+    if (stacks !== null) target.viral_stacks = stacks;
+    if (t.protection) target.protection = String(t.protection);
+    if (Object.keys(target).length) context.target = target;
+    var shot = statedNumber(t.shot);
+    if (shot !== null) context.attack = { shot_index: shot };
+    var options = {};
+    if (Object.keys(context).length) options.context = context;
+    if (t.strict) options.strict = true;
+    return Object.keys(options).length ? options : null;
+  }
+
+  // A stated number or nothing: '' / null / NaN is not a value, so it is not sent.
+  function statedNumber(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+
 
   function buildWith(nextConfig) {
     var current = state.storage.active_config;
@@ -1146,6 +1267,93 @@
     });
   }
 
+  // The conditions the engine evaluated, in the engine's own words. This page decides nothing:
+  // it prints the four-state vocabulary (satisfied / not_satisfied / unknown / unsupported) and
+  // the reason the engine gave.
+  function renderEvaluation() {
+    var box = $('plEvalBody');
+    if (!box) return;
+    clear(box);
+    var chip = $('plStatsEval');
+    var meta = $('plEvalMeta');
+    var answer = state.result;
+    var ev = answer && answer.evaluation;
+    var rows = (answer && answer.conditions) || [];
+    if (!ev) {
+      if (meta) meta.textContent = '';
+      if (chip) { chip.hidden = true; chip.textContent = ''; }
+      box.appendChild(el('div', { class: 'dim small',
+        text: state.error ? 'No answer from the engine.'
+          : (state.answer && state.answer.validation ? 'the engine refused this build'
+            : 'Nothing to evaluate yet.') }));
+      return;
+    }
+    if (meta) {
+      // The refused-mechanic count belongs here too: it is the other half of the engine's answer,
+      // and a reader should not have to open a second card to learn that both facts exist.
+      meta.textContent = '· ' + ev.state.replace('_', ' ') +
+        (ev.unsupported_effects ? ' · ' + ev.unsupported_effects + ' refused' : '') +
+        (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' condition' : ' conditions') : '');
+      meta.setAttribute('data-k', ev.state);
+    }
+    if (chip) {
+      // `not_evaluated` is its own answer: this engine has no condition model, so nothing here was
+      // withheld and nothing here was checked either. It must not read as `deterministic`.
+      chip.hidden = ev.state === 'deterministic';
+      chip.textContent = ev.state === 'deterministic' ? ''
+        : (ev.state + (ev.withheld && ev.withheld.length
+          ? ': ' + ev.withheld.join(', ') + ' not stated' : ''));
+      chip.setAttribute('data-k', ev.state);
+      chip.setAttribute('title', ev.state === 'refused' ? 'strict: stats withheld'
+        : (ev.state === 'not_evaluated' ? 'no condition model' : 'withheld: input not stated'));
+    }
+    if (ev.context_ignored && ev.context_ignored.length) {
+      box.appendChild(el('div', { class: 'pl-eval-note', 'data-k': 'warn',
+        text: 'ignored input: ' + ev.context_ignored.join(', ') }));
+    }
+    if (ev.unused && ev.unused.length) {
+      // A stated input this engine has no model for: a refusal, not silence.
+      box.appendChild(el('div', { class: 'pl-eval-note', 'data-k': 'warn',
+        text: 'not modelled here: ' + ev.unused.join(', ') }));
+    }
+    if (ev.refused_stats && ev.refused_stats.length) {
+      box.appendChild(el('div', { class: 'pl-eval-note', 'data-k': 'error',
+        text: 'refused under strict evaluation: ' + ev.refused_stats.join(', ') }));
+    }
+    if (!rows.length) {
+      box.appendChild(el('div', { class: 'dim small',
+        text: ev.state === 'deterministic'
+          ? 'every number here is unconditional'
+          : 'no condition evaluated' }));
+      return;
+    }
+    rows.forEach(function (row) {
+      var title = (row.state === 'unknown'
+        ? 'condition unresolved'
+        : row.state === 'unsupported'
+          ? 'mechanic not modelled'
+          : row.state === 'not_satisfied'
+            ? 'known false: a reported zero'
+            : 'holds here');
+      box.appendChild(el('div', { class: 'pl-eval-row', 'data-k': row.state, title: title }, [
+        el('div', { class: 'pl-eval-head' }, [
+          el('span', { class: 'pl-eval-name', text: row.condition || 'condition' }),
+          el('span', { class: 'pl-eval-state', 'data-k': row.state, text: row.state })
+        ]),
+        el('div', { class: 'pl-eval-why', text: row.reason || '' }),
+        el('div', { class: 'pl-eval-in', text: [
+          row.inputs ? Object.keys(row.inputs).map(function (k) {
+            return k + '=' + row.inputs[k];
+          }).join(' · ') : '',
+          row.reason_code ? 'code ' + row.reason_code : ''
+        ].filter(Boolean).join(' · ') })
+      ]));
+    });
+    if (ev.mode && ev.mode !== 'stated_inputs') {
+      box.appendChild(el('div', { class: 'pl-eval-note', text: 'evaluation: ' + ev.mode }));
+    }
+  }
+
   function renderResult() {
     renderError();
     renderMrHint();              // the capacity floor comes from the engine's answer
@@ -1153,6 +1361,7 @@
     renderInspector();
     renderCapacity();
     renderValidation();
+    renderEvaluation();
     renderUnsupported();
     renderStatus();
     renderForma();                 // a polarity change moves the Forma count, not just the stats
@@ -1370,6 +1579,20 @@
     if (window.wfmIcons && window.wfmIcons.render) window.wfmIcons.render(box);
   }
 
+  // What the user stated, echoed back - no interpretation, no defaults invented.
+  function renderTargetMeta(t) {
+    var node = $('plTargetMeta');
+    if (!node) return;
+    t = t || targetState();
+    var bits = [];
+    if (t.faction) bits.push('faction: ' + t.faction);
+    if (statedNumber(t.viral_stacks) !== null) bits.push('viral ' + statedNumber(t.viral_stacks));
+    if (t.protection) bits.push('on ' + t.protection);
+    if (statedNumber(t.shot) !== null) bits.push('shot ' + statedNumber(t.shot));
+    if (t.strict) bits.push('strict');
+    node.textContent = bits.length ? bits.join(' · ') : 'nothing stated';
+  }
+
   function setToggle(btn, on, label) {
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     if (label) label.textContent = on ? 'on' : 'off';
@@ -1379,6 +1602,14 @@
     setToggle($('plOrokin'), !!state.storage.orokin, $('plOrokinVal'));
     setToggle($('plExilus'), !!state.storage.exilus_unlocked, $('plExilusVal'));
     $('plMr').value = String(state.storage.mastery_rank);
+    var t = targetState();
+    $('plTargetFaction').value = t.faction || '';
+    $('plTargetStacks').value = (t.viral_stacks === null || t.viral_stacks === undefined)
+      ? '' : String(t.viral_stacks);
+    $('plTargetProtection').value = t.protection || '';
+    $('plTargetShot').value = (t.shot === null || t.shot === undefined) ? '' : String(t.shot);
+    setToggle($('plStrict'), !!t.strict, $('plStrictVal'));
+    renderTargetMeta(t);
     var max = state.equipment ? state.equipment.max_rank : 30;
     $('plRank').value = String(state.storage.equipment_rank === null ? max
       : state.storage.equipment_rank);
@@ -1468,6 +1699,36 @@
       saveStorage();
       recompute();
     });
+    // Phase 4 target controls: state an input, persist it, and let the engine answer. Each one
+    // is stored as stated (or as an empty string), never as a substitute value.
+    // An input's value is a string; what gets stored (and posted) is a number or null. The engine
+    // refuses a string where it wants a count, and it is right to: "6" is not 6.
+    function targetEdit(patch) {
+      var t = targetState();
+      Object.keys(patch).forEach(function (k) {
+        t[k] = (k === 'viral_stacks' || k === 'shot') ? statedNumber(patch[k]) : patch[k];
+      });
+      saveStorage();
+      recompute();
+    }
+    $('plTargetFaction').addEventListener('change', function (e) {
+      targetEdit({ faction: e.target.value });
+    });
+    $('plTargetProtection').addEventListener('change', function (e) {
+      targetEdit({ protection: e.target.value });
+    });
+    $('plTargetStacks').addEventListener('change', function (e) {
+      targetEdit({ viral_stacks: e.target.value === '' ? null : e.target.value });
+    });
+    $('plTargetShot').addEventListener('change', function (e) {
+      targetEdit({ shot: e.target.value === '' ? null : e.target.value });
+    });
+    $('plStrict').addEventListener('click', function () {
+      var t = targetState();
+      targetEdit({ strict: !t.strict });
+      renderToolbar();
+    });
+
     $('plOrokin').addEventListener('click', function () {
       state.storage.orokin = !state.storage.orokin;
       renderToolbar();

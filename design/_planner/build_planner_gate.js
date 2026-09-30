@@ -1288,13 +1288,20 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       const afterOpen = first.open;
       first.open = false;
       return { count: parts.length, closedBefore: closedBefore, afterOpen: afterOpen,
-        afterClose: first.open, badges: Array.from(parts).map((d) => d.querySelector('.pl-dg-badge').textContent) };
+        afterClose: first.open,
+        names: Array.from(parts).map((d) => d.getAttribute('data-diag')),
+        badges: Array.from(parts).map((d) => d.querySelector('.pl-dg-badge').textContent) };
     });
     say('diagnostics', diag);
+    // Phase 4 adds a fourth section (Conditions: the four-state condition report), so the baseline
+    // is the four regions the page is meant to have, in order, each with a badge of its own.
     addCheck('layout', 'the diagnostics strip expands and collapses, with a count on every heading',
-      diag.count === 3 && diag.closedBefore === false && diag.afterOpen === true &&
-        diag.afterClose === false && diag.badges.every((b) => b.length > 0),
-      'three collapsible sections, closed by default, each carrying its own summary badge',
+      diag.count === 4 && diag.closedBefore === false && diag.afterOpen === true &&
+        diag.afterClose === false && diag.badges.every((b) => b.length > 0) &&
+        JSON.stringify(diag.names) ===
+          JSON.stringify(['validation', 'capacity', 'evaluation', 'unsupported']),
+      'four collapsible sections in order (validation, capacity, evaluation, unsupported), ' +
+        'closed by default, each carrying its own summary badge',
       JSON.stringify(diag));
 
     /* ------------- 19g the mod details have a home, and nothing floats over the workspace */
@@ -1443,6 +1450,76 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       dockSweep.bad.length === 0,
       'five viewports: pane inside the viewport, no stats overlap, no page overflow, the workspace still usable',
       JSON.stringify(dockSweep).slice(0, 300));
+
+    /* ------------------------------------------- 21 the Phase 4 conditional combat model */
+    // What the caller states about the target must survive a reload, travel as stated (never as a
+    // default), and come back as an explicit condition state. Nothing stated stays unresolved.
+    // The build under test is named here, not inherited: a warframe's page has no weapon damage
+    // model, so the viral mechanic is a weapon-side question and the check must ask it of a weapon.
+    const TARGET_BUILD = '/Lotus/Weapons/Tenno/Rifle/BratonPrime';
+    await page.goto(BASE + '/planner.html?equip=' + encodeURIComponent(TARGET_BUILD),
+      { waitUntil: 'networkidle2' });
+    await page.waitForFunction((want) => window.WFMPlanner &&
+      window.WFMPlanner.storage().equipment_id === want, { timeout: 20000 }, TARGET_BUILD);
+    const targetBefore = await engine();
+    const uiBefore = await page.evaluate(() => ({
+      meta: (document.getElementById('plTargetMeta') || {}).textContent || '',
+      badge: (document.getElementById('plEvalMeta') || {}).textContent || '',
+      sent: JSON.stringify((window.WFMPlanner.build() || {}).options || null) }));
+    await page.select('#plTargetFaction', 'corpus');
+    await page.evaluate(() => {
+      const el = document.getElementById('plTargetStacks');
+      el.value = '6';
+      el.dispatchEvent(new Event('change'));
+    });
+    const savedProbe = await page.evaluate(async () => {
+      const key = 'wfm.planner.v1';
+      const immediate = window.localStorage.getItem(key) || '';
+      await new Promise((r) => setTimeout(r, 600));
+      const later = window.localStorage.getItem(key) || '';
+      return { immediateHasCorpus: immediate.indexOf('corpus') >= 0,
+        laterHasCorpus: later.indexOf('corpus') >= 0,
+        inMemory: JSON.stringify(window.WFMPlanner.storage().target),
+        storedTarget: (function () {
+          try { return JSON.stringify((JSON.parse(later) || {}).target); } catch (e) { return 'unreadable'; }
+        })() };
+    });
+    say('target-save-probe', savedProbe);
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => {
+      const m = document.getElementById('plTargetMeta');
+      return m && /corpus/.test(m.textContent) && window.WFMPlanner;
+    }, { timeout: 20000 });
+    const targetAfter = await engine();
+    const uiAfter = await page.evaluate(() => ({
+      faction: document.getElementById('plTargetFaction').value,
+      stacks: document.getElementById('plTargetStacks').value,
+      meta: (document.getElementById('plTargetMeta') || {}).textContent || '',
+      badge: (document.getElementById('plEvalMeta') || {}).textContent || '',
+      sent: JSON.stringify((window.WFMPlanner.build() || {}).options || null) }));
+    say('target-round-trip', { before: uiBefore.meta, after: uiAfter.meta, sent: uiAfter.sent,
+      badge: uiAfter.badge,
+      evaluation: targetAfter.api && targetAfter.api.evaluation,
+      conditions: targetAfter.api && (targetAfter.api.conditions || []).map((c) => c.condition + ':' + c.state) });
+    addCheck('target', 'a stated target survives a reload and is posted exactly as stated',
+      uiAfter.faction === 'corpus' && uiAfter.stacks === '6' && /corpus/.test(uiAfter.meta) &&
+        !!targetAfter.build.options && !!targetAfter.build.options.context &&
+        targetAfter.build.options.context.target_faction === 'corpus' &&
+        (targetAfter.build.options.context.target || {}).viral_stacks === 6 &&
+        uiBefore.sent === 'null',
+      'nothing stated posts no context at all; a stated faction and stack count survive the reload',
+      'before=' + uiBefore.sent + ' after=' + uiAfter.sent);
+    addCheck('target', 'an unresolved target input is withheld, not assumed',
+      !!targetAfter.api.evaluation && targetAfter.api.evaluation.state === 'conditional' &&
+        targetAfter.api.evaluation.withheld.join(',') === 'viral' &&
+        /conditional/.test(uiAfter.badge) &&
+        !(targetAfter.api.result && targetAfter.api.result.stats &&
+          targetAfter.api.result.stats.damage_to_health_expected_crit) &&
+        !!targetBefore.api.evaluation && targetBefore.api.evaluation.state === 'deterministic',
+      'viral stacks stated without a landing = unknown (withheld); nothing stated = deterministic',
+      'before=' + JSON.stringify(targetBefore.api.evaluation && targetBefore.api.evaluation.state) +
+        ' after=' + JSON.stringify(targetAfter.api.evaluation) + ' badge=' + uiAfter.badge +
+        ' equipment=' + (targetAfter.build || {}).equipment_id);
 
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
@@ -1607,10 +1684,21 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
         afterClone.slots.join(',') === 'normal:0' && /Braton Prime/.test(afterClone.header),
       'the planner now holds the Braton Prime build, one mod in slot 1',
       afterClone.equipment + ' slots=' + afterClone.slots.join(',') + ' header=' + afterClone.header);
+    // Which key moved, when this fails: the byte comparison alone does not say.
+    const snapshotDiff = (function () {
+      if (beforeClone === afterClone.snapshot) return 'identical';
+      const A = JSON.parse(beforeClone); const B = JSON.parse(afterClone.snapshot);
+      const keys = new Set(Object.keys(A).concat(Object.keys(B)));
+      const moved = [];
+      keys.forEach((k) => {
+        if (JSON.stringify(A[k]) !== JSON.stringify(B[k])) moved.push(k);
+      });
+      return 'CHANGED: ' + moved.join(',');
+    })();
     addCheck('current', 'cloning does not modify what the source said',
       beforeClone === afterClone.snapshot,
       'the imported snapshot is byte-identical before and after the clone (freshness aside: it is recomputed per read)',
-      beforeClone === afterClone.snapshot ? 'identical' : 'CHANGED');
+      snapshotDiff);
 
     // editing the planner must not travel back into the imported card. Plain URL: a deep link
     // (?equip=...) legitimately wins on boot, and this step is about the stored clone.
@@ -1619,6 +1707,12 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       const c = document.getElementById('plCurrent');
       return c && !c.hidden && c.querySelectorAll('.pl-cur-row').length > 0;
     }, { timeout: 20000 });
+    const afterPlainLoad = await page.evaluate(() => ({
+      equipment: window.WFMPlanner.storage().equipment_id, search: location.search,
+      keys: Object.keys(window.WFMPlanner.storage()).join(','),
+      slots: Object.keys((window.WFMPlanner.storage().configs[window.WFMPlanner.storage().active_config] || {}).slots || {}),
+      note: (document.getElementById('plCurrentNote') || {}).textContent || '' }));
+    say('current-plain-load', afterPlainLoad);
     await page.evaluate(() => {
       const st = window.WFMPlanner.storage();
       st.mastery_rank = 9;                       // a deliberate, visible planner-side edit
@@ -1635,7 +1729,9 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       const d = await r.json();
       return { rows: document.querySelectorAll('#plCurrentList .pl-cur-row').length,
         equipment: window.WFMPlanner.storage().equipment_id,
-        categories: Object.keys(d.snapshot.categories).length };
+        categories: Object.keys(d.snapshot.categories).length,
+        probe: window.WFMPlanner.storage().equipment_id + ' | ' +
+          Object.keys((window.WFMPlanner.storage().configs[window.WFMPlanner.storage().active_config] || {}).slots || {}).join(',') };
     });
     addCheck('current', 'the imported card survives a planner edit and a reload untouched',
       afterEdit.rows === 6 && afterEdit.equipment === '/Lotus/Weapons/Tenno/Rifle/BratonPrime',

@@ -1,6 +1,6 @@
 {
- "started": "2026-09-29T15:15:10.761Z",
- "base": "http://127.0.0.1:57544",
+ "started": "2026-09-30T02:46:54.497Z",
+ "base": "http://127.0.0.1:56691",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -36,7 +36,7 @@
    "title": "the page names the engine + database it reads",
    "ok": true,
    "expected": "a status line naming the DB",
-   "observed": "\"db 0132f6af · 1809 mods · 777 items\"",
+   "observed": "\"db fd1b15dd · 1809 mods · 777 items\"",
    "note": "",
    "diagnostic": false
   },
@@ -756,7 +756,7 @@
    "title": "the workspace keeps its regions, its selected slot and its active config",
    "ok": true,
    "expected": "five regions sized, one focused slot (>=60px tiles), one selected config, diagnostics a flat strip, no overflow",
-   "observed": "{\"focused\":1,\"config\":1,\"head\":1682,\"bar\":1682,\"slots\":440,\"lib\":818,\"stats\":404,\"diag\":39,\"slotHeight\":68,\"over\":0}",
+   "observed": "{\"focused\":1,\"config\":1,\"head\":1682,\"bar\":1682,\"slots\":440,\"lib\":818,\"stats\":404,\"diag\":88,\"slotHeight\":68,\"over\":0}",
    "note": "",
    "diagnostic": false
   },
@@ -764,8 +764,8 @@
    "section": "layout",
    "title": "the diagnostics strip expands and collapses, with a count on every heading",
    "ok": true,
-   "expected": "three collapsible sections, closed by default, each carrying its own summary badge",
-   "observed": "{\"count\":3,\"closedBefore\":false,\"afterOpen\":true,\"afterClose\":false,\"badges\":[\"· clean\",\"· 0 mods\",\"· 2 mechanics\"]}",
+   "expected": "four collapsible sections in order (validation, capacity, evaluation, unsupported), closed by default, each carrying its own summary badge",
+   "observed": "{\"count\":4,\"closedBefore\":false,\"afterOpen\":true,\"afterClose\":false,\"names\":[\"validation\",\"capacity\",\"evaluation\",\"unsupported\"],\"badges\":[\"· clean\",\"· 0 mods\",\"· not evaluated\",\"· 2 mechanics\"]}",
    "note": "",
    "diagnostic": false
   },
@@ -842,6 +842,24 @@
    "diagnostic": false
   },
   {
+   "section": "target",
+   "title": "a stated target survives a reload and is posted exactly as stated",
+   "ok": true,
+   "expected": "nothing stated posts no context at all; a stated faction and stack count survive the reload",
+   "observed": "before=null after={\"context\":{\"target_faction\":\"corpus\",\"target\":{\"viral_stacks\":6}}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "an unresolved target input is withheld, not assumed",
+   "ok": true,
+   "expected": "viral stacks stated without a landing = unknown (withheld); nothing stated = deterministic",
+   "observed": "before=\"deterministic\" after={\"mode\":\"stated_inputs\",\"state\":\"conditional\",\"context_supplied\":true,\"context_ignored\":[],\"withheld\":[\"viral\"],\"consumed\":[\"target.viral_stacks\",\"target.protection\",\"target.immune_to\"],\"refused_stats\":[],\"unsupported_effects\":1,\"engine_evaluated\":true,\"unused\":[\"target_faction\"]} badge=· conditional · 1 refused · 1 condition equipment=/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "note": "",
+   "diagnostic": false
+  },
+  {
    "section": "hygiene",
    "title": "no duplicate id after the whole drive",
    "ok": true,
@@ -891,7 +909,7 @@
    "title": "the card names its source and whether that source is live",
    "ok": true,
    "expected": "a freshness label, and - when the source cannot be shown to be live - the warning repeated",
-   "observed": "Last seen 5 minutes ago / ",
+   "observed": "Last seen 11 hours ago / ",
    "note": "",
    "diagnostic": false
   },
@@ -1005,7 +1023,7 @@
    "plannerActive": true,
    "title": "Build planner · WFM Trader",
    "dupes": [],
-   "status": "db 0132f6af · 1809 mods · 777 items",
+   "status": "db fd1b15dd · 1809 mods · 777 items",
    "gridSlots": 0,
    "pickerOpen": true,
    "libRows": 0
@@ -1721,6 +1739,13 @@
     },
     "ui": {
      "trace": "damage"
+    },
+    "target": {
+     "faction": "",
+     "viral_stacks": null,
+     "protection": "",
+     "shot": null,
+     "strict": false
     }
    },
    "still_junk": false,
@@ -1883,18 +1908,25 @@
    "slots": 440,
    "lib": 818,
    "stats": 404,
-   "diag": 39,
+   "diag": 88,
    "slotHeight": 68,
    "over": 0
   },
   "diagnostics": {
-   "count": 3,
+   "count": 4,
    "closedBefore": false,
    "afterOpen": true,
    "afterClose": false,
+   "names": [
+    "validation",
+    "capacity",
+    "evaluation",
+    "unsupported"
+   ],
    "badges": [
     "· clean",
     "· 0 mods",
+    "· not evaluated",
     "· 2 mechanics"
    ]
   },
@@ -1945,6 +1977,41 @@
    "sizes": 5,
    "bad": []
   },
+  "target-save-probe": {
+   "immediateHasCorpus": false,
+   "laterHasCorpus": true,
+   "inMemory": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false}",
+   "storedTarget": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false}"
+  },
+  "target-round-trip": {
+   "before": "nothing stated",
+   "after": "faction: corpus · viral 6",
+   "sent": "{\"context\":{\"target_faction\":\"corpus\",\"target\":{\"viral_stacks\":6}}}",
+   "badge": "· conditional · 1 refused · 1 condition",
+   "evaluation": {
+    "mode": "stated_inputs",
+    "state": "conditional",
+    "context_supplied": true,
+    "context_ignored": [],
+    "withheld": [
+     "viral"
+    ],
+    "consumed": [
+     "target.viral_stacks",
+     "target.protection",
+     "target.immune_to"
+    ],
+    "refused_stats": [],
+    "unsupported_effects": 1,
+    "engine_evaluated": true,
+    "unused": [
+     "target_faction"
+    ]
+   },
+   "conditions": [
+    "viral:unknown"
+   ]
+  },
   "hygiene": {
    "dupes": [],
    "console": 0,
@@ -1979,7 +2046,7 @@
      "text": "Companion weaponPrime Laser RifleConfig A · Rank 30"
     }
    ],
-   "meta": "Last seen 5 minutes ago",
+   "meta": "Last seen 11 hours ago",
    "note": "",
    "buttons": [
     "plCurrentRefresh",
@@ -2011,6 +2078,15 @@
    ],
    "header": "Braton Prime"
   },
+  "current-plain-load": {
+   "equipment": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "search": "",
+   "keys": "version,equipment_id,equipment_rank,orokin,exilus_unlocked,mastery_rank,active_config,configs,library,ui,target",
+   "slots": [
+    "normal:0"
+   ],
+   "note": ""
+  },
   "current-broken": {
    "hidden": false,
    "text": "Current Loadout Refresh The save could not be read: unexpected end of dataLooked for C:/somewhere/lastData.dat Clone as Config A Config B Config C View build Clone to Planner Pick a slot above for its build.",
@@ -2030,10 +2106,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-29T15:16:07.045Z",
+ "finished": "2026-09-30T02:47:52.621Z",
  "verdict": {
   "pass": true,
-  "checks_total": 109,
+  "checks_total": 111,
   "checks_failed": 0,
   "failed": []
  }

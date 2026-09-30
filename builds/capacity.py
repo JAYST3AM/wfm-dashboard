@@ -30,6 +30,7 @@ subtle, because these are the numbers players catch a planner getting wrong):
 Pure: takes dicts in, returns a full breakdown with a per-slot trace. No I/O.
 """
 from . import schema
+from .coerce import as_int as _as_int
 
 # Aura/stance mismatch multiplier: the wiki's Aura and Polarity pages both say 80% of
 # the listed drain ("in a slot of a different polarity, the additional capacity is 80%
@@ -52,7 +53,7 @@ def minimum_capacity(mastery_rank):
     15 + 1 per 2 MR up to MR 30, then +1 per Legendary Rank (which makes it exactly the
     Mastery Rank beyond 30). Negative/hostile input is clamped to MR 0.
     """
-    mr = max(0, int(mastery_rank or 0))
+    mr = max(0, _as_int(mastery_rank, 0, minimum=0))
     if mr <= 30:
         return 15 + mr // 2
     return 15 + 15 + (mr - 30)
@@ -122,7 +123,8 @@ def capacity_breakdown(equipment, slots, equipment_rank=None, orokin=False,
     """
     equip = equipment or {}
     max_rank = equip.get('max_rank') or schema.MAX_RANK_WEAPON
-    rank = max_rank if equipment_rank is None else int(equipment_rank)
+    rank = max_rank if equipment_rank is None else _as_int(equipment_rank, max_rank,
+                                                           minimum=0, maximum=max_rank)
     errors, notes, trace = [], [], []
 
     mr = max(0, int(mastery_rank or 0))
@@ -210,7 +212,10 @@ def capacity_breakdown(equipment, slots, equipment_rank=None, orokin=False,
     remaining = capacity_total - total_drain
     # The bar the page draws is a percentage of two engine figures, so the engine computes it -
     # the page printing it is display, and the page dividing it would be a second engine.
-    used_pct = 0 if not capacity_total else min(100, int(round(total_drain * 100.0 / capacity_total)))
+    # Bounded before the float conversion: a runaway drain (a caller's absurd mod rank) must not
+    # be able to raise `int too large to convert to float` here.
+    capped_drain = min(total_drain, capacity_total)
+    used_pct = 0 if not capacity_total else min(100, int(round(capped_drain * 100.0 / capacity_total)))
     if remaining < 0:
         errors.append(_err('capacity_exceeded',
                            'drain %d exceeds capacity %d by %d'

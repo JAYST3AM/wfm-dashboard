@@ -13,6 +13,10 @@ Two pieces:
   owns **no Warframe math** — it POSTs a build and renders `result`, `traces`, `validation`
   and the refusals, plus the server routes in `server.py` that join the database to the
   engine.
+* **Phase 4 — the conditional combat model** (`builds/conditions.py`, `builds/statuses.py`):
+  the four-state condition space, structured refusals, and the first mechanics that are
+  resolved from an explicit evaluation context instead of being assumed. See
+  [the conditional model](#phase-4-the-conditional-combat-model).
 
 ## The planner page
 
@@ -30,6 +34,8 @@ pages).
 | Damage + elements | the engine's damage split as a bar, the composition rows (which mods built which type), combined elements, DPS with its assumptions, crit/status notes |
 | Capacity detail | how the total was built (rank, catalyst, Mastery floor, aura/stance bonus) and what each slot was charged, rule by rule |
 | Validation | every error/warning the engine returned, with its own code, field and mod |
+| Target | what the evaluation is pointed at: the target faction, the viral procs already on the target, what the damage lands on, and which shot in the magazine — plus **Strict**, which withholds a calculation whose conditions cannot be resolved. Anything unstated is *absent from the request*, never sent as a zero |
+| Conditions | every condition the engine evaluated, in the engine's own four-state vocabulary (`satisfied`, `not_satisfied`, `unknown`, `unsupported`), with the engine's reason, the inputs it used and its reason code |
 | Unsupported | refusals on the build and in the library, each naming the mechanic |
 
 Interaction rules the page follows:
@@ -61,9 +67,9 @@ no math lives in the server):
 | `GET  /api/planner/equipment?q=&kind=&limit=` | equipment search, ranked (exact name first), one normalised row each (`id` and `uniqueName` are the same string) |
 | `GET  /api/planner/equipment/<key>` | one item: its row, its slot layout and its default polarities |
 | `GET  /api/planner/mods?equipment=<key>&shadowed=` | the mod rows that install on that item (`id` = the game's own `uniqueName`, exposed under both names), each with drain, rank range, flags and refusal counts; `shadowed=1` adds the hidden bucket - catalog leftovers and Conclave-only cards - each flagged, and `hidden` counts them either way |
-| `POST /api/planner/compute` | `{build}` → the full `api.compute` answer |
-| `POST /api/planner/preview` | `{build, next}` → two real engine runs and the deltas; both sides are complete builds |
-| `POST /api/planner/explain` | `{build, stat}` → the trace for one stat |
+| `POST /api/planner/compute` | `{build, options?}` → the full `api.compute` answer. `options` carries the Phase 4 evaluation: `{context: {target_faction, target: {viral_stacks, protection, immune_to}, attack: {shot_index}}, strict, hypothetical}`. A malformed `options` is a structured refusal (`{'ok': false, 'error': 'options must be a JSON object'}`), never a crash |
+| `POST /api/planner/preview` | `{build, next, options?}` → two real engine runs and the deltas; both sides are complete builds, evaluated with the same context |
+| `POST /api/planner/explain` | `{build, stat, options?}` → the trace for one stat, rendered from the same evaluation as the numbers |
 | `GET  /api/planner/unsupported` | the refusal registry |
 
 Unknown `/api/planner/*` routes answer `404 {"ok": false, "error": "unknown planner route"}`
@@ -81,6 +87,8 @@ every field and for the wiring.
 
 ```bash
 python design/_planner/build_planner_gate.py     # 20-step browser workflow (puppeteer-core)
+python design/_planner/conditions_gate.py        # refusal preservation (Phase 4)
+python design/_planner/conditions_gate.py --falsify   # prove those checks catch breakage
 python -m pytest tests/test_planner_api.py tests/test_planner_page.py -q
 ```
 
@@ -131,6 +139,8 @@ would with Forma).
 | `builds/warframes.py` | Frame math: rank-scaled pools, armour, sprint speed, the four ability stats with caps and floors |
 | `builds/validation.py` | Structured build validation (errors + warnings, never an exception) |
 | `builds/unsupported.py` | The registry of mechanics the engine refuses to fake, with reasons and target phases |
+| `builds/conditions.py` | The four-state condition space (`satisfied`/`not_satisfied`/`unknown`/`unsupported`), the evaluation context, the condition ids this engine can resolve, and the text classifier that names a conditional clause it cannot |
+| `builds/statuses.py` | Status mechanics: the Viral damage-to-health multiplier (the one status mechanic Phase 4 implements), with its formula, its source and its refusal cases |
 | `builds/trace.py` | The trace primitives every stat returns: base, each modifier with its source/mod/rank, the final value |
 | `builds/ingest.py` | Sources → `data/build_data.json` (normalisation, provenance, atomic write, `--selftest`) |
 | `builds/data.py` | Loading + lookups (by id, slug, name; variant-aware) |
@@ -148,6 +158,20 @@ Design rules that the code follows throughout:
   marker `{"supported": false, "code": ..., "reason": ...}` and the registry
   (`unsupported.list_all()`) carries the same code with a phase. A test asserts that no
   refusal can ship unnamed.
+* **A condition has four states, and only one of them contributes.** `satisfied` may apply a
+  value; `not_satisfied` is a *reported zero* (a result, not a default); `unknown` and
+  `unsupported` are refusals, and they are different refusals — "supply the input" versus
+  "this engine has no model for that". No state is ever a boolean, and the engine has no
+  `truthy()` that could turn one into one.
+* **The context is what the caller states, never what the engine assumes.** `context` carries
+  only `target_faction`, `target{...}` and `attack{...}`; anything else comes back in
+  `evaluation.context_ignored`. A field nobody stated stays absent, which is what makes
+  `unknown` distinguishable from a stated zero.
+* **Three kinds of answer, named.** `evaluation.state` is `deterministic` (every condition
+  that bears on the numbers was satisfied by the stated inputs), `conditional` (something
+  that bears on them is unresolved, so the numbers are the stated-inputs answer with those
+  contributions withheld and listed) or `refused` (the caller asked for `strict`, so the
+  affected stats are withheld entirely rather than answered).
 
 ## What Phase 1 computes
 
@@ -174,6 +198,75 @@ Design rules that the code follows throughout:
 * **Infrastructure**: calculation traces, structured validation, check-before/after
   comparison, data provenance, schema versioning, deterministic ingest.
 
+## Phase 4: the conditional combat model
+
+The point of this phase is not "more numbers". It is that the engine stops treating *"I was
+not told"* as *"no bonus"*. Everything conditional now ends in one of four states, and each
+state says what it means for the calculation:
+
+| state | means | contributes? |
+|---|---|---|
+| `satisfied` | the condition holds for this evaluation | yes — the contribution may be applied |
+| `not_satisfied` | the condition is known false | no — and the zero is a *result*, reported as one |
+| `unknown` | resolvable in kind, but the supplied context does not carry the input | no — withheld, and the missing input is named |
+| `unsupported` | the mechanic behind the condition has no model at all | no — refused with its named reason |
+
+None of these is `0`, `False`, an empty string or a missing key, and none of them is a
+validation failure: a build with a faction mod and no target stated is a *valid* build whose
+answer is conditional.
+
+**What is implemented**
+
+* **The condition space** (`builds/conditions.py`) — the four states, their meaning, the
+  evaluation context, and the four refusal *reasons* milestone 4.2 asks for
+  (`condition_unknown`, `condition_not_satisfied`, `condition_effect_unimplemented`,
+  `mechanic_unsupported`). A malformed state raises; it is never coerced.
+* **Structured refusals (4.2)** — all 426 conditional mods still refuse, with the same
+  `conditional_effect` code, and each now carries a `condition` block naming the clause
+  (`on_kill`, `timer`, `target_status`, …), its state, its reason code and the stat the rider
+  would have moved. Three families the audit found dodging every marker ("stacks with",
+  "consecutive", "for every" — Blood Rush, Power Throw, Bhisaj-Bal) now refuse *as conditions*
+  instead of as generic unmodelled stats.
+* **`target_faction` (4.3)** — the first condition resolved entirely from the evaluation
+  context. It also uncovered a real defect: the faction family ships as a *multiplier*
+  (`x1.05 Damage to Grineer`), which the parser had been refusing as an unmodelled stat, so
+  the engine's faction multiplier could never leave 1.0. 474 corpus lines now parse as the
+  percent bonuses they are.
+* **`viral` (4.4)** — one status mechanic, exactly one piece of its behaviour: the
+  damage-to-health multiplier from the viral procs on the target,
+  `damage_to_health = modded_damage x [2 + (0.25 x (viral_stacks - 1))]` (wiki, Viral damage
+  page), reaching health and health-under-armour but not shields or overguard. Missing
+  inputs (no stacks, no landing) are `unknown`; above the 10-stack cap, an immune target, or
+  a landing word the engine does not know are `unsupported`; no procs and a shielded target
+  are `not_satisfied` (x1, reported).
+* **`first_shot` (4.6)** — the second mechanic, chosen because its input comes from the
+  *attack* rather than the target, which is what tests whether the abstraction generalises:
+  `damage on first shot in magazine` was previously collected and then silently ignored. It
+  now applies on shot 1, is a reported zero on shot 3, and is withheld when the shot number
+  was never stated.
+* **Three kinds of damage answer (4.5)** — `result.evaluation` names the mode
+  (`stated_inputs`/`strict`/`hypothetical`) and the state (`deterministic`/`conditional`/
+  `refused`), `result.conditions` carries every condition row, and a `strict` evaluation
+  emits a registered `calculation_refused` marker naming the stats it withheld.
+* **A stated input is never dropped** — the engine reports what it `consumed`; anything
+  the caller stated that no model used becomes a `context_unused` refusal plus
+  `evaluation.unused`, so a target context on a warframe build (which has no target model)
+  is named rather than ignored.
+
+**What is deliberately not implemented** — no combat simulator, no inverse solver, no live
+data, no recommendation engine, no migration of the other ~426 conditional mods. Stack
+riders, timers, per-status scaling, Heat/Slash/Corrosive mechanics, enemy armour and
+damage-type modifiers still refuse by name.
+
+```bash
+python design/_planner/conditions_gate.py --falsify     # refusal preservation, and the proof it bites
+python -m pytest tests/test_condition_states.py tests/test_conditional_damage.py \
+                 tests/test_viral_status.py tests/test_refusal_preservation.py -q
+```
+
+Phase 4's own report — what changed, what it cost, what is deferred — is
+`design/build-planner/phase4-report.md`.
+
 ## The database is reproducible
 
 `python builds/ingest.py` writes one file, and running it again over unchanged sources
@@ -188,19 +281,25 @@ means a real change in the data — a new mod, a moved number — not a new cloc
 `python builds/debug.py unsupported` prints the current list; the registry carries a
 reason and target phase for each. Highlights:
 
-* **Conditional effects** — Galvanized stacks, "On Kill"/"On Hit" riders, buff timers.
-  A Galvanized mod's *unconditional* value is applied; the rider is refused by name.
+* **Conditional effects** — Galvanized stacks, "On Kill"/"On Hit" riders, buff timers. A
+  Galvanized mod's *unconditional* value is applied; the rider is refused by name, and since
+  Phase 4 that refusal carries the clause it recognised, its four-state condition state and
+  its reason code. The two conditions the engine *can* resolve (`target_faction`,
+  `first_shot`) and the one status mechanic it implements (`viral`) are resolved from the
+  evaluation context instead of being assumed.
 * **Set bonuses** (Umbral/Augur/…), **Rivens**, **Incarnon evolutions**, **arcanes**.
-* **Status effects themselves** — Viral stacks, Heat ticks, Slash bleeds, proc weighting.
+* **Status effects themselves** — Heat ticks, Slash bleeds, proc weighting, and every status
+  other than the single viral amplification Phase 4 implements.
 * **Melee** — combo counter, heavy attacks, stance multipliers, Condition Overload.
 * **Enemies** — armour, damage-type modifiers against health/shields/armour, armour strip.
 * **Frames** — per-ability formulas, Helminth, Archon Shards, companion/squad buffs.
 * **Exotic triggers** — Charge/Burst/Continuous effective fire rates (DPS is withheld
   rather than guessed).
 
-On the current database (777 equipment rows, 1809 mods) 1071 mods carry at least one stat
-the engine does not model and 416 carry conditional effects — those are *named* refusals
-that travel with the build, not silent zeroes.
+On the current database (777 equipment rows, 1809 mods) 1014 mods carry at least one stat
+the engine does not model and 426 carry conditional effects — those are *named* refusals that
+travel with the build, not silent zeroes (`python builds/ingest.py` prints both counts, and
+`data/build_data.json`'s `content_hash` identifies the exact snapshot).
 
 ## Data sources
 

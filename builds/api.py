@@ -28,6 +28,7 @@ baseline (the same equipment unmodded) so a UI can render "before -> after" per 
 without a second call (brief section 18: preserve before/after comparison).
 """
 from . import capacity as capacity_mod
+from . import conditions as conditions_mod
 from . import data as data_mod
 from . import schema, unsupported as unsupported_mod, validation
 from . import warframes as warframes_mod
@@ -38,7 +39,7 @@ def engine_slots(build, db):
     """Resolve a build's slots into the engine's shape: [{kind, index, polarity, rank,
     mod(row)}] in slot order. Unknown mods are returned in `errors`, never guessed."""
     slots, errors = [], []
-    raw_slots = (build or {}).get('slots')
+    raw_slots = (build if isinstance(build, dict) else {}).get('slots')
     if not isinstance(raw_slots, list):
         raw_slots = []
     for raw in raw_slots:
@@ -62,7 +63,12 @@ def engine_slots(build, db):
 
 def compute(build, db, options=None):
     """Validate + calculate one build. Never raises for a bad build."""
-    opts = dict(options or {})
+    # A malformed options block is not a build error and must not be a crash: it degrades to
+    # 'no options given', which is the same answer a caller who passed nothing gets.
+    opts = dict(options) if isinstance(options, dict) else {}
+    # A build that is not an object is not a build: it is normalised before anything reads it, so
+    # garbage in gives a structured refusal out (Phase 4: malformed input must not crash).
+    build = validation.as_build(build)
     kind_hint = None
     equipment, err = validation.resolve_equipment(build or {}, db)
     if equipment is not None:
@@ -82,8 +88,11 @@ def compute(build, db, options=None):
         if equipment.get('kind') == schema.EQUIP_WARFRAME:
             kwargs['options'] = {'rank': (build or {}).get('equipment_rank')}
         else:
+            # Phase 4: the evaluation context and the two evaluation modes travel with the
+            # options; nothing else about the Phase 1 call shape changes.
             kwargs['options'] = {k: opts[k] for k in ('faction', 'quantize',
-                                                      'trigger_override')
+                                                      'trigger_override', 'context',
+                                                      'strict', 'hypothetical')
                                  if k in opts}
         result = engine.calculate(equipment, slots, **kwargs)
         baseline = engine.calculate(equipment, [], **kwargs)
@@ -94,6 +103,31 @@ def compute(build, db, options=None):
         missing = unsupported_mod.check_coverage(unsupported)
         for code in missing:
             unsupported.append(unsupported_mod.marker(code))
+    context = conditions_mod.normalise_context(opts.get('context'))
+    # A stated input this engine cannot use is a refusal, not silence: the engine says what it
+    # consumed, and anything left over is named here (with the fields it named).
+    # An engine that has no condition model at all (the Warframe engine) must say so rather than
+    # borrowing the weapon engine's vocabulary: the page printed "every number here is
+    # unconditional" over a frame that was never evaluated (adversarial review F3).
+    engine_evaluation = (result or {}).get('evaluation')
+    evaluation = dict(engine_evaluation if isinstance(engine_evaluation, dict) else {
+        'mode': 'not_evaluated', 'state': 'not_evaluated', 'engine_evaluated': False,
+        'context_supplied': bool(context['supplied']),
+        'context_ignored': list(context['ignored']), 'withheld': [], 'refused_stats': []})
+    if isinstance(engine_evaluation, dict):
+        evaluation['engine_evaluated'] = True
+    unused = conditions_mod.unused_fields(context, evaluation.get('consumed'))
+    if unused:
+        evaluation['unused'] = unused
+        if result is not None:
+            result.setdefault('unsupported', []).append(unsupported_mod.marker(
+                'context_unused',
+                'the stated %s is not modelled for %s, so it was not used'
+                % (' and '.join(unused), (equipment or {}).get('kind') or 'this equipment'),
+                fields=unused, kind=(equipment or {}).get('kind'),
+                condition=conditions_mod.context_unused_result(
+                    unused, (equipment or {}).get('kind'), evaluation.get('consumed'))))
+            unsupported = list(result.get('unsupported') or [])
     return {
         'ok': bool(result is not None),
         'build': _normalised(build, equipment),
@@ -105,6 +139,10 @@ def compute(build, db, options=None):
         'capacity_used': (capacity or {}).get('drain', {}).get('total'),
         'capacity_remaining': (capacity or {}).get('drain', {}).get('remaining'),
         'result': result,
+        # Phase 4: the condition state and the evaluation kind, surfaced at the top level so a UI
+        # reads them without walking into the engine result - and prints them as-is.
+        'conditions': list((result or {}).get('conditions') or []),
+        'evaluation': evaluation,
         'baseline': _baseline_stats(baseline),
         'unsupported': unsupported,
         'unsupported_registry': unsupported_mod.list_all() if opts.get('registry') else None,

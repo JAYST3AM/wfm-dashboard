@@ -811,3 +811,60 @@ kbd {
   .pl-cur-mod { grid-template-columns: 38px minmax(0, 1fr) auto; }
   .pl-cur-mod .pl-cur-mpol { display: none; }
 }
+
+/* ---------------------------------------------- Phase 4: the target, and the condition states
+   The bar states what the evaluation is pointed at; every unstated field is deliberately absent
+   from the request, and the engine answers `unknown` for it. The chips only show the engine's
+   own four-state vocabulary - the page adds no meaning of its own. */
+.pl-target { gap: 6px; }
+.pl-sel {
+  padding: 4px 6px; background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; font: 11px var(--mono);
+}
+.pl-sel:hover { border-color: var(--accent-dim); }
+.pl-sel:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+.pl-num-sm { width: 42px; padding: 4px 4px; font-size: 12px; }
+.pl-eval-chip {
+  margin-left: 6px; padding: 1px 7px; border-radius: 999px; font: 10.5px var(--mono);
+  border: 1px solid var(--pl-hair); color: var(--muted);
+}
+.pl-eval-chip[data-k="conditional"] { color: var(--pl-warn); border-color: var(--pl-warn); }
+.pl-eval-chip[data-k="refused"] { color: var(--pl-bad); border-color: var(--pl-bad); }
+.pl-dg[data-diag="evaluation"] .pl-dg-badge[data-k="conditional"] { color: var(--pl-warn); }
+.pl-dg[data-diag="evaluation"] .pl-dg-badge[data-k="refused"] { color: var(--pl-bad); }
+.pl-eval { display: flex; flex-direction: column; gap: 6px; }
+.pl-eval-row {
+  padding: 5px 7px; border-radius: 6px; background: var(--panel2);
+  border-left: 2px solid var(--pl-hair);
+}
+.pl-eval-row[data-k="satisfied"] { border-left-color: var(--pl-ok); }
+.pl-eval-row[data-k="not_satisfied"] { border-left-color: var(--muted); }
+.pl-eval-row[data-k="unknown"] { border-left-color: var(--pl-warn); }
+.pl-eval-row[data-k="unsupported"] { border-left-color: var(--pl-bad); }
+.pl-eval-head { display: flex; align-items: baseline; gap: 8px; }
+.pl-eval-name { font: 11px var(--mono); }
+.pl-eval-state {
+  margin-left: auto; font: 10px var(--mono); color: var(--muted); text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.pl-eval-state[data-k="satisfied"] { color: var(--pl-ok); }
+.pl-eval-state[data-k="unknown"] { color: var(--pl-warn); }
+.pl-eval-state[data-k="unsupported"] { color: var(--pl-bad); }
+.pl-eval-why { font-size: 11px; line-height: 1.45; color: var(--text); }
+.pl-eval-in { font: 10px var(--mono); color: var(--muted); margin-top: 2px; }
+.pl-eval-note { font-size: 11px; color: var(--muted); }
+.pl-eval-note[data-k="warn"] { color: var(--pl-warn); }
+.pl-eval-note[data-k="error"] { color: var(--pl-bad); }
+
+/* the Target card: the evaluation's inputs, kept out of the build bar (that bar is about the
+   build; this is about what the build is pointed at) and out of the primary stats flow */
+.pl-targetcard .pl-target-body {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  gap: 5px 8px; min-width: 0;
+}
+/* Every control is bounded by its column: a select's intrinsic width is its longest option, and an
+   unbounded one took the whole workspace grid past the viewport (the browser gate's overflow
+   checks). `min-width: 0` on the grid children is what lets them shrink. */
+.pl-targetcard .pl-sel, .pl-targetcard .pl-num { width: 100%; max-width: 100%; min-width: 0; }
+.pl-targetcard .pl-num-sm { width: auto; }
+.pl-targetcard .pl-target-strict { grid-column: 1 / -1; justify-content: center; }

@@ -17,7 +17,7 @@ Nothing here reads files or the network; it is string -> structure.
 """
 import re
 
-from . import schema
+from . import conditions, schema
 
 # WFCD markup in stat strings: <DT_FIRE_COLOR>, <DT_SLASH>, <LINE_SEPARATOR>, literal \n.
 MARKUP_RE = re.compile(r'<[^>]{0,64}>')
@@ -25,6 +25,13 @@ ESCAPED_NL_RE = re.compile(r'\\n')
 
 # A stat line is "<optional prefix> <signed number><%?> <tail>" (or prose with no number).
 NUMBER_RE = re.compile(r'([+-]?\d+(?:\.\d+)?)\s*(%)?')
+# ... and one form is not a percentage at all: the faction-damage family ships as a multiplier
+# ("x1.05 Damage to Grineer", up to "x1.30"; primed "x1.55"). It is still a percent bonus in
+# the arsenal's terms - x1.05 is +5% - so the number is converted, and the raw multiplier is
+# kept on the effect so nothing is lost. 474 lines in the current corpus use this form, all of
+# them faction damage; that family was unmodelled before this, which also meant the engine's
+# faction multiplier could never leave 1.0.
+MULTIPLIER_RE = re.compile(r'^x\s*(\d+(?:\.\d+)?)\s+(.*)$', re.IGNORECASE)
 # Words that make an effect conditional (it does not apply to the base calculation).
 # Kept narrow on purpose: Phase 1 must not refuse a plain stat because it happens to
 # contain a filler word. "for 20s"-style timers are matched separately below.
@@ -33,6 +40,13 @@ HARD_MARKERS = (
     'on slam', 'on roll', 'on dodge', 'stacks up to', 'stack up to', 'per status',
     'per stack', 'for each', 'each time', 'when ', 'while ', 'after ', 'upon ',
     'during ',
+    # Phase 4 (audit): three real conditional families used to dodge every marker and land in the
+    # *unmodelled* bucket, where a refusal cannot say it was conditional at all. Blood Rush
+    # ("+3.6% Critical Chance stacks with Combo Multiplier"), Power Throw ("On Consecutive throw
+    # (Max stacks 3)") and Bhisaj-Bal ("Restore 50 Health for every 3 Status Effects") are the
+    # examples the audit found. They are refused either way - the totals are unchanged - but they
+    # now refuse as conditions, with a clause named.
+    'stacks with', 'consecutive', 'for every',
 )
 SECONDS_RE = re.compile(r'\bfor \d+(?:\.\d+)?\s*s\b')
 # Prefixes that mark a non-self (squad/enemy) effect: parsed for display, never
@@ -70,6 +84,9 @@ FACTION_TAIL = {
     'infested': 'faction_infested', 'corrupted': 'faction_corrupted',
     'orokin': 'faction_corrupted', 'murmur': 'faction_murmur',
     'sentient': 'faction_sentient', 'hunhow': 'faction_sentient',
+    # The Sacrificial set writes the plural ("x1.10 Damage to Sentients"). It is the same faction
+    # and the same separate multiplier, so it maps to the same stat rather than staying unmodelled.
+    'sentients': 'faction_sentient',
     'narmer': 'faction_narmer', 'the grineer': 'faction_grineer',
 }
 
@@ -157,6 +174,15 @@ def parse_stat_line(line):
         return None
     raw = text
     negative_lead = raw.startswith('-')
+    mult = MULTIPLIER_RE.match(raw)
+    if mult:
+        factor = float(mult.group(1))
+        tail = mult.group(2).strip(' ,:;')
+        stat, canon_unit = _canonical_stat(tail, prefix='')
+        return {'text': raw, 'stat': stat, 'value': _tidy((factor - 1.0) * 100.0),
+                'unit': canon_unit or 'percent', 'modelled': stat is not None,
+                'conditional': is_conditional(raw), 'scope': 'self', 'prefix': '', 'tail': tail,
+                'form': 'multiplier', 'multiplier': factor}
     m = NUMBER_RE.search(raw)
     effect = {'text': raw, 'stat': None, 'value': None, 'unit': None, 'modelled': False,
               'conditional': False, 'scope': 'self', 'prefix': '', 'tail': raw}
@@ -177,7 +203,7 @@ def parse_stat_line(line):
                    'modelled': stat is not None,
                    'conditional': is_conditional(raw),
                    'scope': 'other' if prefix else 'self',
-                   'prefix': prefix, 'tail': tail})
+                   'prefix': prefix, 'tail': tail, 'form': 'percent'})
     return effect
 
 
@@ -418,10 +444,25 @@ def collect_mod_effects(mod_slots):
             bucket['rows'].append({'mod': mod.get('id'), 'mod_name': name, 'rank': rank,
                                    'value': value, 'unit': unit, 'category': category})
         for text in eff.get('conditional') or []:
+            # 4.2: the refusal stays a refusal, but it now says WHY in the engine's own vocabulary
+            # - which condition clause it is, which of the four states that clause is in (see
+            # builds/conditions.py), and which of the four refusal reasons applies. The `code` is
+            # unchanged so every existing consumer keeps working; `state` is the new, structured
+            # half. A structured refusal is never a value: nothing here can be summed.
+            cid, state, why, reason_code = conditions.classify_conditional_text(text)
+            # Which stat the rider would have moved, when the line names one: the string was
+            # cleaned before it was stored, so the canonical stat id is recovered here by
+            # re-parsing it (pure). A refusal that can name its target stat is a better refusal.
+            parsed_rider = parse_stat_line(text)
             unsupported.append(unsupported_marker(
                 'conditional_effect',
-                '%s carries a conditional effect that Phase 1 does not model: %s'
-                % (name, text), mod=mod.get('id'), slot=slot.get('index'), text=text))
+                '%s carries a conditional effect (%s) that is not applied: %s'
+                % (name, cid, text), mod=mod.get('id'), slot=slot.get('index'), text=text,
+                condition_id=cid, state=state, reason_code=reason_code,
+                stat=parsed_rider.get('stat') if parsed_rider.get('modelled') else None,
+                value=parsed_rider.get('value') if parsed_rider.get('modelled') else None,
+                condition=conditions.refusal(cid, text, state, why, reason_code,
+                                             mod=mod.get('id'), mod_name=name)))
         for text in (eff.get('unmodelled') or {}):
             example = (eff.get('unmodelled_examples') or {}).get(text, text)
             ranks = (eff.get('unmodelled') or {}).get(text) or []
@@ -682,6 +723,18 @@ def selftest():
     check('a modelled stat next to an unmodelled one still parses',
           eff5['rank_table'].get('damage') == [5 * (i + 1) for i in range(6)],
           str(sorted(eff5['rank_table'])))
+
+    baneful = _fixture_mod('Bane Of Grineer', [['x%.2f Damage to Grineer' % (1.05 + 0.05 * i)]
+                                               for i in range(6)])
+    effb = parse_mod_effects(baneful)
+    check('the multiplier form parses as a percent faction bonus',
+          effb['rank_table'].get('faction_grineer') == [5, 10, 15, 20, 25, 30],
+          str(effb['rank_table']))
+    check('the multiplier form is not also refused as unmodelled',
+          not effb['unmodelled'], str(list(effb['unmodelled'])))
+    check('the raw multiplier is kept as provenance',
+          parse_stat_line('x1.30 Damage to Grineer')['multiplier'] == 1.3
+          and parse_stat_line('x1.30 Damage to Grineer')['form'] == 'multiplier')
 
     dmg = _fixture_mod('Damage to Grineer', [['+%d%% Damage to Grineer' % (5 * (i + 1))]
                                              for i in range(6)])

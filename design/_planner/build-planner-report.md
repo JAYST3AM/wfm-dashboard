@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-29T15:16:07.045Z · verdict **PASS** · 113 checks, 0 failed*
+*ran 2026-09-30T02:47:52.621Z · verdict **PASS** · 115 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | 5b0c14e  "Phase 2.5 cleanup: the mod details get a home, the rows get a gutter, the loadout outranks the shop" |
-| working tree | dirty (17 changed paths) |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data__e9tgjr4 |
-| page | http://127.0.0.1:57544/planner.html |
+| commit | b6cb0c3  "Phase 4 plan (proposed): a conditional combat model" |
+| working tree | dirty (32 changed paths) |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_65xencrf |
+| page | http://127.0.0.1:56691/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |
@@ -21,7 +21,7 @@
 | ✅ | open | the page ships the planner shell and its empty first-run state | grid empty (awaiting a pick) or already rendered | 0 slot cards, pickerOpen=true |
 | ✅ | open | the shell marks the planner destination (not the dashboard) | data-shell="planner" | data-shell="planner" |
 | ✅ | open | the rail holds 7 destinations and something is current | 7 rail entries, one aria-current | 7 entries, active=true |
-| ✅ | open | the page names the engine + database it reads | a status line naming the DB | "db 0132f6af · 1809 mods · 777 items" |
+| ✅ | open | the page names the engine + database it reads | a status line naming the DB | "db fd1b15dd · 1809 mods · 777 items" |
 | ✅ | open | no id appears twice in the rendered page | 0 duplicate ids | 0 () |
 | ✅ | select | the picker opens with the normalised DB searchable | popup open with rows | open=true rows=80 |
 | ✅ | select | searching "braton prime" leaves exactly the rifle | 1 row: Braton Prime | Braton Prime Primary · RifleMR 8 · 35 dmg · 12% crit |
@@ -101,8 +101,8 @@
 | ✅ | picker | search still works after a category switch | the query filters the category list without closing the picker | {"open":true,"rows":2,"first":"Ash"} |
 | ✅ | picker | a click outside and Escape both close the picker | outside click closes; reopen; Escape closes | {"closedOutside":true,"reopened":true,"closedEsc":true} |
 | ✅ | picker | choosing an item closes the picker and loads the build | picker closed, slots rendered, workspace and diagnostics on, header names the item and its… | {"open":false,"name":"Ash","slots":10,"workspace":true,"diag":true,"chip":"Rank 30 / 30"} |
-| ✅ | layout | the workspace keeps its regions, its selected slot and its active config | five regions sized, one focused slot (>=60px tiles), one selected config, diagnostics a fl… | {"focused":1,"config":1,"head":1682,"bar":1682,"slots":440,"lib":818,"stats":404,"diag":39,"slotHeight":68,"over":0} |
-| ✅ | layout | the diagnostics strip expands and collapses, with a count on every heading | three collapsible sections, closed by default, each carrying its own summary badge | {"count":3,"closedBefore":false,"afterOpen":true,"afterClose":false,"badges":["· clean","· 0 mods","· 2 mechanics"]} |
+| ✅ | layout | the workspace keeps its regions, its selected slot and its active config | five regions sized, one focused slot (>=60px tiles), one selected config, diagnostics a fl… | {"focused":1,"config":1,"head":1682,"bar":1682,"slots":440,"lib":818,"stats":404,"diag":88,"slotHeight":68,"over":0} |
+| ✅ | layout | the diagnostics strip expands and collapses, with a count on every heading | four collapsible sections in order (validation, capacity, evaluation, unsupported), closed… | {"count":4,"closedBefore":false,"afterOpen":true,"afterClose":false,"names":["validation","capacity","evaluation","unsupported"],"badges":["· clean","… |
 | ✅ | details | hovering a row fills the docked pane, on screen and clear of the stats | pane holds the card, inside the viewport, no intersection with #plStats | {"top":948,"bottom":1080,"h":132,"tip":true,"text":"\n          \n          \n        Adaptatio","inView":true,"clearOfStats":true,"fixed":0} |
 | ✅ | details | nothing in the workspace floats (no fixed-position surface) | the preview and the details are both docked; the old design had two fixed layers here | fixed layers: 0 |
 | ✅ | details | the last row of the list still opens its details on screen, unclipped | no bottom-edge clipping at the end of the list | {"bottom":1080,"innerH":1080,"inView":true,"clearOfStats":true,"pageY":285} |
@@ -111,12 +111,14 @@
 | ✅ | stats | the Why panel opens with a trace and the traced row highlighted | a default trace (damage for a weapon, health for a frame) with its stat row lit | {"view":true,"label":"· Health","lines":2,"pressed":1} |
 | ✅ | scroll | the library scrolls on its own without moving the page or the stats | independent scrollers, no accidental parent scroll | {"pageSame":true,"statsSame":true,"listMoved":true} |
 | ✅ | details | the docked details stay on screen and off the stats at all five sizes | five viewports: pane inside the viewport, no stats overlap, no page overflow, the workspac… | {"sizes":5,"bad":[]} |
+| ✅ | target | a stated target survives a reload and is posted exactly as stated | nothing stated posts no context at all; a stated faction and stack count survive the reloa… | before=null after={"context":{"target_faction":"corpus","target":{"viral_stacks":6}}} |
+| ✅ | target | an unresolved target input is withheld, not assumed | viral stacks stated without a landing = unknown (withheld); nothing stated = deterministic | before="deterministic" after={"mode":"stated_inputs","state":"conditional","context_supplied":true,"context_ignored":[],"withheld":["viral"],"consumed… |
 | ✅ | hygiene | no duplicate id after the whole drive | 0 duplicates | [] |
 | ✅ | hygiene | no console error over the whole drive | 0 console errors | 0:  |
 | ✅ | hygiene | no page error over the whole drive | 0 page errors | 0:  |
 | ✅ | hygiene | no failed request outside the dev-server burst class | 0 failed requests | 0: [] |
 | ✅ | current | the Current Loadout card lists every equipped category from the save | six rows: warframe, primary, secondary, melee, companion, companion weapon | WarframeGauss PrimeConfig A · Rank 30 \\| PrimaryBraton PrimeConfig A · Rank 30 \\| SecondaryKohmakConfig A · Rank 0 \\| MeleeRipkasConfig A · Rank unkno… |
-| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 5 minutes ago /  |
+| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 11 hours ago /  |
 | ✅ | current | the imported view is read-only: no editable field, only its own buttons | no input/textarea/contenteditable, and refresh/view/clone as the only affordances | editable=0 buttons=plCurrentRefresh,plCurrentView,plCurrentClone |
 | ✅ | current | the card adds no floating surface (the workspace rule holds here too) | no position:fixed element inside #plCurrent | fixed layers: 0 |
 | ✅ | current | the imported build shows its mods with the ranks the save records | Serration at rank 10, read from the copy the save points at | 1SerrationR10 |

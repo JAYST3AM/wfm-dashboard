@@ -133,16 +133,28 @@ REGISTRY = {
     'companions': {
         'reason': 'Sentinel/Pet mod effects on the player (and vice versa) are not '
                   'modelled', 'phase': 3, 'engine': 'none'},
+    'conditional_calculations': {
+        'reason': 'a condition this engine can resolve - the target faction, the shot '
+                  'number in the magazine, or the viral procs on the target - was not stated, '
+                  'and the caller asked for a strict evaluation, so the affected stats are '
+                  'withheld instead of being answered without it',
+        'phase': 4, 'engine': 'weapons.calculate'},
     'quantization_shown_values': {
         'reason': 'live damage is quantized to 1/32 of the modded base damage; the '
                   'planner exposes the quantized values on request but the arsenal-style '
                   'default stays unquantized', 'phase': 2, 'engine': 'weapons.calculate'},
+    'context_unused': {
+        'reason': 'the caller stated an input this engine has no model for; it is named '
+                  'rather than dropped, and no number is invented from it',
+        'phase': 4, 'engine': 'api.compute'},
 }
 
 # The marker codes the engines emit, mapped onto registry keys. Everything the engines
 # can refuse must appear here, or a build could carry an unnamed refusal.
 MARKER_TO_KEY = {
+    'context_unused': 'context_unused',
     'conditional_effect': 'conditional_buffs',
+    'calculation_refused': 'conditional_calculations',
     'unmodelled_effect': None,                 # per-stat: named in the marker itself
     'set_bonus': 'set_bonuses',
     'riven': 'rivens',

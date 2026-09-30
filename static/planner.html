@@ -184,10 +184,52 @@
 
     <!-- right: what it produces -->
     <section class="pl-col pl-col-stats">
+      <div class="card pl-card pl-targetcard" id="plTargetCard">
+        <div class="pl-ph">
+          <h3 class="pl-ph-title" data-icon="crosshair">Target</h3>
+          <span class="pl-ph-meta dim small" id="plTargetMeta">nothing stated</span>
+        </div>
+        <div class="pl-target-body">
+          <label class="pl-lbl" for="plTargetFaction">Faction</label>
+          <select id="plTargetFaction" class="pl-sel" aria-label="Target faction"
+                  title="target faction for faction mods">
+            <option value="">not stated</option>
+            <option value="grineer">Grineer</option>
+            <option value="corpus">Corpus</option>
+            <option value="infested">Infested</option>
+            <option value="orokin">Orokin</option>
+            <option value="murmur">Murmur</option>
+            <option value="sentient">Sentients</option>
+          </select>
+          <label class="pl-lbl" for="plTargetStacks">Viral</label>
+          <input id="plTargetStacks" class="pl-num pl-num-sm" type="number" min="0" max="10" step="1"
+                 placeholder="&#8212;" aria-label="Viral procs on the target"
+                 title="viral procs on the target, 0-10">
+          <label class="pl-lbl" for="plTargetProtection">Lands on</label>
+          <select id="plTargetProtection" class="pl-sel" aria-label="Where the damage lands"
+                  title="where the damage lands">
+            <option value="">not stated</option>
+            <option value="health">health</option>
+            <option value="armor">armour-health</option>
+            <option value="shields">shields</option>
+            <option value="overguard">overguard</option>
+          </select>
+          <label class="pl-lbl" for="plTargetShot">Shot</label>
+          <input id="plTargetShot" class="pl-num pl-num-sm" type="number" min="1" step="1"
+                 placeholder="&#8212;" aria-label="Shot number in the magazine"
+                 title="shot number in the magazine">
+          <button class="pl-toggle pl-target-strict" id="plStrict" aria-pressed="false"
+                  data-icon="info" title="withhold unresolved calculations">
+            <span>Strict</span><span class="pl-tog-val" id="plStrictVal">off</span>
+          </button>
+        </div>
+      </div>
+
       <div class="card pl-card pl-stats" id="plStats">
         <div class="pl-ph">
           <h3 class="pl-ph-title" data-icon="chart-line">Live stats</h3>
           <span class="pl-ph-meta dim small" id="plStatsMeta"></span>
+          <span class="pl-eval-chip" id="plStatsEval" hidden></span>
           <div class="ranges pl-ph-range" id="plStatsView" role="group" aria-label="Stat view">
             <span class="pl-hintkey dim small">click a stat for its trace</span>
           </div>
@@ -232,6 +274,13 @@
         <span class="pl-dg-badge" id="plCapDetailMeta"></span>
       </summary>
       <div class="pl-capdetail" id="plCapBody"></div>
+    </details>
+    <details class="pl-dg" id="plEvalCard" data-diag="evaluation">
+      <summary>
+        <span class="pl-dg-title" data-icon="list-dashes">Conditions</span>
+        <span class="pl-dg-badge" id="plEvalMeta"></span>
+      </summary>
+      <div class="pl-eval" id="plEvalBody"></div>
     </details>
     <details class="pl-dg" id="plUnsupportedCard" data-diag="unsupported">
       <summary>

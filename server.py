@@ -1659,6 +1659,22 @@ def planner_current_clone(body):
     return _player_current().clone(category, config_name, master=master)
 
 
+def _planner_options(body):
+    """The Phase 4 evaluation options, read from a request body (never raises).
+
+    The body is still the build, as it has been since Phase 2; `options` rides alongside it as a
+    sibling key. A malformed `options` is an error the caller can see, never a crash.
+    """
+    if not isinstance(body, dict):
+        return None, None
+    options = body.get('options')
+    if options is None:
+        return None, None
+    if not isinstance(options, dict):
+        return None, 'options must be a JSON object'
+    return options, None
+
+
 def planner_compute(build):
     """One build -> the engine's full answer (validation, capacity, stats, baseline, refusals)."""
     db, err = _planner_db()
@@ -1666,8 +1682,11 @@ def planner_compute(build):
         return {'ok': False, 'error': err}
     if not isinstance(build, dict):
         return {'ok': False, 'error': 'build must be a JSON object'}
+    options, bad = _planner_options(build)
+    if bad:
+        return {'ok': False, 'error': bad}
     mods = _builds()
-    out = mods['api'].compute(build, db)
+    out = mods['api'].compute(build, db, options=options)
     out['engine'] = {'schema_version': db.get('schema_version'),
                      'content_hash': db.get('content_hash')}
     return out
@@ -1693,7 +1712,10 @@ def planner_preview(payload):
     b = payload.get('next') or {}
     if not isinstance(a, dict) or not isinstance(b, dict):
         return {'ok': False, 'error': 'build and next must be JSON objects'}
-    out = mods['api'].compare(a, b, db)
+    options, bad = _planner_options(payload)
+    if bad:
+        return {'ok': False, 'error': bad}
+    out = mods['api'].compare(a, b, db, options=options)
     return out
 
 
@@ -1709,7 +1731,13 @@ def planner_explain(payload):
     if not isinstance(build, dict):
         return {'ok': False, 'error': 'build must be a JSON object', 'stat': stat,
                 'text': None, 'available': [], 'result': {'stats': {}, 'damage': {}}}
-    computed = mods['api'].compute(build, db)
+    options, bad = _planner_options(payload)
+    if bad:
+        return {'ok': False, 'error': bad, 'stat': stat, 'text': None, 'available': [],
+                'result': {'stats': {}, 'damage': {}}}
+    # the trace has to be rendered from the SAME evaluation as the numbers, or it explains a
+    # different calculation than the one on screen
+    computed = mods['api'].compute(build, db, options=options)
     text = mods['api'].explain(computed, stat) if stat else None
     traces = ((computed or {}).get('result') or {}).get('traces') or {}
     return {'ok': text is not None, 'stat': stat, 'text': text,

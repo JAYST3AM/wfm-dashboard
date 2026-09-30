@@ -38,6 +38,10 @@
       'how many guaranteed crits deep the build is'],
     ['critical_expected_multiplier', 'Expected crit multiplier', 'multiplier', 'Critical',
       'guaranteed tier + the chance of the next'],
+    ['viral_amplifier', 'Viral amplifier', 'multiplier', 'Target',
+      'viral-amplified damage to health'],
+    ['damage_to_health_expected_crit', 'Damage per shot to health', 'flat', 'Target',
+      'viral-amplified damage to health, crit-weighted'],
     ['status_chance', 'Status chance', 'percent', 'Status', null],
     ['status_procs_per_projectile', 'Procs per projectile', 'flat', 'Status',
       'status chance as expected procs'],
@@ -341,8 +345,9 @@
     card.hidden = false;
     var split = damage.per_projectile || {};
     var elements = Object.keys(split);
-    var total = 0;
-    elements.forEach(function (k) { total += Number(split[k]) || 0; });
+    // The engine already publishes the per-projectile total: use its number for the bar's
+    // denominator rather than re-adding the parts, so one quantity has one source.
+    var total = Number(damage.per_projectile_total) || 0;
     if (meta) {
       meta.textContent = '· ' + elements.length + ' type' + (elements.length === 1 ? '' : 's') +
         ' · ' + fmt.num(damage.per_projectile_total) + ' per projectile';
