@@ -1,6 +1,6 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-30 20:07:59  (2026-09-30T20:07:59.414757+10:00) -> live measurements finished 20:11:06  
+**Run:** 2026-09-30 20:12:45  (2026-09-30T20:12:45.886695+10:00) -> live measurements finished 20:15:53  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
@@ -159,7 +159,7 @@ none
 | rendered: settings status pill | Not live#st-pill dry |
 | rendered: trade kill-switch chip | disarmed |
 | rendered: trade kill-switch line | 9/25/2026, 23:02:47 Not live |
-| rendered: trade plan header | · built 75h ago · MR 22 |
+| rendered: trade plan header | · built 76h ago · MR 22 |
 | rendered: home alerts | Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically |
 
 How the badge is derived (read live from `app.js`, not assumed): `dry = set.dry_run === true || plan.dry_run === true`, then the chip prints `Not live - nothing is posted` when dry. The two inputs are `scripts/trader/settings.json` and `data/trader_plan.json`; **`data/config.json` carries no `dry_run` key at all**, so it is not the gate for this badge. Both real inputs are `true` above, and the rendered copy is the Not-live wording - the badge cannot claim Live while posting is locked.
@@ -172,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3234 | 0 | 9045 | 192 | 0 |
-| Kuva Crimson | dark | 17 | 3234 | 0 | 9045 | 192 | 0 |
-| Frost Light | light | 17 | 3234 | 0 | 9045 | 192 | 0 |
-| Cephalon White | light | 17 | 3234 | 0 | 9045 | 192 | 0 |
+| Vor Orange | dark | 17 | 3227 | 0 | 9032 | 192 | 0 |
+| Kuva Crimson | dark | 17 | 3227 | 0 | 9032 | 192 | 0 |
+| Frost Light | light | 17 | 3227 | 0 | 9032 | 192 | 0 |
+| Cephalon White | light | 17 | 3227 | 0 | 9032 | 192 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
