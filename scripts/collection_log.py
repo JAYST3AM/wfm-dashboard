@@ -688,12 +688,25 @@ def build_item_obtain(name, index):
             lines.append({'k': 'relic', 'part': part, 'label': '%s relic' % relic.get('relic'),
                           'detail': detail})
         for mission in (doc.get('missions') or [])[:2]:
-            where = ' - '.join([p for p in (mission.get('planet'), mission.get('node')) if p])
+            # The place a player navigates to is the hierarchy from the game's own region data
+            # (Railjack -> Venus Proxima -> Falling Glory).  The drop table's own label is the
+            # fallback only when the export had nothing to say, and then the line says so.
+            where = mission.get('hierarchy') \
+                or ' - '.join([p for p in (mission.get('planet'), mission.get('node')) if p])
             bits = [b for b in (mission.get('mode'),
                                 ('rotation ' + mission['rotation']) if mission.get('rotation') else None,
                                 '%s%%' % clean_num(mission.get('chance'))) if b]
-            lines.append({'k': 'mission', 'part': part, 'label': where,
-                          'detail': ' · '.join(bits)})
+            if mission.get('reward_source') and mission.get('reward_source') != 'mission completion':
+                bits.append(mission['reward_source'])
+            line = {'k': 'mission', 'part': part, 'label': where, 'detail': ' · '.join(bits)}
+            if mission.get('unresolved'):
+                line['note'] = '; '.join(mission['unresolved'])
+            if mission.get('provenance'):
+                line['prov'] = mission['provenance']
+            if mission.get('hierarchy'):
+                line['where'] = {'system': mission.get('system'), 'region': mission.get('region'),
+                                 'node': mission.get('node')}
+            lines.append(line)
         for enemy in (doc.get('enemies') or [])[:1]:
             lines.append({'k': 'enemy', 'part': part, 'label': 'Enemy: ' + (enemy.get('enemy') or '?'),
                           'detail': ' - '.join([b for b in ('%s%%' % clean_num(enemy.get('chance')),

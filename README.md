@@ -192,7 +192,7 @@ it on Python 3.11 (`.github/workflows/tests.yml`).
 | `tests/` | The public suite. |
 | `data/` | Everything the app writes (gitignored) — and `secrets.json` lives beside it at the root (gitignored too). |
 | `chat-relay/` | Optional Cloudflare Worker + Durable Object for a shared chat room. Not needed by the app. |
-| `design/` · `docs/` | `design/migration-map.md` (the IA map + stage history), the audit output in `design/_audit/`, and `docs/navigation.md` (the navigation contract). |
+| `design/` · `docs/` | `design/migration-map.md` (the IA map + stage history), the audit output in `design/_audit/`, `docs/navigation.md` (the navigation contract) and `docs/acquisition-and-drops.md` (what WFM trusts for "where do I get this?", and the Railjack/Star Chart hierarchy rule). |
 | `*.bat` | `setup.bat` one-time install · `refresh.bat` quick re-price · `supervise.bat` keep-alive · `start.bat` / `stop.bat`. |
 
 The icons are [Phosphor](https://phosphoricons.com) (MIT), vendored into `static/icons/` as one

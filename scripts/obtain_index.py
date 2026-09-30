@@ -21,8 +21,21 @@ Output: data/obtain_index.json - one record per drop-table item name:
 
   {"name": "Ash Systems Blueprint",
    "relics":   [{"tier": "Axi", "relic": "Axi A1", "rarity": "Rare", "chance": 2, "vaulted": false}],
-   "missions": [{"planet": "Venus", "node": "Luckless Expanse", "mode": "Survival",
-                 "rotation": "A", "chance": 13.33, "rarity": "Uncommon", "path": "Venus/Luckless Expanse"}],
+   "missions": [{"planet": "Venus", "node": "Falling Glory", "mode": "Skirmish",
+                 "rotation": "A", "chance": 13.33, "rarity": "Uncommon",
+                 "path": "Venus/Falling Glory",
+                 "system": "Railjack", "region": "Venus Proxima",
+                 "hierarchy": "Railjack -> Venus Proxima -> Falling Glory",
+                 "reward_source": "mission completion",
+                 "provenance": {"chance": "missionRewards.json (DE drop table)",
+                                "hierarchy": "game export: /Lotus/Language/Locations/Venus_SPACE",
+                                "node_match": "exact"}}],
+
+The `planet` key is the drop table's own label and is kept as provenance; `system`/`region`/
+`hierarchy` come from the game's own region export, because a drop-table label is not a location a
+player can navigate to (Jay, 2026-09-30: the Railjack node `Venus/Falling Glory (Skirmish)` is in
+Venus PROXIMA, not on the Venus Star Chart).  A node the export does not describe keeps the verified
+part and carries `unresolved` naming what could not be confirmed.
    "enemies":  [{"enemy": "Demolisher Thrasher", "chance": 20, "rarity": "Uncommon"}],
    "other":    [{"source": "Sortie", "detail": "Sortie Rewards", "chance": 2.5, "rarity": "Rare"}],
    "market":   {"plat": 375, "credits": 35000},
@@ -68,11 +81,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DATA = os.environ.get('WFM_DATA_DIR') or os.path.join(ROOT, 'data')
 DROP_DIR = os.path.join(DATA, 'dropdata')
+
+sys.path.insert(0, HERE)
+import acquisition_hierarchy as hierarchy   # noqa: E402  (the game's own region data)
 DROP_BASE = 'https://raw.githubusercontent.com/WFCD/warframe-drop-data/gh-pages/data/'
 ITEM_BASE = 'https://raw.githubusercontent.com/WFCD/warframe-items/master/data/json/'
 UA = {'User-Agent': 'WFMTrader/0.1 (local personal tool; github.com/JAYST3AM/wfm-dashboard)'}
 TIMEOUT = 300
-SCHEMA = 1
+SCHEMA = 2      # 2: mission/other rows carry system/region/hierarchy/reward_source/provenance
 
 DROP_FILES = [
     ('relics.json', True),
@@ -101,6 +117,27 @@ MAX_OTHER = 4
 
 def out_path():
     return os.path.join(DATA, 'obtain_index.json')
+
+
+# The game's own export (region data + English dictionary), cached under data/dropdata/export/ by
+# scripts/acquisition_hierarchy.py.  Loaded once per build: node -> system/region, the set of region
+# names the game uses, and the mode -> missionType table voted from the export itself.
+_HIER = {}
+
+
+def hierarchy_data(missions_doc, offline=True):
+    """{index, known, types} - empty when the export is not cached, in which case every mission row
+    keeps the drop table's own label and reports itself unresolved rather than guessing."""
+    if not _HIER:
+        try:
+            index, _dictionary, known = hierarchy.load_all(offline=offline)
+        except Exception:
+            index, known = {}, set()
+        root = (missions_doc or {}).get('missionRewards') \
+            if isinstance(missions_doc, dict) else missions_doc
+        _HIER.update({'index': index, 'known': known,
+                      'types': hierarchy.calibrate(root or {}, index)})
+    return _HIER
 
 
 def jload(path, default=None):
@@ -254,14 +291,22 @@ def index_relic_rewards(relics_doc, vaulted):
     return out
 
 
-def index_missions(missions_doc):
-    """missionRewards.json -> {itemName: [mission rows]}; every row traces to planet/node/rotation."""
+def index_missions(missions_doc, hier=None):
+    """missionRewards.json -> {itemName: [mission rows]}.
+
+    Every row traces to the node it was found in AND to the place a player can navigate to: the drop
+    table's own label is kept as `planet` (provenance), while `system` / `region` / `hierarchy` come
+    from the game's own region export.  A Railjack node therefore reads
+    `Railjack -> Venus Proxima -> Falling Glory`, never `Venus -> Falling Glory`, and a node the
+    export does not describe keeps the verified part with `unresolved` saying so.
+    """
     out = {}
+    hier = hier or _HIER
     root = missions_doc.get('missionRewards') if isinstance(missions_doc, dict) else missions_doc
     for chain, row in walk_rewards(root):
         item = row['itemName']
         planet = chain[0] if chain else None
-        node = chain[1] if len(chain) > 1 else None
+        node_key = chain[1] if len(chain) > 1 else None
         mode = None
         # mission nodes carry {'gameMode': ..., 'rewards': {...}} next to the node name
         cur = root
@@ -270,9 +315,28 @@ def index_missions(missions_doc):
                 cur = cur[part]
         if isinstance(cur, dict):
             mode = cur.get('gameMode')
+        node, variant = hierarchy.split_key(node_key)
+        where = hierarchy.resolve(planet, node_key, mode, index=hier.get('index') or {},
+                                  types=hier.get('types') or {}, known=hier.get('known') or {}) \
+            if hier.get('index') is not None else None
         rec = {'planet': planet, 'node': node, 'mode': mode, 'rotation': rotation_of(chain),
                'chance': row.get('chance'), 'rarity': row.get('rarity'),
                'path': clean_chain(chain)}
+        if node_key and node_key != node:
+            rec['node_key'] = node_key
+        if variant:
+            rec['variant'] = variant
+        if where:
+            rec['system'] = where['system']
+            rec['region'] = where['region']
+            rec['hierarchy'] = hierarchy.label(where)
+            rec['reward_source'] = hierarchy.reward_source(mode, variant=variant,
+                                                           system=where['system'])
+            if where['unresolved']:
+                rec['unresolved'] = where['unresolved']
+            rec['provenance'] = {'chance': 'missionRewards.json (DE drop table)',
+                                 'hierarchy': where['region_source'],
+                                 'node_match': where['match']}
         out.setdefault(item, []).append(rec)
     return out
 
@@ -304,17 +368,45 @@ def index_enemies(blueprint_doc, enemy_doc):
     return out
 
 
+# Where each non-mission reward table lives, so a bounty reads as a place a player can open the map
+# and go to.  `region` is the open world / hub the table belongs to; `reward_source` says HOW the
+# item comes out of it.  Anything not listed keeps its label and claims no place.
+HUB_SOURCES = {
+    'Cetus bounty': ('Open World', 'Plains of Eidolon (Earth)', 'bounty stage'),
+    'Solaris': ('Open World', 'Orb Vallis (Venus)', 'bounty stage'),
+    'Deimos': ('Open World', 'Cambion Drift (Deimos)', 'bounty stage'),
+    'Zariman': ('Zariman Ten Zero', 'Zariman Ten Zero', 'bounty stage'),
+    'Entrati Lab': ('Open World', 'Albrecht\'s Laboratories (Deimos)', 'bounty stage'),
+    'Hex': ('Hollvania', 'Höllvania', 'bounty stage'),
+    'Sortie': ('Star Chart', None, 'sortie reward'),
+    'Syndicate': (None, None, 'vendor'),
+    'Key': (None, None, 'key reward'),
+    'Transient': ('Star Chart', None, 'transient reward'),
+}
+
+
 def index_other(label, doc):
     """Generic extra source (sortie / syndicate / bounty tables) -> {itemName: [rows]}.
 
-    The context chain of each row is kept as the human label, so a consumer can always
-    show where the number came from."""
+    The context chain of each row is kept as the human label, so a consumer can always show where
+    the number came from - and, when the table has a known home, the place a player goes to as well.
+    """
     out = {}
+    system, region, reward = HUB_SOURCES.get(label, (None, None, None))
     for chain, row in walk_rewards(doc):
         item = row['itemName']
         detail = clean_chain(chain) or label
-        out.setdefault(item, []).append({'source': label, 'detail': detail,
-                                        'chance': row.get('chance'), 'rarity': row.get('rarity')})
+        rec = {'source': label, 'detail': detail,
+               'chance': row.get('chance'), 'rarity': row.get('rarity')}
+        if system or region or reward:
+            rec['system'] = system
+            rec['region'] = region
+            rec['reward_source'] = reward
+            rec['hierarchy'] = ' \u2192 '.join([p for p in (system, region, label) if p])
+            rec['provenance'] = {'chance': '%s (community mirror of the DE tables)' % label,
+                                 'hierarchy': 'curated source labelling (see docs/build-planner.md)'
+                                              if region else 'the drop table groups it under no region'}
+        out.setdefault(item, []).append(rec)
     return out
 
 
@@ -351,7 +443,14 @@ def build(offline=False):
     for item, rows in index_relic_rewards(drop_docs.get('relics.json') or {}, vaulted).items():
         rows = sorted(rows, key=lambda r: (r.get('rarity') or '', r.get('relic') or ''))
         items.setdefault(item, {})['relics'] = rows[:MAX_RELICS]
-    for item, rows in index_missions(drop_docs.get('missionRewards.json') or {}).items():
+    hier = hierarchy_data(drop_docs.get('missionRewards.json'), offline=offline)
+    for name in ('ExportRegions.json', 'dict.en.json'):
+        path = os.path.join(DROP_DIR, 'export', name)
+        if os.path.exists(path):
+            sources['export/' + name] = {'cached': True,
+                                         'path': os.path.relpath(path, ROOT),
+                                         'bytes': os.path.getsize(path)}
+    for item, rows in index_missions(drop_docs.get('missionRewards.json') or {}, hier).items():
         items.setdefault(item, {})['missions'] = rank_missions(rows)[:MAX_MISSIONS]
     if 'blueprintLocations.json' in drop_docs or 'enemyBlueprintTables.json' in drop_docs:
         for item, rows in index_enemies(drop_docs.get('blueprintLocations.json') or {},
@@ -414,6 +513,10 @@ def build(offline=False):
         'items': len(items),
         'with_relics': sum(1 for d in items.values() if d.get('relics')),
         'with_missions': sum(1 for d in items.values() if d.get('missions')),
+        'missions_with_hierarchy': sum(1 for d in items.values()
+                                       for r in d.get('missions') or [] if r.get('hierarchy')),
+        'missions_node_unconfirmed': sum(1 for d in items.values()
+                                         for r in d.get('missions') or [] if r.get('unresolved')),
         'with_enemies': sum(1 for d in items.values() if d.get('enemies')),
         'with_other': sum(1 for d in items.values() if d.get('other')),
         'with_market': sum(1 for d in items.values() if d.get('market')),

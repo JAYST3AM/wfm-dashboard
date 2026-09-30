@@ -1136,6 +1136,9 @@
     main.appendChild(el('span', 'clt-src', line.label || ''));
     row.appendChild(main);
     if (line.detail) row.appendChild(el('span', 'clt-chance', line.detail));
+    /* A drop row whose node the game's own region data does not describe says so, in the row:
+       showing the verified part and naming the unverified one is the whole point. */
+    if (line.note) row.appendChild(el('span', 'clt-caveat', line.note));
     return row;
   }
 
@@ -1207,7 +1210,8 @@
     if (kind === 'drop' && lines.length) {
       var body = el('div', 'clt-body');
       lines.slice(0, REL_LINES).forEach(function (l) {
-        body.appendChild(tipRow({ k: 'mission', label: l.label, detail: l.detail }));
+        body.appendChild(tipRow({ k: l.k || 'mission', label: l.label, detail: l.detail,
+                                  note: l.note }));
       });
       tip.appendChild(body);
       if (lines.length > REL_LINES) {
