@@ -40,6 +40,17 @@ def db():
     return data_mod.load()
 
 
+@pytest.fixture()
+def needs_db(db):
+    """The reader loads the engine database itself, so a save cannot be resolved without one.
+
+    These tests exercise `player_loadout.load()`, not the engine, but the reader's whole job is id
+    resolution against the catalogue: without an ingest it raises before the state machine runs, so
+    they depend on `db` (which skips) rather than failing the job.
+    """
+    return db
+
+
 @pytest.fixture(scope='module')
 def imported(db):
     with io.open(FULL, encoding='utf-8') as f:
@@ -220,7 +231,7 @@ def test_a_clone_the_engine_accepts_keeps_the_engines_own_numbers(imported, db):
 
 # ------------------------------------------------------------------ the reader
 
-def test_the_reader_reports_each_failure_mode_by_name(source, monkeypatch):
+def test_the_reader_reports_each_failure_mode_by_name(needs_db, source, monkeypatch):
     payload = pl.load(force=True)
     assert payload['state'] == 'ok' and payload['snapshot']['categories']
     assert payload['cached'] is False
@@ -235,7 +246,7 @@ def test_the_reader_reports_each_failure_mode_by_name(source, monkeypatch):
     assert 'expected' in payload['detail']
 
 
-def test_a_second_read_inside_the_ttl_is_served_from_the_cache(source):
+def test_a_second_read_inside_the_ttl_is_served_from_the_cache(needs_db, source):
     first = pl.load(force=True)
     second = pl.load()
     assert first['state'] == 'ok' and second['cached'] is True
@@ -243,14 +254,14 @@ def test_a_second_read_inside_the_ttl_is_served_from_the_cache(source):
     assert second['snapshot']['freshness']['label'], 'freshness is recomputed for the caller'
 
 
-def test_the_import_never_writes_to_the_source(source):
+def test_the_import_never_writes_to_the_source(needs_db, source):
     before = os.stat(FULL).st_mtime_ns, io.open(FULL, encoding='utf-8').read()
     pl.load(force=True)
     after = os.stat(FULL).st_mtime_ns, io.open(FULL, encoding='utf-8').read()
     assert before == after
 
 
-def test_the_routes_speak_the_same_state_language(source):
+def test_the_routes_speak_the_same_state_language(needs_db, source):
     from server import planner_current_clone, planner_current_payload
     payload = planner_current_payload(force=True)
     assert payload['ok'] is True and payload['state'] == 'ok' and payload['error'] is None
