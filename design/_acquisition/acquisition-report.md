@@ -71,8 +71,9 @@ dictionary, not hard-coded).
 
 | item | before | after |
 | --- | --- | --- |
-| **Ash Systems Blueprint** | `Venus - Falling Glory · Skirmish · Rotation A · 13.33%` | `Railjack → Venus Proxima → Falling Glory` · `Skirmish · rotation A · 13.33%` |
+| **Ash Systems Blueprint** | `Venus - Falling Glory · Skirmish · Rotation A · 13.33%` | `Railjack → Venus Proxima → Falling Glory` · `Defense · rotation A · 13.33%` |
 | `Seer Blueprint` | `Mercury - Tolstoj · Assassination · 38.72%` | `Star Chart → Mercury → Tolstoj` · `Assassination · 38.72%` |
+| the three other Ash Systems rows | `Venus - Luckless Expanse/Beacon Shield Ring/Bifrost Echo · Skirmish` | `Survival · rotation A · 13.33%`, `Volatile · 4.88%` (flat pool), `Exterminate · 4.88%` (flat pool) — each in `Railjack → Venus Proxima` |
 | `Gara Chassis Blueprint` | `Cetus bounty: A · 7.52% - Rare` | `Open World → Plains of Eidolon (Earth) → Cetus bounty` · `Level 5 - 15 Cetus Bounty · Stage 2, Stage 3 of 4, and Stage 3 of 5 · rotation A · 7.52% · Rare` |
 | `Mesa Neuroptics Blueprint` | `Key: C · 38.72% - Common` | `Star Chart → Eris → Mutalist Alad V Assassinate` · `Mutalist Alad V Assassinate · rotation C · 38.72%`, access *Mutalist Alad V Assassinate required* |
 | a Duviri tier table | `Duviri - Endless: Tier 1 (Hard)` | `Duviri → Endless: Tier 1 (Hard)` · `circuit reward`, with the node-unconfirmed note |
@@ -142,6 +143,12 @@ python scripts/acquisition_hierarchy.py --coverage
 python -m pytest tests -q
     2108 passed, 5 skipped in 140.84s
 ```
+
+The gate's mission-variant checks are the second half of the same finding: the drop table labels
+**every** Railjack row `Skirmish`, including the Survival and Defense nodes. The export names the real
+mission, so the row carries it (`mode_verified`), the drop table's word stays as provenance, 79
+Railjack rows differ between the two sources, and the four Ash Systems rows read
+Defense / Survival / Volatile / Exterminate — matching the independent ground truth exactly.
 
 Gate output: `design/_acquisition/acquisition-gate-report.md`. Independent audit:
 `design/_acquisition/acquisition-audit.md` (350/435 node keys placed by its looser matcher — it

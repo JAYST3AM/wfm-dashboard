@@ -315,6 +315,35 @@ def check_source_precision(res, index):
               '%d crewship drops claim no system: %s' % (len(unplaced), '; '.join(unplaced[:3])))
 
 
+def check_mode_is_verified(res, index):
+    """A Railjack row's mission must be the node's real mission, not the drop table's generic word.
+
+    Every Railjack row in the drop table carries gameMode 'Skirmish' - including the Survival and
+    Defense nodes (Falling Glory is a Defense node: the export says MT_RAILJACK +
+    MissionName_RailjackDefense).  A row that shows only 'Skirmish' has thrown the verified mission
+    away, which is the same class of bug as showing the planet instead of the Proxima.
+    """
+    rows = [(name, r) for name, r in mission_rows(index) if r.get('system') == 'Railjack']
+    res.check('mode/railjack-rows-present', len(rows) > 100, '%d Railjack rows' % len(rows))
+    missing = ['%s %s' % (n, r.get('node')) for n, r in rows if not r.get('mode_verified')]
+    res.check('mode/every-railjack-row-has-the-export-variant', not missing,
+              '%d Railjack rows carry no verified mission: %s' % (len(missing), '; '.join(missing[:3])))
+    # Many Railjack nodes really are Skirmish missions (Flexa, H-2 Cloud), and there the two sources
+    # agree - so the check is not "never the word Skirmish", it is that the export's word is what is
+    # carried when they differ.  The Ash Systems rows are the named case: all four are labelled
+    # 'Skirmish' by the drop table and none of them is a Skirmish mission.
+    differing = [(n, r) for n, r in rows
+                 if r.get('mode_verified') and r.get('mode')
+                 and str(r['mode_verified']).lower() != str(r['mode']).lower()]
+    res.check('mode/the-export-word-replaces-the-table-word', len(differing) > 20,
+              '%d Railjack rows carry a verified mission that differs from the drop table' % len(differing))
+    ash = [r for n, r in rows if n == 'Ash Systems Blueprint']
+    res.check('mode/ash-systems-missions-are-real-missions',
+              bool(ash) and all(str(r.get('mode_verified') or '').lower()
+                                in ('defense', 'survival', 'volatile', 'exterminate') for r in ash),
+              ', '.join('%s=%s' % (r.get('node'), r.get('mode_verified')) for r in ash))
+
+
 def check_multi_source(res, index):
     """An item with more than one legitimate route keeps all of them, separated."""
     found = None
@@ -415,6 +444,7 @@ def run(falsify=False):
     check_variants(res, index['items'])
     check_source_types(res, index['items'], store)
     check_source_precision(res, index['items'])
+    check_mode_is_verified(res, index['items'])
     check_multi_source(res, index['items'])
 
     for name, ok, detail in res.rows:
@@ -434,6 +464,7 @@ def run(falsify=False):
                 check_no_flattened_railjack(inner, broken)
                 check_no_flat_anywhere(inner, broken)
                 check_variants(inner, broken)
+                check_mode_is_verified(inner, broken)
                 hit = [n for n, ok, _d in inner.rows if not ok]
                 caught.append((name, bool(hit), hit[:3]))
             finally:

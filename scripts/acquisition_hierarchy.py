@@ -131,6 +131,21 @@ def _english(dictionary, key):
     return text if isinstance(text, str) and text.strip() else None
 
 
+def _title(text):
+    """'DEFENSE' -> 'Defense'; anything else is passed through unchanged."""
+    if not text:
+        return None
+    return text.title() if text.isupper() else text
+
+
+def _levels(entry):
+    """The node's own enemy level band ('20-30'), or None when the export does not carry one."""
+    lo, hi = entry.get('minEnemyLevel'), entry.get('maxEnemyLevel')
+    if isinstance(lo, int) and isinstance(hi, int) and hi >= lo:
+        return '%d-%d' % (lo, hi)
+    return None
+
+
 # A region key is a Star Chart place when it lives under the Locations tree (or the Deimos planet
 # key) and is not one of the special families below.  Taken from the export's own keys, so the list
 # is never out of date with the data it is used against.
@@ -206,6 +221,11 @@ def build_index(regions_doc, dictionary):
             'region': region_for(entry, dictionary),
             'system': system_for(entry, dictionary),
             'mission_type': entry.get('missionType'),
+            # The export carries the node's real mission variant ("DEFENSE") while the drop table
+            # calls every Railjack node "Skirmish" - so both are kept, and the export's word is what
+            # a player is shown.
+            'mission_variant': _title(_english(dictionary, entry.get('missionName'))),
+            'enemy_levels': _levels(entry),
             'node_type': entry.get('nodeType'),
             'region_key': key,
             'region_name_key': entry.get('name'),
@@ -417,6 +437,11 @@ def resolve(planet_label, node, mode=None, index=None, dictionary=None, types=No
     if match == 'case-insensitive':
         rec['node'] = base
     rec['region_source'] = 'game export: %s' % (best.get('system_name_key') or '')
+    # The export's own words for the node: its real mission variant ("Defense") and the enemy level
+    # band the game puts on it.  The drop table's generic mode stays in `drop_table_mode`.
+    rec['mission_variant'] = best.get('mission_variant')
+    rec['mission_type'] = best.get('mission_type')
+    rec['enemy_levels'] = best.get('enemy_levels')
     if not rec['region']:
         rec['region'] = label_region or (label if label_system else None)
         rec['unresolved'].append('region text not in the export dictionary')

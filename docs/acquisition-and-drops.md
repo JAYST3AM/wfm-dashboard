@@ -64,6 +64,12 @@ resolved fields. No page parses a location out of a label.
   its cache table), so two tables are never merged into one row.
 - `access` names a prerequisite where one is real (a key table's key, e.g. `Mutalist Alad V
   Assassinate required`).
+- `mode_verified` (and `enemy_levels`) come from the game's export, and the export's word is what a
+  card shows. This matters more than it sounds: **every Railjack row in the drop table carries the
+  generic `gameMode: Skirmish`**, including the Survival, Defense, Volatile and Exterminate nodes.
+  Falling Glory is a **Defense** node (`MT_RAILJACK` + `MissionName_RailjackDefense`); the drop
+  table's `Skirmish` is kept on the record as provenance, and 79 Railjack rows differ between the
+  two sources.
 - `provenance` keeps the source identity separate from the display text, so a source refresh does
   not require a UI change. `node_match: case-insensitive` records that DE's two datasets spell a
   node differently (`Kala-Azar` vs `Kala-azar`).
@@ -73,7 +79,7 @@ resolved fields. No page parses a location out of a label.
 | item | card line |
 | --- | --- |
 | `Seer Blueprint` (Star Chart) | `Star Chart → Mercury → Tolstoj` · `Assassination · 38.72%` |
-| `Ash Systems Blueprint` (Railjack) | `Railjack → Venus Proxima → Falling Glory` · `Skirmish · rotation A · 13.33%` |
+| `Ash Systems Blueprint` (Railjack) | `Railjack → Venus Proxima → Falling Glory` · `Defense · rotation A · 13.33%` |
 | `Gara Chassis Blueprint` (bounty) | `Open World → Plains of Eidolon (Earth) → Cetus bounty` · `Level 5 - 15 Cetus Bounty · Stage 2, Stage 3 of 4, and Stage 3 of 5 · rotation A · 7.52% · Rare` |
 | `Mesa Neuroptics Blueprint` (key) | `Star Chart → Eris → Mutalist Alad V Assassinate` · `Mutalist Alad V Assassinate · rotation C · 38.72%` |
 | `Lavos` component (vendor) | `Open World → Necralisk (Deimos) → Entrati` · `Acquaintance · 5000 standing · 100%` |

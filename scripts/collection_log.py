@@ -693,7 +693,9 @@ def build_item_obtain(name, index):
             # fallback only when the export had nothing to say, and then the line says so.
             where = mission.get('hierarchy') \
                 or ' - '.join([p for p in (mission.get('planet'), mission.get('node')) if p])
-            bits = [b for b in (mission.get('mode'),
+            # The node's real mission variant comes from the game export ("Defense"); the drop
+            # table's own word stays on the record as provenance.
+            bits = [b for b in (mission.get('mode_verified') or mission.get('mode'),
                                 ('rotation ' + mission['rotation']) if mission.get('rotation') else None,
                                 '%s%%' % clean_num(mission.get('chance'))) if b]
             if mission.get('reward_source') and mission.get('reward_source') != 'mission completion':

@@ -360,11 +360,22 @@ def index_missions(missions_doc, hier=None):
             rec['hierarchy'] = hierarchy.label(where)
             rec['reward_source'] = hierarchy.reward_source(mode, variant=variant,
                                                            system=where['system'])
+            # The drop table calls every Railjack node "Skirmish"; the export names the node's real
+            # mission (Defense, Survival, Volatile, Exterminate) and its enemy level band.  Both are
+            # kept, and the verified one is what a card shows.
+            if where.get('mission_variant'):
+                rec['mode_verified'] = where['mission_variant']
+            if where.get('enemy_levels'):
+                rec['enemy_levels'] = where['enemy_levels']
+            if where.get('mission_type'):
+                rec['mission_type'] = where['mission_type']
             if where['unresolved']:
                 rec['unresolved'] = where['unresolved']
             rec['provenance'] = {'chance': 'missionRewards.json (DE drop table)',
                                  'hierarchy': where['region_source'],
                                  'node_match': where['match']}
+            if where.get('mission_variant'):
+                rec['provenance']['mode'] = 'game export: %s' % where.get('mission_type')
         out.setdefault(item, []).append(rec)
     return out
 
@@ -1319,6 +1330,23 @@ def selftest():
     check('an unverified vendor is marked, not placed',
           bool(unknown['Widget'][0].get('unresolved')) and 'system' not in unknown['Widget'][0],
           json.dumps(unknown['Widget'][0].get('unresolved'))[:80])
+    # The drop table calls every Railjack node "Skirmish"; the export names the real mission.
+    hold = _HIER.get('index')
+    _HIER['index'] = {'Defense Node': [{'node': 'Defense Node', 'system': 'Railjack',
+                                        'region': 'Venus Proxima', 'mission_type': 'MT_RAILJACK',
+                                        'mission_variant': 'Defense', 'enemy_levels': '23-26',
+                                        'system_name_key': '/Lotus/Language/Locations/Venus_SPACE'}]}
+    mine = index_missions({'missionRewards': {'Venus': {'Defense Node': {'gameMode': 'Skirmish',
+        'rewards': {'A': [{'itemName': 'Ash Systems Blueprint', 'chance': 13.33,
+                           'rarity': 'Uncommon'}]}}}}}, _HIER)
+    mrow = mine['Ash Systems Blueprint'][0]
+    _HIER['index'] = hold
+    check('the export names the mission, not the drop table',
+          mrow.get('mode_verified') == 'Defense' and mrow.get('mode') == 'Skirmish',
+          '%s / %s' % (mrow.get('mode_verified'), mrow.get('mode')))
+    check('and the node keeps its enemy level band', mrow.get('enemy_levels') == '23-26',
+          str(mrow.get('enemy_levels')))
+
     crew = index_enemies({'blueprintLocations': [{'itemName': 'Lavan Glazio Mk Iii', 'enemies': [
         {'enemyName': 'Taro Crewship (Level 51 - 100)', 'enemyItemDropChance': 20,
          'enemyBlueprintDropChance': 20}]}]}, None)
