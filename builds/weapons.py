@@ -60,6 +60,22 @@ def _pct(effect_totals, stat):
     return effects_mod.summed_percent(effect_totals, stat)
 
 
+# The metadata a rider row carries into its stat's trace (Phase 5). `_ride_rows` attaches it
+# for every stat, so a rider landing on any enabled stat keeps its provenance - the plumbing is not
+# multishot-shaped (the architecture review found it was: the crit loops forwarded nothing, and a
+# refused rider's note landed on the multishot trace whatever stat it moved).
+RIDER_ROW_META = ('condition', 'state', 'stacks', 'mode', 'assumption')
+
+
+def _ride_rows(t, rows):
+    """Attach a stat's collected rows to its trace, carrying rider metadata when present."""
+    for row in rows:
+        trace_mod.add(t, trace_mod.modifier(
+            row['mod_name'], 'percent', row['value'], mod=row['mod'], rank=row['rank'],
+            note=row.get('note'),
+            **{k: row[k] for k in RIDER_ROW_META if row.get(k) is not None}))
+
+
 def _rows(effect_totals, stat):
     return effects_mod.effect_rows_of(effect_totals, stat)
 
@@ -363,17 +379,8 @@ def calculate(equipment, mod_slots=None, options=None):
     multishot_bonus = _pct(totals, 'multishot')
     multishot = base_multishot * (1.0 + multishot_bonus / 100.0)
     t_ms = trace_mod.trace('multishot', base_multishot, 'ratio', 'Multishot (projectiles)')
-    for row in _rows(totals, 'multishot'):
-        trace_mod.add(t_ms, trace_mod.modifier(
-            row['mod_name'], 'percent', row['value'], mod=row['mod'], rank=row['rank'],
-            note=row.get('note'),
-            **{k: row[k] for k in ('condition', 'state', 'stacks', 'mode', 'assumption')
-               if row.get(k) is not None}))
+    _ride_rows(t_ms, _rows(totals, 'multishot'))
     trace_mod.finish(t_ms, multishot)
-    for entry in riders:
-        if not entry.get('applied'):
-            trace_mod.note(t_ms, '%s: On Kill rider %s - %s'
-                           % (entry.get('mod_name'), entry.get('state'), entry.get('reason')))
     traces['multishot'] = t_ms
     whole = int(multishot)
     fractional = multishot - whole
@@ -394,14 +401,10 @@ def calculate(equipment, mod_slots=None, options=None):
     base_cd = float(equip.get('crit_multiplier') or 1.0)
     crit_multi = base_cd * (1.0 + _pct(totals, 'critical_damage') / 100.0)
     t_cc = trace_mod.trace('critical_chance', base_cc, 'percent', 'Critical Chance')
-    for row in _rows(totals, 'critical_chance'):
-        trace_mod.add(t_cc, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                               mod=row['mod'], rank=row['rank']))
+    _ride_rows(t_cc, _rows(totals, 'critical_chance'))
     trace_mod.finish(t_cc, crit_chance)
     t_cd = trace_mod.trace('critical_multiplier', base_cd, 'ratio', 'Critical Multiplier')
-    for row in _rows(totals, 'critical_damage'):
-        trace_mod.add(t_cd, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                               mod=row['mod'], rank=row['rank']))
+    _ride_rows(t_cd, _rows(totals, 'critical_damage'))
     trace_mod.finish(t_cd, crit_multi)
     traces['critical_chance'] = t_cc
     traces['critical_multiplier'] = t_cd
@@ -567,6 +570,18 @@ def calculate(equipment, mod_slots=None, options=None):
     # base (the Phase 1 composition) -> build modifiers -> conditional modifiers (the faction
     # multiplier, applied riders) -> target modifiers (the faction table) -> mitigation (armour
     # after the modelled reductions) -> the final supported damage result.
+    # A rider the engine refused (or found off) says so on the trace of the stat it moves - the
+    # multishot trace is not a noticeboard for every rider in the build.
+    for entry in riders:
+        if entry.get('applied'):
+            continue
+        t_rider = traces.get(entry.get('stat'))
+        if t_rider is None:
+            continue
+        trace_mod.note(t_rider, '%s: the %s rider is %s - %s'
+                       % (entry.get('mod_name'), entry.get('stat'), entry.get('state'),
+                          entry.get('reason')))
+
     target_row, target_block = None, None
     # The trigger is the caller describing a combat target: an armour value, a target-state
     # mechanic whose only consumer is the mitigation stage, or the full (faction, landing layer)
@@ -641,13 +656,25 @@ def calculate(equipment, mod_slots=None, options=None):
     # so the affected stats are withheld entirely rather than answered).
     blocked = [r for r in condition_rows if r['state'] in (conditions.UNKNOWN,
                                                           conditions.UNSUPPORTED)]
+    # The blast radius of a refusal is the thing the unresolved condition was about. The
+    # target-state mechanics withhold the target BLOCK and nothing else: a caller who stated a
+    # target state this engine could not resolve still has a fully computable build - the Phase 1
+    # and viral numbers do not depend on it, and withholding them turns "I cannot answer your
+    # enemy question" into "I cannot answer anything". (The architecture review executed exactly
+    # that shape: faction + landing + viral, no armour.)
+    TARGET_MECHANICS = ('target_damage', 'corrosive')
     refused_stats = []
     if mode == 'strict' and blocked:
-        for key in ('damage_per_shot', 'damage_per_shot_expected_crit', 'burst_dps',
-                    'sustained_dps', 'damage_to_health', 'damage_to_health_expected_crit'):
-            if key in stats and stats[key] is not None:
-                stats[key] = None
-                refused_stats.append(key)
+        wider = [r for r in blocked if r['condition'] not in TARGET_MECHANICS]
+        if wider:
+            for key in ('damage_per_shot', 'damage_per_shot_expected_crit', 'burst_dps',
+                        'sustained_dps', 'damage_to_health', 'damage_to_health_expected_crit'):
+                if key in stats and stats[key] is not None:
+                    stats[key] = None
+                    refused_stats.append(key)
+        for row in blocked:
+            if row['condition'] in TARGET_MECHANICS and 'target_damage' not in refused_stats:
+                refused_stats.append('target_damage')
         if target_block is not None:
             # The target figures derive from the same withheld numbers: every one of them goes,
             # and the per-type traces lose their finals with them.

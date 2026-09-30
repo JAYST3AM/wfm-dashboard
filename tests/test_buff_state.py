@@ -28,7 +28,8 @@ PER_STACK = 29.7
 def db():
     slugs = {'/Fixture/BratonPrime': 'braton_prime', '/Fixture/Excalibur': 'excalibur'}
     src = {'file': 'buff-state-test'}
-    mods = [ingest.normalise_mod(_mod_row(*row), slugs, src) for row in FIXTURE_MODS]
+    mods = [ingest.normalise_mod(_mod_row(*row), slugs, src)
+            for row in list(FIXTURE_MODS) + PHASE5_MODS]
     equipment = [ingest.normalise_equipment(dict(raw, uniqueName=unique, name=name),
                                             kind, slugs, {}, src)
                  for unique, name, kind, raw in FIXTURE_EQUIPMENT]
@@ -182,6 +183,35 @@ def test_a_stated_buff_state_nothing_consumes_is_refused_by_name(db):
     reload_state = api.compute(_build([(SERRATION, 10)]), db,
                                {'context': {'buffs': {'on_reload': {'stacks': 1}}}})
     assert reload_state['evaluation']['unused'] == ['buffs.on_reload']
+
+
+CRIT_RIDER = '/Fixture/KillCrits'
+PHASE5_MODS = [(CRIT_RIDER, 'Kill Crits',
+                ['On Kill: +%d%% Critical Chance for 12s. Stacks up to 3x.' % (4 * (i + 1))
+                 for i in range(11)], 'Primary Mod', 'Rifle', 'madurai', 4)]
+
+
+def test_a_rider_on_another_stat_keeps_its_provenance(db, monkeypatch):
+    """The rider plumbing is not multishot-shaped.
+
+    The architecture review found that admitting a second stat to the enabled list applied the
+    value but lost the row metadata on its trace, and that a refused rider's note landed on the
+    multishot trace whatever stat it moved. This enables a crit-chance rider and checks both.
+    """
+    monkeypatch.setitem(buffs.ENABLED_STATS, 'critical_chance', 'critical_chance')
+    out = api.compute(_build([(SERRATION, 10), (CRIT_RIDER, 10)]), db,
+                      {'context': {'buffs': {'on_kill': {'stacks': 2}}}})
+    entry = (out['result']['riders'] or [{}])[0]
+    assert entry.get('stat') == 'critical_chance' and entry.get('state') == 'satisfied', entry
+    rows = [m for m in out['result']['traces']['critical_chance']['modifiers']
+            if m.get('condition') == 'on_kill']
+    assert rows and rows[0].get('state') == 'satisfied' and rows[0].get('stacks') == 2, rows
+    # a refused rider (no state) notes on ITS trace, not on multishot
+    refused = api.compute(_build([(SERRATION, 10), (CRIT_RIDER, 10)]), db)
+    notes = ' '.join(refused['result']['traces']['critical_chance'].get('notes') or [])
+    assert 'rider is unknown' in notes, notes
+    assert not [n for n in (refused['result']['traces']['multishot'].get('notes') or [])
+                if 'Kill Crits' in n], refused['result']['traces']['multishot'].get('notes')
 
 
 def test_strict_and_hypothetical_never_invent_a_stack_count(db):

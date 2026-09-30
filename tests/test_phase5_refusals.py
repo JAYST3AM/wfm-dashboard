@@ -243,6 +243,65 @@ def test_a_json_document_cannot_make_the_engine_raise(db):
             assert row['state'] in conditions.STATES, (ctx, row)
 
 
+PHASE5_MODS.append(('/Fixture/UmbralOddity', 'Umbral Oddity',
+                     ['+%d%% Ability Duration' % (5 * (i + 1)) for i in range(6)],
+                     'Warframe Mod', 'Warframe', 'madurai', 4))
+
+
+def test_a_target_state_refusal_withholds_the_target_block_not_the_build(db):
+    """A stated target state this engine cannot resolve must not take the computable build with it.
+
+    The architecture review executed the shape a Bane + viral user states - faction + landing +
+    viral stacks, no armour - and found the target path dragged it into a conditional evaluation
+    and, under strict, withheld the Phase 1 and viral numbers. The refusal belongs to the target
+    block alone: the numbers that do not depend on the enemy still answer.
+    """
+    cases = [
+        {'target_faction': 'grineer', 'target': {'protection': 'health', 'viral_stacks': 6}},
+        {'target': {'corrosive_stacks': 0}},
+        {'target': {'protection': 'health', 'armor': 300}},
+    ]
+    for ctx in cases:
+        out = api.compute(_weapon([('/Fixture/Serration', 10)]), db, {'context': ctx})
+        assert out['result']['target_damage'] is None, ctx
+        stats = out['result']['stats']
+        assert stats['damage_per_shot'] == 92.75, ctx
+        assert stats['burst_dps'] == 995.5132, ctx
+        assert 'target_damage' in out['evaluation']['withheld'], ctx
+        # and strict withholds the block, never the build
+        strict = api.compute(_weapon([('/Fixture/Serration', 10)]), db,
+                             {'context': ctx, 'strict': True})
+        s_stats = strict['result']['stats']
+        assert s_stats['damage_per_shot'] == 92.75 and s_stats['burst_dps'] == 995.5132, ctx
+        assert strict['result']['target_damage'] is None, ctx
+
+
+def test_the_umbral_piece_count_is_a_distinct_legal_roster(db):
+    """The count is a roster, not a slot count (the architecture review executed the lies): two
+    copies of one mod are not two pieces, a refused member is not equipped, and a member this
+    engine has no scaling for is named rather than silently counted."""
+    from builds import effects
+    # duplicate at the engine seam: no scaling, named
+    slot = {'mod': db['mods'][UMBRAL_VITALITY], 'rank': None}
+    totals, markers, _notes = effects.collect_mod_effects([slot, slot])
+    assert 'duplicate_set_member' in [m['code'] for m in markers]
+    assert not [r for b in totals.values() if isinstance(b, dict)
+                for r in b['rows'] if r.get('set_multiplier') not in (None, 1.0)]
+    # a rank-invalid member is not a piece
+    totals2, markers2, _n2 = effects.collect_mod_effects(
+        [slot, {'mod': db['mods'][UMBRAL_VITALITY], 'rank': 99}])
+    assert 'mod_rank_out_of_range' in [m['code'] for m in markers2]
+    assert not [r for b in totals2.values() if isinstance(b, dict)
+                for r in b['rows'] if r.get('set_multiplier') not in (None, 1.0)]
+    # an unknown Umbral member counts as a piece (the game counts the roster) and is named
+    _t3, markers3, _n3 = effects.collect_mod_effects([slot, {'mod': db['mods']['/Fixture/UmbralOddity'],
+                                                              'rank': None}])
+    assert 'umbral_member_unknown' in [m['code'] for m in markers3]
+    # the API route refuses a duplicate build before the set pass ever sees it
+    dup = api.compute(_frame([(UMBRAL_VITALITY, 10), (UMBRAL_VITALITY, 10)]), db)
+    assert 'duplicate_mod' in [e['code'] for e in dup['validation']['errors']]
+
+
 def test_the_removed_health_type_vocabulary_is_refused_by_name(db):
     """Damage 3.0 removed the per-health-type model, so `health_type`/`armor_type` are not part of
     the target vocabulary - and a stated value the engine has no model for is refused by name

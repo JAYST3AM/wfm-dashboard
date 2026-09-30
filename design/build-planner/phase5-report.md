@@ -32,10 +32,10 @@ browser) on the frozen tree; the exact commands are in section 10.
 
 | Run | Result |
 |---|---|
-| `python -m pytest tests -q` (full suite) | **0 failed** — 2150 passed / 5 skipped when no game window is open, 2148 passed / 3 failed (the whisper window check) while `Warframe.x64` runs; no other test ever failed (see the note under this table) |
-| `pytest tests/test_target_model.py tests/test_buff_state.py tests/test_phase5_refusals.py` | **45 passed** (the new Phase 5 tests) |
+| `python -m pytest tests -q` (full suite) | **0 real failures** — 2152 passed / 6 skipped (incl. every Phase 5 test) with the game closed, 2152 passed / 3 whisper failures while `Warframe.x64` runs; no other test ever failed (see the note under this table) |
+| `pytest tests/test_target_model.py tests/test_buff_state.py tests/test_phase5_refusals.py` | **48 passed** (the new Phase 5 tests) |
 | `python design/_planner/conditions_gate.py --falsify` (Phase 4) | **PASS — 27 checks, 0 failed; 11 of 11 breaks caught** (refusal preservation intact) |
-| `python design/_planner/phase5_gate.py --falsify` (Phase 5) | **PASS — 33 checks, 0 failed; 16 of 16 deliberate breaks caught** |
+| `python design/_planner/phase5_gate.py --falsify` (Phase 5) | **PASS — 37 checks, 0 failed; 16 of 16 deliberate breaks caught** |
 | `python design/_planner/build_planner_gate.py` (browser/UI workflow) | **PASS — 122 checks, 0 failed** (includes 7 new Phase 5 target/buff/trace/typo checks) |
 | `python design/_stage10/gate.py` (release acceptance, live app) | **GATE PASS — 121 checks, 0 failed, 38 states driven** |
 | `python builds/debug.py selftest` (module selftests) | green (`DEBUG_EXIT=0`) |
@@ -54,7 +54,7 @@ Honest note on the earlier runs: three full-suite passes reported failures in
 * `tests/test_meta_watcher.py` passed in isolation and in the sequential pass; its single failure
   happened while two other gates were driving browsers at the same time.
 
-Every other test passes in every run: **2148–2150 passed, 0 failed, 5–6 skipped**, depending only
+Every other test passes in every run: **2148–2152 passed, 0 failed, 5–6 skipped**, depending only
 on those three window-dependent whisper checks.
 
 ## 3. Before/after worked examples (real payloads)
@@ -229,16 +229,44 @@ when the engine sent no faction label, and the no-math scan now watches the Phas
 (`uptime|stack|buff|corrosive|viral|multiplier|contribution|rider`) instead of stopping at the
 Phase 1 words.
 
-**D. Architecture review (six design questions).** Verdicts on record: the target state is carried
-by the context with no leak into the weapon engine (SOUND); the target path's trigger rule, the
-corrosive mechanic's different architecture (target armour, not a damage multiplier), and the
-Umbral pass all survived scrutiny; the one structural critique accepted is that a *second* rider
-needs a stat the engine already models **and** a source pin per rider, so "the next rider" is one
-wiring entry plus provenance — not pure data. That is recorded in section 8, and it matches the
-Phase 6 proposal 1.
+**D. Architecture review (six design questions).** Verdicts: the target state is genuinely carried by
+the context with no leak into the weapon engine, the buffer/page/data surfaces hold no target
+defaults, and the corrosive mechanic does sit at a different *position* in the pipeline than viral
+(target armour consumed by mitigation, not a damage multiplier) — SOUND. Four findings were WEAK,
+each with an executed counterexample, and all four are fixed in this phase:
+
+1. **A refusal's blast radius was global.** An unresolvable *target* row nulled the Phase 1 and
+   viral numbers under `strict`, and flipped an otherwise complete Phase 4 answer
+   (faction + landing + viral, no armour) to conditional. The target-state mechanics now withhold
+   the **target block alone**; the numbers that do not depend on the enemy still answer. Pinned by
+   `enemy/target-refusal-keeps-the-build` (three shapes, strict and not) and
+   `test_a_target_state_refusal_withholds_the_target_block_not_the_build`.
+2. **The rider plumbing was multishot-shaped.** `buffs`' state machine is stat-agnostic, but the
+   crit/status trace loops forwarded none of a rider row's metadata, and a refused rider's note
+   landed on the multishot trace whatever stat it moved. Rider rows now travel through one helper
+   (`_ride_rows`, `RIDER_ROW_META`) for every stat, and notes go to the trace of the stat the rider
+   names. Proven by enabling a crit-chance rider in a test and checking its row metadata and note
+   placement (`test_a_rider_on_another_stat_keeps_its_provenance`).
+3. **The corrosive trace row was not composable.** It recorded the armour reduction as if it were a
+   damage ratio, so the trace's ratio rows multiplied to 0.342 while the engine applied 0.611. It
+   is now a `mitigation_input` row (the armour transform, flat), and the ratio lives only on the
+   Armor row that applies it. Pinned by `trace/rows-compose`, which recomputes every per-type
+   factor from its own trace rows and requires it to equal the applied one.
+4. **The Umbral piece count counted slots, not a roster.** Two copies of one mod counted twice, a
+   rank-refused member counted, and an unknown member counted — with a count outside the pinned
+   2/3 domain silently scaling by 1.0 while the note claimed a scaling had happened. The count is
+   now distinct, legal, known ids; duplicates, unknown members, an over-documented count and a pass
+   that touches no modelled row each refuse **by name** (`duplicate_set_member`,
+   `umbral_member_unknown`, `umbral_set_above_documented_pieces`, `umbral_set_no_rows`). Pinned by
+   `set/umbral-counts-distinct-members` and `test_the_umbral_piece_count_is_a_distinct_legal_roster`.
+
+The review's closing point — that a mechanic's *needs* (its trigger, its consumed fields, its trace
+hook) are declared in four separate places, each of which fails silently if forgotten — is accepted
+and is the first Phase 6 candidate below: the four fixes above are the local repairs; the
+declarative registry is the structural one.
 
 The reviewers found nothing that required a design change; everything they broke was an input
-boundary, and every boundary they broke is now pinned.
+boundary or a blast radius, and every one they broke is now pinned.
 
 ## 8. Honest known limitations
 
@@ -272,21 +300,29 @@ boundary, and every boundary they broke is now pinned.
 
 ## 9. Phase 6 candidates (in the order I would take them)
 
-1. **Finish the On-Kill family**: the remaining Galvanized/Acolyte riders (crit chance/damage,
-  status chance) share the exact shape the multishot rider already proves; each is a data-table row
-  plus a pinned source. Also: an `active: true` + cap-stated form for single-stack riders.
-2. **Target-state presets from the game's own data** (faction → armour/health/shield profiles per
-   unit *class*, not per unit) — but only with an exported source, and as *stated* context the user
+1. **A declarative mechanic registry.** The architecture review's structural finding: a mechanic's
+   *needs* — its trigger fields, whether the mitigation stage requires it, its trace row, its
+   `consumed` entry — currently live in four independent places
+   (`weapons.calculate`'s trigger, its `consumed` list, `conditions.TARGET_FIELDS`,
+   `enemies.evaluate`'s corrosive block + trace hook), and each omission fails *silently*. One table
+   per mechanic, with the trigger/consumed/plan derived from it, would make Heat-strip (item 3) a
+   data change instead of four coordinated edits. Do this before adding another status mechanic.
+2. **Finish the On-Kill family**: the remaining Galvanized/Acolyte riders (crit chance/damage,
+   status chance) share the exact shape the multishot rider already proves — and now that rider
+   rows travel through one helper for every stat, each is a data-entry + a source pin
+   (`ENABLED_STATS` row, conditional-table value, wiki citation).
+3. **Heat as a second armour source** (Heat procs strip armour) — the first mechanic to be added
+   *through* the registry above, with the same stated-state treatment as corrosive.
+4. **Target-state presets from the game's own data** (faction → armour/health/shield profiles per
+   unit *class*, not per unit) — only with an exported source, and as *stated* context the user
    picks, never a default.
-3. **Heat as a second armour source** (Heat procs strip armour over time — needs the same
-   stated-state treatment as corrosive, plus the wiki's strip rule).
-4. **A "shots to kill" block** once the caller can state a pool size: it is one division away from
-   what the engine already computes, and the refusal is already the honest gate for it.
-5. **Comparison view for two targets** (same build, two stated enemies) — a UI feature the engine
+5. **A "shots to kill" block** once the caller can state a pool size: one division away from what
+   the engine already computes, and the refusal is already the honest gate for it.
+6. **Comparison view for two targets** (same build, two stated enemies) — a UI feature the engine
    already supports by being callable twice.
-6. **Set-bonus generalisation**: Augur/Gladiator/Vigorous-style sets, one pinned row at a time, now
-   that the Umbral pass proved the shape.
-7. **Riven conditions** — the last of the "materially different advanced mechanic" families, and the
+7. **Set-bonus generalisation**: Augur/Gladiator/Vigorous-style sets, one pinned row at a time, now
+   that the Umbral pass proved the shape *and* the roster counting it needs.
+8. **Riven conditions** — the last of the "materially different advanced mechanic" families, and the
    hardest: a Riven's stats are caller-supplied numbers, so the interesting part is refusing to
    invent them while still allowing the stated ones.
 

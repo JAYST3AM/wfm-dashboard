@@ -32,23 +32,27 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | `enemy/removed-vocabulary-named` the health_type / armor_type vocabulary Damage 3.0 removed is refused by name | PASS |
 | `enemy/non-object-target-ignored-named` a target that is not an object is named as ignored, never half-read | PASS |
 | `enemy/conflicting-alias-named` a conflicting second spelling is named, and the canonical field is the one used | PASS |
+| `enemy/target-refusal-keeps-the-build` an unresolved target state withholds the target block, never the Phase 1 numbers | PASS |
 | `enemy/malformed-never-crashes` a malformed target or buff shape is answered with a state, never raised | PASS |
 | `trace/target-stages` the target trace carries every stage from base damage to the mitigation | PASS |
+| `trace/rows-compose` the per-type trace rows multiply to the applied factor (display precision) | PASS |
 | `trace/provenance-on-every-row` the target and corrosive rows carry their wiki source with a revision id | PASS |
+| `set/umbral-counts-distinct-members` duplicates, refused members and unknown members are named, never silently counted | PASS |
+| `refusals/umbral-codes-exercised` the reachable set-bonus codes are exercised, so their registry rows are not dead | PASS |
 | `refusals/phase-4-gate` the Phase 4 refusal-preservation gate still passes | PASS |
 | `refusals/registry-covers-phase-5` every refusal the new paths emit has a registry entry (markers and condition codes) | PASS |
 | `refusals/phase-5-condition-codes-exercised` the Phase 5 condition codes are reachable, so the registry rows above are not dead | PASS |
 | `page/no-enemy-maths` no enemy/buff formula constant appears in the page | PASS |
 | `page/no-mitigation-copy` the page carries no armour/DR computation of its own | PASS |
 
-**33 checks, 0 failed.**
+**37 checks, 0 failed.**
 
 ## Falsification: does the gate catch breakage?
 
 | deliberate break | what it would let through | caught | failed checks |
 | --- | --- | --- | --- |
 | unparseable-armour-becomes-zero | an armour value the model cannot read is read as 0 armour | yes | `enemy/armour-invalid` |
-| missing-armour-becomes-zero | a missing armour value quietly becomes 0 armour | yes | `enemy/armour-required`, `enemy/armour-invalid` |
+| missing-armour-becomes-zero | a missing armour value quietly becomes 0 armour | yes | `enemy/armour-required`, `enemy/armour-invalid`, `enemy/target-refusal-keeps-the-build` |
 | missing-layer-defaults | a missing landing layer is defaulted to health | yes | `enemy/layer-required` |
 | unknown-faction-defaults | an unknown faction is defaulted to grineer | yes | `enemy/faction-invalid` |
 | unknown-becomes-false | an unknown condition is reported as not_satisfied | yes | `enemy/faction-required`, `enemy/layer-required`, `enemy/armour-required`, `enemy/armour-invalid`, `enemy/faction-invalid`, `enemy/corrosive-invalid` |

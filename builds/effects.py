@@ -456,11 +456,26 @@ def collect_mod_effects(mod_slots):
     # Which set members are equipped: the Umbral rule counts set pieces, so the count is a property
     # of the whole slot list, not of one mod.
     set_pieces = {}
+    set_duplicates = {}
     for slot in mod_slots or []:
         flags = ((slot.get('mod') or {}).get('flags') or {})
         sid = flags.get('set_id') if flags.get('set') else None
-        if sid:
-            set_pieces[sid] = set_pieces.get(sid, 0) + 1
+        if not sid:
+            continue
+        mod = slot.get('mod') or {}
+        rank = slot.get('rank')
+        if rank is None:
+            rank = mod.get('max_rank')
+        # A refused member is not equipped: the rank check below emits its own marker, and a mod
+        # the engine cannot apply does not get to grant a set piece.
+        if rank is None or (mod.get('max_rank') is not None and rank > mod['max_rank']):
+            continue
+        seen = set_pieces.setdefault(sid, set())
+        if mod.get('id') in seen:
+            # Two copies of one mod are not two set pieces. The validation refuses duplicates, but
+            # this engine API must not silently double-count them either.
+            set_duplicates[sid] = set_duplicates.get(sid, 0) + 1
+        seen.add(mod.get('id'))
     for slot in mod_slots or []:
         mod = slot.get('mod') or {}
         if not mod:
@@ -555,13 +570,27 @@ def collect_mod_effects(mod_slots):
             if sid == UMBRAL_SET and mod.get('id') in UMBRAL_MULTIPLIERS:
                 # The one pinned set rule (5.6). The scaling pass below applies it; here the mod is
                 # only recorded, and the piece count decides whether there is a bonus to apply.
-                pieces = set_pieces.get(sid, 1)
-                if pieces >= 2:
-                    scaled_mods[mod.get('id')] = (
-                        pieces, UMBRAL_MULTIPLIERS[mod.get('id')].get(pieces, 1.0))
+                pieces = len(set_pieces.get(sid) or ()) or 1
+                if set_duplicates.get(sid):
+                    unsupported.append(unsupported_marker(
+                        'duplicate_set_member',
+                        'the same Umbral mod is equipped more than once, which is not a set roster '
+                        'this engine will count', mod=mod.get('id'), set_id=sid))
+                elif 2 <= pieces <= 3:
+                    scaled_mods[mod.get('id')] = (pieces, UMBRAL_MULTIPLIERS[mod.get('id')][pieces])
+                elif pieces > 3:
+                    unsupported.append(unsupported_marker(
+                        'umbral_set_above_documented_pieces',
+                        'the build states %d Umbral set pieces; the pinned rule covers 2 and 3, so '
+                        'no scaling is applied' % pieces, mod=mod.get('id'), set_id=sid))
                 else:
                     notes.append('%s: the Umbral set bonus applies from the second equipped set '
                                  'piece; one piece is the mod\'s own value (wiki)' % name)
+            elif sid == UMBRAL_SET:
+                unsupported.append(unsupported_marker(
+                    'umbral_member_unknown',
+                    '%s carries the Umbral set flag but this engine has no pinned scaling for it, '
+                    'so its set bonus is not applied' % name, mod=mod.get('id'), set_id=sid))
             else:
                 unsupported.append(unsupported_marker(
                     'set_bonus', '%s is part of the %s set; set bonuses are modelled for the '
@@ -599,9 +628,16 @@ def collect_mod_effects(mod_slots):
             if changed:
                 bucket['value'] = round(sum(float(r['value']) for r in bucket['rows']), 6)
                 touched += 1
-        notes.append('Umbral set: %d pieces equipped; %d stat(s) scaled by the pinned set rule '
-                     '(Vitality/Fiber x1.30 at 2 and x1.80 at 3, Intensify x1.25/x1.75; wiki, '
-                     'retrieved 2026-09-30)' % (pieces, touched))
+        if touched:
+            notes.append('Umbral set: %d pieces equipped; %d stat(s) scaled by the pinned set rule '
+                         '(Vitality/Fiber x1.30 at 2 and x1.80 at 3, Intensify x1.25/x1.75; wiki, '
+                         'retrieved 2026-09-30)' % (pieces, touched))
+        else:
+            # The note above would have claimed a scaling that touched nothing: say what happened.
+            unsupported.append(unsupported_marker(
+                'umbral_set_no_rows',
+                'the Umbral set bonus applies to the set members\' own contributions; none of the '
+                'equipped members contributed a stat this engine models, so nothing was scaled'))
     return totals, unsupported, notes
 
 

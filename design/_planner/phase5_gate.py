@@ -601,6 +601,33 @@ def check_trace_is_the_whole_story(res, db):
               and OLDID_RE.search(notes),
               'per-type stages=%s notes=%s' % (per_stages, notes[:160]))
 
+    # The trace has to answer "why is this number this number" by composition: the per-type rows
+    # are (percent bonuses) x (ratio factors), and their product must be the factor the engine
+    # applied. The architecture review found the corrosive row recording its armour reduction as a
+    # ratio of its own, which broke exactly this.
+    td = result.get('target_damage') or {}
+    bad = []
+    for dtype, modifier in (td.get('modifiers') or {}).items():
+        t = traces.get('target_damage.' + dtype)
+        if t is None:
+            bad.append((dtype, 'no trace'))
+            continue
+        percent = sum(float(m.get('value') or 0) for m in t['modifiers']
+                      if m.get('unit') == 'percent')
+        ratio = 1.0
+        for m in t['modifiers']:
+            if m.get('unit') == 'ratio':
+                ratio *= float(m.get('value') or 1)
+        composed = (1.0 + percent / 100.0) * ratio
+        applied = float(modifier.get('combined') or 1.0)
+        # the rows are trimmed to the engine's display precision, so this compares there - the
+        # defect it exists to catch was off by a factor of two, not by a rounding
+        if abs(composed - applied) > 2e-3:
+            bad.append((dtype, 'composed %.9f vs applied %.9f' % (composed, applied)))
+    res.check('trace/rows-compose',
+              'the per-type trace rows multiply to the applied factor (display precision)',
+              bool(td.get('modifiers')) and not bad, 'bad=%s' % bad[:4])
+
     sources = {}
     for candidate in _rows(out):
         if candidate.get('condition') in ('target_damage', 'corrosive'):
@@ -613,6 +640,72 @@ def check_trace_is_the_whole_story(res, db):
               len(sources) >= 2 and all('wiki.warframe.com' in v and OLDID_RE.search(v)
                                         for v in sources.values()),
               'sources=%s' % {k: v[:60] for k, v in sources.items()})
+
+
+def check_umbral_counts_distinct_legal_members(res, db):
+    """The set piece count is a roster, not a slot count. The architecture review executed the
+    three ways the old count lied: a duplicated member counted twice, a rank-invalid member
+    counted, an unknown member counted - and a count outside the pinned domain scaled by 1.0 while
+    the note claimed a scaling had happened.
+    """
+    frame = None
+    for eid, row in db['equipment'].items():
+        if row.get('kind') == 'warframe':
+            frame = eid
+            break
+    umbral = None
+    for mod_id, row in db['mods'].items():
+        if (row.get('flags') or {}).get('set_id') == effects.UMBRAL_SET:
+            umbral = mod_id
+            break
+    if frame is None or umbral is None:
+        res.check('set/umbral-counts-distinct-members', 'the Umbral count is a roster',
+                  False, 'no warframe or no Umbral mod in this database')
+        return
+    bad = []
+    slot = {'mod': db['mods'][umbral], 'rank': None}
+    # First line of defence: a duplicate build never reaches the set pass through the API.
+    dup = api.compute(_build(frame, [(umbral, None), (umbral, None)]), db)
+    dup_codes = [e.get('code') for e in ((dup.get('validation') or {}).get('errors') or [])]
+    if dup.get('ok') is not False or 'duplicate_mod' not in dup_codes:
+        bad.append(('duplicate validation', dup.get('ok'), dup_codes))
+    # ... and at the engine seam the count still refuses to double-count.
+    totals, markers, notes = effects.collect_mod_effects([slot, slot])
+    codes = [m.get('code') for m in markers]
+    if 'duplicate_set_member' not in codes:
+        bad.append(('duplicate', codes))
+    scaled = [r for bucket in totals.values() if isinstance(bucket, dict)
+              for r in bucket.get('rows') or [] if r.get('set_multiplier') not in (None, 1.0)]
+    if scaled:
+        bad.append(('duplicate scaled anyway', [(r.get('mod'), r.get('set_multiplier'))
+                                                for r in scaled]))
+    # a refused member is not equipped, so it is not a piece: one legal member stays unscaled
+    totals2, markers2, notes2 = effects.collect_mod_effects([slot, {'mod': db['mods'][umbral],
+                                                                    'rank': 99}])
+    codes2 = [m.get('code') for m in markers2]
+    if 'mod_rank_out_of_range' not in codes2:
+        bad.append(('rank-invalid member', codes2))
+    scaled2 = [r for bucket in totals2.values() if isinstance(bucket, dict)
+               for r in bucket.get('rows') or [] if r.get('set_multiplier') not in (None, 1.0)]
+    if scaled2:
+        bad.append(('a refused member granted a piece', [(r.get('mod'), r.get('set_multiplier'))
+                                                         for r in scaled2]))
+    # an unknown Umbral member still counts as a piece (the game counts the roster) but its own
+    # scaling is refused by name
+    odd = {**db['mods'][umbral], 'id': '/Fixture/UnknownUmbral', 'name': 'Umbral Oddity'}
+    _t3, markers3, _n3 = effects.collect_mod_effects([slot, {'mod': odd, 'rank': None}])
+    codes3 = [m.get('code') for m in markers3]
+    if 'umbral_member_unknown' not in codes3:
+        bad.append(('unknown member', codes3))
+    res.check('set/umbral-counts-distinct-members',
+              'duplicates, refused members and unknown members are named, never silently counted',
+              not bad, 'bad=%s' % bad[:4])
+    # the two codes a real build can reach are exercised here; the other two are defensive paths
+    # (they fire for a roster of four or for members that contribute nothing modelled)
+    res.check('refusals/umbral-codes-exercised',
+              'the reachable set-bonus codes are exercised, so their registry rows are not dead',
+              {'duplicate_set_member', 'umbral_member_unknown'} <= set(codes) | set(codes3),
+              'dup=%s odd=%s' % (codes, codes3))
 
 
 def check_phase_4_gate_still_passes(res, db):
@@ -673,6 +766,45 @@ def check_malformed_target_never_crashes(res, db):
                 bad.append((label, 'state=%r' % (row.get('state'),)))
     res.check('enemy/malformed-never-crashes',
               'a malformed target or buff shape is answered with a state, never raised',
+              not bad, 'bad=%s' % bad[:4])
+
+
+def check_a_target_refusal_keeps_the_build(res, db):
+    """A stated target state the engine cannot resolve must not take the computable build with it.
+
+    The architecture review executed the shape a Bane + viral user states - faction + landing +
+    viral stacks, no armour - and found the target path dragged it into a conditional evaluation
+    and, under strict, withheld the Phase 1 and viral numbers. The refusal belongs to the target
+    block alone.
+    """
+    weapon = _weapon_id(db)
+    serration = _rifle_mod(db, 'Serration')
+    mods = [(serration['id'], serration.get('max_rank') or 0)]
+    cases = [
+        ('faction + landing + viral, no armour',
+         {'target_faction': 'grineer', 'target': {'protection': 'health', 'viral_stacks': 6}}),
+        ('corrosive 0 alone ("no procs")', {'target': {'corrosive_stacks': 0}}),
+        ('a landing with no faction', {'target': {'protection': 'health', 'armor': 300}}),
+    ]
+    bad = []
+    for label, ctx in cases:
+        out = api.compute(_build(weapon, mods), db, {'context': ctx})
+        stats = (out.get('result') or {}).get('stats') or {}
+        ev = out.get('evaluation') or {}
+        if abs((stats.get('damage_per_shot') or 0) - 92.75) > 0.005 \
+                or abs((stats.get('burst_dps') or 0) - 995.5132) > 0.01:
+            bad.append((label, 'phase 1 withheld', stats.get('damage_per_shot')))
+        if ev.get('state') == 'refused' and stats.get('damage_per_shot') is None:
+            bad.append((label, 'strict refused the build', ev.get('refused_stats')))
+        strict = api.compute(_build(weapon, mods), db, dict({'context': ctx}, strict=True))
+        s_stats = (strict.get('result') or {}).get('stats') or {}
+        s_ev = strict.get('evaluation') or {}
+        if s_stats.get('damage_per_shot') is None or s_stats.get('burst_dps') is None:
+            bad.append((label, 'strict nulled phase 1', s_ev.get('refused_stats')))
+        if target_ok := ((strict.get('result') or {}).get('target_damage') is not None):
+            bad.append((label, 'the target block answered anyway', target_ok))
+    res.check('enemy/target-refusal-keeps-the-build',
+              'an unresolved target state withholds the target block, never the Phase 1 numbers',
               not bad, 'bad=%s' % bad[:4])
 
 
@@ -756,8 +888,10 @@ CHECKS = (
     check_four_states_everywhere,
     check_booleans_are_booleans,
     check_target_field_handling,
+    check_a_target_refusal_keeps_the_build,
     check_malformed_target_never_crashes,
     check_trace_is_the_whole_story,
+    check_umbral_counts_distinct_legal_members,
     check_phase_4_gate_still_passes,
     check_refusal_registry_covers_new_paths,
 )

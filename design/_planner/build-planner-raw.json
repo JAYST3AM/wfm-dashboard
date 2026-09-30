@@ -1,6 +1,6 @@
 {
- "started": "2026-09-30T08:30:58.452Z",
- "base": "http://127.0.0.1:51608",
+ "started": "2026-09-30T08:43:37.906Z",
+ "base": "http://127.0.0.1:64148",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -2293,7 +2293,7 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-30T08:32:05.752Z",
+ "finished": "2026-09-30T08:44:46.842Z",
  "verdict": {
   "pass": true,
   "checks_total": 118,

@@ -142,6 +142,23 @@ REGISTRY = {
     'companions': {
         'reason': 'Sentinel/Pet mod effects on the player (and vice versa) are not '
                   'modelled', 'phase': 3, 'engine': 'none'},
+    'duplicate_set_member': {
+        'reason': 'the same set mod is equipped more than once: two copies of one mod are not two '
+                  'set pieces, so the set bonus is refused rather than double-counted',
+        'phase': 5, 'engine': 'effects.collect_mod_effects'},
+    'umbral_member_unknown': {
+        'reason': 'a mod carries the Umbral set flag but has no pinned scaling in this engine, so '
+                  'its own set bonus is refused while the counted pieces still count',
+        'phase': 5, 'engine': 'effects.collect_mod_effects'},
+    'umbral_set_above_documented_pieces': {
+        'reason': 'the build states more Umbral set pieces than the pinned rule documents (2 and '
+                  '3), so no scaling is applied instead of defaulting to the mods\' own values',
+        'phase': 5, 'engine': 'effects.collect_mod_effects'},
+    'umbral_set_no_rows': {
+        'reason': 'the Umbral set bonus applies to the members\' own contributions; if none of '
+                  'them contributed a stat this engine models, the refusal says so instead of a '
+                  'note claiming a scaling that touched nothing',
+        'phase': 5, 'engine': 'effects.collect_mod_effects'},
     'corrosive_stack_timeline': {
         'reason': 'corrosive stacks above the 10-proc cap are a timeline (the Emerald Archon '
                   'Shard raises the cap and stacks beyond it replace the oldest), so the armour '

@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-30T08:32:05.752Z · verdict **PASS** · 122 checks, 0 failed*
+*ran 2026-09-30T08:44:46.842Z · verdict **PASS** · 122 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | 40c6ef0  "Phase 5 review fixes: malformed input can no longer raise" |
-| working tree | dirty (12 changed paths) |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_ug2ge_8z |
-| page | http://127.0.0.1:51608/planner.html |
+| commit | 9f26e3c  "Phase 5 review fixes 2: the page's typo data-loss path, and the doc's health_type claim" |
+| working tree | dirty (9 changed paths) |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_a5nxeikc |
+| page | http://127.0.0.1:64148/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |

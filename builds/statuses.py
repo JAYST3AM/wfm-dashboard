@@ -282,13 +282,22 @@ def evaluate_corrosive(ctx):
 
 
 def corrosive_trace_row(armor, effective, row):
-    """One trace-modifier row for an applied corrosive reduction (or None when nothing applied)."""
+    """One trace-modifier row for an applied corrosive reduction (or None when nothing applied).
+
+    It is an INPUT to the mitigation, not a damage factor: the row records what the procs did to
+    the armour value (900 -> 504), and the Armor row that follows carries the ratio the damage is
+    actually multiplied by. Recording the reduction as a ratio of its own made the trace
+    non-composable - the product of its rows no longer matched the applied multiplier (found by the
+    architecture review, which executed the armour-900 + 4-proc case).
+    """
     if not row or row.get('state') != conditions.SATISFIED or not armor:
         return None
     return {'source': 'Corrosive (%d stack%s)' % (row['stacks'], '' if row['stacks'] == 1 else 's'),
-            'category': 'mitigation', 'value': row['armor_multiplier'], 'unit': 'ratio',
-            'condition': CORROSIVE, 'state': row['state'], 'stacks': row['stacks'],
-            'note': '%s: armour %s -> %s' % (row.get('formula'), armor, effective)}
+            'category': 'mitigation_input', 'value': round(float(effective) - float(armor), 6),
+            'unit': 'flat', 'condition': CORROSIVE, 'state': row['state'], 'stacks': row['stacks'],
+            'formula': row.get('formula'),
+            'note': '%s; armour %s -> %s, and the Armor row below applies the DR to that value'
+                    % (row.get('formula'), armor, effective)}
 
 
 
