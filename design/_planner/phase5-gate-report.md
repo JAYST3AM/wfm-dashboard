@@ -29,6 +29,7 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | `validate/boolean-code-registered` the invalid_boolean code is in the validation vocabulary | PASS |
 | `enemy/alias-armour-is-armour` the British spelling of armour is read as the armour it is | PASS |
 | `enemy/unsupported-target-fields-named` a stated target field with no consumer is refused by name, not dropped | PASS |
+| `enemy/removed-vocabulary-named` the health_type / armor_type vocabulary Damage 3.0 removed is refused by name | PASS |
 | `enemy/non-object-target-ignored-named` a target that is not an object is named as ignored, never half-read | PASS |
 | `enemy/conflicting-alias-named` a conflicting second spelling is named, and the canonical field is the one used | PASS |
 | `enemy/malformed-never-crashes` a malformed target or buff shape is answered with a state, never raised | PASS |
@@ -40,7 +41,7 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | `page/no-enemy-maths` no enemy/buff formula constant appears in the page | PASS |
 | `page/no-mitigation-copy` the page carries no armour/DR computation of its own | PASS |
 
-**32 checks, 0 failed.**
+**33 checks, 0 failed.**
 
 ## Falsification: does the gate catch breakage?
 

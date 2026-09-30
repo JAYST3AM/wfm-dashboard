@@ -33,10 +33,10 @@ browser) on the frozen tree; the exact commands are in section 10.
 | Run | Result |
 |---|---|
 | `python -m pytest tests -q` (full suite) | **0 failed** — 2150 passed / 5 skipped when no game window is open, 2148 passed / 3 failed (the whisper window check) while `Warframe.x64` runs; no other test ever failed (see the note under this table) |
-| `pytest tests/test_target_model.py tests/test_buff_state.py tests/test_phase5_refusals.py` | **44 passed** (the new Phase 5 tests) |
+| `pytest tests/test_target_model.py tests/test_buff_state.py tests/test_phase5_refusals.py` | **45 passed** (the new Phase 5 tests) |
 | `python design/_planner/conditions_gate.py --falsify` (Phase 4) | **PASS — 27 checks, 0 failed; 11 of 11 breaks caught** (refusal preservation intact) |
-| `python design/_planner/phase5_gate.py --falsify` (Phase 5) | **PASS — 32 checks, 0 failed; 16 of 16 deliberate breaks caught** |
-| `python design/_planner/build_planner_gate.py` (browser/UI workflow) | **PASS — 121 checks, 0 failed** (includes 6 new Phase 5 target/buff/trace checks) |
+| `python design/_planner/phase5_gate.py --falsify` (Phase 5) | **PASS — 33 checks, 0 failed; 16 of 16 deliberate breaks caught** |
+| `python design/_planner/build_planner_gate.py` (browser/UI workflow) | **PASS — 122 checks, 0 failed** (includes 7 new Phase 5 target/buff/trace/typo checks) |
 | `python design/_stage10/gate.py` (release acceptance, live app) | **GATE PASS — 121 checks, 0 failed, 38 states driven** |
 | `python builds/debug.py selftest` (module selftests) | green (`DEBUG_EXIT=0`) |
 | `python design/_planner/phase5_examples.py` | the worked examples in section 3 |
@@ -209,9 +209,25 @@ residual discrepancy it reports is listed in the delegation message and in secti
 
 **C. Page semantic-authority audit.** No Warframe maths in the page: the target card's inputs are
 collected, validated for shape only, stored and posted; every figure printed comes from the
-`/api/planner/compute` payload. The one note it raised (a decimal-only regex inside the page's own
-storage validator, which the page's number inputs cannot produce but a hand-edited localStorage
-could) is recorded in section 8 as a limitation of the page's storage sanitiser, not of the engine.
+`/api/planner/compute` payload (`renderTargetOut` prints `td.*` and `riders[*].*` verbatim, and the
+one transform in the whole target path - the uptime box's percent → fraction - now lives in a named
+`PAGE_TRANSFORMS` row that the page's own no-math scan pins, so it cannot be joined by a second
+one). The audit also found the phase's one real UX defect, **a high-severity data-loss path**: the
+new boxes stored whatever was typed while the storage loader enforced ranges, so a single
+out-of-range typo (corrosive `12`, on-kill `100`, uptime `150`, armour `-5`) wrote a document the
+loader rejected — and the next load silently replaced the *whole* profile (equipment, every slot,
+all three configs). Fixed by making the editor and the loader read one shared `TARGET_RANGES`
+table: the box refuses what the loader would reject, restores the stored value and says why; the
+armour ceiling moved from an arbitrary `1e6` to `1e9` (the engine accepts far more, so the page is
+no longer stricter than the engine); a stored document that *is* rejected now announces itself
+instead of vanishing quietly; and `numericField` accepts a plain decimal only, so
+`Number("0x10")`-style coercions cannot enter through a hand-edited store. The regression net is in
+the browser gate (`an out-of-range typo is refused at the box and the stored build survives`, which
+types three out-of-range values and reloads) and in the page test's extended quantity vocabulary.
+Two smaller audit findings were also fixed: the target card no longer invents the word "target"
+when the engine sent no faction label, and the no-math scan now watches the Phase 5 vocabulary
+(`uptime|stack|buff|corrosive|viral|multiplier|contribution|rider`) instead of stopping at the
+Phase 1 words.
 
 **D. Architecture review (six design questions).** Verdicts on record: the target state is carried
 by the context with no leak into the weapon engine (SOUND); the target path's trigger rule, the
@@ -230,9 +246,13 @@ boundary, and every boundary they broke is now pinned.
   is general (instant/averaged, any trigger key it knows), but each new rider needs (a) a stat the
   engine already models and (b) a source pin of its own — the architecture review's one accepted
   critique. So a new rider is one wiring entry plus provenance, not free.
-* **The page's storage sanitiser is a shape check, not a type system.** A hand-edited or foreign
-  `localStorage` value that is not a plain decimal string is dropped by the page's own validator
-  (the engine would have refused it precisely); the page's number inputs cannot produce one.
+* **The page's storage sanitiser is a shape check, not a type system.** It now refuses at the box
+  anything the loader would reject (so a typo costs nothing), and accepts a plain decimal only —
+  but a hand-edited store that carries two spellings of the same idea is still the engine's job to
+  refuse, not the page's.
+* **`health_type` / `armor_type` are refused, not modelled.** A caller who states one gets a named
+  `unused` refusal explaining there is no such model any more — the engine does not translate it
+  into a faction-scaled calculation.
 * **The target model has no timeline.** Stack counts are states. Rotations, proc rates, stack
   replacement above a cap, and enemy actions are out of scope by design — which is why several
   mechanics refuse rather than approximate.

@@ -1651,6 +1651,40 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
         /assumption/.test(avgDom) && /65/.test(avgDom),
       'mode averaged, 0.65 uptime carried, the assumption printed next to the contribution',
       JSON.stringify(riderAvg) + ' dom=' + avgDom.slice(0, 220));
+    // A typo in a target box must not cost the user their build: the editor refuses what the v1
+    // loader would reject, so nothing out-of-range is ever stored (the audit found the boxes could
+    // write a document the loader then replaced whole, silently).
+    const typoProbe = await page.evaluate(async () => {
+      const set = (id, v) => { const el = document.getElementById(id); el.value = v;
+        el.dispatchEvent(new Event('change', { bubbles: true })); };
+      const read = (id) => (document.getElementById(id) || {}).value;
+      set('plKillUptime', '150');          // > the 0-100 the loader accepts
+      set('plTargetCorrosive', '12');      // > the 0-10 cap
+      set('plKillStacks', '100');          // > the 0-99 range
+      await new Promise((r) => setTimeout(r, 600));
+      const stored = JSON.parse(window.localStorage.getItem('wfm.planner.v1') || '{}');
+      return { uptimeBox: read('plKillUptime'), corrosiveBox: read('plTargetCorrosive'),
+        stacksBox: read('plKillStacks'),
+        stored: stored.target || null,
+        mods: (window.WFMPlanner.build().slots || []).filter((s) => !!s.mod).length };
+    });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => window.WFMPlanner &&
+      window.WFMPlanner.storage().equipment_id !== '', { timeout: 20000 });
+    const afterTypo = await page.evaluate(() => ({
+      equipment: window.WFMPlanner.storage().equipment_id,
+      target: window.WFMPlanner.storage().target,
+      mods: (window.WFMPlanner.build().slots || []).filter((s) => !!s.mod).length }));
+    say('phase5-typo', { atEdit: typoProbe, afterReload: afterTypo });
+    addCheck('target', 'an out-of-range typo is refused at the box and the stored build survives',
+      typoProbe.uptimeBox !== '150' && typoProbe.corrosiveBox !== '12' &&
+        typoProbe.stacksBox !== '100' &&
+        !!typoProbe.stored && typoProbe.stored.kill_uptime !== 150 &&
+        afterTypo.equipment === TARGET_BUILD && afterTypo.mods === riderLanded &&
+        (afterTypo.target || {}).kill_uptime !== 150,
+      'the boxes go back to the stored values, the document stays readable, and the build reloads',
+      JSON.stringify({ atEdit: typoProbe, afterReload: { equipment: afterTypo.equipment,
+        mods: afterTypo.mods, target: afterTypo.target } }).slice(0, 300));
     await page.evaluate(() => {
       const el = document.getElementById('plTargetArmor');
       el.value = '';

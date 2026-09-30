@@ -544,6 +544,17 @@ def check_target_field_handling(res, db):
               sorted(unused) == ['target.health', 'target.shields'] and markers,
               'unused=%s markers=%s' % (unused, [(m.get('code'), m.get('state')) for m in markers]))
 
+    # the names Damage 3.0 removed are refused by name too (the wiki-provenance audit found the doc
+    # claiming "refused" while the engine only ignored them)
+    out = api.compute(_build(weapon, mods), db,
+                      {'context': {'target': {'health_type': 'ferrite', 'armor_type': 'alloy'}}})
+    unused = (out.get('evaluation') or {}).get('unused') or []
+    markers = [m for m in _markers(out) if m.get('code') == 'context_unused']
+    res.check('enemy/removed-vocabulary-named',
+              'the health_type / armor_type vocabulary Damage 3.0 removed is refused by name',
+              sorted(unused) == ['target.armor_type', 'target.health_type'] and markers,
+              'unused=%s markers=%s' % (unused, [m.get('code') for m in markers]))
+
     out = api.compute(_build(weapon, mods), db, {'context': {'target': 'grineer'}})
     ignored = (out.get('evaluation') or {}).get('context_ignored') or []
     res.check('enemy/non-object-target-ignored-named',

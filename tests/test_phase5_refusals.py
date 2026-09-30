@@ -243,6 +243,18 @@ def test_a_json_document_cannot_make_the_engine_raise(db):
             assert row['state'] in conditions.STATES, (ctx, row)
 
 
+def test_the_removed_health_type_vocabulary_is_refused_by_name(db):
+    """Damage 3.0 removed the per-health-type model, so `health_type`/`armor_type` are not part of
+    the target vocabulary - and a stated value the engine has no model for is refused by name
+    (`evaluation.unused` plus a `context_unused` marker), never dropped as if it were a typo."""
+    out = api.compute(_weapon([('/Fixture/Serration', 10)]), db,
+                      {'context': {'target': {'health_type': 'ferrite', 'armor_type': 'alloy'}}})
+    unused = (out.get('evaluation') or {}).get('unused') or []
+    markers = [m for m in (out.get('unsupported') or []) if m.get('code') == 'context_unused']
+    assert sorted(unused) == ['target.armor_type', 'target.health_type'], unused
+    assert markers, 'the refusal must travel as a marker too'
+
+
 def test_a_conflicting_second_spelling_is_named_not_silently_picked(db):
     out = api.compute(_weapon([('/Fixture/Serration', 10)]), db,
                       {'context': {'target_faction': 'grineer',

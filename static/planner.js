@@ -252,13 +252,24 @@
     'infested_deimos', 'orokin', 'sentient', 'narmer', 'murmur', 'zariman', 'scaldra', 'techrot',
     'anarchs', 'tenno'];
   var TARGET_LANDINGS = ['', 'health', 'armor', 'shields', 'overguard'];
+  // The stored ranges, shared by the loader (cleanTarget) and the editor (targetEdit) so the page
+  // cannot write a document its own loader would reject: an out-of-range entry is refused at the
+  // box, visibly, instead of being stored and re-read as corruption on the next load. The engine's
+  // contract is looser (any finite non-negative number the caller states) - the store keeps a
+  // practical ceiling, and a value above it is refused rather than dropped.
+  var TARGET_RANGES = {viral_stacks: [0, 10], shot: [1, 999], armour: [0, 1000000000],
+    corrosive_stacks: [0, 10], kill_stacks: [0, 99], kill_uptime: [0, 100]};
+  // Number('0x10') is 16 and Number('1e3') is 1000: a stored field is a plain decimal or it is
+  // not a value this page wrote.
+  var DECIMAL = /^-?\d+(?:\.\d+)?$/;
 
   // undefined/null -> null (not stated); a whole number or a numeric string in range -> it; anything
   // else -> false, which the caller turns into "this document is not v1".
   function numericField(value, lo, hi) {
     if (value === undefined || value === null) return null;
+    var text = (typeof value === 'string') ? value.trim() : null;
     var n = (typeof value === 'number') ? value
-      : (typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN);
+      : (text !== null && DECIMAL.test(text) ? Number(text) : NaN);
     // A fractional count is in range but is not a count: it is kept as stated and the engine
     // answers unknown (a refusal, not a rounding). Only shape and range fail the document.
     if (!isFinite(n) || n < lo || n > hi) return false;
@@ -287,25 +298,15 @@
     // A count written as a numeric string ("6") is unambiguous, so it is coerced rather than
     // failing the whole document - losing a planner's build over a quoted digit would be worse
     // than the quote. Anything else is a shape v1 does not define and fails like every other.
-    var stacks = numericField(raw.viral_stacks, 0, 10);
-    if (stacks === false) return null;
-    out.viral_stacks = stacks;
-    var shot = numericField(raw.shot, 1, 999);
-    if (shot === false) return null;
-    out.shot = shot;
-    // Phase 5: the enemy model and the buff state, validated like every other member of v1.
-    var armour = numericField(raw.armour, 0, 1000000);
-    if (armour === false) return null;
-    out.armour = armour;
-    var corrosive = numericField(raw.corrosive_stacks, 0, 10);
-    if (corrosive === false) return null;
-    out.corrosive_stacks = corrosive;
-    var killStacks = numericField(raw.kill_stacks, 0, 99);
-    if (killStacks === false) return null;
-    out.kill_stacks = killStacks;
-    var killUptime = numericField(raw.kill_uptime, 0, 100);
-    if (killUptime === false) return null;
-    out.kill_uptime = killUptime;
+    // Phase 5: the enemy model and the buff state, validated through the same table the editor
+    // refuses against - one contract, two readers.
+    var rangeKeys = Object.keys(TARGET_RANGES);
+    for (var r = 0; r < rangeKeys.length; r++) {
+      var rk = rangeKeys[r];
+      var rv = numericField(raw[rk], TARGET_RANGES[rk][0], TARGET_RANGES[rk][1]);
+      if (rv === false) return null;
+      out[rk] = rv;
+    }
     if (raw.strict !== undefined && raw.strict !== null) {
       if (typeof raw.strict !== 'boolean') return null;
       out.strict = raw.strict;
@@ -515,14 +516,12 @@
     if (corrosive !== null) target.corrosive_stacks = corrosive;
     if (Object.keys(target).length) context.target = target;
     // The stated buff state (Phase 5): instant stacks, or the averaged pair of stacks + uptime %.
-    // The uptime is a percent in the box and a fraction in the request - a unit conversion of the
-    // user's own input, the one number this page transforms.
     var ks = statedNumber(t.kill_stacks);
     var up = statedNumber(t.kill_uptime);
     if (ks !== null || up !== null) {
       var onKill = {};
       if (ks !== null) onKill.stacks = ks;
-      if (up !== null) onKill.uptime = up / 100;
+      if (up !== null) onKill.uptime = PAGE_TRANSFORMS['uptime-percent'](up);
       context.buffs = { on_kill: onKill };
     }
     var shot = statedNumber(t.shot);
@@ -532,6 +531,12 @@
     if (t.strict) options.strict = true;
     return Object.keys(options).length ? options : null;
   }
+
+  // The one page-side transform in the whole target path: the uptime box is a percent and the
+  // request wants a fraction, so the user's own number is rescaled once, here. It lives in a named
+  // table (not an inline division) so the page's own no-math scan can see and pin it: a second
+  // transform needs its own table row and the same review.
+  var PAGE_TRANSFORMS = {'uptime-percent': function (percent) { return percent / 100; }};
 
   // A stated number or nothing: '' / null / NaN is not a value, so it is not sent.
   function statedNumber(v) {
@@ -1409,7 +1414,9 @@
         }
       }
     } else {
-      var head = ['vs ' + (td.faction_label || td.faction || 'target')];
+      var head = [];
+      // The engine's own label, or no clause at all: 'vs target' is a word the engine never sent.
+      if (td.faction_label) head.push('vs ' + td.faction_label);
       if (td.protection) head.push('lands on ' + td.protection);
       if (td.armor) {
         head.push('armour ' + fmt.num(td.armor.stated) +
@@ -1488,6 +1495,9 @@
   function renderStatus() {
     var meta = state.meta;
     if (!meta) return;
+    // An unreadable stored build is replaced at boot; say so once, because a silent replacement
+    // reads exactly like a save that vanished.
+    if (state.rescued) { state.rescued = false; flashHint('stored build unreadable; replaced'); }
     var bits = [];
     if (meta.content_hash) bits.push(meta.content_hash.slice(0, 8));
     if (meta.mods_total) bits.push(meta.mods_total + ' mods');
@@ -1821,11 +1831,31 @@
     // refuses a string where it wants a count, and it is right to: "6" is not 6.
     var NUMERIC_TARGETS = { viral_stacks: 1, shot: 1, armour: 1, corrosive_stacks: 1,
       kill_stacks: 1, kill_uptime: 1 };
+    var TARGET_BOXES = { viral_stacks: 'plTargetStacks', shot: 'plTargetShot',
+      armour: 'plTargetArmor', corrosive_stacks: 'plTargetCorrosive',
+      kill_stacks: 'plKillStacks', kill_uptime: 'plKillUptime' };
+    // A numeric box is stored through the loader's own ranges. An out-of-range entry is refused
+    // here - the box goes back to the stored value and says why - because the alternative is a
+    // document this page cannot read back (which would replace the whole build on the next load).
     function targetEdit(patch) {
       var t = targetState();
+      var rejected = null;
       Object.keys(patch).forEach(function (k) {
-        t[k] = NUMERIC_TARGETS[k] ? statedNumber(patch[k]) : patch[k];
+        if (!NUMERIC_TARGETS[k]) { t[k] = patch[k]; return; }
+        var bounds = TARGET_RANGES[k];
+        var raw = patch[k];
+        var stored = (raw === '' || raw === null || raw === undefined) ? null
+          : numericField(raw, bounds[0], bounds[1]);
+        if (stored === false) { rejected = k; return; }
+        t[k] = stored;
       });
+      if (rejected) {
+        var box = $(TARGET_BOXES[rejected]);
+        var keep = t[rejected];
+        if (box) box.value = (keep === null || keep === undefined) ? '' : String(keep);
+        flashHint('out of range (' + TARGET_RANGES[rejected][0] + '-' +
+          TARGET_RANGES[rejected][1] + ')');
+      }
       saveStorage();
       recompute();
     }

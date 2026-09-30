@@ -224,11 +224,12 @@
             <option value="overguard">overguard</option>
           </select>
           <label class="pl-lbl" for="plTargetShot">Shot</label>
-          <input id="plTargetShot" class="pl-num pl-num-sm" type="number" min="1" step="1"
+          <input id="plTargetShot" class="pl-num pl-num-sm" type="number" min="1" max="999" step="1"
                  placeholder="&#8212;" aria-label="Shot number in the magazine"
                  title="shot number in the magazine">
           <label class="pl-lbl" for="plTargetArmor">Armour</label>
-          <input id="plTargetArmor" class="pl-num pl-num-sm" type="number" min="0" step="1"
+          <input id="plTargetArmor" class="pl-num pl-num-sm" type="number" min="0" max="1000000000"
+                 step="1"
                  placeholder="&#8212;" aria-label="Target armour value"
                  title="net armour before modelled reductions">
           <label class="pl-lbl" for="plTargetCorrosive">Corrosive</label>
@@ -236,7 +237,7 @@
                  placeholder="&#8212;" aria-label="Corrosive procs on the target"
                  title="corrosive procs on the target, 0-10">
           <label class="pl-lbl" for="plKillStacks">On-kill</label>
-          <input id="plKillStacks" class="pl-num pl-num-sm" type="number" min="0" step="1"
+          <input id="plKillStacks" class="pl-num pl-num-sm" type="number" min="0" max="99" step="1"
                  placeholder="&#8212;" aria-label="On kill buff stacks"
                  title="active On Kill stacks, as stated; never guessed">
           <label class="pl-lbl" for="plKillUptime">Uptime %</label>

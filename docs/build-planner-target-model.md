@@ -47,8 +47,11 @@ constants recorded here, and `design/_planner/phase5_gate.py` fails if a row los
 | Umbral set (the generalisation proof) | Vitality/Fiber scale their own value ×1.30 with 2 pieces and ×1.80 with 3; Intensify ×1.25 / ×1.75; one piece is a stated no-bonus | `Umbral_Vitality` (2792490), `Umbral_Intensify` (2792489), `Umbral_Fiber` (2792488) | All other sets refuse by name |
 
 Retrieval date for every row above: **2026-09-30**. The faction table's per-page citations are in
-`builds/factions.py:FACTION_SOURCE`; the formula citations are the module-level `SOURCE_*`
-constants in `builds/enemies.py`, `builds/statuses.py`, `builds/factions.py`, `builds/effects.py`.
+`builds/factions.py:FACTION_SOURCE`, each with its own revision id (`FACTION_REVISIONS`); the
+formula citations are the module-level `SOURCE_*` constants in `builds/enemies.py`,
+`builds/statuses.py`, `builds/factions.py`, `builds/effects.py`. The one sentence not carried as a
+constant - "damage type modifiers are independent of sources of Damage Reduction", quoted in
+`builds/enemies.py` - comes from `Damage_Type_Modifier` (oldid 2749666).
 
 ## 3. The pinned numbers (what the gate holds the engine to)
 
@@ -89,7 +92,9 @@ rather than an overflow inside the arithmetic.
   faction, never picks a landing layer, never assumes an armour value, never assumes stacks or
   uptime, and never infers a target state from anything else in the build.
 * **No `health_type` / `armor_type`.** With one health type and one armour class, an input like
-  `health_type: "ferrite"` would describe a game state that no longer exists. It is refused.
+  `health_type: "ferrite"` would describe a game state that no longer exists: the engine refuses it
+  by name (`evaluation.unused` plus a `context_unused` marker), the same way it refuses `health`
+  and `shields`.
 * **No timeline.** Corrosive stacks, viral stacks and On-Kill stacks are *states*, not events. The
   engine does not model proc rates, kill rates, stack replacement above a mod's own cap, or an
   Emerald Archon Shard raising the corrosive cap — each of those is a named `unsupported`.

@@ -255,7 +255,14 @@ def test_planner_storage_is_one_key_at_the_servers_version(server):
 # figures), and the library popup's pixel positioning. The toolbar's capacity floor is no longer
 # on this list: the page reads capacity.minimum_from_mastery off the compute answer, and
 # `mastery` is now one of the watched quantities, so a local floor formula would trip the scan.
-QUANTITY = r'(?:drain|damage|health|armou?r|shield|multishot|crit|status|capacity|mastery)'
+QUANTITY = (r'(?:drain|damage|health|armou?r|shield|multishot|crit|status|capacity|mastery'
+            r'|uptime|stack|buff|corrosive|viral|multiplier|contribution|rider)')
+# The one sanctioned page-side transform in the target path: the uptime box is a percent and the
+# request wants a fraction. It is declared in the page's own PAGE_TRANSFORMS table, and this test
+# requires exactly one row in it. Every other multiplication or division of a Phase 5 quantity is
+# still a failure - a second transform needs its own named row and the same review.
+SANCTIONED = 'uptime-percent'            # the table row's key, carried by its call sites
+SANCTIONED_BODY = 'return percent / 100;'  # the transform itself: exactly one in the page
 COMPUTE = re.compile(r'\b\w*%s\w*\s*[*/]\s*[\w(]|[)\w]\s*[*/]\s*\w*%s\w*' % (QUANTITY, QUANTITY),
                      re.I)
 ARITH = re.compile(r'Math\.(?:round|floor|ceil)\(|[A-Za-z0-9_)\]]\s*\*\s*[\w(]')
@@ -265,15 +272,23 @@ QUANTITY_WORD = re.compile(r'\b%s\b' % QUANTITY, re.I)
 def test_the_page_formats_engine_numbers_and_computes_none_of_its_own():
     computed, mixed = [], []
     arith_seen = qty_seen = 0
+    sanctioned = 0
     for name, text in scripts():
         code = scrubbed(text)
         arith_seen += bool(ARITH.search(code))
         qty_seen += bool(QUANTITY_WORD.search(code))
-        for no, line in enumerate(code.splitlines(), 1):
+        sanctioned += code.count(SANCTIONED_BODY)
+        lines = code.splitlines()
+        for no, line in enumerate(lines, 1):
+            if SANCTIONED in line:
+                continue
             if COMPUTE.search(line):
                 computed.append('%s:%d %s' % (name, no, line.strip()))
             elif ARITH.search(line) and QUANTITY_WORD.search(line):
                 mixed.append('%s:%d %s' % (name, no, line.strip()))
+    assert sanctioned == 1, ('exactly one sanctioned page-side transform may exist (found %d) - '
+                             'a second one needs its own named row and the same review the uptime '
+                             'percent got' % sanctioned)
     # the scan is only a contract while both halves still match the real files, and while the
     # computation pattern still recognises a computation
     assert arith_seen and qty_seen, ('the no-math scan lost its teeth (arith=%d quantity=%d) - '

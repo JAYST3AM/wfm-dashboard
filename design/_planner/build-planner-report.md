@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-30T08:14:53.628Z · verdict **PASS** · 121 checks, 0 failed*
+*ran 2026-09-30T08:32:05.752Z · verdict **PASS** · 122 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | 40a8435  "Phase 5: a stated target model, and one condition actually applied" |
-| working tree | dirty (7 changed paths) |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_c5f9leyc |
-| page | http://127.0.0.1:54752/planner.html |
+| commit | 40c6ef0  "Phase 5 review fixes: malformed input can no longer raise" |
+| working tree | dirty (12 changed paths) |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_ug2ge_8z |
+| page | http://127.0.0.1:51608/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |
@@ -87,7 +87,7 @@
 | ✅ | engine-math | the toolbar capacity floor is the engine's own number | hint names the engine floor 0 and its binding state | capacity floor 0 |
 | ✅ | legality | the Exilus switch decides: locked, the slot stays empty; unlocked and focused, the mod lands there | locked: Exilus slot empty; unlocked + focused: the mod is in the Exilus slot | {"locked":null,"unlocked":"/Lotus/Upgrades/Mods/Rifle/Event/Arbitration/JumpRefreshOnKillRifleMod","locked_mod":"Adhesive Blast","unlocked_mod":"Aeria… |
 | ✅ | answer-contract | a real answer hides the error banner and says so | banner hidden, data-planswer=yes, a capacity figure | {"hidden":true,"answer":"yes","capUsed":"23","ok":true,"has_result":true,"error":null,"val_errors":[],"banner":""} |
-| ✅ | answer-contract | an impossible build shows the engine's own reason, not a dead engine | the refusal code the engine sent appears in #plValidity | {"codes":["duplicate_mod"],"shown":"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhes","banner":""} |
+| ✅ | answer-contract | an impossible build shows the engine's own reason, not a dead engine | the refusal code the engine sent appears in #plValidity | {"codes":["duplicate_mod"],"shown":"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod","banner":""} |
 | ✅ | answer-contract | a refusal is not reported as a failure to answer | the refusal reached the page and the error banner stayed hidden | banner hidden: true, codes: duplicate_mod, banner: "" |
 | ✅ | storage | a malformed v1 payload is replaced in full, not merged | the stored key is rewritten to a clean v1 document | {"version":1,"equipment_id":"/Lotus/Weapons/Tenno/Rifle/BratonPrime","equipment_rank":null,"orokin":false,"exilus_unlocked":false,"mastery_rank":28,"a… |
 | ✅ | head-card | at 1920x1080 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
@@ -118,6 +118,7 @@
 | ✅ | target | the why button opens the engine's own target trace | the trace panel shows the engine target trace (its label, its source line, its final figur… | {"clicked":true,"text":"Damage vs the stated target (per projectile)Base35impact-0.146puncture-4.763slash-8.166Final21.925source: https://wiki.warfram… |
 | ✅ | target | the on-kill rider applies the stated stacks and prints its own contribution | satisfied from 3 stated stacks, contribution printed as the payload states it | installed=1 rider=/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod {"mod":"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod","mod_name":"Galva… |
 | ✅ | target | an averaged on-kill state says so, on the stated stacks only | mode averaged, 0.65 uptime carried, the assumption printed next to the contribution | {"mod":"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod","mod_name":"Galvanized Chamber","rank":10,"trigger":"on_kill","stat":"multishot","cap":5… |
+| ✅ | target | an out-of-range typo is refused at the box and the stored build survives | the boxes go back to the stored values, the document stays readable, and the build reloads | {"atEdit":{"uptimeBox":"65","corrosiveBox":"4","stacksBox":"3","stored":{"faction":"grineer","viral_stacks":null,"protection":"health","shot":null,"st… |
 | ✅ | target | clearing the armour withholds the number and prints the engine's own refusal | no target_damage, and the card prints the engine's unknown verdict naming the armour | td=null out=target damage: unknown - the damage lands on health, so the armour value is needed to compute the mitigation, and no armour was statedOn K… |
 | ✅ | hygiene | no duplicate id after the whole drive | 0 duplicates | [] |
 | ✅ | hygiene | no console error over the whole drive | 0 console errors | 0:  |

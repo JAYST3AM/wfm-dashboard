@@ -49,6 +49,8 @@ Sources (retrieved 2026-09-30):
     https://wiki.warframe.com/w/Armor                      oldid 2814011
     https://wiki.warframe.com/w/Overguard                  oldid 2808615
     https://wiki.warframe.com/w/Damage/Overview_Table      oldid 2792179
+    https://wiki.warframe.com/w/Damage_Type_Modifier       oldid 2749666  (the independence
+                                                           sentence quoted above)
 """
 import math
 

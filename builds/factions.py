@@ -21,7 +21,7 @@ and shield types to **one type each** and moved vulnerabilities and resistances 
         Source: https://wiki.warframe.com/w/Damage/Overview_Table (oldid 2792179, retrieved 2026-09-30)
 
 Each faction's entry below is the sentence from that faction's own page (retrieved 2026-09-30);
-the page citations live in `FACTION_SOURCES`. There is deliberately **no** `health_type` or
+the page citations live in `FACTION_SOURCE` (per-page revision ids in `FACTION_REVISIONS`). There is deliberately **no** `health_type` or
 `armor_type` table here: with one health type and one armour class, such an input would be a
 fiction - the faction is the health type now.
 
@@ -93,9 +93,15 @@ SOURCE_RULE = ('https://wiki.warframe.com/w/Damage (oldid 2812034, retrieved %s)
 SOURCE_FACTION_DAMAGE_MODS = ('https://wiki.warframe.com/w/Faction_Damage_Bonus '
                               '(oldid 2804854, retrieved %s)' % RETRIEVED)
 # One row per faction page, so every vulnerability/resistance above has a citation.
-FACTION_SOURCE = {name: ('https://wiki.warframe.com/w/Damage/%s (retrieved %s)'
+FACTION_REVISIONS = {
+    'grineer': 2722033, 'kuva_grineer': 2722027, 'corpus': 2722034, 'corpus_amalgam': 2722025,
+    'infested': 2722036, 'infested_deimos': 2722035, 'orokin': 2722023, 'sentient': 2722024,
+    'narmer': 2722028, 'murmur': 2722029, 'zariman': 2722030, 'scaldra': 2722020,
+    'techrot': 2722022, 'anarchs': 2722026, 'tenno': 2722021,
+}
+FACTION_SOURCE = {name: ('https://wiki.warframe.com/w/Damage/%s (oldid %s, retrieved %s)'
                          % (FACTION_LABEL[name].replace(' (Corrupted)', '').replace(' ', '_'),
-                            RETRIEVED))
+                            FACTION_REVISIONS.get(name, 'unpinned'), RETRIEVED))
                   for name in FACTIONS}
 FACTION_SOURCE['orokin'] = ('https://wiki.warframe.com/w/Damage/Orokin '
                             '(oldid 2722023, retrieved %s)' % RETRIEVED)

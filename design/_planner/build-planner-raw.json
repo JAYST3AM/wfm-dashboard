@@ -1,6 +1,6 @@
 {
- "started": "2026-09-30T08:13:48.469Z",
- "base": "http://127.0.0.1:54752",
+ "started": "2026-09-30T08:30:58.452Z",
+ "base": "http://127.0.0.1:51608",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -630,7 +630,7 @@
    "title": "an impossible build shows the engine's own reason, not a dead engine",
    "ok": true,
    "expected": "the refusal code the engine sent appears in #plValidity",
-   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhes\",\"banner\":\"\"}",
+   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod\",\"banner\":\"\"}",
    "note": "",
    "diagnostic": false
   },
@@ -901,6 +901,15 @@
    "ok": true,
    "expected": "mode averaged, 0.65 uptime carried, the assumption printed next to the contribution",
    "observed": "{\"mod\":\"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod\",\"mod_name\":\"Galvanized Chamber\",\"rank\":10,\"trigger\":\"on_kill\",\"stat\":\"multishot\",\"cap\":5,\"duration_s\":20,\"per_stack\":30,\"state\":\"satisfied\",\"reason_code\":null,\"reason\":\"3 stacks averaged over 65.0% uptime\",\"mode\":\"averaged\",\"assumption\":\"averaged: 3 stacks at 65.0% uptime (stated by the caller)\",\"stacks\":3,\"uptime\":0.65,\"applied\":true,\"contribution\":58.50000000000001} dom=vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · per shot 52.292 · crit-expected 58.567burst 561.261 DPS · sustained 440.301 DPSwhyOn Kill · Galvanized C",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "an out-of-range typo is refused at the box and the stored build survives",
+   "ok": true,
+   "expected": "the boxes go back to the stored values, the document stays readable, and the build reloads",
+   "observed": "{\"atEdit\":{\"uptimeBox\":\"65\",\"corrosiveBox\":\"4\",\"stacksBox\":\"3\",\"stored\":{\"faction\":\"grineer\",\"viral_stacks\":null,\"protection\":\"health\",\"shot\":null,\"strict\":false,\"armour\":900,\"corrosive_stacks\":4,\"kill_stacks\":3,\"kill_uptime\":65},\"mods\":1},\"afterReload\":{\"equipment\":\"/Lotus/Weapons/Tenno/Rifle/Brato",
    "note": "",
    "diagnostic": false
   },
@@ -1756,7 +1765,7 @@
    "engine_codes": [
     "duplicate_mod"
    ],
-   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhesive Blast carries stats the engine does not model: grenades have #% chance to stick to surfaces.code · unmodel",
+   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mods/Rifle/WeaponGrenadeStickyModAdhesive Blast carries stats the engine does not model: grenades have #% chance ",
    "banner_hidden": true,
    "banner_text": ""
   },
@@ -2149,6 +2158,40 @@
    ],
    "dom": "vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · per shot 52.292 · crit-expected 58.567burst 561.261 DPS · sustained 440.301 DPSwhyOn Kill · Galvanized Chamber: satisfied · 3 stacks · +58.5% multishot · averaged: 3 stacks at 65.0% up"
   },
+  "phase5-typo": {
+   "atEdit": {
+    "uptimeBox": "65",
+    "corrosiveBox": "4",
+    "stacksBox": "3",
+    "stored": {
+     "faction": "grineer",
+     "viral_stacks": null,
+     "protection": "health",
+     "shot": null,
+     "strict": false,
+     "armour": 900,
+     "corrosive_stacks": 4,
+     "kill_stacks": 3,
+     "kill_uptime": 65
+    },
+    "mods": 1
+   },
+   "afterReload": {
+    "equipment": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "target": {
+     "faction": "grineer",
+     "viral_stacks": null,
+     "protection": "health",
+     "shot": null,
+     "strict": false,
+     "armour": 900,
+     "corrosive_stacks": 4,
+     "kill_stacks": 3,
+     "kill_uptime": 65
+    },
+    "mods": 1
+   }
+  },
   "phase5-cleared-armour": {
    "td": null,
    "conditions": [
@@ -2250,10 +2293,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-30T08:14:53.628Z",
+ "finished": "2026-09-30T08:32:05.752Z",
  "verdict": {
   "pass": true,
-  "checks_total": 117,
+  "checks_total": 118,
   "checks_failed": 0,
   "failed": []
  }

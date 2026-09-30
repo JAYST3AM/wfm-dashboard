@@ -152,7 +152,12 @@ CONTEXT_FIELDS = ('target_faction', 'target', 'attack', 'name', 'buffs')
 # consumes). Pool sizes (`health`, `shields`) are carried so their refusal can be precise - they
 # are read, found to have no consumer, and named: "an unused field would look supported".
 TARGET_FIELDS = ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
-                 'health', 'shields')
+                 'health', 'shields',
+                 # Phase 5: fields whose *names* describe a damage-type model Damage 3.0 removed.
+                 # They live here so their refusal is a named `unused` (a stated value with no
+                 # consumer) rather than a typo-shaped silence - the honest answer to
+                 # `health_type: "ferrite"` is "this engine does not model that", not "ignored".
+                 'health_type', 'armor_type')
 # Spellings a caller may use for the canonical field ids (the wiki is American: armor).
 TARGET_ALIASES = {'armour': 'armor'}
 ATTACK_FIELDS = ('shot_index',)
@@ -321,7 +326,7 @@ def stated_fields(ctx):
     if ctx.get('target_faction'):
         out.append('target_faction')
     for key in ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
-                'health', 'shields'):
+                'health', 'shields', 'health_type', 'armor_type'):
         if has(ctx, 'target', key):
             out.append('target.' + key)
     if has(ctx, 'attack', 'shot_index'):

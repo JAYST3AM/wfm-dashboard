@@ -1,7 +1,7 @@
 {
  "meta": {
-  "started": "2026-09-30T08:15:00.945Z",
-  "finished": "2026-09-30T08:18:06.490Z",
+  "started": "2026-09-30T08:32:12.852Z",
+  "finished": "2026-09-30T08:35:17.284Z",
   "base": "http://127.0.0.1:8787",
   "repo": "F:/VSC Projects/wfm-dashboard",
   "node": "v26.7.0",
@@ -1550,10 +1550,10 @@
    "state": "trade/orders",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 119,
+   "scanned": 116,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1565,10 +1565,10 @@
    "state": "trade/orders",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 119,
+   "scanned": 116,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1580,10 +1580,10 @@
    "state": "trade/orders",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 119,
+   "scanned": 116,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1595,10 +1595,10 @@
    "state": "trade/orders",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 119,
+   "scanned": 116,
    "low": 0,
    "lowSample": [],
-   "literalCount": 173,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -15630,7 +15630,7 @@
    "title": "Orders shows its status chips and either a book or an honest reason",
    "ok": true,
    "expected": "chips >= 3, rows or a reason",
-   "rendered": "4 chips, 9 rows, 12 ladder rows, item \"· Primed Continuity\"",
+   "rendered": "4 chips, 7 rows, 12 ladder rows, item \"· Primed Continuity\"",
    "note": ""
   },
   {
@@ -16323,10 +16323,10 @@
   }
  ],
  "orders": {
-  "rows": 9,
+  "rows": 7,
   "ladder": 12,
   "chips": 4,
-  "meta": "· 1210 sell · 103 buy · 0s ago · ingame+online · 9 of 80 shown",
+  "meta": "· 1208 sell · 103 buy · 0s ago · ingame+online · 7 of 80 shown",
   "item": "· Primed Continuity",
   "err": ""
  },
@@ -16387,7 +16387,7 @@
    "heldChildren": 15,
    "heldHeadish": 0,
    "chips": "MR 22 Trades 21/day left Priced 803/876",
-   "foot": "WFM Trader · updated 18:15 · 471 events",
+   "foot": "WFM Trader · updated 18:32 · 471 events",
    "notLive": [
     "Not live#dim small explain"
    ]
