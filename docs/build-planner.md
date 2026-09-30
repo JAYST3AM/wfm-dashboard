@@ -299,7 +299,9 @@ reason and target phase for each. Highlights:
 On the current database (777 equipment rows, 1809 mods) 1014 mods carry at least one stat
 the engine does not model and 426 carry conditional effects — those are *named* refusals that
 travel with the build, not silent zeroes (`python builds/ingest.py` prints both counts, and
-`data/build_data.json`'s `content_hash` identifies the exact snapshot).
+`data/build_data.json`'s `content_hash` identifies the exact snapshot). The two buckets overlap: 415
+mods are in both (a conditional line that also fails to parse is counted in each), so 1025 mods carry
+something the engine refuses — 599 unmodelled only, 11 conditional only.
 
 ## Data sources
 

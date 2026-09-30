@@ -164,7 +164,9 @@ Both are fixed (`validation.as_build`, `validation.as_int` with `invalid_mastery
 
 ```
 python builds/ingest.py
-  1809 mods (1014 carry stats we do not model, 426 carry conditional effects)
+  1809 mods (1014 carry stats we do not model, 426 carry conditional effects; the buckets overlap -
+  415 mods are in both, because a conditional line that also fails to parse is counted in each, so
+  1025 mods carry something the engine refuses: 599 only unmodelled, 11 only conditional)
   content hash fd1b15dd2e06bfee7587618a26e326fcd6fd536ea42ad8b56762e0fa8f41f7a7
 
 python design/_planner/conditions_gate.py --falsify
