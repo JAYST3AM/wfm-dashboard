@@ -340,3 +340,13 @@ reviewed). Its own crash-hunting found three malformed shapes the first corpus m
 unhashable equipment and mod keys, and a mod rank of `10**1000` — all three now refused with a
 validation error instead of reaching `int()` or the capacity arithmetic, and all three are in the
 gate's corpus.
+
+### One flaky browser check, understood
+
+While the revision was being edited, the Trader/planner browser gate failed once on
+`current / cloning does not modify what the source said` and passed on both full runs before and
+after it. The cause is the read cache behind `/api/planner/current`: a cached snapshot carries a
+recomputed `freshness` stamp, and the run in question compared a snapshot written by the
+mid-revision code against one read from that cache. The check already deletes `freshness` and now
+prints which key moved when it disagrees, so a red there names its own cause instead of just saying
+CHANGED. Nothing in the shipped revision needed changing for it.
