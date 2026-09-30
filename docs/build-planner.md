@@ -267,6 +267,65 @@ python -m pytest tests/test_condition_states.py tests/test_conditional_damage.py
 Phase 4's own report — what changed, what it cost, what is deferred — is
 `design/build-planner/phase4-report.md`.
 
+## Phase 5: a stated target, and one condition actually applied
+
+Phase 4 could say *"this condition exists and here is why I cannot apply it"*. Phase 5 moves the
+first half of that sentence: given an **explicitly stated** enemy and buff state, the engine applies
+a useful subset of conditional effects against a real target model — and refuses precisely
+everywhere else. It is still not a combat simulator, and it still never guesses a combat state.
+
+**The enemy model (5.1–5.2)**
+
+* `context.target_faction` + `context.target` (`protection`, `armor`, `corrosive_stacks`,
+  `viral_stacks`) — stated, never derived. Missing inputs are `unknown` **with the input named**;
+  junk values (`"300"`, `true`, `-5`) are `unknown` too, and never read as `0` armour or as "no
+  armour".
+* A damage path against that target, per damage type per projectile:
+  `clamp_min1( damage × (1 + faction_vulnerability) × armour_multiplier(net armour) )`, with the
+  faction table, the armour rule and the corrosive reduction all source-pinned (see
+  [build-planner-target-model.md](build-planner-target-model.md)).
+* A full trace: `result.traces['target_damage']` plus `target_damage.<type>` carry base damage →
+  build modifiers → conditional modifiers → target modifiers → mitigation → final, each row with
+  its wiki source. The page prints them and computes nothing.
+* No target context → **no target block at all**, and every Phase 1 number is unchanged (pinned by
+  the gate).
+
+**The first condition that is actually applied (5.3–5.4)**
+
+* The **On-Kill stack rider on multishot** (Galvanized Chamber/Diffusion/Hell):
+  `context.buffs = {"on_kill": {"stacks": 3}}` applies `3 × 30%` multishot, with a condition row,
+  a provenance row on the stat's trace, and the contribution visible in the per-shot and DPS
+  figures. No state → `unknown` and the base number stands; `{"stacks": 0}` → a reported zero.
+* The **averaged** form is separate and explicit: `{"stacks": 5, "uptime": 0.65}` means exactly
+  "five stacks, 65% of the time", and the answer says so (`mode: averaged`, an `assumption` string
+  on the rider, the trace note and `result.assumptions`). An uptime without a stack count is
+  `unknown` — the engine does not invent the stacks to average.
+* Contradictions and junk refuse by name: `active: false` with stacks, stacks above the mod's own
+  cap (`unsupported` — stack replacement is a timeline), unknown fields in the state object.
+
+**The second target interaction, and the generalisation proof (5.5–5.6)**
+
+* **Corrosive** changes the *target's armour value*, which the mitigation stage consumes — a
+  different architecture from viral's damage multiplier: 26% at the first proc, +6% per stack, 80%
+  at ten; every state reachable, per the current wiki page.
+* The **Umbral set bonus** tests generalisation with a condition intrinsic to the build rather than
+  the target: Vitality/Fiber ×1.30 with two pieces and ×1.80 with three, Intensify ×1.25 / ×1.75.
+  It needed no special-case plumbing — a data-driven scaling pass over the contributions the
+  collection stage already gathers. Every other set still refuses by name.
+
+**Validation strictness**: `orokin`, `exilus_unlocked` and `slots[].unlocked` are typed booleans —
+`"yes"` is a structured `invalid_boolean` error, never `True` (the Phase 4 leftover this phase
+closed), and the same rule now covers every new target/buff field.
+
+```bash
+python design/_planner/phase5_gate.py --falsify    # the target model, and the proof it bites
+python -m pytest tests/test_target_model.py tests/test_buff_state.py \
+                 tests/test_phase5_refusals.py -q
+```
+
+Phase 5's report — what it applies, what it still refuses, and the honest limitations — is
+`design/build-planner/phase5-report.md`.
+
 ## The database is reproducible
 
 `python builds/ingest.py` writes one file, and running it again over unchanged sources
@@ -281,27 +340,33 @@ means a real change in the data — a new mod, a moved number — not a new cloc
 `python builds/debug.py unsupported` prints the current list; the registry carries a
 reason and target phase for each. Highlights:
 
-* **Conditional effects** — Galvanized stacks, "On Kill"/"On Hit" riders, buff timers. A
-  Galvanized mod's *unconditional* value is applied; the rider is refused by name, and since
-  Phase 4 that refusal carries the clause it recognised, its four-state condition state and
-  its reason code. The two conditions the engine *can* resolve (`target_faction`,
-  `first_shot`) and the one status mechanic it implements (`viral`) are resolved from the
+* **Conditional effects** — the on-kill riders the engine can apply (multishot riders) apply from
+  a *stated* buff state; every other conditional line (weak-point/aiming riders, per-status
+  scaling, timers, set/Riven/Incarnon mechanics) is refused by name, and since Phase 4 that
+  refusal carries the clause it recognised, its four-state condition state and its reason code.
+  The conditions the engine *can* resolve (`target_faction`, `first_shot`, `on_kill` with a stated
+  state) and the status mechanics it implements (`viral`, `corrosive`) are resolved from the
   evaluation context instead of being assumed.
-* **Set bonuses** (Umbral/Augur/…), **Rivens**, **Incarnon evolutions**, **arcanes**.
+* **Set bonuses** (Augur/…), **Rivens**, **Incarnon evolutions**, **arcanes** — the single
+  exception is the Umbral set (Vitality/Fiber/Intensify), whose pinned scaling is applied.
 * **Status effects themselves** — Heat ticks, Slash bleeds, proc weighting, and every status
-  other than the single viral amplification Phase 4 implements.
+  other than the viral amplification and the corrosive armour reduction the engine implements.
 * **Melee** — combo counter, heavy attacks, stance multipliers, Condition Overload.
-* **Enemies** — armour, damage-type modifiers against health/shields/armour, armour strip.
+* **Enemies** — armour and damage-type modifiers are now modelled *for a stated target*
+  (faction table, armour DR, the corrosive reduction); what stays refused is any target state the
+  caller did not state, any pool size (`health`, `shields` are named as unused), armour stripping
+  other than corrosive, and every enemy property outside the model
+  ([build-planner-target-model.md](build-planner-target-model.md)).
 * **Frames** — per-ability formulas, Helminth, Archon Shards, companion/squad buffs.
 * **Exotic triggers** — Charge/Burst/Continuous effective fire rates (DPS is withheld
   rather than guessed).
 
-On the current database (777 equipment rows, 1809 mods) 1014 mods carry at least one stat
+On the current database (777 equipment rows, 1809 mods) 1011 mods carry at least one stat
 the engine does not model and 426 carry conditional effects — those are *named* refusals that
 travel with the build, not silent zeroes (`python builds/ingest.py` prints both counts, and
-`data/build_data.json`'s `content_hash` identifies the exact snapshot). The two buckets overlap: 415
+`data/build_data.json`'s `content_hash` identifies the exact snapshot). The two buckets overlap: 412
 mods are in both (a conditional line that also fails to parse is counted in each), so 1025 mods carry
-something the engine refuses — 599 unmodelled only, 11 conditional only.
+something the engine refuses — 599 unmodelled only, 14 conditional only.
 
 ## Data sources
 
@@ -393,11 +458,12 @@ Strength; efficiency above 175% still floors energy cost at 25%.
 
 ## Roadmap (what the engine deliberately leaves out)
 
-* **Engine mechanics still refused by name** — conditional/stacking effects (Galvanized,
-  "On Kill"), set bonuses, status effect modelling (bleed/heat/viral), proc weighting,
-  melee combo + heavy attacks + stances, Incarnon, exotic triggers, enemy armour and
-  damage-type modifiers. `python builds/debug.py unsupported` is the live list, and the
-  planner page shows the same refusals on any build it displays.
+* **Engine mechanics still refused by name** — the conditional riders the engine cannot apply
+  (weak-point/aiming, timers, per-status scaling), the sets other than Umbral, status effects
+  beyond viral amplification and the corrosive armour reduction, proc weighting, melee combo +
+  heavy attacks + stances, Incarnon, exotic triggers, and any enemy property the caller did not
+  state. `python builds/debug.py unsupported` is the live list, and the planner page shows the
+  same refusals on any build it displays.
 * **Per-ability formulas** — augments, Helminth, Archon Shards, companion and squad buffs.
 * **Later** — Rivens, primers, full fight simulation.
 * **Planner UI, deliberately not in Phase 2** — community build scraping, "improve this build",

@@ -1,6 +1,6 @@
 {
- "started": "2026-09-30T02:46:54.497Z",
- "base": "http://127.0.0.1:56691",
+ "started": "2026-09-30T07:54:43.473Z",
+ "base": "http://127.0.0.1:58308",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -36,7 +36,7 @@
    "title": "the page names the engine + database it reads",
    "ok": true,
    "expected": "a status line naming the DB",
-   "observed": "\"db fd1b15dd · 1809 mods · 777 items\"",
+   "observed": "\"db ea904b31 · 1809 mods · 777 items\"",
    "note": "",
    "diagnostic": false
   },
@@ -855,7 +855,61 @@
    "title": "an unresolved target input is withheld, not assumed",
    "ok": true,
    "expected": "viral stacks stated without a landing = unknown (withheld); nothing stated = deterministic",
-   "observed": "before=\"deterministic\" after={\"mode\":\"stated_inputs\",\"state\":\"conditional\",\"context_supplied\":true,\"context_ignored\":[],\"withheld\":[\"viral\"],\"consumed\":[\"target.viral_stacks\",\"target.protection\",\"target.immune_to\"],\"refused_stats\":[],\"unsupported_effects\":1,\"engine_evaluated\":true,\"unused\":[\"target_faction\"]} badge=· conditional · 1 refused · 1 condition equipment=/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "observed": "before=\"deterministic\" after={\"mode\":\"stated_inputs\",\"state\":\"conditional\",\"context_supplied\":true,\"context_ignored\":[],\"withheld\":[\"viral\"],\"assumptions\":[],\"consumed\":[\"target.viral_stacks\",\"target.protection\",\"target.immune_to\"],\"refused_stats\":[],\"unsupported_effects\":1,\"engine_evaluated\":true,\"unused\":[\"target_faction\"]} badge=· conditional · 1 refused · 1 condition equipment=/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the target card posts exactly what was typed - faction, layer, armour, corrosive, on-kill state",
+   "ok": true,
+   "expected": "grineer / health / armour 900 / corrosive 4 / 3 on-kill stacks and no uptime",
+   "observed": "{\"target_faction\":\"grineer\",\"target\":{\"protection\":\"health\",\"armor\":900,\"corrosive_stacks\":4},\"buffs\":{\"on_kill\":{\"stacks\":3}}}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the card prints the engine's mitigated numbers, not its own",
+   "ok": true,
+   "expected": "armour reduced in the head, the engine per-projectile/per-shot figures in the body, a why button",
+   "observed": "effective=504.00000000000006 out=vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · per shot 59.198 · crit-expected 66.302burst 635.39 DPS · sustained 498.454 DPSwhyOn Kill · Galvanized Chamber: satisfied · 3 stacks · +90% multi",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the why button opens the engine's own target trace",
+   "ok": true,
+   "expected": "the trace panel shows the engine target trace (its label, its source line, its final figure)",
+   "observed": "{\"clicked\":true,\"text\":\"Damage vs the stated target (per projectile)Base35impact-0.146puncture-4.763slash-8.166Final21.925source: https://wiki.warframe.com/w/Damage/Calculation (oldid 2804415, retrieved 2026-09-30)armour source: https://wiki.warframe.com/w/Arm",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the on-kill rider applies the stated stacks and prints its own contribution",
+   "ok": true,
+   "expected": "satisfied from 3 stated stacks, contribution printed as the payload states it",
+   "observed": "installed=1 rider=/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod {\"mod\":\"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod\",\"mod_name\":\"Galvanized Chamber\",\"rank\":10,\"trigger\":\"on_kill\",\"stat\":\"multishot\",\"cap\":5,\"duration_s\":20,\"per_stack\":30,\"state\":\"satisfied\",\"reason_code\":null,\"reason\":\"the effect currently carries 3 stacks\",\"mode\":\"instant\",\"assumption\":null,\"stacks\":3,\"uptime\":null,\"applied\":true,\"contribution\":90} out=vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · per shot 59.198 · crit-expected 66.302burst 635.39 DPS · sustained 498.454 DPSwhyOn Kill · Galvanized Ch",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "an averaged on-kill state says so, on the stated stacks only",
+   "ok": true,
+   "expected": "mode averaged, 0.65 uptime carried, the assumption printed next to the contribution",
+   "observed": "{\"mod\":\"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod\",\"mod_name\":\"Galvanized Chamber\",\"rank\":10,\"trigger\":\"on_kill\",\"stat\":\"multishot\",\"cap\":5,\"duration_s\":20,\"per_stack\":30,\"state\":\"satisfied\",\"reason_code\":null,\"reason\":\"3 stacks averaged over 65.0% uptime\",\"mode\":\"averaged\",\"assumption\":\"averaged: 3 stacks at 65.0% uptime (stated by the caller)\",\"stacks\":3,\"uptime\":0.65,\"applied\":true,\"contribution\":58.50000000000001} dom=vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · per shot 52.292 · crit-expected 58.567burst 561.261 DPS · sustained 440.301 DPSwhyOn Kill · Galvanized C",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "clearing the armour withholds the number and prints the engine's own refusal",
+   "ok": true,
+   "expected": "no target_damage, and the card prints the engine's unknown verdict naming the armour",
+   "observed": "td=null out=target damage: unknown - the damage lands on health, so the armour value is needed to compute the mitigation, and no armour was statedOn Kill · Galvanized Chamber: satisfied · 3 stacks · +58.5% multishot · averaged: 3 st",
    "note": "",
    "diagnostic": false
   },
@@ -909,7 +963,7 @@
    "title": "the card names its source and whether that source is live",
    "ok": true,
    "expected": "a freshness label, and - when the source cannot be shown to be live - the warning repeated",
-   "observed": "Last seen 11 hours ago / ",
+   "observed": "Last seen 16 hours ago / ",
    "note": "",
    "diagnostic": false
   },
@@ -1023,7 +1077,7 @@
    "plannerActive": true,
    "title": "Build planner · WFM Trader",
    "dupes": [],
-   "status": "db fd1b15dd · 1809 mods · 777 items",
+   "status": "db ea904b31 · 1809 mods · 777 items",
    "gridSlots": 0,
    "pickerOpen": true,
    "libRows": 0
@@ -1745,7 +1799,11 @@
      "viral_stacks": null,
      "protection": "",
      "shot": null,
-     "strict": false
+     "strict": false,
+     "armour": null,
+     "corrosive_stacks": null,
+     "kill_stacks": null,
+     "kill_uptime": null
     }
    },
    "still_junk": false,
@@ -1980,8 +2038,8 @@
   "target-save-probe": {
    "immediateHasCorpus": false,
    "laterHasCorpus": true,
-   "inMemory": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false}",
-   "storedTarget": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false}"
+   "inMemory": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false,\"armour\":null,\"corrosive_stacks\":null,\"kill_stacks\":null,\"kill_uptime\":null}",
+   "storedTarget": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false,\"armour\":null,\"corrosive_stacks\":null,\"kill_stacks\":null,\"kill_uptime\":null}"
   },
   "target-round-trip": {
    "before": "nothing stated",
@@ -1996,6 +2054,7 @@
     "withheld": [
      "viral"
     ],
+    "assumptions": [],
     "consumed": [
      "target.viral_stacks",
      "target.protection",
@@ -2010,6 +2069,91 @@
    },
    "conditions": [
     "viral:unknown"
+   ]
+  },
+  "phase5-stated": {
+   "rider_mod": "/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod",
+   "mods_installed": 1,
+   "context": {
+    "target_faction": "grineer",
+    "target": {
+     "protection": "health",
+     "armor": 900,
+     "corrosive_stacks": 4
+    },
+    "buffs": {
+     "on_kill": {
+      "stacks": 3
+     }
+    }
+   },
+   "target_damage": {
+    "per_projectile_total": 21.9252,
+    "per_shot_total": 59.198,
+    "armour": {
+     "stated": 900,
+     "corrosive_multiplier": 0.56,
+     "effective": 504.00000000000006,
+     "reduction": 0.3888444419044716,
+     "applies": true
+    }
+   },
+   "riders": [
+    {
+     "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod",
+     "mod_name": "Galvanized Chamber",
+     "rank": 10,
+     "trigger": "on_kill",
+     "stat": "multishot",
+     "cap": 5,
+     "duration_s": 20,
+     "per_stack": 30,
+     "state": "satisfied",
+     "reason_code": null,
+     "reason": "the effect currently carries 3 stacks",
+     "mode": "instant",
+     "assumption": null,
+     "stacks": 3,
+     "uptime": null,
+     "applied": true,
+     "contribution": 90
+    }
+   ]
+  },
+  "phase5-why": {
+   "clicked": true,
+   "text": "Damage vs the stated target (per projectile)Base35impact-0.146puncture-4.763slash-8.166Final21.925source: https://wiki.warframe.com/w/Damage/Calculation (oldid 2804415, retrieved 2026-09-30)armour source: https://wiki.warframe.com/w/Armor (oldid 2814011, retrieved 2026-09-30)"
+  },
+  "phase5-averaged": {
+   "rider": {
+    "mod": "/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod",
+    "mod_name": "Galvanized Chamber",
+    "rank": 10,
+    "trigger": "on_kill",
+    "stat": "multishot",
+    "cap": 5,
+    "duration_s": 20,
+    "per_stack": 30,
+    "state": "satisfied",
+    "reason_code": null,
+    "reason": "3 stacks averaged over 65.0% uptime",
+    "mode": "averaged",
+    "assumption": "averaged: 3 stacks at 65.0% uptime (stated by the caller)",
+    "stacks": 3,
+    "uptime": 0.65,
+    "applied": true,
+    "contribution": 58.50000000000001
+   },
+   "assumptions": [
+    "averaged: 3 stacks at 65.0% uptime (stated by the caller)"
+   ],
+   "dom": "vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · per shot 52.292 · crit-expected 58.567burst 561.261 DPS · sustained 440.301 DPSwhyOn Kill · Galvanized Chamber: satisfied · 3 stacks · +58.5% multishot · averaged: 3 stacks at 65.0% up"
+  },
+  "phase5-cleared-armour": {
+   "td": null,
+   "conditions": [
+    "on_kill:satisfied",
+    "target_damage:unknown"
    ]
   },
   "hygiene": {
@@ -2046,7 +2190,7 @@
      "text": "Companion weaponPrime Laser RifleConfig A · Rank 30"
     }
    ],
-   "meta": "Last seen 11 hours ago",
+   "meta": "Last seen 16 hours ago",
    "note": "",
    "buttons": [
     "plCurrentRefresh",
@@ -2106,10 +2250,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-30T02:47:52.621Z",
+ "finished": "2026-09-30T07:55:47.687Z",
  "verdict": {
   "pass": true,
-  "checks_total": 111,
+  "checks_total": 117,
   "checks_failed": 0,
   "failed": []
  }

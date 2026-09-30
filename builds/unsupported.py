@@ -20,17 +20,24 @@ the registry doubles as the punch list for the next phases.
 # code -> registry row. Codes match the markers the engines emit.
 REGISTRY = {
     'galvanized_stacks': {
-        'reason': 'conditional Galvanized stack behaviour not implemented yet',
-        'phase': 2, 'engine': 'effects.collect_mod_effects',
-        'detail': 'a Galvanized mod is installed at its unconditional value; its '
-                  '"On Kill:" rider is refused as a conditional_effect marker'},
+        'reason': 'only the multishot On-Kill rider of the Galvanized family is applied, and '
+                  'only from a stated buff state',
+        'phase': 5, 'engine': 'weapons.calculate / buffs.evaluate_state',
+        'detail': 'a stated context.buffs.on_kill state applies the multishot rider '
+                  '(instant or averaged). Every other Galvanized rider (crit, status, on-hit) '
+                  'and every unstated state still refuses by name'},
     'conditional_buffs': {
-        'reason': 'conditional mod effects (on kill / on hit / on reload timers) are '
-                  'not implemented yet', 'phase': 2, 'engine': 'effects.parse_mod_effects'},
+        'reason': 'conditional mod effects other than the On-Kill multishot rider have no '
+                  'model: weak-point/aiming riders, timers, per-status scaling and on-hit '
+                  'riders all refuse by name with the clause they carry',
+        'phase': 5, 'engine': 'effects.parse_mod_effects',
+        'detail': 'an on-kill rider with a stat this phase does not apply gets its own precise '
+                  'reason; every other conditional line keeps the four-state refusal row'},
     'set_bonuses': {
-        'reason': 'mod-set bonuses (Umbral, Augur, Gladiator, ...) depend on how many '
-                  'set mods are equipped and are not implemented', 'phase': 2,
-        'engine': 'effects.collect_mod_effects'},
+        'reason': 'only the Umbral set is modelled (Vitality/Fiber x1.30 at 2 pieces and '
+                  'x1.80 at 3; Intensify x1.25/x1.75); every other set (Augur, Gladiator, '
+                  'Vigorous, ...) refuses by name',
+        'phase': 5, 'engine': 'effects.collect_mod_effects'},
     'rivens': {
         'reason': 'Riven mods are generated, not catalog rows: their stats and '
                   'dispositions are not modelled', 'phase': 2,
@@ -47,13 +54,15 @@ REGISTRY = {
         'reason': 'headshot / weak point multipliers are not implemented',
         'phase': 2, 'engine': 'weapons.calculate'},
     'enemy_armor': {
-        'reason': 'enemy armor, damage-type modifiers against health/shields/armor and '
-                  'armor strip are not implemented (no enemy model yet)', 'phase': 2,
-        'engine': 'weapons.calculate'},
+        'reason': 'a stated target models armour mitigation, faction damage-type '
+                  'modifiers and the corrosive reduction; any target state the caller did '
+                  'not state, pool sizes, other armour strips and enemy auras are refused',
+        'phase': 5, 'engine': 'enemies.evaluate / enemies.calculate'},
     'status_effects': {
-        'reason': 'status procs themselves (Viral stacks, Heat ticks, Slash bleeds, '
-                  'damage-over-time) are not implemented', 'phase': 2,
-        'engine': 'weapons.calculate'},
+        'reason': 'viral amplification (state-stated) and the corrosive armour reduction are '
+                  'modelled; every other status and all tick damage (Heat, Slash, Gas, '
+                  'Electricity, Toxin) are refused', 'phase': 5,
+        'engine': 'statuses.evaluate / statuses.evaluate_corrosive'},
     'status_weighting': {
         'reason': 'proc weighting/priority and damage-type distribution effects are '
                   'exposed as weights but not yet used to predict procs', 'phase': 2,
@@ -133,6 +142,16 @@ REGISTRY = {
     'companions': {
         'reason': 'Sentinel/Pet mod effects on the player (and vice versa) are not '
                   'modelled', 'phase': 3, 'engine': 'none'},
+    'corrosive_stack_timeline': {
+        'reason': 'corrosive stacks above the 10-proc cap are a timeline (the Emerald Archon '
+                  'Shard raises the cap and stacks beyond it replace the oldest), so the armour '
+                  'reduction is refused rather than clamped',
+        'phase': 5, 'engine': 'statuses.evaluate_corrosive'},
+    'buff_stacks_above_cap': {
+        'reason': 'a stated stack count above the cap the mod\'s own card documents is a '
+                  'timeline (stacks replace the oldest), so the rider is refused rather than '
+                  'clamped to the cap',
+        'phase': 5, 'engine': 'buffs.evaluate_state'},
     'conditional_calculations': {
         'reason': 'a condition this engine can resolve - the target faction, the shot '
                   'number in the magazine, or the viral procs on the target - was not stated, '

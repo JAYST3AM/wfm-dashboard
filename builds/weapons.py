@@ -38,6 +38,7 @@ Nothing here reads files, the market or the network. Sim input:
 `calculate(equipment_row, mod_slots, options)` where each mod slot carries the ingested
 mod row (with its parsed effect tables) and the rank it is equipped at.
 """
+from . import buffs, enemies
 from . import capacity as capacity_mod
 from . import conditions
 from . import effects as effects_mod
@@ -113,6 +114,113 @@ def calculate(equipment, mod_slots=None, options=None):
             row = dict(row, hypothetical=True)
         condition_rows.append(row)
         faction_rows[stat] = row
+
+    # --- stated buff state (Phase 5, 5.3 + 5.4) ------------------------------------------------
+    # A conditional rider this engine can apply ("On Kill: +X% Multishot for 20s. Stacks up to
+    # Nx.") joins the stat it moves when - and only when - the caller states the buff's state.
+    # Nothing is simulated: no kill rate, no proc rate, no uptime derived from a duration, no
+    # assumed stack count. An unstated state keeps the `unknown` marker collect_mod_effects
+    # emitted; a stated zero is a reported zero; an averaged contribution carries its stated
+    # assumption in words (`mode: averaged` + `assumption` + a note on the stat's trace).
+    consumed = []
+    if any(st.startswith('faction_') for st in totals):
+        consumed.append('target_faction')
+    if any(st == 'damage_on_first_shot' for st in totals):
+        consumed.append('attack.shot_index')
+    rider_rows, riders, rider_final_rows = [], [], []
+    rider_candidates = []
+    for slot in mod_slots or []:
+        mod = slot.get('mod') or {}
+        eff = mod.get('effects') or {}
+        for text in eff.get('conditional') or []:
+            rider = buffs.parse_rider(text)
+            if rider and rider.get('trigger') == 'on_kill' and rider.get('enabled'):
+                rider_candidates.append((slot, mod, eff, rider, text))
+    if rider_candidates:
+        consumed.append('buffs.on_kill')
+        state = conditions.get(ctx, 'buffs', 'on_kill')
+        for slot, mod, eff, rider, text in rider_candidates:
+            row = buffs.evaluate_state('on_kill', state, rider['max_stacks'],
+                                       mod=mod.get('id'), mod_name=mod.get('name'))
+            rank = slot.get('rank')
+            if rank is None:
+                rank = mod.get('max_rank')
+            table = (eff.get('conditional_table') or {}).get(effects_mod.stat_signature(text)) \
+                or {}
+            values = table.get('values') or []
+            per_stack = None
+            if isinstance(rank, int) and 0 <= rank < len(values) and values[rank] is not None:
+                per_stack = float(values[rank])
+            entry = {'mod': mod.get('id'), 'mod_name': mod.get('name'), 'rank': rank,
+                     'trigger': 'on_kill', 'stat': rider['stat'], 'cap': rider['max_stacks'],
+                     'duration_s': rider.get('duration_s'), 'per_stack': per_stack,
+                     'state': row['state'], 'reason_code': row['reason_code'],
+                     'reason': row['reason'], 'mode': row.get('mode'),
+                     'assumption': row.get('assumption'), 'stacks': row.get('stacks'),
+                     'uptime': row.get('uptime'),
+                     'applied': False, 'contribution': None}
+            if row['state'] == conditions.SATISFIED and per_stack is None:
+                # the state is fine, but the mod's own table has no value at this rank: no model
+                # to apply, so the rider refuses rather than borrowing the max-rank value.
+                row = conditions.result(
+                    'on_kill', conditions.UNSUPPORTED,
+                    'the mod carries no rider value at rank %r, so nothing was applied' % (rank,),
+                    reason_code='mechanic_unsupported', hypothetical=row.get('hypothetical'),
+                    mod=mod.get('id'), mod_name=mod.get('name'))
+                entry.update(state=row['state'], reason=row['reason'],
+                             reason_code=row['reason_code'])
+            if row['state'] == conditions.SATISFIED:
+                effective = float(row['stacks_effective'])
+                contribution = per_stack * effective
+                bucket = totals.setdefault(rider['stat'], {
+                    'value': 0.0, 'unit': 'percent',
+                    'category': effects_mod.STAT_CATEGORY.get(rider['stat'], 'percent'),
+                    'rows': []})
+                bucket['value'] += contribution
+                note = ('%g%% per stack x %g effective stack%s -> +%g%% %s'
+                        % (per_stack, effective, '' if effective == 1 else 's', contribution,
+                           rider['stat']))
+                if row.get('mode') == 'averaged':
+                    note += ' (%s)' % row.get('assumption')
+                bucket['rows'].append({
+                    'mod': mod.get('id'), 'mod_name': mod.get('name'), 'rank': rank,
+                    'value': contribution, 'unit': 'percent', 'category': bucket['category'],
+                    'condition': 'on_kill', 'state': row['state'], 'stacks': row.get('stacks'),
+                    'mode': row.get('mode'), 'assumption': row.get('assumption'), 'note': note})
+                entry['applied'] = True
+                entry['contribution'] = contribution
+            rider_rows.append(row)
+            rider_final_rows.append(row)
+            riders.append(entry)
+        # Resolve the markers collect_mod_effects emitted for these riders against the stated
+        # state: an applied rider refuses nothing; a stated-off rider is reported as a note; a
+        # refused one keeps a marker that now says exactly which state it reached and why.
+        resolved = {(c[1].get('id'), c[4]): r for c, r in zip(rider_candidates, rider_final_rows)}
+        kept = []
+        for marker in unsupported:
+            row = (resolved.get((marker.get('mod'), marker.get('text')))
+                   if marker.get('code') == 'conditional_effect' else None)
+            if row is None:
+                kept.append(marker)
+                continue
+            if row['state'] == conditions.SATISFIED:
+                continue                                    # applied: nothing left to refuse
+            if row['state'] == conditions.NOT_SATISFIED:
+                notes.append('%s: the On Kill rider is off (%s) - it contributes nothing'
+                             % (row.get('mod_name') or marker.get('mod'), row['reason']))
+                continue
+            marker['state'] = row['state']
+            marker['reason_code'] = row['reason_code']
+            marker['reason'] = row['reason']
+            marker['condition'] = conditions.refusal(
+                'on_kill', marker.get('text') or '', row['state'], row['reason'],
+                row['reason_code'], mod=marker.get('mod'),
+                mod_name=(marker.get('condition') or {}).get('mod_name'))
+            kept.append(marker)
+        unsupported = kept
+        # Every rider considered becomes a condition row, so `evaluation` and the page read the
+        # same four-state vocabulary the rest of the engine speaks.
+        condition_rows.extend(rider_rows)
 
 
     base_dist = {t: float(v) for t, v in (equip.get('damage') or {}).items() if v}
@@ -256,9 +364,16 @@ def calculate(equipment, mod_slots=None, options=None):
     multishot = base_multishot * (1.0 + multishot_bonus / 100.0)
     t_ms = trace_mod.trace('multishot', base_multishot, 'ratio', 'Multishot (projectiles)')
     for row in _rows(totals, 'multishot'):
-        trace_mod.add(t_ms, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                               mod=row['mod'], rank=row['rank']))
+        trace_mod.add(t_ms, trace_mod.modifier(
+            row['mod_name'], 'percent', row['value'], mod=row['mod'], rank=row['rank'],
+            note=row.get('note'),
+            **{k: row[k] for k in ('condition', 'state', 'stacks', 'mode', 'assumption')
+               if row.get(k) is not None}))
     trace_mod.finish(t_ms, multishot)
+    for entry in riders:
+        if not entry.get('applied'):
+            trace_mod.note(t_ms, '%s: On Kill rider %s - %s'
+                           % (entry.get('mod_name'), entry.get('state'), entry.get('reason')))
     traces['multishot'] = t_ms
     whole = int(multishot)
     fractional = multishot - whole
@@ -370,10 +485,6 @@ def calculate(equipment, mod_slots=None, options=None):
     # target that already carries them. A build with no viral damage and no target state is not
     # asked the question at all, which is what keeps every Phase 1 number untouched.
     viral_row = None
-    consumed = [f for f in ('target_faction',)
-                if any(s.startswith('faction_') for s in totals)]
-    if any(s == 'damage_on_first_shot' for s in totals):
-        consumed.append('attack.shot_index')
     if per_projectile.get('viral') or conditions.has(ctx, 'target', 'viral_stacks'):
         viral_row = statuses.evaluate(ctx)
         consumed += ['target.viral_stacks', 'target.protection', 'target.immune_to']
@@ -443,11 +554,61 @@ def calculate(equipment, mod_slots=None, options=None):
 
     # --- DPS --------------------------------------------------------------------
     trigger = (opts.get('trigger_override') or equip.get('trigger') or '').strip().lower()
-    dps = _dps_block(per_shot_crit, modded_rate, modded_mag, modded_reload, trigger,
-                     faction_multiplier, kind)
+    dps = _dps_block(per_shot_crit * faction_multiplier, modded_rate, modded_mag, modded_reload,
+                     trigger, kind)
     unsupported.extend(dps.pop('unsupported', []))
     stats['burst_dps'] = dps['burst']['value']
     stats['sustained_dps'] = dps['sustained']['value']
+
+    # --- damage against a stated target (Phase 5, 5.2) ------------------------------------------
+    # Runs only when the caller described a combat target (a landing layer, an armour value, or a
+    # target-state mechanic this engine models). No target context -> no block, and every Phase 1
+    # number stays exactly what it was. The block is the wiki's own chain, each stage traced:
+    # base (the Phase 1 composition) -> build modifiers -> conditional modifiers (the faction
+    # multiplier, applied riders) -> target modifiers (the faction table) -> mitigation (armour
+    # after the modelled reductions) -> the final supported damage result.
+    target_row, target_block = None, None
+    # The trigger is the caller describing a combat target: an armour value, a target-state
+    # mechanic whose only consumer is the mitigation stage, or the full (faction, landing layer)
+    # pair. `protection` alone is Phase 4's viral input - a caller who states only that is asking
+    # the viral question, not this one, and its evaluation must stay deterministic.
+    if (conditions.has(ctx, 'target', 'armor')
+            or conditions.has(ctx, 'target', 'corrosive_stacks')
+            or (conditions.has(ctx, 'target', 'protection')
+                and conditions.has(ctx, 'target_faction'))):
+        target_row, target_plan = enemies.evaluate(
+            ctx, deals_corrosive=bool(per_projectile.get('corrosive')))
+        condition_rows.append(target_row)
+        if target_plan is not None and target_plan.get('corrosive_row'):
+            # The target-state mechanic the armour stage consumed is its own condition row: the
+            # answer names both what it applied and why.
+            condition_rows.append(target_plan['corrosive_row'])
+        for field in ('target_faction', 'target.protection', 'target.armor',
+                      'target.corrosive_stacks'):
+            if field not in consumed:
+                consumed.append(field)
+        if target_plan is not None:
+            target_block = enemies.calculate(per_projectile, target_plan, faction_multiplier)
+            # The published figures are trimmed for display; the DPS below is computed from the
+            # exact ones, exactly like the Phase 1 figures chain (only the reported fields are
+            # trimmed).
+            exact_shot = target_block['per_projectile_total'] * multishot
+            exact_shot_crit = exact_shot * crit_expected
+            target_block['per_projectile_total'] = trace_mod._num(
+                target_block['per_projectile_total'])
+            target_block['per_shot_total'] = trace_mod._num(exact_shot)
+            target_block['per_shot_expected_crit'] = trace_mod._num(exact_shot_crit)
+            target_dps = None
+            if dps['burst']['supported'] and per_shot_crit:
+                target_dps = _dps_block(exact_shot_crit,
+                                        modded_rate, modded_mag, modded_reload, trigger, kind,
+                                        emit_unsupported=False)
+            target_block['dps'] = None if target_dps is None else {
+                'burst': target_dps['burst']['value'],
+                'sustained': target_dps['sustained']['value'],
+                'formula': target_dps['burst'].get('formula'),
+                'supported': True}
+            traces.update(target_block['traces'])
 
     # --- mechanics this engine refuses to fake ----------------------------------
     if kind == schema.EQUIP_MELEE:
@@ -487,6 +648,22 @@ def calculate(equipment, mod_slots=None, options=None):
             if key in stats and stats[key] is not None:
                 stats[key] = None
                 refused_stats.append(key)
+        if target_block is not None:
+            # The target figures derive from the same withheld numbers: every one of them goes,
+            # and the per-type traces lose their finals with them.
+            refused_stats.append('target_damage')
+            target_block['per_projectile'] = {k: None
+                                              for k in target_block['per_projectile']}
+            target_block['per_projectile_total'] = None
+            target_block['per_shot_total'] = None
+            target_block['per_shot_expected_crit'] = None
+            if target_block.get('dps'):
+                target_block['dps'] = {'burst': None, 'sustained': None,
+                                       'formula': target_block['dps'].get('formula'),
+                                       'supported': False}
+            for key, t in traces.items():
+                if key == 'target_damage' or key.startswith('target_damage.'):
+                    t['final'] = None
         for row in blocked:
             unsupported.append(_marker(
                 'calculation_refused', 'the %s condition is %s: %s'
@@ -494,13 +671,19 @@ def calculate(equipment, mod_slots=None, options=None):
                 condition=row['condition'], state=row['state'],
                 reason_code=row['reason_code'], stats=refused_stats,
                 equipment=equip.get('id')))
+    withheld = []
+    for row in condition_rows:
+        if not condition_applies(row) and row['condition'] not in withheld:
+            withheld.append(row['condition'])
     evaluation = {
         'mode': mode,
         'state': ('refused' if refused_stats
                   else 'conditional' if blocked else 'deterministic'),
         'context_supplied': ctx['supplied'],
         'context_ignored': ctx['ignored'],
-        'withheld': [r['condition'] for r in condition_rows if not condition_applies(r)],
+        'withheld': withheld,
+        # Every averaged contribution states its assumption here, in words (5.4).
+        'assumptions': buffs.assumption_lines(rider_rows),
         'consumed': list(consumed),
         'refused_stats': refused_stats,
         # `state` above is about the conditions this engine can reason about. Mechanics it cannot
@@ -515,6 +698,10 @@ def calculate(equipment, mod_slots=None, options=None):
                       'trigger': trigger or None},
         'conditions': condition_rows,
         'evaluation': evaluation,
+        # Phase 5: the riders considered against the stated buff state (`applied` + the numbers),
+        # and the target-aware damage block (None unless a combat target was described).
+        'riders': riders,
+        'target_damage': target_block,
         'stats': stats,
         'damage': {
             'per_projectile': {k: trace_mod._num(v) for k, v in per_projectile.items()},
@@ -551,9 +738,11 @@ def calculate(equipment, mod_slots=None, options=None):
 # the damage card (adversarial review F2). Every mirror of a refused stat is nulled with it, and
 # the gate walks these paths.
 MIRROR_PATHS = {
-    'burst_dps': (('dps', 'burst', 'value'),),
-    'sustained_dps': (('dps', 'sustained', 'value'),),
-    'damage_per_shot': (('damage', 'per_shot_total'),),
+    'burst_dps': (('dps', 'burst', 'value'), ('target_damage', 'dps', 'burst')),
+    'sustained_dps': (('dps', 'sustained', 'value'), ('target_damage', 'dps', 'sustained')),
+    'damage_per_shot': (('damage', 'per_shot_total'), ('target_damage', 'per_shot_total')),
+    'damage_per_shot_expected_crit': (('target_damage', 'per_shot_expected_crit'),),
+    'target_damage': (('target_damage', 'per_projectile_total'),),
 }
 
 
@@ -638,10 +827,13 @@ def _weights(per_projectile):
     return {k: trace_mod._num(float(v) / total) for k, v in per_projectile.items()}
 
 
-def _dps_block(per_shot_crit, modded_rate, magazine, reload_time, trigger,
-               faction_multiplier, kind):
-    """Burst + sustained DPS, refusing trigger types the wiki documents as special."""
-    shot = per_shot_crit * faction_multiplier
+def _dps_block(shot, modded_rate, magazine, reload_time, trigger, kind,
+               emit_unsupported=True):
+    """Burst + sustained DPS, refusing trigger types the wiki documents as special.
+
+    `shot` is the finished per-shot figure (crit-weighted, faction multiplier included), so the
+    Phase 1 DPS and the Phase 5 target DPS run through one formula site.
+    """
     supported = trigger in SUPPORTED_TRIGGERS and bool(modded_rate)
     block = {
         'burst': {'value': None, 'supported': bool(supported),
@@ -652,12 +844,13 @@ def _dps_block(per_shot_crit, modded_rate, magazine, reload_time, trigger,
         'assumptions': [],
     }
     if not supported:
-        block['unsupported'] = [_marker(
-            'dps_trigger_type',
-            'trigger type %r has a documented non-trivial effective fire rate that '
-            'Phase 1 does not implement (Charge/Burst/Continuous); burst and sustained '
-            'DPS are withheld rather than approximated' % (trigger or 'unknown'),
-            equipment=None)]
+        if emit_unsupported:
+            block['unsupported'] = [_marker(
+                'dps_trigger_type',
+                'trigger type %r has a documented non-trivial effective fire rate that '
+                'Phase 1 does not implement (Charge/Burst/Continuous); burst and sustained '
+                'DPS are withheld rather than approximated' % (trigger or 'unknown'),
+                equipment=None)]
         return block
     burst = shot * modded_rate
     block['burst']['value'] = trace_mod._num(burst)

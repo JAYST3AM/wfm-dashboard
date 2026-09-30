@@ -104,7 +104,8 @@ def calculate(equipment, mod_slots=None, options=None):
                           intermediate=at_rank)
         for row in effects_mod.effect_rows_of(totals, out_key):
             trace_mod.add(t, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                                mod=row['mod'], rank=row['rank']))
+                                                mod=row['mod'], rank=row['rank'],
+                                                note=row.get('note')))
         trace_mod.finish(t, at_rank * (1.0 + effects_mod.summed_percent(totals, out_key)
                                        / 100.0))
         traces[out_key] = t
@@ -120,7 +121,8 @@ def calculate(equipment, mod_slots=None, options=None):
         t = trace_mod.trace(out_key, base, 'flat', key.replace('_', ' ').title())
         for row in effects_mod.effect_rows_of(totals, out_key):
             trace_mod.add(t, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                                mod=row['mod'], rank=row['rank']))
+                                                mod=row['mod'], rank=row['rank'],
+                                                note=row.get('note')))
         trace_mod.finish(t, total)
         traces[out_key] = t
         stats[out_key] = trace_mod._num(total)
@@ -142,7 +144,7 @@ def calculate(equipment, mod_slots=None, options=None):
         for row in effects_mod.effect_rows_of(totals, stat_id):
             trace_mod.add(t, trace_mod.modifier(row['mod_name'], 'flat', row['value'],
                                                 mod=row['mod'], rank=row['rank'],
-                                                note='percentage points'))
+                                                note=row.get('note') or 'percentage points'))
         trace_mod.finish(t, total)
         traces[stat_id] = t
         stats[stat_id] = trace_mod._num(total)

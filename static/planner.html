@@ -195,11 +195,20 @@
                   title="target faction for faction mods">
             <option value="">not stated</option>
             <option value="grineer">Grineer</option>
+            <option value="kuva_grineer">Kuva Grineer</option>
             <option value="corpus">Corpus</option>
+            <option value="corpus_amalgam">Corpus Amalgam</option>
             <option value="infested">Infested</option>
+            <option value="infested_deimos">Infested Deimos</option>
             <option value="orokin">Orokin</option>
-            <option value="murmur">Murmur</option>
-            <option value="sentient">Sentients</option>
+            <option value="sentient">Sentient</option>
+            <option value="narmer">Narmer</option>
+            <option value="murmur">The Murmur</option>
+            <option value="zariman">Zariman</option>
+            <option value="scaldra">Scaldra</option>
+            <option value="techrot">Techrot</option>
+            <option value="anarchs">Anarchs</option>
+            <option value="tenno">Tenno</option>
           </select>
           <label class="pl-lbl" for="plTargetStacks">Viral</label>
           <input id="plTargetStacks" class="pl-num pl-num-sm" type="number" min="0" max="10" step="1"
@@ -218,11 +227,28 @@
           <input id="plTargetShot" class="pl-num pl-num-sm" type="number" min="1" step="1"
                  placeholder="&#8212;" aria-label="Shot number in the magazine"
                  title="shot number in the magazine">
+          <label class="pl-lbl" for="plTargetArmor">Armour</label>
+          <input id="plTargetArmor" class="pl-num pl-num-sm" type="number" min="0" step="1"
+                 placeholder="&#8212;" aria-label="Target armour value"
+                 title="net armour before modelled reductions">
+          <label class="pl-lbl" for="plTargetCorrosive">Corrosive</label>
+          <input id="plTargetCorrosive" class="pl-num pl-num-sm" type="number" min="0" max="10" step="1"
+                 placeholder="&#8212;" aria-label="Corrosive procs on the target"
+                 title="corrosive procs on the target, 0-10">
+          <label class="pl-lbl" for="plKillStacks">On-kill</label>
+          <input id="plKillStacks" class="pl-num pl-num-sm" type="number" min="0" step="1"
+                 placeholder="&#8212;" aria-label="On kill buff stacks"
+                 title="active On Kill stacks, as stated; never guessed">
+          <label class="pl-lbl" for="plKillUptime">Uptime %</label>
+          <input id="plKillUptime" class="pl-num pl-num-sm" type="number" min="0" max="100" step="1"
+                 placeholder="&#8212;" aria-label="On kill buff uptime percent"
+                 title="uptime percent; state the stacks to assume">
           <button class="pl-toggle pl-target-strict" id="plStrict" aria-pressed="false"
                   data-icon="info" title="withhold unresolved calculations">
             <span>Strict</span><span class="pl-tog-val" id="plStrictVal">off</span>
           </button>
         </div>
+        <div class="pl-eval" id="plTargetOut"></div>
       </div>
 
       <div class="card pl-card pl-stats" id="plStats">

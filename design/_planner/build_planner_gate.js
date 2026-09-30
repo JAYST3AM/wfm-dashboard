@@ -1521,6 +1521,154 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
         ' after=' + JSON.stringify(targetAfter.api.evaluation) + ' badge=' + uiAfter.badge +
         ' equipment=' + (targetAfter.build || {}).equipment_id);
 
+    /* ---------------- 21c the Phase 5 enemy model: stated target, mitigation, stated on-kill state */
+    // Everything here is stated-then-printed. The gate types an enemy into the target card and
+    // compares what the page POSTed, what the engine answered, and what the card shows. If the page
+    // ever learned to compute Warframe maths itself, one of the three stops agreeing with the others.
+    // The section is self-contained: a clean profile, the weapon picked through the picker, one
+    // rider mod installed - it does not depend on what the earlier sections left in localStorage.
+    await page.evaluate(() => { try { window.localStorage.removeItem('wfm.planner.v1'); } catch (e) { /* private mode */ } });
+    await page.goto(BASE + '/planner.html', { waitUntil: 'networkidle2' });
+    await page.waitForFunction("window.WFMPlanner && !!document.getElementById('plGrid')",
+      { timeout: 30000 });
+    const pickerAlreadyOpen = await page.evaluate(() => {
+      const pop = document.getElementById('plEquipPop');
+      return !!pop && !pop.hidden;
+    });
+    if (!pickerAlreadyOpen) await page.click('#plEquipBtn');
+    await page.waitForSelector('#plEquipList [role="option"]', { timeout: 15000 });
+    await page.evaluate(() => {
+      const box = document.getElementById('plEquipSearch');
+      box.value = 'braton prime';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForFunction(
+      "document.querySelectorAll('#plEquipList [role=\"option\"]').length === 1", { timeout: 15000 });
+    await page.evaluate(() => document.querySelector('#plEquipList [role="option"]').click());
+    await page.waitForFunction((want) => window.WFMPlanner &&
+      window.WFMPlanner.storage().equipment_id === want, { timeout: 20000 }, TARGET_BUILD);
+    // The rider mod is installed through the page's own API with a retry loop: the library arrives
+    // asynchronously after the equipment pick, and a click on a row from a superseded render is a
+    // no-op (a race this gate hit once - the click landed, the build stayed empty). The install
+    // path is still the page's own `install`, not a test hook.
+    const riderModId = await page.evaluate(async () => {
+      const P = window.WFMPlanner;
+      for (let i = 0; i < 60; i++) {
+        const row = (P.library() || []).find((r) =>
+          String(r.name).toLowerCase() === 'galvanized chamber');
+        if (row) {
+          P.install('normal', 0, row);
+          await new Promise((r) => setTimeout(r, 150));
+          if ((P.build().slots || []).some((s) => s.mod && s.mod.id === row.id)) return row.id;
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      return null;
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
+    const riderLanded = await page.evaluate(() =>
+      window.WFMPlanner.build().slots.filter((s) => !!s.mod).length);
+    await page.select('#plTargetFaction', 'grineer');
+    await page.evaluate(() => {
+      const set = (id, v) => { const el = document.getElementById(id); el.value = v;
+        el.dispatchEvent(new Event('change', { bubbles: true })); };
+      set('plTargetProtection', 'health');
+      set('plTargetArmor', '900');
+      set('plTargetCorrosive', '4');
+      set('plKillStacks', '3');
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const p5 = await engine();
+    const p5dom = await page.evaluate(() => ({
+      out: (document.getElementById('plTargetOut') || {}).textContent || '',
+      why: !!document.querySelector('#plTargetOut .pl-target-why') }));
+    const c5 = (p5.build.options || {}).context || {};
+    const td5 = (p5.api.result || {}).target_damage || null;
+    const rider5 = (p5.api.riders || [])[0] || null;
+    say('phase5-stated', { rider_mod: riderModId, mods_installed: riderLanded, context: c5,
+      target_damage: td5 && {
+        per_projectile_total: td5.per_projectile_total, per_shot_total: td5.per_shot_total,
+        armour: td5.armor }, riders: p5.api.riders });
+    addCheck('target', 'the target card posts exactly what was typed - faction, layer, armour, corrosive, on-kill state',
+      c5.target_faction === 'grineer' && !!c5.target && c5.target.protection === 'health' &&
+        c5.target.armor === 900 && c5.target.corrosive_stacks === 4 &&
+        !!c5.buffs && !!c5.buffs.on_kill && c5.buffs.on_kill.stacks === 3 &&
+        c5.buffs.on_kill.uptime === undefined,
+      'grineer / health / armour 900 / corrosive 4 / 3 on-kill stacks and no uptime',
+      JSON.stringify(c5));
+    addCheck('target', 'the card prints the engine\'s mitigated numbers, not its own',
+      !!td5 && !!td5.armor && td5.armor.stated === 900 && td5.armor.effective < 900 &&
+        nums(p5dom.out).some((n) => near(n, td5.per_projectile_total, 0.001)) &&
+        nums(p5dom.out).some((n) => near(n, td5.per_shot_total, 0.001)) &&
+        /armour/.test(p5dom.out) && p5dom.why,
+      'armour reduced in the head, the engine per-projectile/per-shot figures in the body, a why button',
+      'effective=' + (td5 && td5.armor && td5.armor.effective) + ' out=' + p5dom.out.slice(0, 260));
+    // "why is this number this number?" - the button must open the ENGINE's trace, not a re-worded
+    // summary: the panel renders result.traces['target_damage'] (the same rows the API returns), so
+    // the check looks for the engine's own trace label, the source line it carries, and the final
+    // figure agreeing with the payload.
+    const whyShown = await page.evaluate(async () => {
+      const btn = document.querySelector('#plTargetOut .pl-target-why');
+      if (!btn) return { clicked: false };
+      btn.click();
+      await new Promise((r) => setTimeout(r, 450));
+      const body = document.getElementById('plTraceBody');
+      const text = body ? body.textContent.replace(/\s+/g, ' ').trim() : '';
+      return { clicked: true, text: text.slice(0, 280) };
+    });
+    say('phase5-why', whyShown);
+    addCheck('target', 'the why button opens the engine\'s own target trace',
+      whyShown.clicked && /Damage vs the stated target/.test(whyShown.text) &&
+        /wiki\.warframe\.com/.test(whyShown.text) &&
+        !!td5 && nums(whyShown.text).some((n) => near(n, td5.per_projectile_total, 0.001)),
+      'the trace panel shows the engine target trace (its label, its source line, its final figure)',
+      JSON.stringify(whyShown).slice(0, 260));
+    addCheck('target', 'the on-kill rider applies the stated stacks and prints its own contribution',
+      !!rider5 && rider5.state === 'satisfied' && rider5.stacks === 3 && rider5.mode === 'instant' &&
+        Math.abs((rider5.contribution || 0) - (rider5.per_stack || 0) * 3) < 1e-6 &&
+        /On Kill/.test(p5dom.out) && /3 stacks/.test(p5dom.out) &&
+        nums(p5dom.out).some((n) => near(n, rider5.contribution, 0.001)),
+      'satisfied from 3 stated stacks, contribution printed as the payload states it',
+      'installed=' + riderLanded + ' rider=' + riderModId + ' ' + JSON.stringify(rider5)
+        + ' out=' + p5dom.out.slice(0, 220));
+    await page.evaluate(() => {
+      const el = document.getElementById('plKillUptime');
+      el.value = '65';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const avg5 = await engine();
+    const avgDom = await page.evaluate(() =>
+      (document.getElementById('plTargetOut') || {}).textContent || '');
+    const riderAvg = (avg5.api.riders || [])[0] || null;
+    say('phase5-averaged', { rider: riderAvg,
+      assumptions: avg5.api.evaluation && avg5.api.evaluation.assumptions,
+      dom: avgDom.slice(0, 300) });
+    addCheck('target', 'an averaged on-kill state says so, on the stated stacks only',
+      !!riderAvg && riderAvg.mode === 'averaged' && riderAvg.stacks === 3 &&
+        riderAvg.uptime === 0.65 &&
+        nums(avgDom).some((n) => near(n, riderAvg.contribution, 0.001)) &&
+        /assumption/.test(avgDom) && /65/.test(avgDom),
+      'mode averaged, 0.65 uptime carried, the assumption printed next to the contribution',
+      JSON.stringify(riderAvg) + ' dom=' + avgDom.slice(0, 220));
+    await page.evaluate(() => {
+      const el = document.getElementById('plTargetArmor');
+      el.value = '';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const miss5 = await engine();
+    const missDom = await page.evaluate(() =>
+      (document.getElementById('plTargetOut') || {}).textContent || '');
+    say('phase5-cleared-armour', {
+      td: (miss5.api.result || {}).target_damage,
+      conditions: (miss5.api.conditions || []).map((r) => r.condition + ':' + r.state) });
+    addCheck('target', 'clearing the armour withholds the number and prints the engine\'s own refusal',
+      !(miss5.api.result || {}).target_damage && /target damage: unknown/.test(missDom) &&
+        /armour|armor/.test(missDom),
+      'no target_damage, and the card prints the engine\'s unknown verdict naming the armour',
+      'td=' + JSON.stringify((miss5.api.result || {}).target_damage) + ' out=' + missDom.slice(0, 220));
+
     /* ------------------------------------------------------------------ 20 hygiene */
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
     const final = await page.evaluate(() => {

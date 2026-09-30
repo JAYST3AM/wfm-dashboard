@@ -17,7 +17,7 @@ Nothing here reads files or the network; it is string -> structure.
 """
 import re
 
-from . import conditions, schema
+from . import buffs, conditions, schema
 
 # WFCD markup in stat strings: <DT_FIRE_COLOR>, <DT_SLASH>, <LINE_SEPARATOR>, literal \n.
 MARKUP_RE = re.compile(r'<[^>]{0,64}>')
@@ -286,6 +286,9 @@ def parse_mod_effects(mod_row):
     rank_table, units, linear, unmodelled = {}, {}, {}, {}
     unmodelled_examples = {}
     conditional_order, conditional_examples = [], {}
+    # Phase 5: the same conditional line appears once per rank with a different value, exactly like
+    # an unconditional one, so the rider's per-rank values are kept as a table (never interpolated).
+    conditional_values = {}
     notes = []
 
     def bucket(text, rank):
@@ -297,13 +300,16 @@ def parse_mod_effects(mod_row):
             unmodelled[key].append(rank)
         unmodelled_examples.setdefault(key, clean_stat_text(text))
 
-    def bucket_conditional(text):
+    def bucket_conditional(text, rank, value=None):
         key = stat_signature(text)
         if not key:
             return
         if key not in conditional_examples:
             conditional_order.append(key)
+            conditional_values[key] = [None] * len(per_rank)
         conditional_examples[key] = clean_stat_text(text)   # keep the highest-rank text
+        if value is not None and 0 <= rank < len(conditional_values[key]):
+            conditional_values[key][rank] = value
 
     for rank, lines in enumerate(per_rank):
         for line in lines:
@@ -314,8 +320,11 @@ def parse_mod_effects(mod_row):
                 # Conditional effects are refused, not approximated: the base value of
                 # a Galvanized mod lives on its own (unconditional) line, and the
                 # "On Kill: ..." rider belongs to a later phase (unsupported registry).
-                bucket_conditional(eff['text'])
-                if not eff['modelled']:
+                bucket_conditional(eff['text'], rank, eff.get('value'))
+                if not eff['modelled'] and not _rider_line(eff['text']):
+                    # Phase 5: a line the rider model can describe is owned by the conditional
+                    # branch (which says trigger/stat/stacks precisely); bucketing it as
+                    # "unmodelled" as well would refuse it twice, once with the vaguer reason.
                     bucket(eff['text'], rank)
                 continue
             if not eff['modelled']:
@@ -350,8 +359,27 @@ def parse_mod_effects(mod_row):
         'unmodelled': {k: sorted(v) for k, v in unmodelled.items()},
         'unmodelled_examples': dict(unmodelled_examples),
         'conditional': [conditional_examples[k] for k in conditional_order],
+        # signature -> {'text': highest-rank spelling, 'values': [per-rank first percentage|None]}
+        'conditional_table': {k: {'text': conditional_examples[k],
+                                  'values': list(conditional_values.get(k) or [])}
+                              for k in conditional_order},
         'notes': notes,
     }
+
+
+def _rider_line(text):
+    """Is this conditional line an on-kill rider line (builds/buffs.parse_rider knows the trigger)?
+
+    Used only to decide whether the conditional branch already owns the line: an on-kill line's
+    refusal lives there now, with the trigger/stat/stacks spelled out, so bucketing it as
+    "unmodelled" as well would refuse it twice - once with the vaguer reason. Parsing never raises
+    (parse_rider is total), so this is safe on any stored text.
+    """
+    try:
+        rider = buffs.parse_rider(text)
+    except Exception:                                                # noqa: BLE001
+        return False
+    return bool(rider and rider.get('trigger') == 'on_kill')
 
 
 def rank_value(effects, stat, rank):
@@ -414,8 +442,25 @@ def collect_mod_effects(mod_slots):
 
     A mod effect whose stat the engine does not model never lands here - it is returned
     as an unsupported marker instead, so no number silently disappears.
+
+    Phase 5 changes nothing about that contract; it adds two things:
+      * a conditional rider the engine *can* apply ("On Kill: +X% ... Stacks up to Nx") refuses
+        here as `unknown` ("no state was supplied") instead of "no model", because the missing
+        piece is now a caller input rather than a missing mechanic;
+      * the one pinned set-bonus rule (the Umbral set) is applied by scaling the set members' own
+        collected contributions, with the scaling recorded on every row it touched. Every other
+        set still refuses by name.
     """
     totals, unsupported, notes = {}, [], []
+    scaled_mods = {}
+    # Which set members are equipped: the Umbral rule counts set pieces, so the count is a property
+    # of the whole slot list, not of one mod.
+    set_pieces = {}
+    for slot in mod_slots or []:
+        flags = ((slot.get('mod') or {}).get('flags') or {})
+        sid = flags.get('set_id') if flags.get('set') else None
+        if sid:
+            set_pieces[sid] = set_pieces.get(sid, 0) + 1
     for slot in mod_slots or []:
         mod = slot.get('mod') or {}
         if not mod:
@@ -449,20 +494,52 @@ def collect_mod_effects(mod_slots):
             # builds/conditions.py), and which of the four refusal reasons applies. The `code` is
             # unchanged so every existing consumer keeps working; `state` is the new, structured
             # half. A structured refusal is never a value: nothing here can be summed.
+            #
+            # Phase 5: a rider this engine *can* apply (builds/buffs.py) refuses differently - its
+            # missing piece is a stated buff state, not a missing mechanic, so it reports `unknown`
+            # with the input named. `weapons.calculate` resolves those markers against the caller's
+            # `context.buffs` and either applies the rider or replaces the marker with the real
+            # state. A rider that parses but is not enabled keeps refusing as unsupported, with the
+            # precise reason (which stat it moves, or which clause is missing) on the marker.
             cid, state, why, reason_code = conditions.classify_conditional_text(text)
+            rider = buffs.parse_rider(text)
+            rider_block = None
+            if rider and rider.get('trigger') == 'on_kill':
+                # Every on-kill line is owned by the rider model now, which knows whether it is
+                # applicable (stat understood, stack clause present) and enabled (the stat is one
+                # this phase applies conditionally). The refusal is precise in all three cases.
+                if rider.get('enabled'):
+                    cid, state, why, reason_code = (
+                        'on_kill', conditions.UNKNOWN,
+                        'no on_kill state was supplied for this evaluation: state the active '
+                        'stacks (or 0) so the rider can be applied or reported off',
+                        'condition_unknown')
+                else:
+                    cid, state, why, reason_code = ('on_kill', conditions.UNSUPPORTED,
+                                                    rider['reason'], 'mechanic_unsupported')
+                rider_block = {k: rider[k] for k in ('trigger', 'stat', 'value', 'max_stacks',
+                                                     'duration_s', 'applicable', 'enabled')}
             # Which stat the rider would have moved, when the line names one: the string was
             # cleaned before it was stored, so the canonical stat id is recovered here by
             # re-parsing it (pure). A refusal that can name its target stat is a better refusal.
             parsed_rider = parse_stat_line(text)
-            unsupported.append(unsupported_marker(
+            rider_stat = parsed_rider.get('stat') if parsed_rider.get('modelled') else None
+            rider_value = parsed_rider.get('value') if parsed_rider.get('modelled') else None
+            if rider_block:
+                rider_stat = rider_block.get('stat') or rider_stat
+                if rider_block.get('value') is not None:
+                    rider_value = rider_block['value']
+            marker = unsupported_marker(
                 'conditional_effect',
                 '%s carries a conditional effect (%s) that is not applied: %s'
                 % (name, cid, text), mod=mod.get('id'), slot=slot.get('index'), text=text,
                 condition_id=cid, state=state, reason_code=reason_code,
-                stat=parsed_rider.get('stat') if parsed_rider.get('modelled') else None,
-                value=parsed_rider.get('value') if parsed_rider.get('modelled') else None,
+                stat=rider_stat, value=rider_value,
                 condition=conditions.refusal(cid, text, state, why, reason_code,
-                                             mod=mod.get('id'), mod_name=name)))
+                                             mod=mod.get('id'), mod_name=name))
+            if rider_block:
+                marker['rider'] = rider_block
+            unsupported.append(marker)
         for text in (eff.get('unmodelled') or {}):
             example = (eff.get('unmodelled_examples') or {}).get(text, text)
             ranks = (eff.get('unmodelled') or {}).get(text) or []
@@ -474,9 +551,22 @@ def collect_mod_effects(mod_slots):
                 ranks=ranks))
         flags = mod.get('flags') or {}
         if flags.get('set'):
-            unsupported.append(unsupported_marker(
-                'set_bonus', '%s is part of a mod set; set bonuses are not modelled'
-                % name, mod=mod.get('id')))
+            sid = flags.get('set_id') or ''
+            if sid == UMBRAL_SET and mod.get('id') in UMBRAL_MULTIPLIERS:
+                # The one pinned set rule (5.6). The scaling pass below applies it; here the mod is
+                # only recorded, and the piece count decides whether there is a bonus to apply.
+                pieces = set_pieces.get(sid, 1)
+                if pieces >= 2:
+                    scaled_mods[mod.get('id')] = (
+                        pieces, UMBRAL_MULTIPLIERS[mod.get('id')].get(pieces, 1.0))
+                else:
+                    notes.append('%s: the Umbral set bonus applies from the second equipped set '
+                                 'piece; one piece is the mod\'s own value (wiki)' % name)
+            else:
+                unsupported.append(unsupported_marker(
+                    'set_bonus', '%s is part of the %s set; set bonuses are modelled for the '
+                    'Umbral set only, so this one is not applied'
+                    % (name, sid or 'its'), mod=mod.get('id'), set_id=sid or None))
         if flags.get('riven'):
             unsupported.append(unsupported_marker(
                 'riven', '%s is a Riven mod; Riven stats are not modelled' % name,
@@ -484,6 +574,34 @@ def collect_mod_effects(mod_slots):
         if flags.get('galvanized'):
             notes.append('%s is a Galvanized mod: only its unconditional values are '
                          'applied' % name)
+    # --- the Umbral set bonus (5.6): scale the set members' own contributions ------------------
+    # "The set bonus for Umbral Vitality increases the maximum Health given by the mod by 30% of
+    # mod's value when using 2 set pieces and 80% when using 3" (and 25%/75% for Umbral Intensify;
+    # wiki: Umbral Vitality / Umbral Fiber / Umbral Intensify, retrieved 2026-09-30). Every scaled
+    # row keeps its provenance and says what happened to it.
+    if scaled_mods:
+        pieces = max(p for p, _m in scaled_mods.values())
+        touched = 0
+        for stat, bucket in totals.items():
+            changed = False
+            for row in bucket.get('rows') or []:
+                entry = scaled_mods.get(row.get('mod'))
+                if not entry:
+                    continue
+                _pcs, multiplier = entry
+                row['value'] = round(float(row['value']) * multiplier, 6)
+                row['set_id'] = UMBRAL_SET
+                row['set_pieces'] = _pcs
+                row['set_multiplier'] = multiplier
+                row['note'] = ('Umbral set bonus: %d pieces, x%g of this mod\'s value (wiki)'
+                               % (_pcs, multiplier))
+                changed = True
+            if changed:
+                bucket['value'] = round(sum(float(r['value']) for r in bucket['rows']), 6)
+                touched += 1
+        notes.append('Umbral set: %d pieces equipped; %d stat(s) scaled by the pinned set rule '
+                     '(Vitality/Fiber x1.30 at 2 and x1.80 at 3, Intensify x1.25/x1.75; wiki, '
+                     'retrieved 2026-09-30)' % (pieces, touched))
     return totals, unsupported, notes
 
 
@@ -583,6 +701,8 @@ def derive_flags(name, mod_row, effects=None):
     flags['aura'] = compat == 'aura' or kind.startswith('aura')
     flags['stance'] = 'stance' in kind or compat == 'stance'
     flags['set'] = any(low.startswith(s) for s in SET_MOD_SETS)
+    # Phase 5: which set, not just whether (the Umbral rule needs to count its own members).
+    flags['set_id'] = next((s for s in SET_MOD_SETS if low.startswith(s)), None)
     return flags
 
 
@@ -595,6 +715,24 @@ AUGMENT_TEXT_MARKER = 'augment:'
 SET_MOD_SETS = ('umbral', 'sacrificial', 'augur', 'gladiator', 'vigilante', 'hunter',
                 'carnis', 'motek', 'tek', 'mecha', 'synth', 'aero', 'proton', 'kavat',
                 'helminth', 'bond', 'strain', 'tennocon', 'amalgam')
+
+# ------------------------------------------------------------------ the Umbral set rule (5.6)
+# The one set whose bonus Phase 5 pins, because its rule is fully documented:
+#
+#   "The set bonus for Umbral Vitality increases the maximum Health given by the mod by 30% of
+#    mod's value when using 2 set pieces and 80% when using 3." and "Unlike Umbral Vitality and
+#    Umbral Fiber, Umbral Intensify's stats only increase by 25% and 75%."
+#   Source: wiki.warframe.com/w/Umbral_Vitality (oldid 2792490, retrieved 2026-09-30)
+#           wiki.warframe.com/w/Umbral_Intensify (oldid 2792489) / Umbral_Fiber (oldid 2792488)
+#
+# The engines' own 2024 rework note agrees: "+130% and +180% with set bonuses". The table is keyed
+# by the game's canonical uniqueName; a member the table does not know refuses like any other set.
+UMBRAL_SET = 'umbral'
+UMBRAL_MULTIPLIERS = {
+    '/Lotus/Upgrades/Mods/Sets/Umbra/WarframeUmbraModA': {1: 1.0, 2: 1.30, 3: 1.80},  # Vitality
+    '/Lotus/Upgrades/Mods/Sets/Umbra/WarframeUmbraModB': {1: 1.0, 2: 1.30, 3: 1.80},  # Fiber
+    '/Lotus/Upgrades/Mods/Sets/Umbra/WarframeUmbraModC': {1: 1.0, 2: 1.25, 3: 1.75},  # Intensify
+}
 
 
 def lows_in(low, words):
@@ -778,6 +916,54 @@ def selftest():
           any(m['code'] == 'mod_rank_out_of_range' for m in collect_mod_effects(
               [{'kind': 'normal', 'index': 0, 'rank': 11,
                 'mod': _as_row(serration)}])[1]))
+
+    # --- Phase 5: the per-rank conditional table ------------------------------------------------
+    check('a conditional line keeps its per-rank values',
+          eff4['conditional_table'][list(eff4['conditional_table'])[0]]['values'][0] == 2
+          and eff4['conditional_table'][list(eff4['conditional_table'])[0]]['values'][10] == 32,
+          str(eff4['conditional_table']))
+
+    # --- Phase 5: the Umbral set rule (5.6) -----------------------------------------------------
+    def _umbra(name, unique, lines):
+        mod = _fixture_mod(name, lines)
+        mod['uniqueName'] = unique
+        return _as_row(mod)
+
+    vit = _umbra('Umbral Vitality', '/Lotus/Upgrades/Mods/Sets/Umbra/WarframeUmbraModA',
+                 [['+%d%% Health' % (10 * (i + 1))] for i in range(11)])
+    fib = _umbra('Umbral Fiber', '/Lotus/Upgrades/Mods/Sets/Umbra/WarframeUmbraModB',
+                 [['+%d%% Armor' % (10 * (i + 1))] for i in range(11)])
+    inten = _umbra('Umbral Intensify', '/Lotus/Upgrades/Mods/Sets/Umbra/WarframeUmbraModC',
+                   [['+%d%% Ability Strength' % (4 * (i + 1))] for i in range(11)])
+    slots1 = [{'kind': 'normal', 'index': 0, 'rank': 10, 'mod': vit}]
+    t1, m1, n1 = collect_mod_effects(slots1)
+    check('one set piece: no bonus, no refusal, and the rule is stated',
+          t1['health']['value'] == 110 and not any(m['code'] == 'set_bonus' for m in m1)
+          and any('second equipped set piece' in n for n in n1), str(t1['health']['value']))
+    slots2 = [{'kind': 'normal', 'index': 0, 'rank': 10, 'mod': vit},
+              {'kind': 'normal', 'index': 1, 'rank': 10, 'mod': inten}]
+    t2, m2, n2 = collect_mod_effects(slots2)
+    check('two pieces: Vitality x1.30, Intensify x1.25 (the wiki rule)',
+          t2['health']['value'] == 143 and t2['ability_strength']['value'] == 55
+          and not any(m['code'] == 'set_bonus' for m in m2), str({k: v['value'] for k, v in t2.items()}))
+    slots3 = slots2 + [{'kind': 'normal', 'index': 2, 'rank': 10, 'mod': fib}]
+    t3, m3, n3 = collect_mod_effects(slots3)
+    check('three pieces: Vitality/Fiber x1.80, Intensify x1.75',
+          t3['health']['value'] == 198 and t3['armor']['value'] == 198
+          and t3['ability_strength']['value'] == 77,
+          str({k: v['value'] for k, v in t3.items()}))
+    check('a scaled row keeps its provenance and says what happened',
+          t3['health']['rows'][0]['set_pieces'] == 3
+          and t3['health']['rows'][0]['set_multiplier'] == 1.8
+          and 'Umbral set bonus' in t3['health']['rows'][0]['note'],
+          str(t3['health']['rows'][0]))
+    check('the set scaling is stated in the notes',
+          any('Umbral set: 3 pieces' in n for n in n3), str(n3))
+    other_set = _as_row(_fixture_mod('Augur Secrets', [['+24% Ability Strength']]))
+    check('every other set still refuses by name',
+          any(m['code'] == 'set_bonus' and 'Umbral set only' in m['reason']
+              for m in collect_mod_effects([{'kind': 'normal', 'index': 0, 'rank': 0,
+                                             'mod': other_set}])[1]))
     print('\neffects selftest %s (%d checks, %d failed) - nothing written'
           % ('OK' if not failures else 'FAILED', counter[0], len(failures)))
     return 0 if not failures else 1

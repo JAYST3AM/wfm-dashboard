@@ -142,6 +142,9 @@ def compute(build, db, options=None):
         # Phase 4: the condition state and the evaluation kind, surfaced at the top level so a UI
         # reads them without walking into the engine result - and prints them as-is.
         'conditions': list((result or {}).get('conditions') or []),
+        # Phase 5: the riders the engine considered against the stated buff state (each with its
+        # state, stacks/uptime and contribution), so the page renders the engine's own answer.
+        'riders': list((result or {}).get('riders') or []),
         'evaluation': evaluation,
         'baseline': _baseline_stats(baseline),
         'unsupported': unsupported,
@@ -203,7 +206,9 @@ def _normalised(build, equipment):
     return {'config': build.get('config') or 'A',
             'equipment_id': (equipment or {}).get('id') or build.get('equipment_id'),
             'equipment_rank': build.get('equipment_rank'),
-            'orokin': bool(build.get('orokin')), 'forma_count': build.get('forma_count'),
+            # strict: the echo says what the engine read, and a truthy string is not True here
+            # any more than it is in validation (Phase 5).
+            'orokin': build.get('orokin') is True, 'forma_count': build.get('forma_count'),
             'mastery_rank': build.get('mastery_rank'), 'slots': build.get('slots') or []}
 
 

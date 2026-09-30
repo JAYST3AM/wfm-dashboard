@@ -35,6 +35,13 @@ PHASE4_MODS = [
      ['+%d%% <DT_POISON_COLOR>Toxin' % (15 * (i + 1)) for i in range(6)],
      'Primary Mod', 'Rifle', 'naramon', 6),
 ]
+# Phase 5: a rider whose mechanic is still refused outright (no resolver, so no state the caller
+# could state) - used to keep pinning "refused mechanics are counted apart from conditions".
+PHASE5_MODS = [
+    ('/Fixture/ArgonScope', 'Argon Scope',
+     ['On Weak Point Hit: +135% Critical Chance when Aiming for 9s' for _ in range(6)],
+     'Primary Mod', 'Rifle', 'madurai', 4),
+]
 
 
 @pytest.fixture(scope='module')
@@ -43,7 +50,7 @@ def db():
     slugs = {'/Fixture/BratonPrime': 'braton_prime', '/Fixture/Excalibur': 'excalibur'}
     src = {'file': 'condition-states-test'}
     mods = [ingest.normalise_mod(_mod_row(*row), slugs, src)
-            for row in list(FIXTURE_MODS) + PHASE4_MODS]
+            for row in list(FIXTURE_MODS) + PHASE4_MODS + PHASE5_MODS]
     equipment = [ingest.normalise_equipment(dict(raw, uniqueName=unique, name=name),
                                             kind, slugs, {}, src)
                  for unique, name, kind, raw in FIXTURE_EQUIPMENT]
@@ -137,10 +144,23 @@ def test_missing_input_is_not_a_validation_error_either(db):
 
 
 def test_a_refused_mechanic_is_counted_apart_from_the_evaluated_conditions(db):
-    """Two different facts, both stated: what was evaluated, and what could not be modelled."""
-    out = api.compute(_build([(CONDITIONAL_MOD, 10)]), db)
-    assert out['evaluation']['state'] == 'deterministic'
-    assert out['evaluation']['unsupported_effects'] >= 1
+    """Two different facts, both stated: what was evaluated, and what could not be modelled.
+
+    Phase 5 drew a line between the two halves of what Phase 4 called "unsupported": a rider whose
+    mechanic has a model and is merely waiting for a stated input is `unknown` (a condition, and
+    the evaluation is `conditional`); a mechanic with no model at all stays `unsupported` and
+    leaves the evaluation `deterministic`.
+    """
+    # a mechanic with no model: the weak-point rider refuses, the evaluation stays deterministic
+    refused = api.compute(_build([('/Fixture/ArgonScope', 5)]), db)
+    assert refused['evaluation']['state'] == 'deterministic'
+    assert refused['evaluation']['unsupported_effects'] >= 1
+    # an enabled rider with no stated state: a condition, so the evaluation is conditional
+    withheld = api.compute(_build([(CONDITIONAL_MOD, 10)]), db)
+    assert withheld['evaluation']['state'] == 'conditional'
+    assert withheld['evaluation']['withheld'] == ['on_kill']
+    assert not [m for m in withheld['result']['unsupported']
+                if m.get('mod') == CONDITIONAL_MOD and m.get('state') == 'unsupported']
 
 
 # ------------------------------------------------------------------ 4.2 structured refusals

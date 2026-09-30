@@ -41,7 +41,7 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 
 | deliberate break | what it would let through | caught | failed checks |
 | --- | --- | --- | --- |
-| unknown-reporting-applied | a withheld condition starts contributing | yes | `unknown/withheld`, `unknown/numbers-intact` |
+| unknown-reporting-applied | a withheld condition starts contributing | yes | `refusal/never-applied`, `unknown/withheld`, `unknown/numbers-intact` |
 | fifth-state-false | a boolean can stand in for a condition state | yes | `states/exactly-four`, `numbers/viral-states`, `states/reachable` |
 | classifier-assumes-satisfied | conditional text is treated as satisfied | yes | `refusal/never-applied`, `states/reachable` |
 | stated-input-dropped | a stated input with no model is silently ignored | yes | `context/stated-inputs-named` |

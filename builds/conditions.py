@@ -35,7 +35,7 @@ Condition ids implemented in Phase 4 (the rest of the corpus stays refused, see 
     first_shot          the mod's bonus applies to a shot other than the first
                         (damage_on_first_shot); resolved from context['attack']['shot_index'].
 """
-from . import schema
+from . import factions, schema
 
 SATISFIED = 'satisfied'
 NOT_SATISFIED = 'not_satisfied'
@@ -146,8 +146,15 @@ def text(row):
 # ------------------------------------------------------------------ the evaluation context
 # Only fields a caller may supply. Anything else is reported back as `ignored` rather than
 # quietly kept: an unused field would look supported.
-CONTEXT_FIELDS = ('target_faction', 'target', 'attack', 'name')
-TARGET_FIELDS = ('viral_stacks', 'protection', 'immune_to')
+CONTEXT_FIELDS = ('target_faction', 'target', 'attack', 'name', 'buffs')
+# Phase 5 extended the target block with the enemy model's typed fields (`armor`, the stated net
+# armour the mitigation is computed from; `corrosive_stacks`, a target state the armour stage
+# consumes). Pool sizes (`health`, `shields`) are carried so their refusal can be precise - they
+# are read, found to have no consumer, and named: "an unused field would look supported".
+TARGET_FIELDS = ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
+                 'health', 'shields')
+# Spellings a caller may use for the canonical field ids (the wiki is American: armor).
+TARGET_ALIASES = {'armour': 'armor'}
 ATTACK_FIELDS = ('shot_index',)
 
 
@@ -155,13 +162,16 @@ def normalise_context(raw):
     """A caller-supplied evaluation context -> the engine's context shape (never raises).
 
         {'target_faction': 'grineer'|None, 'target': {...}, 'attack': {...},
-         'supplied': bool, 'ignored': ['...']}
+         'buffs': {...}, 'supplied': bool, 'ignored': ['...']}
 
     `supplied` is False when the caller passed nothing at all, which is what makes
-    'no context' distinguishable from 'a context that says nothing'.
+    'no context' distinguishable from 'a context that says nothing'. Values are carried as
+    stated - type validation belongs to the evaluator that consumes them, so a malformed value
+    ends in a named refusal instead of a coerced one (Phase 5: inputs must match their declared
+    type).
     """
     raw = raw if isinstance(raw, dict) else {}
-    ctx = {'target_faction': None, 'target': {}, 'attack': {},
+    ctx = {'target_faction': None, 'target': {}, 'attack': {}, 'buffs': {},
            'supplied': bool(raw), 'ignored': []}
     for key in raw:
         if key not in CONTEXT_FIELDS:
@@ -175,9 +185,12 @@ def normalise_context(raw):
         ctx['ignored'].append('target_faction (not a faction name)')
     target = raw.get('target')
     if isinstance(target, dict):
-        ctx['target'] = {k: v for k, v in target.items() if k in TARGET_FIELDS}
-        for key in target:
-            if key not in TARGET_FIELDS:
+        ctx['target'] = {}
+        for key, value in target.items():
+            canonical = TARGET_ALIASES.get(str(key), key)
+            if canonical in TARGET_FIELDS:
+                ctx['target'][canonical] = value
+            else:
                 ctx['ignored'].append('target.' + str(key))
     elif target is not None:
         ctx['ignored'].append('target (not an object)')
@@ -189,6 +202,13 @@ def normalise_context(raw):
                 ctx['ignored'].append('attack.' + str(key))
     elif attack is not None:
         ctx['ignored'].append('attack (not an object)')
+    buffs = raw.get('buffs')
+    if isinstance(buffs, dict):
+        # The trigger states are validated by builds/buffs.py, which owns their vocabulary; here
+        # the block is only carried (a non-dict is named, never coerced).
+        ctx['buffs'] = dict(buffs)
+    elif buffs is not None:
+        ctx['ignored'].append('buffs (not an object)')
     return ctx
 
 
@@ -219,6 +239,12 @@ def target_faction(faction, ctx):
     `faction` is the faction the mod's stat is scoped to ('grineer', ...). The answer is only
     knowable against a stated target faction, so an evaluation without one is `unknown` - the
     bonus is NOT silently dropped, and it is not applied either.
+
+    Phase 5: the stated faction is interpreted through the Damage 3.0 vocabulary
+    (`builds/factions.py`), and a faction-damage mod reaches the sub-factions its own page says it
+    reaches (Bane of Grineer applies to Grineer and Kuva Grineer, not to Narmer; Bane of Infested
+    applies to Infested and Deimos Infested, not to Techrot). A stated faction the vocabulary does
+    not know cannot be matched: that is `unknown`, not a guessed `not_satisfied`.
     """
     want = str(faction or '').strip().lower()
     if not want:
@@ -230,14 +256,24 @@ def target_faction(faction, ctx):
                       inputs={'mod_faction': want},
                       missing=['target_faction'],
                       reason_code='condition_unknown')
-    got = str(get(ctx, 'target_faction', default='')).strip().lower()
-    if got == want:
+    stated = str(get(ctx, 'target_faction', default='')).strip().lower()
+    applies = factions.faction_damage_applies(want, stated)
+    if applies is None:
+        return result('target_faction', UNKNOWN,
+                      'the stated target faction %r is not in the Damage 3.0 faction vocabulary, '
+                      'so this bonus cannot be matched against it' % (stated,),
+                      inputs={'mod_faction': want, 'target_faction': stated},
+                      missing=['a recognised target_faction'],
+                      reason_code='condition_unknown')
+    if applies:
         return result('target_faction', SATISFIED,
-                      'the target is %s, which is the faction this bonus applies to' % want,
-                      inputs={'mod_faction': want, 'target_faction': got})
+                      'the target is %s, which is a faction this %s bonus applies to'
+                      % (stated, want),
+                      inputs={'mod_faction': want, 'target_faction': stated})
     return result('target_faction', NOT_SATISFIED,
-                  'the target is %s, not %s: this bonus does not apply' % (got, want),
-                  inputs={'mod_faction': want, 'target_faction': got},
+                  'the target is %s, which is not %s: this bonus does not apply'
+                  % (stated, want),
+                  inputs={'mod_faction': want, 'target_faction': stated},
                   reason_code='condition_not_satisfied')
 
 
@@ -277,42 +313,14 @@ def stated_fields(ctx):
         return out
     if ctx.get('target_faction'):
         out.append('target_faction')
-    for key in ('viral_stacks', 'protection', 'immune_to'):
+    for key in ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
+                'health', 'shields'):
         if has(ctx, 'target', key):
             out.append('target.' + key)
     if has(ctx, 'attack', 'shot_index'):
         out.append('attack.shot_index')
-    return out
-
-
-def unused_fields(ctx, consumed):
-    """The stated fields no model consumed. Empty is the only acceptable answer for a field."""
-    consumed = set(consumed or ())
-    return [f for f in stated_fields(ctx) if f not in consumed]
-
-
-def context_unused_result(fields, kind, consumed=()):
-    """A stated-but-unmodelled input, in the same four-state vocabulary as everything else."""
-    return result('context.' + (fields[0] if fields else 'unknown'), UNSUPPORTED,
-                  'the stated %s is not modelled for %s, so it was not used'
-                  % (' and '.join(fields), kind or 'this equipment'),
-                  inputs={'fields': list(fields), 'kind': kind},
-                  consumed=list(consumed or ()), source='engine capability',
-                  reason_code='context_unused')
-
-
-def stated_fields(ctx):
-    """Every input the caller actually stated, as dotted paths (what must not be dropped)."""
-    out = []
-    if not ctx or not ctx.get('supplied'):
-        return out
-    if ctx.get('target_faction'):
-        out.append('target_faction')
-    for key in ('viral_stacks', 'protection', 'immune_to'):
-        if has(ctx, 'target', key):
-            out.append('target.' + key)
-    if has(ctx, 'attack', 'shot_index'):
-        out.append('attack.shot_index')
+    for trigger in (ctx.get('buffs') or {}):
+        out.append('buffs.' + str(trigger))
     return out
 
 

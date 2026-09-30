@@ -40,6 +40,9 @@ CODES = (
     'invalid_rank', 'rank_exceeds_max', 'duplicate_mod', 'capacity_exceeded',
     'invalid_equipment_rank', 'mod_slot_kind_mismatch', 'invalid_mastery_rank',
     'invalid_slot_kind', 'too_many_errors', 'stance_on_non_melee',
+    # Phase 5: a declared boolean field that is not a boolean (`orokin: 'yes'` used to become
+    # True through bool() - exactly the silent coercion the validation cleanup forbids).
+    'invalid_boolean',
 )
 
 
@@ -70,6 +73,22 @@ def as_build(build):
     below answers with a validation error instead of an AttributeError. Phase 4's rule - malformed
     input must not crash the engine - starts here."""
     return build if isinstance(build, dict) else {}
+
+
+def as_bool(build, key, default=False):
+    """A declared boolean field read strictly (Phase 5): (value, error|None).
+
+    `bool('yes')` is True, so a truthy string used to sail through as an enabled Orokin Catalyst.
+    The field must be a real boolean (or absent); anything else is a structured `invalid_boolean`
+    error and the caller falls back to the default for the arithmetic that still has to run.
+    """
+    value = build.get(key)
+    if value is None:
+        return default, None
+    if isinstance(value, bool):
+        return value, None
+    return default, error('invalid_boolean',
+                          '%s must be true or false, not %r' % (key, value), field=key)
 
 
 def resolve_equipment(build, db):
@@ -155,6 +174,14 @@ def validate_build(build, db, max_errors=50):
     kind = equipment.get('kind')
     allowed_kinds = schema.EQUIP_SLOT_KINDS.get(kind, (schema.SLOT_NORMAL,))
 
+    # Phase 5: the two build-level switches are read strictly once, before any slot looks at them.
+    orokin, orokin_err = as_bool(build, 'orokin')
+    if orokin_err:
+        errors.append(orokin_err)
+    exilus_unlocked, exilus_err = as_bool(build, 'exilus_unlocked')
+    if exilus_err:
+        errors.append(exilus_err)
+
     seen_slots = set()
     seen_mods = {}
     resolved_slots = []
@@ -195,6 +222,16 @@ def validate_build(build, db, max_errors=50):
             errors.append(error('mod_slot_kind_mismatch',
                                 '%s has no %s slot' % (equipment.get('name'), slot_kind),
                                 field='slots[].kind'))
+        # Phase 5: a declared boolean must be a boolean, whether or not a mod is installed -
+        # the switch is the user's statement, and `'yes'` is not one.
+        slot_unlocked = None
+        if slot_kind == schema.SLOT_EXILUS:
+            slot_unlocked = raw.get('unlocked')
+            if slot_unlocked is not None and not isinstance(slot_unlocked, bool):
+                errors.append(error('invalid_boolean',
+                                    'slots[].unlocked must be true or false, not %r'
+                                    % (slot_unlocked,), field='slots[].unlocked'))
+                slot_unlocked = None
         polarity = raw.get('polarity')
         if polarity is not None and schema.norm_polarity(polarity) is None \
                 and str(polarity).strip().lower() not in ('aura', 'none', ''):
@@ -224,7 +261,7 @@ def validate_build(build, db, max_errors=50):
                                        else 'Aura', slot_kind),
                                     mod=slot_mod.get('id'), field='slots[].mod.id'))
             if slot_kind == schema.SLOT_EXILUS:
-                if not raw.get('unlocked', build.get('exilus_unlocked', False)):
+                if not (slot_unlocked if slot_unlocked is not None else exilus_unlocked):
                     errors.append(error('exilus_not_unlocked',
                                         'the Exilus slot is not unlocked on this build',
                                         field='slots[].unlocked'))
@@ -281,7 +318,7 @@ def validate_build(build, db, max_errors=50):
         equipment,
         [{'kind': s['kind'], 'index': s['index'], 'polarity': s['polarity'],
           'mod': _capacity_mod(s['mod'], s['rank'])} for s in resolved_slots],
-        equipment_rank=rank, orokin=bool(build.get('orokin')),
+        equipment_rank=rank, orokin=orokin,
         mastery_rank=mastery)
     known = {(e.get('code'), e.get('mod'), e.get('field')) for e in errors}
     for row in cap['errors']:

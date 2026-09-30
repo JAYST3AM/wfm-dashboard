@@ -245,6 +245,9 @@
     highlightTraced();
   }
 
+  // The target card's "why" button opens the target trace through this hook.
+  P.openTrace = openTrace;
+
   function renderTrace() {
     var box = document.getElementById('plTraceBody');
     if (!box) return;

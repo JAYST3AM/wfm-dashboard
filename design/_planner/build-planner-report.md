@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-30T02:47:52.621Z · verdict **PASS** · 115 checks, 0 failed*
+*ran 2026-09-30T07:55:47.687Z · verdict **PASS** · 121 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | b6cb0c3  "Phase 4 plan (proposed): a conditional combat model" |
+| commit | cdcb837  "Gate: the Orders state polls for its answer instead of racing it" |
 | working tree | dirty (32 changed paths) |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_65xencrf |
-| page | http://127.0.0.1:56691/planner.html |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_ck175s_g |
+| page | http://127.0.0.1:58308/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |
@@ -21,7 +21,7 @@
 | ✅ | open | the page ships the planner shell and its empty first-run state | grid empty (awaiting a pick) or already rendered | 0 slot cards, pickerOpen=true |
 | ✅ | open | the shell marks the planner destination (not the dashboard) | data-shell="planner" | data-shell="planner" |
 | ✅ | open | the rail holds 7 destinations and something is current | 7 rail entries, one aria-current | 7 entries, active=true |
-| ✅ | open | the page names the engine + database it reads | a status line naming the DB | "db fd1b15dd · 1809 mods · 777 items" |
+| ✅ | open | the page names the engine + database it reads | a status line naming the DB | "db ea904b31 · 1809 mods · 777 items" |
 | ✅ | open | no id appears twice in the rendered page | 0 duplicate ids | 0 () |
 | ✅ | select | the picker opens with the normalised DB searchable | popup open with rows | open=true rows=80 |
 | ✅ | select | searching "braton prime" leaves exactly the rifle | 1 row: Braton Prime | Braton Prime Primary · RifleMR 8 · 35 dmg · 12% crit |
@@ -112,13 +112,19 @@
 | ✅ | scroll | the library scrolls on its own without moving the page or the stats | independent scrollers, no accidental parent scroll | {"pageSame":true,"statsSame":true,"listMoved":true} |
 | ✅ | details | the docked details stay on screen and off the stats at all five sizes | five viewports: pane inside the viewport, no stats overlap, no page overflow, the workspac… | {"sizes":5,"bad":[]} |
 | ✅ | target | a stated target survives a reload and is posted exactly as stated | nothing stated posts no context at all; a stated faction and stack count survive the reloa… | before=null after={"context":{"target_faction":"corpus","target":{"viral_stacks":6}}} |
-| ✅ | target | an unresolved target input is withheld, not assumed | viral stacks stated without a landing = unknown (withheld); nothing stated = deterministic | before="deterministic" after={"mode":"stated_inputs","state":"conditional","context_supplied":true,"context_ignored":[],"withheld":["viral"],"consumed… |
+| ✅ | target | an unresolved target input is withheld, not assumed | viral stacks stated without a landing = unknown (withheld); nothing stated = deterministic | before="deterministic" after={"mode":"stated_inputs","state":"conditional","context_supplied":true,"context_ignored":[],"withheld":["viral"],"assumpti… |
+| ✅ | target | the target card posts exactly what was typed - faction, layer, armour, corrosive, on-kill state | grineer / health / armour 900 / corrosive 4 / 3 on-kill stacks and no uptime | {"target_faction":"grineer","target":{"protection":"health","armor":900,"corrosive_stacks":4},"buffs":{"on_kill":{"stacks":3}}} |
+| ✅ | target | the card prints the engine's mitigated numbers, not its own | armour reduced in the head, the engine per-projectile/per-shot figures in the body, a why … | effective=504.00000000000006 out=vs Grineer · lands on health · armour 900 -> 504impact 1.604 · puncture 7.487 · slash 12.834per projectile 21.925 · p… |
+| ✅ | target | the why button opens the engine's own target trace | the trace panel shows the engine target trace (its label, its source line, its final figur… | {"clicked":true,"text":"Damage vs the stated target (per projectile)Base35impact-0.146puncture-4.763slash-8.166Final21.925source: https://wiki.warfram… |
+| ✅ | target | the on-kill rider applies the stated stacks and prints its own contribution | satisfied from 3 stated stacks, contribution printed as the payload states it | installed=1 rider=/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod {"mod":"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod","mod_name":"Galva… |
+| ✅ | target | an averaged on-kill state says so, on the stated stacks only | mode averaged, 0.65 uptime carried, the assumption printed next to the contribution | {"mod":"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod","mod_name":"Galvanized Chamber","rank":10,"trigger":"on_kill","stat":"multishot","cap":5… |
+| ✅ | target | clearing the armour withholds the number and prints the engine's own refusal | no target_damage, and the card prints the engine's unknown verdict naming the armour | td=null out=target damage: unknown - the damage lands on health, so the armour value is needed to compute the mitigation, and no armour was statedOn K… |
 | ✅ | hygiene | no duplicate id after the whole drive | 0 duplicates | [] |
 | ✅ | hygiene | no console error over the whole drive | 0 console errors | 0:  |
 | ✅ | hygiene | no page error over the whole drive | 0 page errors | 0:  |
 | ✅ | hygiene | no failed request outside the dev-server burst class | 0 failed requests | 0: [] |
 | ✅ | current | the Current Loadout card lists every equipped category from the save | six rows: warframe, primary, secondary, melee, companion, companion weapon | WarframeGauss PrimeConfig A · Rank 30 \\| PrimaryBraton PrimeConfig A · Rank 30 \\| SecondaryKohmakConfig A · Rank 0 \\| MeleeRipkasConfig A · Rank unkno… |
-| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 11 hours ago /  |
+| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 16 hours ago /  |
 | ✅ | current | the imported view is read-only: no editable field, only its own buttons | no input/textarea/contenteditable, and refresh/view/clone as the only affordances | editable=0 buttons=plCurrentRefresh,plCurrentView,plCurrentClone |
 | ✅ | current | the card adds no floating surface (the workspace rule holds here too) | no position:fixed element inside #plCurrent | fixed layers: 0 |
 | ✅ | current | the imported build shows its mods with the ranks the save records | Serration at rank 10, read from the copy the save points at | 1SerrationR10 |

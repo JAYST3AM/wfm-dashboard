@@ -138,7 +138,10 @@
       // Phase 4: what the caller states about the target. Blank/absent means NOT STATED, which
       // the engine answers as `unknown` - never as zero or false. The page sends only the parts
       // the user actually stated, so "not stated" survives the trip.
-      target: { faction: '', viral_stacks: null, protection: '', shot: null, strict: false }
+      target: { faction: '', viral_stacks: null, protection: '', shot: null, strict: false,
+        // Phase 5: the enemy model and the stated buff state. null = NOT STATED, which the engine
+        // answers as `unknown`; 0 is a stated zero and means something else.
+        armour: null, corrosive_stacks: null, kill_stacks: null, kill_uptime: null }
     };
   }
 
@@ -245,7 +248,9 @@
   // The Phase 4 target block, validated like every other member of v1: what the caller stated is
   // kept exactly as stated (blank and null are meaningful - they mean NOT STATED, which the engine
   // answers as unknown), and a member that is present and wrong fails the document like any other.
-  var TARGET_FACTIONS = ['', 'grineer', 'corpus', 'infested', 'orokin', 'murmur', 'sentient'];
+  var TARGET_FACTIONS = ['', 'grineer', 'kuva_grineer', 'corpus', 'corpus_amalgam', 'infested',
+    'infested_deimos', 'orokin', 'sentient', 'narmer', 'murmur', 'zariman', 'scaldra', 'techrot',
+    'anarchs', 'tenno'];
   var TARGET_LANDINGS = ['', 'health', 'armor', 'shields', 'overguard'];
 
   // undefined/null -> null (not stated); a whole number or a numeric string in range -> it; anything
@@ -267,7 +272,9 @@
     var keys = Object.keys(raw);
     for (var i = 0; i < keys.length; i++) {
       if (keys[i] !== 'faction' && keys[i] !== 'viral_stacks' && keys[i] !== 'protection' &&
-          keys[i] !== 'shot' && keys[i] !== 'strict') return null;
+          keys[i] !== 'shot' && keys[i] !== 'strict' && keys[i] !== 'armour' &&
+          keys[i] !== 'corrosive_stacks' && keys[i] !== 'kill_stacks' &&
+          keys[i] !== 'kill_uptime') return null;
     }
     if (raw.faction !== undefined && raw.faction !== null) {
       if (typeof raw.faction !== 'string' || TARGET_FACTIONS.indexOf(raw.faction) < 0) return null;
@@ -286,6 +293,19 @@
     var shot = numericField(raw.shot, 1, 999);
     if (shot === false) return null;
     out.shot = shot;
+    // Phase 5: the enemy model and the buff state, validated like every other member of v1.
+    var armour = numericField(raw.armour, 0, 1000000);
+    if (armour === false) return null;
+    out.armour = armour;
+    var corrosive = numericField(raw.corrosive_stacks, 0, 10);
+    if (corrosive === false) return null;
+    out.corrosive_stacks = corrosive;
+    var killStacks = numericField(raw.kill_stacks, 0, 99);
+    if (killStacks === false) return null;
+    out.kill_stacks = killStacks;
+    var killUptime = numericField(raw.kill_uptime, 0, 100);
+    if (killUptime === false) return null;
+    out.kill_uptime = killUptime;
     if (raw.strict !== undefined && raw.strict !== null) {
       if (typeof raw.strict !== 'boolean') return null;
       out.strict = raw.strict;
@@ -489,7 +509,22 @@
     var stacks = statedNumber(t.viral_stacks);
     if (stacks !== null) target.viral_stacks = stacks;
     if (t.protection) target.protection = String(t.protection);
+    var armour = statedNumber(t.armour);
+    if (armour !== null) target.armor = armour;
+    var corrosive = statedNumber(t.corrosive_stacks);
+    if (corrosive !== null) target.corrosive_stacks = corrosive;
     if (Object.keys(target).length) context.target = target;
+    // The stated buff state (Phase 5): instant stacks, or the averaged pair of stacks + uptime %.
+    // The uptime is a percent in the box and a fraction in the request - a unit conversion of the
+    // user's own input, the one number this page transforms.
+    var ks = statedNumber(t.kill_stacks);
+    var up = statedNumber(t.kill_uptime);
+    if (ks !== null || up !== null) {
+      var onKill = {};
+      if (ks !== null) onKill.stacks = ks;
+      if (up !== null) onKill.uptime = up / 100;
+      context.buffs = { on_kill: onKill };
+    }
     var shot = statedNumber(t.shot);
     if (shot !== null) context.attack = { shot_index: shot };
     var options = {};
@@ -1354,6 +1389,73 @@
     }
   }
 
+  // Phase 5: what the engine answered against the stated target, and the riders it considered.
+  // Every figure is printed from the last /api/planner/compute answer - the page derives nothing,
+  // and a withheld figure prints as withheld, never as a zero.
+  function renderTargetOut() {
+    var box = $('plTargetOut');
+    if (!box) return;
+    clear(box);
+    var answer = state.result;
+    var td = answer && answer.result && answer.result.target_damage;
+    var ev = (answer && answer.evaluation) || {};
+    if (!td) {
+      var rows = (answer && answer.conditions) || [];
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].condition === 'target_damage') {
+          box.appendChild(el('div', { class: 'pl-eval-why',
+            text: 'target damage: ' + rows[i].state + ' - ' + rows[i].reason }));
+          break;
+        }
+      }
+    } else {
+      var head = ['vs ' + (td.faction_label || td.faction || 'target')];
+      if (td.protection) head.push('lands on ' + td.protection);
+      if (td.armor) {
+        head.push('armour ' + fmt.num(td.armor.stated) +
+          (td.armor.effective !== td.armor.stated ? ' -> ' + fmt.num(td.armor.effective) : ''));
+      }
+      box.appendChild(el('div', { class: 'pl-eval-in', text: head.join(' · ') }));
+      var types = Object.keys(td.per_projectile || {});
+      if (types.length) {
+        box.appendChild(el('div', { class: 'pl-eval-why', text: types.map(function (k) {
+          return k + ' ' + fmt.num(td.per_projectile[k]);
+        }).join(' · ') }));
+      }
+      var line = ['per projectile ' + fmt.num(td.per_projectile_total),
+        'per shot ' + fmt.num(td.per_shot_total),
+        'crit-expected ' + fmt.num(td.per_shot_expected_crit)];
+      box.appendChild(el('div', { class: 'pl-eval-in', text: line.join(' · ') }));
+      if (td.dps && td.dps.supported) {
+        box.appendChild(el('div', { class: 'pl-eval-why',
+          text: 'burst ' + fmt.num(td.dps.burst) + ' DPS · sustained ' + fmt.num(td.dps.sustained) +
+            ' DPS' }));
+      }
+      var why = el('button', { class: 'pl-btn-ghost pl-target-why', type: 'button',
+        text: 'why', title: 'the engine\'s step-by-step target trace' });
+      why.addEventListener('click', function () {
+        if (window.WFMPlanner && window.WFMPlanner.openTrace) {
+          window.WFMPlanner.openTrace('target_damage');
+        }
+      });
+      box.appendChild(why);
+    }
+    ((answer && answer.riders) || []).forEach(function (r) {
+      var text = 'On Kill · ' + (r.mod_name || r.mod) + ': ' + r.state;
+      if (r.applied) {
+        text += ' · ' + r.stacks + ' stack' + (r.stacks === 1 ? '' : 's') + ' · +' +
+          fmt.num(r.contribution) + '% ' + r.stat;
+        if (r.mode === 'averaged' && r.assumption) text += ' · ' + r.assumption;
+      } else if (r.state !== 'satisfied') {
+        text += ' - ' + (r.reason || '');
+      }
+      box.appendChild(el('div', { class: 'pl-eval-why', 'data-k': r.state, text: text }));
+    });
+    (ev.assumptions || []).forEach(function (a) {
+      box.appendChild(el('div', { class: 'pl-eval-note', text: 'assumption: ' + a }));
+    });
+  }
+
   function renderResult() {
     renderError();
     renderMrHint();              // the capacity floor comes from the engine's answer
@@ -1362,6 +1464,7 @@
     renderCapacity();
     renderValidation();
     renderEvaluation();
+    renderTargetOut();
     renderUnsupported();
     renderStatus();
     renderForma();                 // a polarity change moves the Forma count, not just the stats
@@ -1588,6 +1691,12 @@
     if (t.faction) bits.push('faction: ' + t.faction);
     if (statedNumber(t.viral_stacks) !== null) bits.push('viral ' + statedNumber(t.viral_stacks));
     if (t.protection) bits.push('on ' + t.protection);
+    if (statedNumber(t.armour) !== null) bits.push('armour ' + statedNumber(t.armour));
+    if (statedNumber(t.corrosive_stacks) !== null) {
+      bits.push('corrosive ' + statedNumber(t.corrosive_stacks));
+    }
+    if (statedNumber(t.kill_stacks) !== null) bits.push('on-kill ' + statedNumber(t.kill_stacks));
+    if (statedNumber(t.kill_uptime) !== null) bits.push('uptime ' + statedNumber(t.kill_uptime) + '%');
     if (statedNumber(t.shot) !== null) bits.push('shot ' + statedNumber(t.shot));
     if (t.strict) bits.push('strict');
     node.textContent = bits.length ? bits.join(' · ') : 'nothing stated';
@@ -1608,6 +1717,13 @@
       ? '' : String(t.viral_stacks);
     $('plTargetProtection').value = t.protection || '';
     $('plTargetShot').value = (t.shot === null || t.shot === undefined) ? '' : String(t.shot);
+    $('plTargetArmor').value = (t.armour === null || t.armour === undefined) ? '' : String(t.armour);
+    $('plTargetCorrosive').value = (t.corrosive_stacks === null || t.corrosive_stacks === undefined)
+      ? '' : String(t.corrosive_stacks);
+    $('plKillStacks').value = (t.kill_stacks === null || t.kill_stacks === undefined)
+      ? '' : String(t.kill_stacks);
+    $('plKillUptime').value = (t.kill_uptime === null || t.kill_uptime === undefined)
+      ? '' : String(t.kill_uptime);
     setToggle($('plStrict'), !!t.strict, $('plStrictVal'));
     renderTargetMeta(t);
     var max = state.equipment ? state.equipment.max_rank : 30;
@@ -1703,10 +1819,12 @@
     // is stored as stated (or as an empty string), never as a substitute value.
     // An input's value is a string; what gets stored (and posted) is a number or null. The engine
     // refuses a string where it wants a count, and it is right to: "6" is not 6.
+    var NUMERIC_TARGETS = { viral_stacks: 1, shot: 1, armour: 1, corrosive_stacks: 1,
+      kill_stacks: 1, kill_uptime: 1 };
     function targetEdit(patch) {
       var t = targetState();
       Object.keys(patch).forEach(function (k) {
-        t[k] = (k === 'viral_stacks' || k === 'shot') ? statedNumber(patch[k]) : patch[k];
+        t[k] = NUMERIC_TARGETS[k] ? statedNumber(patch[k]) : patch[k];
       });
       saveStorage();
       recompute();
@@ -1722,6 +1840,18 @@
     });
     $('plTargetShot').addEventListener('change', function (e) {
       targetEdit({ shot: e.target.value === '' ? null : e.target.value });
+    });
+    $('plTargetArmor').addEventListener('change', function (e) {
+      targetEdit({ armour: e.target.value === '' ? null : e.target.value });
+    });
+    $('plTargetCorrosive').addEventListener('change', function (e) {
+      targetEdit({ corrosive_stacks: e.target.value === '' ? null : e.target.value });
+    });
+    $('plKillStacks').addEventListener('change', function (e) {
+      targetEdit({ kill_stacks: e.target.value === '' ? null : e.target.value });
+    });
+    $('plKillUptime').addEventListener('change', function (e) {
+      targetEdit({ kill_uptime: e.target.value === '' ? null : e.target.value });
     });
     $('plStrict').addEventListener('click', function () {
       var t = targetState();

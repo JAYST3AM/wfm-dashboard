@@ -1,45 +1,43 @@
 #!/usr/bin/env python3
-"""Status mechanics: one precisely defined piece of one status effect (Phase 4, milestone 4.4).
+"""Status mechanics: one precisely defined piece of one status effect at a time.
 
-Scope, stated as narrowly as it was asked for: the **Viral** status effect's damage amplification
-against a target, and nothing else. Not "status effects", not the proc timeline, not the DoTs.
-Milestone 4.4 exists to prove the condition machinery can carry a real mechanic end to end; it is
-not the start of building the status system (Phase 5's problem, and only if the model holds).
+Phase 4 added the **Viral** status effect's damage amplification against a target (milestone 4.4).
+Phase 5 adds the **Corrosive** status effect's armour reduction (milestone 5.5), chosen because it
+exercises a different architecture: it does not multiply damage, it changes the *target's armour
+value*, which the Phase 5 mitigation stage consumes. Still not "status effects": not the proc
+timeline, not the DoTs, not the other nine types.
 
-The rule, quoted from the WARFRAME Wiki (retrieved 2026-09-29, oldid 2805913):
+The rule, quoted from the WARFRAME Wiki (retrieved 2026-09-30, oldid 2804597):
 
-    "It amplifies damage to the health of the afflicted target by 100% for 6 seconds. Subsequent
-     procs add 25% increased damage to health up to 325% in total after 10 stacks, with each stack
-     having their own duration. Any stacks applied after the 10th will replace the oldest stack.
-     This effect will work even when the health is protected by armor ("yellow health"); only
-     shields and overguards are not affected."
+    "The status effect of Corrosive damage is Corrosion. It temporarily degrades the armor of the
+     afflicted target by 26% for 8 seconds. Subsequent procs further reduce armor by 6%, culminating
+     in a total armor reduction of 80% at 10 stacks, with each stack having its own duration. Any
+     stacks applied after the 10th will replace the oldest stack."
 
-        Resultant Damage to Health = Modded Damage x [2 + (0.25 x (Number of Viral Stacks - 1))]
+        Armor after reduction = Armor x (1 - (0.20 + 0.06 x Corrosive stacks))
 
-    Source: https://wiki.warframe.com/w/Damage/Viral_Damage (oldid 2805913)
+    (The 26% first proc is 20% + 6% x 1; the wiki's own combined formula writes the reduction as
+     "20% + 6% x Number of Corrosive stacks", capped at 80% with 10 stacks.)
 
-Inputs (exactly these; both live under the evaluation context - `options['context']` in api.compute):
+    Source: https://wiki.warframe.com/w/Damage/Corrosive_Damage (oldid 2804597)
 
-    context.target.viral_stacks   1..10   the number of Viral procs currently on the target
-    context.target.protection     'health' | 'armor' | 'shields' | 'overguard'
-                                          what that damage lands on (the wiki's own distinction:
-                                          the amplification reaches health, including health under
-                                          armour, and does not reach shields or overguard)
-    context.target.immune_to      list    a target the caller already knows to be immune to this
-                                          damage type (the wiki's Deimos note)
+Inputs (exactly this; it lives under the evaluation context - `options['context']['target']`):
+
+    context.target.corrosive_stacks   0..10   the number of Corrosive procs currently on the target
 
 Outputs: a condition-shaped result (the same four states as `builds.conditions`) carrying
 
-    amplifier    the multiplier to apply to damage dealt to health, or None when it is withheld
-    formula      the formula text above, so a UI can show the rule it used rather than the number
-    state        satisfied | not_satisfied | unknown | unsupported
+    armor_multiplier   the factor to apply to the target's armour, or None when it is withheld
+    formula            the formula text above, so a UI can show the rule it used
+    state              satisfied | not_satisfied | unknown | unsupported
 
-Deliberately NOT here: the 6-second duration, stack decay, stack replacement over time, whether a
-given build can apply a proc, any other status effect, and any enemy health/shield/armour model.
-Those are refusals, not omissions: a caller that needs them is told so by the condition state.
+Deliberately NOT here: the 8-second duration, stack replacement over time, the Emerald Archon Shard
+that raises the cap, Heat's 50% armour strip, Corrosive Projection, Terrify and every other armour
+source. Those are refusals, not omissions: a caller that needs them is told so by the state.
 """
 from . import conditions
 
+# --- viral (Phase 4) -------------------------------------------------------------------------
 SOURCE = 'https://wiki.warframe.com/w/Damage/Viral_Damage (oldid 2805913, retrieved 2026-09-29)'
 STATUS = 'viral'
 MAX_STACKS = 10
@@ -173,6 +171,96 @@ def trace_rows(row):
             'note': row.get('formula')}
 
 
+# ------------------------------------------------------------------ corrosive (Phase 5, 5.5)
+CORROSIVE = 'corrosive'
+CORROSIVE_SOURCE = ('https://wiki.warframe.com/w/Damage/Corrosive_Damage '
+                    '(oldid 2804597, retrieved 2026-09-30)')
+CORROSIVE_BASE = 0.20                 # the flat part of the reduction (26% at one stack = 20+6)
+CORROSIVE_PER_STACK = 0.06
+CORROSIVE_MAX_REDUCTION = 0.80        # 80% at ten stacks
+CORROSIVE_MAX_STACKS = 10
+CORROSIVE_FORMULA = 'armor_after = armor x (1 - (0.20 + 0.06 x corrosive_stacks))'
+CORROSIVE_TRACE_LABEL = 'Corrosive armour reduction'
+
+
+def corrosive_reduction(stacks):
+    """The fraction of armour this many Corrosive stacks removes, or None when not modellable.
+
+    Pure and total: 0 stacks -> 0.0 (no reduction, no error), 1..10 -> the wiki formula capped at
+    80%, anything else (11+, negative, non-integer) -> None. A caller must never read None as 0.0.
+    """
+    if isinstance(stacks, bool) or not isinstance(stacks, int):
+        return None
+    if stacks < 0 or stacks > CORROSIVE_MAX_STACKS:
+        return None
+    if stacks == 0:
+        return 0.0
+    return round(min(CORROSIVE_MAX_REDUCTION, CORROSIVE_BASE + CORROSIVE_PER_STACK * stacks), 4)
+
+
+def evaluate_corrosive(ctx):
+    """The Corrosive armour reduction against the supplied target state -> a condition result.
+
+    Every branch ends in one of the four states; none of them ends in a silent multiplier of 1.
+    """
+    if not conditions.has(ctx, 'target', 'corrosive_stacks'):
+        return conditions.result(
+            CORROSIVE, conditions.UNKNOWN,
+            'the target state does not carry corrosive_stacks, so the armour reduction is unknown',
+            reason_code='condition_unknown', missing=['target.corrosive_stacks'],
+            source=CORROSIVE_SOURCE, formula=CORROSIVE_FORMULA)
+    stacks = conditions.get(ctx, 'target', 'corrosive_stacks')
+    if isinstance(stacks, bool) or not isinstance(stacks, int):
+        return conditions.result(
+            CORROSIVE, conditions.UNKNOWN,
+            'corrosive_stacks %r is not a stack count this engine will interpret' % (stacks,),
+            reason_code='condition_unknown', inputs={'corrosive_stacks': stacks},
+            missing=['an integer target.corrosive_stacks'],
+            source=CORROSIVE_SOURCE, formula=CORROSIVE_FORMULA)
+    if stacks < 0:
+        return conditions.result(
+            CORROSIVE, conditions.UNKNOWN,
+            'corrosive_stacks %d is negative, which is not a target state' % stacks,
+            reason_code='condition_unknown', inputs={'corrosive_stacks': stacks},
+            missing=['a non-negative target.corrosive_stacks'],
+            source=CORROSIVE_SOURCE, formula=CORROSIVE_FORMULA)
+    if stacks > CORROSIVE_MAX_STACKS:
+        return conditions.result(
+            CORROSIVE, conditions.UNSUPPORTED,
+            'corrosive_stacks %d is above the 10-stack cap: the Emerald Archon Shard raises the '
+            'cap and stacks beyond it replace the oldest, which is a timeline this engine does '
+            'not model' % stacks,
+            reason_code='mechanic_unsupported', inputs={'corrosive_stacks': stacks},
+            source=CORROSIVE_SOURCE, formula=CORROSIVE_FORMULA,
+            unsupported_code='corrosive_stack_timeline')
+    reduction = corrosive_reduction(stacks)
+    if stacks == 0:
+        return conditions.result(
+            CORROSIVE, conditions.NOT_SATISFIED,
+            'the target carries no corrosive procs, so its armour is not degraded',
+            reason_code='condition_not_satisfied', inputs={'corrosive_stacks': 0},
+            source=CORROSIVE_SOURCE, formula=CORROSIVE_FORMULA,
+            reduction=0.0, armor_multiplier=1.0)
+    return conditions.result(
+        CORROSIVE, conditions.SATISFIED,
+        '%d corrosive proc%s degrade %s%% of the target armour'
+        % (stacks, '' if stacks == 1 else 's', round(reduction * 100, 4)),
+        inputs={'corrosive_stacks': stacks},
+        source=CORROSIVE_SOURCE, formula=CORROSIVE_FORMULA,
+        reduction=reduction, armor_multiplier=round(1.0 - reduction, 4), stacks=stacks)
+
+
+def corrosive_trace_row(armor, effective, row):
+    """One trace-modifier row for an applied corrosive reduction (or None when nothing applied)."""
+    if not row or row.get('state') != conditions.SATISFIED or not armor:
+        return None
+    return {'source': 'Corrosive (%d stack%s)' % (row['stacks'], '' if row['stacks'] == 1 else 's'),
+            'category': 'mitigation', 'value': row['armor_multiplier'], 'unit': 'ratio',
+            'condition': CORROSIVE, 'state': row['state'], 'stacks': row['stacks'],
+            'note': '%s: armour %s -> %s' % (row.get('formula'), armor, effective)}
+
+
+
 # ------------------------------------------------------------------ selftest
 def selftest():
     failures, counter = [], [0]
@@ -247,6 +335,34 @@ def selftest():
     check('a satisfied result traces', trace_rows(ok)['value'] == 3.25)
     check('a refused result traces nothing', trace_rows(no_prot) is None
           and trace_rows(none) is None)
+
+    # --- corrosive (5.5): the wiki values, the cap, and all four states
+    check('the wiki formula: 1 stack = 26% off (20% + 6%)',
+          corrosive_reduction(1) == 0.26)
+    check('the wiki formula: 10 stacks = the 80% cap', corrosive_reduction(10) == 0.80)
+    check('0 stacks is no reduction, not an error', corrosive_reduction(0) == 0.0)
+    check('11 stacks and non-integers are not modellable',
+          corrosive_reduction(11) is None and corrosive_reduction(2.5) is None
+          and corrosive_reduction(-1) is None and corrosive_reduction(True) is None)
+    cor = evaluate_corrosive(ctx(corrosive_stacks=2))
+    check('2 stacks -> satisfied, armour x0.68', cor['state'] == 'satisfied'
+          and cor['armor_multiplier'] == 0.68 and cor['reduction'] == 0.32, str(cor))
+    check('the corrosive result carries its formula and source',
+          cor['formula'] == CORROSIVE_FORMULA and 'wiki.warframe.com' in cor['source'])
+    cor0 = evaluate_corrosive(ctx(corrosive_stacks=0))
+    check('0 stacks -> not_satisfied with a x1.0 multiplier (a reported fact)',
+          cor0['state'] == 'not_satisfied' and cor0['armor_multiplier'] == 1.0)
+    cor_missing = evaluate_corrosive(conditions.normalise_context({'target': {}}))
+    check('no corrosive_stacks -> unknown, and no multiplier key at all',
+          cor_missing['state'] == 'unknown' and 'armor_multiplier' not in cor_missing
+          and cor_missing['missing'] == ['target.corrosive_stacks'])
+    cor_over = evaluate_corrosive(ctx(corrosive_stacks=12))
+    check('12 stacks -> unsupported with the shard/timeline named',
+          cor_over['state'] == 'unsupported'
+          and cor_over['unsupported_code'] == 'corrosive_stack_timeline')
+    check('a non-integer corrosive count is unknown',
+          evaluate_corrosive(ctx(corrosive_stacks='3'))['state'] == 'unknown'
+          and evaluate_corrosive(ctx(corrosive_stacks=-2))['state'] == 'unknown')
 
     print('\nstatuses selftest %s (%d checks, %d failed) - nothing written'
           % ('OK' if not failures else 'FAILED', counter[0], len(failures)))

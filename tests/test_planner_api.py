@@ -240,8 +240,10 @@ def test_the_library_holds_the_mods_that_install_on_the_item(api):
 def test_the_library_names_what_it_will_not_calculate(api):
     _, body = api.get('/api/planner/mods?equipment=' + _quote('/Fixture/BratonPrime'))
     galv = next(r for r in body['rows'] if r['name'] == 'Galvanized Chamber')
-    assert galv['support']['unmodelled'] >= 1
-    assert galv['support']['unmodelled_examples']
+    # Phase 5: the on-kill rider is owned by the conditional bucket now (the engine applies it
+    # when the caller states the buff state), so it is no longer ALSO counted as unmodelled -
+    # the mod has no truly unmodelled line left. The library still names the rider.
+    assert galv['support']['unmodelled'] == 0
     assert galv['support']['conditional'] >= 1
     assert galv['support']['conditional_examples']
     assert galv['flags'] == ['galvanized']
