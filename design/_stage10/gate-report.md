@@ -1,6 +1,6 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-30 18:44:53  (2026-09-30T18:44:53.091343+10:00) -> live measurements finished 18:47:59  
+**Run:** 2026-09-30 20:07:59  (2026-09-30T20:07:59.414757+10:00) -> live measurements finished 20:11:06  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
@@ -103,9 +103,9 @@ Legacy hashes (each loaded fresh, because three of them redirect the whole page)
 | Home Today > Platinum now | /api/plat_history.now (fallback /api/summary.plat) | 1022 | 1,022 | yes |
 | Home Today > Earned today | progress.json today.plat_delta | 0 | +0p | yes |
 | Home Today > Sales today | progress.json today.trades.sales | 0 | 0 | yes |
-| Home Today > Trades left | /api/summary.trades (null -> em dash) | 21 | 21 | yes |
+| Home Today > Trades left | /api/summary.trades (null -> em dash) | 20 | 20 | yes |
 | Inventory > rows rendered (capped at 400) | /api/items length | 400 | 400 | yes |
-| Inventory > "N stacks" in the totals bar | /api/items length | 876 | 876 | yes |
+| Inventory > "N stacks" in the totals bar | /api/items length | 881 | 881 | yes |
 | Cards > total in the header chips | cards summary.cards | 1551 | 1551 | yes |
 | Cards > owned in the header chips | cards summary.owned | 557 | 557 | yes |
 | Cards > missing in the header chips | cards summary.missing | 994 | 994 | yes |
@@ -159,7 +159,7 @@ none
 | rendered: settings status pill | Not live#st-pill dry |
 | rendered: trade kill-switch chip | disarmed |
 | rendered: trade kill-switch line | 9/25/2026, 23:02:47 Not live |
-| rendered: trade plan header | · built 74h ago · MR 22 |
+| rendered: trade plan header | · built 75h ago · MR 22 |
 | rendered: home alerts | Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically |
 
 How the badge is derived (read live from `app.js`, not assumed): `dry = set.dry_run === true || plan.dry_run === true`, then the chip prints `Not live - nothing is posted` when dry. The two inputs are `scripts/trader/settings.json` and `data/trader_plan.json`; **`data/config.json` carries no `dry_run` key at all**, so it is not the gate for this badge. Both real inputs are `true` above, and the rendered copy is the Not-live wording - the badge cannot claim Live while posting is locked.
@@ -172,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3215 | 0 | 9010 | 192 | 0 |
-| Kuva Crimson | dark | 17 | 3216 | 0 | 9011 | 192 | 0 |
-| Frost Light | light | 17 | 3216 | 0 | 9011 | 192 | 0 |
-| Cephalon White | light | 17 | 3216 | 0 | 9011 | 192 | 0 |
+| Vor Orange | dark | 17 | 3234 | 0 | 9045 | 192 | 0 |
+| Kuva Crimson | dark | 17 | 3234 | 0 | 9045 | 192 | 0 |
+| Frost Light | light | 17 | 3234 | 0 | 9045 | 192 | 0 |
+| Cephalon White | light | 17 | 3234 | 0 | 9045 | 192 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
@@ -187,7 +187,7 @@ Colours that did **not** change between the dark theme (0) and the light theme (
 
 ids_before.json pages: index=172, collection=28, cards=20, settings=36, item=25, lookup=0
 
-ids found live: index=8298, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=461, planner=335
+ids found live: index=8298, collection=809, cards=248, settings=1734, item=252, item-deeplink=253, lookup=461, planner=339
 
 **Missing: 0** 
 

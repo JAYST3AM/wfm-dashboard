@@ -457,6 +457,7 @@ def collect_mod_effects(mod_slots):
     # of the whole slot list, not of one mod.
     set_pieces = {}
     set_duplicates = {}
+    set_unknown_members = {}
     for slot in mod_slots or []:
         flags = ((slot.get('mod') or {}).get('flags') or {})
         sid = flags.get('set_id') if flags.get('set') else None
@@ -469,6 +470,12 @@ def collect_mod_effects(mod_slots):
         # A refused member is not equipped: the rank check below emits its own marker, and a mod
         # the engine cannot apply does not get to grant a set piece.
         if rank is None or (mod.get('max_rank') is not None and rank > mod['max_rank']):
+            continue
+        # The roster contract (mechanics.roster_contract: 'distinct_legal_known'): a member the
+        # engine has no pinned scaling for is *not* a piece - it is named as unknown at the scaling
+        # pass, and counting it would scale the set off a member the engine cannot evaluate.
+        if sid == UMBRAL_SET and mod.get('id') not in UMBRAL_MULTIPLIERS:
+            set_unknown_members[sid] = set_unknown_members.get(sid, 0) + 1
             continue
         seen = set_pieces.setdefault(sid, set())
         if mod.get('id') in seen:

@@ -282,6 +282,26 @@ def cmd_selftest(args):
     return code
 
 
+def cmd_mechanics(args):
+    """The mechanic registry (Phase 6, 6.1): what is declared, and what each declaration drives."""
+    from . import mechanics
+    if getattr(args, 'json', False):
+        print(json.dumps(mechanics.introspect(), indent=1, sort_keys=True))
+        return 0
+    print(mechanics.table())
+    print('\n%s mechanics: %s' % (len(mechanics.REGISTRY),
+                                  ', '.join(sorted(mechanics.REGISTRY))))
+    print('consumed context fields: %s' % ', '.join(sorted(mechanics.consumed_fields())))
+    print('path trigger: %s' % mechanics.path_rule().describe())
+    print('rider stats (the enablement): %s' % ', '.join(mechanics.rider_stats()))
+    print('armour transformers: %s' % ', '.join(m.id for m in mechanics.armour_transformers()))
+    print('set roster contract: %s' % mechanics.roster_contract('set'))
+    und = sorted(code for code in mechanics.refusal_codes()
+                 if unsupported.entry(code) is None and code not in conditions.REASON_CODES)
+    print('declared refusal codes without a row: %s' % (', '.join(und) or 'none'))
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='build planner developer surface')
     parser.add_argument('--db', default=None, help='path to build_data.json')
@@ -293,6 +313,9 @@ def main(argv=None):
     p = sub.add_parser('mod'); p.add_argument('name'); p.set_defaults(func=cmd_mod)
     p = sub.add_parser('equipment'); p.add_argument('name'); p.set_defaults(func=cmd_equipment)
     p = sub.add_parser('selftest'); p.set_defaults(func=cmd_selftest)
+    p = sub.add_parser('mechanics')
+    p.add_argument('--json', action='store_true', help='the declaration table as JSON')
+    p.set_defaults(func=cmd_mechanics)
 
     for name, func in (('stat', cmd_stat), ('explain', cmd_explain)):
         p = sub.add_parser(name)

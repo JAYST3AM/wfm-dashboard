@@ -141,7 +141,10 @@
       target: { faction: '', viral_stacks: null, protection: '', shot: null, strict: false,
         // Phase 5: the enemy model and the stated buff state. null = NOT STATED, which the engine
         // answers as `unknown`; 0 is a stated zero and means something else.
-        armour: null, corrosive_stacks: null, kill_stacks: null, kill_uptime: null }
+        armour: null, corrosive_stacks: null, kill_stacks: null, kill_uptime: null,
+        // Phase 6: the Heat strip (one of the ramp's values) and the stated pool sizes. null =
+        // NOT STATED; 0 is a stated zero and means something else.
+        heat_strip: null, pool_health: null, pool_shields: null, pool_overguard: null }
     };
   }
 
@@ -258,7 +261,10 @@
   // contract is looser (any finite non-negative number the caller states) - the store keeps a
   // practical ceiling, and a value above it is refused rather than dropped.
   var TARGET_RANGES = {viral_stacks: [0, 10], shot: [1, 999], armour: [0, 1000000000],
-    corrosive_stacks: [0, 10], kill_stacks: [0, 99], kill_uptime: [0, 100]};
+    corrosive_stacks: [0, 10], kill_stacks: [0, 99], kill_uptime: [0, 100],
+    pool_health: [0, 1000000000], pool_shields: [0, 1000000000], pool_overguard: [0, 1000000000]};
+  // The Heat strip's own values: the wiki's ramp plateaus (15/30/40/50) or a stated zero.
+  var HEAT_STRIPS = [0, 15, 30, 40, 50];
   // Number('0x10') is 16 and Number('1e3') is 1000: a stored field is a plain decimal or it is
   // not a value this page wrote.
   var DECIMAL = /^-?\d+(?:\.\d+)?$/;
@@ -282,7 +288,9 @@
     if (typeof raw !== 'object' || Array.isArray(raw)) return null;
     var keys = Object.keys(raw);
     for (var i = 0; i < keys.length; i++) {
-      if (keys[i] !== 'faction' && keys[i] !== 'viral_stacks' && keys[i] !== 'protection' &&
+      if (keys[i] !== 'heat_strip' && keys[i] !== 'pool_health' && keys[i] !== 'pool_shields' &&
+          keys[i] !== 'pool_overguard' &&
+          keys[i] !== 'faction' && keys[i] !== 'viral_stacks' && keys[i] !== 'protection' &&
           keys[i] !== 'shot' && keys[i] !== 'strict' && keys[i] !== 'armour' &&
           keys[i] !== 'corrosive_stacks' && keys[i] !== 'kill_stacks' &&
           keys[i] !== 'kill_uptime') return null;
@@ -290,6 +298,11 @@
     if (raw.faction !== undefined && raw.faction !== null) {
       if (typeof raw.faction !== 'string' || TARGET_FACTIONS.indexOf(raw.faction) < 0) return null;
       out.faction = raw.faction;
+    }
+    if (raw.heat_strip !== undefined && raw.heat_strip !== null) {
+      var heat = Number(raw.heat_strip);
+      if (HEAT_STRIPS.indexOf(heat) < 0) return null;
+      out.heat_strip = heat;
     }
     if (raw.protection !== undefined && raw.protection !== null) {
       if (typeof raw.protection !== 'string' || TARGET_LANDINGS.indexOf(raw.protection) < 0) return null;
@@ -497,7 +510,8 @@
   function targetState() {
     if (!state.storage.target || typeof state.storage.target !== 'object') {
       state.storage.target = { faction: '', viral_stacks: null, protection: '', shot: null,
-        strict: false };
+        strict: false, heat_strip: null, pool_health: null, pool_shields: null,
+        pool_overguard: null };
     }
     return state.storage.target;
   }
@@ -514,6 +528,15 @@
     if (armour !== null) target.armor = armour;
     var corrosive = statedNumber(t.corrosive_stacks);
     if (corrosive !== null) target.corrosive_stacks = corrosive;
+    // Phase 6: the stated Heat strip (the ramp's own values) and the stated pool sizes.
+    var heat = statedNumber(t.heat_strip);
+    if (heat !== null && HEAT_STRIPS.indexOf(heat) >= 0) target.heat_strip = heat;
+    var pools = [['pool_health', 'health'], ['pool_shields', 'shields'],
+      ['pool_overguard', 'overguard']];
+    for (var pi = 0; pi < pools.length; pi++) {
+      var poolValue = statedNumber(t[pools[pi][0]]);
+      if (poolValue !== null) target[pools[pi][1]] = poolValue;
+    }
     if (Object.keys(target).length) context.target = target;
     // The stated buff state (Phase 5): instant stacks, or the averaged pair of stacks + uptime %.
     var ks = statedNumber(t.kill_stacks);
@@ -1433,6 +1456,14 @@
         'per shot ' + fmt.num(td.per_shot_total),
         'crit-expected ' + fmt.num(td.per_shot_expected_crit)];
       box.appendChild(el('div', { class: 'pl-eval-in', text: line.join(' · ') }));
+      var pool = answer.result.pool;
+      if (pool) {
+        box.appendChild(el('div', { class: 'pl-eval-in',
+          text: 'pool ' + fmt.num(pool.pool) + ' ' + pool.layer + ' · ' +
+            pool.shots_required + ' shots' +
+            (pool.expected_shots === null || pool.expected_shots === undefined
+              ? '' : ' · ~' + fmt.num(pool.expected_shots) + ' crit-expected') }));
+      }
       if (td.dps && td.dps.supported) {
         box.appendChild(el('div', { class: 'pl-eval-why',
           text: 'burst ' + fmt.num(td.dps.burst) + ' DPS · sustained ' + fmt.num(td.dps.sustained) +
@@ -1702,6 +1733,14 @@
     if (statedNumber(t.viral_stacks) !== null) bits.push('viral ' + statedNumber(t.viral_stacks));
     if (t.protection) bits.push('on ' + t.protection);
     if (statedNumber(t.armour) !== null) bits.push('armour ' + statedNumber(t.armour));
+    if (statedNumber(t.heat_strip) !== null) bits.push('heat strip ' + t.heat_strip + '%');
+    var poolBits = [];
+    if (statedNumber(t.pool_health) !== null) poolBits.push('health ' + fmt.num(t.pool_health));
+    if (statedNumber(t.pool_shields) !== null) poolBits.push('shields ' + fmt.num(t.pool_shields));
+    if (statedNumber(t.pool_overguard) !== null) {
+      poolBits.push('overguard ' + fmt.num(t.pool_overguard));
+    }
+    if (poolBits.length) bits.push('pool ' + poolBits.join(' '));
     if (statedNumber(t.corrosive_stacks) !== null) {
       bits.push('corrosive ' + statedNumber(t.corrosive_stacks));
     }
@@ -1723,6 +1762,19 @@
     $('plMr').value = String(state.storage.mastery_rank);
     var t = targetState();
     $('plTargetFaction').value = t.faction || '';
+    var heatSelect = $('plTargetHeat');
+    if (heatSelect) {
+      heatSelect.value = (t.heat_strip === null || t.heat_strip === undefined)
+        ? '' : String(t.heat_strip);
+    }
+    var poolBoxes = [['plPoolHealth', 'pool_health'], ['plPoolShields', 'pool_shields'],
+      ['plPoolOverguard', 'pool_overguard']];
+    for (var pb = 0; pb < poolBoxes.length; pb++) {
+      var box = $(poolBoxes[pb][0]);
+      if (!box) continue;
+      var stored = statedNumber(t[poolBoxes[pb][1]]);
+      box.value = stored === null ? '' : String(stored);
+    }
     $('plTargetStacks').value = (t.viral_stacks === null || t.viral_stacks === undefined)
       ? '' : String(t.viral_stacks);
     $('plTargetProtection').value = t.protection || '';
@@ -1830,10 +1882,12 @@
     // An input's value is a string; what gets stored (and posted) is a number or null. The engine
     // refuses a string where it wants a count, and it is right to: "6" is not 6.
     var NUMERIC_TARGETS = { viral_stacks: 1, shot: 1, armour: 1, corrosive_stacks: 1,
-      kill_stacks: 1, kill_uptime: 1 };
+      kill_stacks: 1, kill_uptime: 1, pool_health: 1, pool_shields: 1, pool_overguard: 1 };
     var TARGET_BOXES = { viral_stacks: 'plTargetStacks', shot: 'plTargetShot',
       armour: 'plTargetArmor', corrosive_stacks: 'plTargetCorrosive',
-      kill_stacks: 'plKillStacks', kill_uptime: 'plKillUptime' };
+      kill_stacks: 'plKillStacks', kill_uptime: 'plKillUptime',
+      heat_strip: 'plTargetHeat', pool_health: 'plPoolHealth', pool_shields: 'plPoolShields',
+      pool_overguard: 'plPoolOverguard' };
     // A numeric box is stored through the loader's own ranges. An out-of-range entry is refused
     // here - the box goes back to the stored value and says why - because the alternative is a
     // document this page cannot read back (which would replace the whole build on the next load).
@@ -1882,6 +1936,27 @@
     });
     $('plKillUptime').addEventListener('change', function (e) {
       targetEdit({ kill_uptime: e.target.value === '' ? null : e.target.value });
+    });
+    // Phase 6: the Heat strip is a select over the values the engine accepts (the wiki's ramp),
+    // so a value the engine would refuse cannot be produced here at all.
+    $('plTargetHeat').addEventListener('change', function (e) {
+      var raw = e.target.value;
+      var value = raw === '' ? null : Number(raw);
+      if (value !== null && HEAT_STRIPS.indexOf(value) < 0) {
+        e.target.value = '';
+        flashHint('heat strip: 0, 15, 30, 40 or 50');
+        return;
+      }
+      targetEdit({ heat_strip: value });
+    });
+    [['plPoolHealth', 'pool_health'], ['plPoolShields', 'pool_shields'],
+      ['plPoolOverguard', 'pool_overguard']].forEach(function (pair) {
+      $(pair[0]).addEventListener('change', function (e) {
+        var patch = {};
+        // '' means NOT STATED (the engine's `unknown`), never a zero
+        patch[pair[1]] = e.target.value === '' ? null : e.target.value;
+        targetEdit(patch);
+      });
     });
     $('plStrict').addEventListener('click', function () {
       var t = targetState();

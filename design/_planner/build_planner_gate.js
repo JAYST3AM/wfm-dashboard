@@ -1703,7 +1703,62 @@ const say = (k, v) => { R.steps[k] = v; console.log('• ' + k + ' = ' + JSON.st
       'no target_damage, and the card prints the engine\'s unknown verdict naming the armour',
       'td=' + JSON.stringify((miss5.api.result || {}).target_damage) + ' out=' + missDom.slice(0, 220));
 
-    /* ------------------------------------------------------------------ 20 hygiene */
+    /* ---------------- 21d the Phase 6 inputs: the Heat strip and the stated pool -------------- */
+    // 6.4 and 6.6 through the page: the Heat select offers only the values the engine accepts, a
+    // stated strip multiplies the armour exactly as the engine reports it, and a stated pool turns
+    // the engine's own damage figure into a shot count. The card prints the engine's numbers; the
+    // DOM is compared against the payload, so a page that started calculating would disagree.
+    const heatOptions = await page.evaluate(() =>
+      [...document.querySelectorAll('#plTargetHeat option')].map((o) => o.value));
+    addCheck('target', 'the Heat select offers only the strip values the engine accepts',
+      heatOptions.join(',') === ',0,15,30,40,50',
+      'the ramp values and a stated zero, and no way to state 35',
+      heatOptions.join(','));
+    await page.evaluate(() => {
+      const set = (id, v) => { const el = document.getElementById(id); el.value = v;
+        el.dispatchEvent(new Event('change', { bubbles: true })); };
+      // the armour is re-stated here: the section above deliberately cleared it
+      set('plTargetArmor', '900');
+      set('plTargetHeat', '50');
+      set('plPoolHealth', '5000');
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const p6 = await engine();
+    const p6dom = await page.evaluate(() => ({
+      out: (document.getElementById('plTargetOut') || {}).textContent || '',
+    }));
+    const c6 = (p6.build.options || {}).context || {};
+    const td6 = (p6.api.result || {}).target_damage || null;
+    const pool6 = (p6.api.result || {}).pool || null;
+    say('phase6-heat-pool', { context: c6, armour: td6 && td6.armor, pool: pool6,
+      dom: p6dom.out.slice(0, 200) });
+    addCheck('target', 'the Heat strip and the pool size are posted exactly as stated',
+      !!c6.target && c6.target.heat_strip === 50 && c6.target.health === 5000,
+      'heat_strip 50 and health 5000 travel as stated', JSON.stringify(c6.target));
+    addCheck('target', 'the stated Heat strip multiplies the armour the engine reports',
+      !!td6 && !!td6.armor && Math.abs(td6.armor.effective - 900 * 0.56 * 0.5) < 1e-3,
+      'armour 900 x 0.56 (corrosive 4) x 0.5 (heat 50%) = 252',
+      td6 && td6.armor && JSON.stringify(td6.armor));
+    addCheck('target', 'the card prints the pool line the engine sent',
+      !!pool6 && new RegExp(pool6.shots_required + '\\s*shots').test(p6dom.out) &&
+        new RegExp(String(pool6.pool)).test(p6dom.out),
+      'pool <size> ... <n> shots', p6dom.out.slice(0, 200));
+    await page.evaluate(() => {
+      const el = document.getElementById('plTargetHeat');
+      el.value = '';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+    const p6b = await engine();
+    const c6b = (p6b.build.options || {}).context || {};
+    const td6b = (p6b.api.result || {}).target_damage || null;
+    addCheck('target', 'clearing the Heat select unstates the strip - the armour is not stripped',
+      !!c6b.target && c6b.target.heat_strip === undefined && !!td6b && !!td6b.armor &&
+        Math.abs(td6b.armor.effective - 900 * 0.56) < 1e-3,
+      'no heat_strip in the context, armour 900 x 0.56 = 504',
+      JSON.stringify((c6b.target || {})) + ' ' + JSON.stringify(td6b && td6b.armor));
+
+
     await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
     const final = await page.evaluate(() => {
       const ids = [...document.querySelectorAll('[id]')].map((n) => n.id);

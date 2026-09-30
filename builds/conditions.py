@@ -35,6 +35,8 @@ Condition ids implemented in Phase 4 (the rest of the corpus stays refused, see 
     first_shot          the mod's bonus applies to a shot other than the first
                         (damage_on_first_shot); resolved from context['attack']['shot_index'].
 """
+import math
+
 from . import factions, schema
 
 SATISFIED = 'satisfied'
@@ -147,20 +149,55 @@ def text(row):
 # Only fields a caller may supply. Anything else is reported back as `ignored` rather than
 # quietly kept: an unused field would look supported.
 CONTEXT_FIELDS = ('target_faction', 'target', 'attack', 'name', 'buffs')
-# Phase 5 extended the target block with the enemy model's typed fields (`armor`, the stated net
-# armour the mitigation is computed from; `corrosive_stacks`, a target state the armour stage
-# consumes). Pool sizes (`health`, `shields`) are carried so their refusal can be precise - they
-# are read, found to have no consumer, and named: "an unused field would look supported".
-TARGET_FIELDS = ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
-                 'health', 'shields',
-                 # Phase 5: fields whose *names* describe a damage-type model Damage 3.0 removed.
-                 # They live here so their refusal is a named `unused` (a stated value with no
-                 # consumer) rather than a typo-shaped silence - the honest answer to
-                 # `health_type: "ferrite"` is "this engine does not model that", not "ignored".
-                 'health_type', 'armor_type')
+# Phase 6: these lists are *derived from the mechanic registry* - membership is the union of the
+# fields the declared mechanics consume, so a new mechanic's inputs cannot be forgotten here (the
+# silent failure the registry exists to stop). The canonical order below only preserves the
+# historical output order; a field the registry adds and this order does not name is appended in
+# sorted order, deterministically.
+_CANONICAL_TARGET_ORDER = ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
+                           'health', 'shields', 'health_type', 'armor_type')
+
+
+def _derived_fields(section, canonical):
+    from . import mechanics
+    consumed = set()
+    for dotted in mechanics.consumed_fields():
+        head, _, tail = dotted.partition('.')
+        if head == section and tail:
+            consumed.add(tail)
+    ordered = tuple(field for field in canonical if field in consumed)
+    return ordered + tuple(sorted(consumed.difference(ordered)))
+
+
+_DERIVED_CACHE = {}
+
+
+def derived_fields():
+    """(TARGET_FIELDS, ATTACK_FIELDS) - computed on first use, never at import time.
+
+    The registry loads its declaration table at the bottom of its own module, so a reader that ran
+    at import time could see a *partial* union depending on which module was imported first. Both
+    lists are therefore resolved on first access (see `__getattr__` below), by which point the
+    registry is complete whatever the import order was.
+    """
+    if not _DERIVED_CACHE:
+        _DERIVED_CACHE['target'] = _derived_fields('target', _CANONICAL_TARGET_ORDER)
+        _DERIVED_CACHE['attack'] = _derived_fields('attack', ('shot_index',))
+    return _DERIVED_CACHE['target'], _DERIVED_CACHE['attack']
+
+
+def __getattr__(name):
+    # PEP 562: TARGET_FIELDS / ATTACK_FIELDS are read as module attributes everywhere, and this is
+    # what makes them lazy without changing a single call site.
+    if name == 'TARGET_FIELDS':
+        return derived_fields()[0]
+    if name == 'ATTACK_FIELDS':
+        return derived_fields()[1]
+    raise AttributeError('module %r has no attribute %r' % (__name__, name))
+
+
 # Spellings a caller may use for the canonical field ids (the wiki is American: armor).
 TARGET_ALIASES = {'armour': 'armor'}
-ATTACK_FIELDS = ('shot_index',)
 
 
 def normalise_context(raw):
@@ -193,7 +230,7 @@ def normalise_context(raw):
         ctx['target'] = {}
         for key, value in target.items():
             canonical = TARGET_ALIASES.get(str(key), key)
-            if canonical not in TARGET_FIELDS:
+            if canonical not in derived_fields()[0]:
                 ctx['ignored'].append('target.' + str(key))
             elif canonical in ctx['target'] and ctx['target'][canonical] != value:
                 # Two spellings of one field, stated differently: the canonical field keeps the
@@ -208,9 +245,9 @@ def normalise_context(raw):
         ctx['ignored'].append('target (not an object)')
     attack = raw.get('attack')
     if isinstance(attack, dict):
-        ctx['attack'] = {k: v for k, v in attack.items() if k in ATTACK_FIELDS}
+        ctx['attack'] = {k: v for k, v in attack.items() if k in derived_fields()[1]}
         for key in attack:
-            if key not in ATTACK_FIELDS:
+            if key not in derived_fields()[1]:
                 ctx['ignored'].append('attack.' + str(key))
     elif attack is not None:
         ctx['ignored'].append('attack (not an object)')
@@ -318,6 +355,17 @@ def first_shot(ctx):
 EVALUATORS = {'target_faction': target_faction, 'first_shot': first_shot}
 
 
+def safe_input(value):
+    """A caller value safe to echo in a response: a non-finite float becomes its text form.
+
+    `1e400` in JSON is `inf` in Python, and echoing it would emit bare `Infinity`, which a browser's
+    JSON.parse rejects - one bad echo and the whole answer stops being readable (review 2, F8).
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return repr(value)
+    return value
+
+
 def stated_fields(ctx):
     """Every input the caller actually stated, as dotted paths (what must not be dropped)."""
     out = []
@@ -325,12 +373,15 @@ def stated_fields(ctx):
         return out
     if ctx.get('target_faction'):
         out.append('target_faction')
-    for key in ('viral_stacks', 'protection', 'immune_to', 'armor', 'corrosive_stacks',
-                'health', 'shields', 'health_type', 'armor_type'):
+    # derived: TARGET_FIELDS / ATTACK_FIELDS are the registry's consumed union, so a field a new
+    # mechanic declares is reported the moment it arrives, and a stated value is never dropped for
+    # not being in a hand-written tuple (review findings F3/F7)
+    for key in derived_fields()[0]:
         if has(ctx, 'target', key):
             out.append('target.' + key)
-    if has(ctx, 'attack', 'shot_index'):
-        out.append('attack.shot_index')
+    for key in derived_fields()[1]:
+        if has(ctx, 'attack', key):
+            out.append('attack.' + key)
     for trigger in (ctx.get('buffs') or {}):
         out.append('buffs.' + str(trigger))
     return out

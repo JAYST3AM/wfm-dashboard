@@ -153,24 +153,48 @@ def test_states_outside_the_models_domain_refuse_by_name(db):
     assert _rider(truthy)['state'] == 'unknown'
 
 
-def test_a_rider_worded_for_another_stat_still_refuses(db):
-    """Only the enabled rider family is applied; the corpus keeps refusing, precisely."""
-    other = _mod_row('/Fixture/KillSwitch', 'Kill Switch',
-                     ['On Kill: +50% Reload Speed for 3s' for _ in range(4)],
-                     'Primary Mod', 'Rifle', 'madurai', 4)
+def _single_fixture_db(mod_id, name, lines):
+    mod = _mod_row(mod_id, name, lines, 'Primary Mod', 'Rifle', 'madurai', len(lines) - 1)
     slugs = {'/Fixture/BratonPrime': 'braton_prime'}
     src = {'file': 'buff-state-test'}
-    db2 = ingest.build_database(
-        [ingest.normalise_mod(other, slugs, src)],
+    return ingest.build_database(
+        [ingest.normalise_mod(mod, slugs, src)],
         [ingest.normalise_equipment(dict(raw, uniqueName=unique, name=name), kind, slugs, {},
                                     src)
          for unique, name, kind, raw in FIXTURE_EQUIPMENT],
         {'generated_iso': 'x', 'game_version': 'x'})
-    out = api.compute(_build([('/Fixture/KillSwitch', 3)]), db2, _opts({'stacks': 1}))
+
+
+def test_a_single_stack_rider_rides_the_shared_path():
+    """6.3: a card with no stack clause is a single-stack rider, and it lands in its own trace.
+
+    The card's silence is the source: the cards that stack say "Stacks up to Nx", so this rider's
+    cap is 1 - and the same path applies it, with the same four states and the same provenance.
+    """
+    db2 = _single_fixture_db('/Fixture/KillSwitch', 'Kill Switch',
+                             ['On Kill: +50% Reload Speed for 3s' for _ in range(4)])
+    build = _build([('/Fixture/KillSwitch', 3)])
+    out = api.compute(build, db2, _opts({'stacks': 1}))
+    rider = out['result']['riders'][0]
+    assert rider['stat'] == 'reload_speed' and rider['cap'] == 1 and rider['applied'] is True
+    assert rider['contribution'] == 50.0
+    rows = out['result']['traces']['reload_time']['modifiers']
+    rider_rows = [row for row in rows if row.get('condition') == 'on_kill']
+    assert rider_rows and rider_rows[0]['stacks'] == 1 and rider_rows[0]['state'] == 'satisfied'
+    assert out['result']['stats']['reload_time'] is not None
+    # above the single stack the same cap check refuses by name
+    over = api.compute(build, db2, _opts({'stacks': 2}))
+    assert over['result']['riders'][0]['state'] == 'unsupported'
+
+
+def test_a_rider_worded_for_an_unmodelled_stat_still_refuses():
+    """A rider on a stat the engine does not model keeps its named refusal (6.3's boundary)."""
+    db2 = _single_fixture_db('/Fixture/ZoomOnKill', 'Zoom On Kill',
+                             ['On Kill: +30% Zoom for 5s' for _ in range(4)])
+    out = api.compute(_build([('/Fixture/ZoomOnKill', 3)]), db2, _opts({'stacks': 1}))
     marker = [m for m in out['unsupported'] if m.get('code') == 'conditional_effect'][0]
     assert marker['state'] == 'unsupported'
-    assert marker.get('stat') == 'reload_speed'
-    assert 'reload_speed' in marker['condition']['reason']
+    assert 'zoom' in marker['condition']['reason']
     assert out['result']['riders'] == []
 
 

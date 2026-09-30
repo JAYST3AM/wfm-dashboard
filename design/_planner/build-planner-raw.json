@@ -1,6 +1,6 @@
 {
- "started": "2026-09-30T08:43:37.906Z",
- "base": "http://127.0.0.1:64148",
+ "started": "2026-09-30T10:06:44.287Z",
+ "base": "http://127.0.0.1:61336",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -909,7 +909,7 @@
    "title": "an out-of-range typo is refused at the box and the stored build survives",
    "ok": true,
    "expected": "the boxes go back to the stored values, the document stays readable, and the build reloads",
-   "observed": "{\"atEdit\":{\"uptimeBox\":\"65\",\"corrosiveBox\":\"4\",\"stacksBox\":\"3\",\"stored\":{\"faction\":\"grineer\",\"viral_stacks\":null,\"protection\":\"health\",\"shot\":null,\"strict\":false,\"armour\":900,\"corrosive_stacks\":4,\"kill_stacks\":3,\"kill_uptime\":65},\"mods\":1},\"afterReload\":{\"equipment\":\"/Lotus/Weapons/Tenno/Rifle/Brato",
+   "observed": "{\"atEdit\":{\"uptimeBox\":\"65\",\"corrosiveBox\":\"4\",\"stacksBox\":\"3\",\"stored\":{\"faction\":\"grineer\",\"viral_stacks\":null,\"protection\":\"health\",\"shot\":null,\"strict\":false,\"armour\":900,\"corrosive_stacks\":4,\"kill_stacks\":3,\"kill_uptime\":65,\"heat_strip\":null,\"pool_health\":null,\"pool_shields\":null,\"pool_overguar",
    "note": "",
    "diagnostic": false
   },
@@ -919,6 +919,51 @@
    "ok": true,
    "expected": "no target_damage, and the card prints the engine's unknown verdict naming the armour",
    "observed": "td=null out=target damage: unknown - the damage lands on health, so the armour value is needed to compute the mitigation, and no armour was statedOn Kill · Galvanized Chamber: satisfied · 3 stacks · +58.5% multishot · averaged: 3 st",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the Heat select offers only the strip values the engine accepts",
+   "ok": true,
+   "expected": "the ramp values and a stated zero, and no way to state 35",
+   "observed": ",0,15,30,40,50",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the Heat strip and the pool size are posted exactly as stated",
+   "ok": true,
+   "expected": "heat_strip 50 and health 5000 travel as stated",
+   "observed": "{\"protection\":\"health\",\"armor\":900,\"corrosive_stacks\":4,\"heat_strip\":50,\"health\":5000}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the stated Heat strip multiplies the armour the engine reports",
+   "ok": true,
+   "expected": "armour 900 x 0.56 (corrosive 4) x 0.5 (heat 50%) = 252",
+   "observed": "{\"stated\":900,\"corrosive_multiplier\":0.56,\"effective\":252.00000000000003,\"reduction\":0.2749545416973504,\"applies\":true}",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "the card prints the pool line the engine sent",
+   "ok": true,
+   "expected": "pool <size> ... <n> shots",
+   "observed": "vs Grineer · lands on health · armour 900 -> 252impact 1.903 · puncture 8.882 · slash 15.226per projectile 26.011 · per shot 62.036 · crit-expected 69.481pool 5000 health · 81 shots · ~71.963 crit-exp",
+   "note": "",
+   "diagnostic": false
+  },
+  {
+   "section": "target",
+   "title": "clearing the Heat select unstates the strip - the armour is not stripped",
+   "ok": true,
+   "expected": "no heat_strip in the context, armour 900 x 0.56 = 504",
+   "observed": "{\"protection\":\"health\",\"armor\":900,\"corrosive_stacks\":4,\"health\":5000} {\"stated\":900,\"corrosive_multiplier\":0.56,\"effective\":504.00000000000006,\"reduction\":0.3888444419044716,\"applies\":true}",
    "note": "",
    "diagnostic": false
   },
@@ -972,7 +1017,7 @@
    "title": "the card names its source and whether that source is live",
    "ok": true,
    "expected": "a freshness label, and - when the source cannot be shown to be live - the warning repeated",
-   "observed": "Last seen 17 hours ago / ",
+   "observed": "Last seen 18 hours ago / ",
    "note": "",
    "diagnostic": false
   },
@@ -1812,7 +1857,11 @@
      "armour": null,
      "corrosive_stacks": null,
      "kill_stacks": null,
-     "kill_uptime": null
+     "kill_uptime": null,
+     "heat_strip": null,
+     "pool_health": null,
+     "pool_shields": null,
+     "pool_overguard": null
     }
    },
    "still_junk": false,
@@ -2047,8 +2096,8 @@
   "target-save-probe": {
    "immediateHasCorpus": false,
    "laterHasCorpus": true,
-   "inMemory": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false,\"armour\":null,\"corrosive_stacks\":null,\"kill_stacks\":null,\"kill_uptime\":null}",
-   "storedTarget": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false,\"armour\":null,\"corrosive_stacks\":null,\"kill_stacks\":null,\"kill_uptime\":null}"
+   "inMemory": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false,\"armour\":null,\"corrosive_stacks\":null,\"kill_stacks\":null,\"kill_uptime\":null,\"heat_strip\":null,\"pool_health\":null,\"pool_shields\":null,\"pool_overguard\":null}",
+   "storedTarget": "{\"faction\":\"corpus\",\"viral_stacks\":6,\"protection\":\"\",\"shot\":null,\"strict\":false,\"armour\":null,\"corrosive_stacks\":null,\"kill_stacks\":null,\"kill_uptime\":null,\"heat_strip\":null,\"pool_health\":null,\"pool_shields\":null,\"pool_overguard\":null}"
   },
   "target-round-trip": {
    "before": "nothing stated",
@@ -2172,7 +2221,11 @@
      "armour": 900,
      "corrosive_stacks": 4,
      "kill_stacks": 3,
-     "kill_uptime": 65
+     "kill_uptime": 65,
+     "heat_strip": null,
+     "pool_health": null,
+     "pool_shields": null,
+     "pool_overguard": null
     },
     "mods": 1
    },
@@ -2187,7 +2240,11 @@
      "armour": 900,
      "corrosive_stacks": 4,
      "kill_stacks": 3,
-     "kill_uptime": 65
+     "kill_uptime": 65,
+     "heat_strip": null,
+     "pool_health": null,
+     "pool_shields": null,
+     "pool_overguard": null
     },
     "mods": 1
    }
@@ -2198,6 +2255,44 @@
     "on_kill:satisfied",
     "target_damage:unknown"
    ]
+  },
+  "phase6-heat-pool": {
+   "context": {
+    "target_faction": "grineer",
+    "target": {
+     "protection": "health",
+     "armor": 900,
+     "corrosive_stacks": 4,
+     "heat_strip": 50,
+     "health": 5000
+    },
+    "buffs": {
+     "on_kill": {
+      "stacks": 3,
+      "uptime": 0.65
+     }
+    }
+   },
+   "armour": {
+    "stated": 900,
+    "corrosive_multiplier": 0.56,
+    "effective": 252.00000000000003,
+    "reduction": 0.2749545416973504,
+    "applies": true
+   },
+   "pool": {
+    "layer": "health",
+    "pool": 5000,
+    "damage_per_shot": 62.0362,
+    "damage_per_shot_expected_crit": 69.4806,
+    "shots_required": 81,
+    "expected_shots": 71.9625,
+    "assumptions": [
+     "shots_required assumes no critical hits (pool / damage per shot, rounded up)",
+     "expected_shots is pool / crit-expected damage per shot: an expectation, not a guarantee"
+    ]
+   },
+   "dom": "vs Grineer · lands on health · armour 900 -> 252impact 1.903 · puncture 8.882 · slash 15.226per projectile 26.011 · per shot 62.036 · crit-expected 69.481pool 5000 health · 81 shots · ~71.963 crit-exp"
   },
   "hygiene": {
    "dupes": [],
@@ -2233,7 +2328,7 @@
      "text": "Companion weaponPrime Laser RifleConfig A · Rank 30"
     }
    ],
-   "meta": "Last seen 17 hours ago",
+   "meta": "Last seen 18 hours ago",
    "note": "",
    "buttons": [
     "plCurrentRefresh",
@@ -2293,10 +2388,10 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-30T08:44:46.842Z",
+ "finished": "2026-09-30T10:07:53.167Z",
  "verdict": {
   "pass": true,
-  "checks_total": 118,
+  "checks_total": 123,
   "checks_failed": 0,
   "failed": []
  }

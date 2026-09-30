@@ -24,9 +24,12 @@ precise without pretending the mechanics work.
 
 Sources for the semantics of the enabled family:
     the mod's own card text (DE export, via builds/ingest.py) carries the value, the duration and
-    the "Stacks up to Nx" clause; the wiki's Galvanized pages (e.g. Galvanized Scope, retrieved
-    2026-09-30) document that each stack adds the listed value again and that the maximum is
-    value x (stacks + 1) at max rank - which is what "Stacks up to Nx" means.
+    the "Stacks up to Nx" clause; the wiki's Galvanized pages (e.g. Galvanized Chamber,
+    retrieved 2026-09-30) document that each stack adds the listed value again, so N stacks are
+    worth value x N - Chamber's own stats table shows a maximum of +230% for its +30% rider with a
+    5x cap, which is the mod's unconditional 80% plus 5 x 30%, and that is the rule this module
+    applies. (An earlier version of this docstring claimed value x (stacks + 1); no source states
+    that, and review 3 checked the tables.)
 """
 import re
 
@@ -37,7 +40,23 @@ TRIGGER_MARKERS = {'on_kill': 'on kill:'}
 # The rider stats Phase 5 applies. Deliberately narrow: a stat is enabled only when the engine
 # already computes it and the rider's additive stacking into it is the same arithmetic the mod's
 # own unconditional line uses. Everything else parses and refuses.
-ENABLED_STATS = {'multishot': 'multishot'}
+# Which conditional-rider stats may apply from a stated build state. This is the registry's
+# `on_kill_rider` declaration (Phase 6) - the enablement is data, not a constant in this module, so
+# a new rider stat is one declared entry (plus its provenance) rather than an edit here.
+def rider_enablement():
+    """The rider stats this engine may apply, from the registry's declaration.
+
+    Resolved on first use (see `__getattr__`): an import-time read could see a partial registry
+    depending on the import order, and an empty enablement silently refuses every rider.
+    """
+    from . import mechanics
+    return {stat: stat for stat in mechanics.rider_stats()}
+
+
+def __getattr__(name):
+    if name == 'ENABLED_STATS':
+        return rider_enablement()
+    raise AttributeError('module %r has no attribute %r' % (__name__, name))
 
 STATE_FIELDS = ('stacks', 'uptime', 'active')
 STACK_CLAUSE_RE = re.compile(r'stacks?\s+up\s+to\s+(\d+)\s*x', re.IGNORECASE)
@@ -53,7 +72,8 @@ def parse_rider(text):
          'applicable': bool, 'enabled': bool, 'reason': str|None}
 
     `applicable` means: a trigger this engine resolves, a stat it can name, a signed percentage,
-    and a documented "Stacks up to Nx" clause. `enabled` means the stat is one of ENABLED_STATS.
+    and a documented "Stacks up to Nx" clause. `enabled` means the stat is one the registry's
+    rider declaration enables (see `rider_enablement`).
     A rider that is applicable but not enabled is still refused by name - the difference is only
     how precisely the engine can say why.
     """
@@ -99,14 +119,19 @@ def parse_rider(text):
                            if phrase else 'the line names no stat this engine models')
         return rider
     if rider['max_stacks'] is None:
-        rider['reason'] = ('the rider moves %s but carries no "Stacks up to Nx" clause, so this '
-                           'engine has no sourced stacking model for it' % rider['stat'])
-        return rider
+        # A card that carries no stack clause is a *single-stack* rider: Warframe's stacking buffs
+        # say so on their own card ("Stacks up to Nx"), so the card's silence is a stated fact
+        # (cap 1), not a guess - and the cap check below then refuses stacks above 1 for it, exactly
+        # as it refuses stacks above 5 for a Galvanized rider.
+        rider['max_stacks'] = 1
+        rider['single_stack'] = True
+        rider['stack_note'] = ('the card carries no "Stacks up to Nx" clause, so this rider is a '
+                               'single stack (the cards that stack say so)')
     if rider['value'] is None or rider['value'] <= 0:
         rider['reason'] = 'the rider is not a positive bonus this engine applies'
         return rider
     rider['applicable'] = True
-    rider['enabled'] = rider['stat'] in ENABLED_STATS
+    rider['enabled'] = rider['stat'] in rider_enablement()
     if not rider['enabled']:
         rider['reason'] = ('the rider moves %s, which this phase does not apply conditionally'
                            % rider['stat'])
@@ -210,6 +235,18 @@ def evaluate_state(trigger, raw_state, max_stacks, mod=None, mod_name=None):
             missing=['either active: false or a stack count, not both'], **where)
 
     # --- averaged / uptime state -----------------------------------------------------------------
+    # The instant path names any field it does not read; the averaged path must do the same, or a
+    # caller who made a typo in the averaged shape gets a number that ignored it (review 3, F6).
+    known_keys = ('stacks', 'uptime', 'active', 'assumed')
+    if isinstance(raw_state, dict):
+        stray = sorted(k for k in raw_state if k not in known_keys)
+        if stray:
+            return conditions.result(
+                trigger, conditions.UNKNOWN,
+                'the stated %s state carries field(s) this engine does not read: %s'
+                % (trigger, ', '.join(stray)),
+                reason_code='condition_unknown', inputs=inputs,
+                missing=['a state built only from stacks / uptime / active'], **where)
     if uptime is not None:
         if stacks is None:
             return conditions.result(
@@ -276,22 +313,9 @@ def evaluate_state(trigger, raw_state, max_stacks, mod=None, mod_name=None):
         inputs=inputs, mode='instant', stacks=stacks, stacks_effective=float(stacks), **where)
 
 
-def rider_trace_row(mod_name, mod_id, rank, rider, row, contribution, total_after=None):
-    """The trace-modifier row an applied rider contributes (never built for a refusal)."""
-    if row.get('state') != conditions.SATISFIED:
-        return None
-    mode = row.get('mode')
-    note = ('%g%% per stack, %d stack%s -> +%g%% multishot'
-            % (rider['value'], row.get('stacks'),
-               '' if row.get('stacks') == 1 else 's',
-               round(contribution, 4)))
-    if mode == 'averaged':
-        note = '%s (%s)' % (note, row.get('assumption') or 'averaged')
-    return {'source': 'On Kill', 'category': 'percent', 'value': round(contribution, 4),
-            'unit': 'percent', 'mod': mod_id, 'mod_name': mod_name, 'rank': rank,
-            'condition': row.get('condition'), 'state': row.get('state'),
-            'stacks': row.get('stacks'), 'mode': mode,
-            'assumption': row.get('assumption'), 'note': note}
+# (The rider's trace rows are built by the engine's `_ride_rows`, which carries the rider
+# metadata and checks the registry's declared destination. The old `rider_trace_row` helper here
+# was reachable only from this module's selftest, so it is gone - review 3's dead-code note.)
 
 
 def assumption_lines(rows):
@@ -323,9 +347,9 @@ def selftest():
     r0 = parse_rider('On Kill: +2.7% Multishot for 20s. Stacks up to 5x.')
     check('a rank-0 spelling parses with its own value', r0['value'] == 2.7 and r0['enabled'])
     other = parse_rider('On Kill: +50% Reload Speed for 3s')
-    check('a rider with no stack clause is described but not applicable',
-          other['stat'] == 'reload_speed' and not other['applicable']
-          and 'Stacks up to' in other['reason'], str(other))
+    check('a rider with no stack clause is a single stack (the cards that stack say so)',
+          other['stat'] == 'reload_speed' and other['enabled'] and other['max_stacks'] == 1
+          and other.get('single_stack'), str(other))
     apt = parse_rider('On Kill: +40% Direct Damage per Status Type affecting the target for 20s. '
                       'Stacks up to 2x.')
     check('a per-status rider parses only to a refusal with a named stat',
@@ -395,11 +419,6 @@ def selftest():
             check('a malformed state never raises (%r: %s)' % (junk, exc), False)
     check('malformed states never raise', True)
 
-    # --- the trace row only exists for a real contribution
-    row = rider_trace_row('Galvanized Chamber', 'id', 10, galv, ok, 90.0)
-    check('an applied rider traces its per-stack arithmetic', row['value'] == 90.0
-          and '30%' in row['note'] and row['stacks'] == 3)
-    check('a refusal traces nothing', rider_trace_row('x', 'id', 10, galv, missing, None) is None)
     check('assumption_lines collects the averaged assumption',
           assumption_lines([avg]) == [avg['assumption']] and assumption_lines([ok, zero]) == [])
 

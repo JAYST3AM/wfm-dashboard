@@ -326,6 +326,84 @@ python -m pytest tests/test_target_model.py tests/test_buff_state.py \
 Phase 5's report — what it applies, what it still refuses, and the honest limitations — is
 `design/build-planner/phase5-report.md`.
 
+## Phase 6: the mechanic registry, and the mechanics that proved it
+
+Phase 5's fourth adversarial review found a structural weakness rather than a wrong number: a
+mechanic's requirements lived in four unrelated places - its trigger, the context fields it reads,
+its trace hook, and the target/mitigation integration - and forgetting one of them failed *silently*.
+Phase 6 makes adding a mechanic structurally safe, then proves it by adding mechanics through the new
+architecture.
+
+**`builds/mechanics.py` is the one place a mechanic is declared**, and the engine derives its
+plumbing from the declarations:
+
+| derived from the registry | where it lands |
+|---|---|
+| consumed-context accounting | `conditions.TARGET_FIELDS` / `ATTACK_FIELDS`, `evaluation.consumed`, `context_unused` markers |
+| the target path's trigger | `mechanics.path_rule()` (armour, or a landing plus a faction, or a stated state mechanic) |
+| condition/evaluation dispatch | `mechanics.live()` (a stated trigger, or a build fact like "this build deals Heat") |
+| the armour-transform stage | `mechanics.implemented_transformers()`, applied and traced in declaration order |
+| the rider enablement | `builds/buffs.ENABLED_STATS` is the rider mechanic's declared stat list |
+| trace destinations | `mechanics.trace_for()`; `weapons._ride_rows` refuses a rider filed under a trace its declaration does not name |
+| refusal registration | a mechanic's `refusal_codes` are checked against `builds/unsupported.REGISTRY` and the reason-code vocabulary at import |
+| refusal blast radius | `mechanics.withholds_for(blocked rows)` - the target path withholds the target block and nothing else because that is what it declares |
+| introspection | `python builds/debug.py mechanics [--json]` |
+
+A declaration that is missing a required property raises `MechanicDeclarationError` at import: a
+half-declared mechanic fails loudly at start-up instead of being silently ignored at runtime.
+`design/_planner/phase6_gate.py` breaks each invariant on purpose (17 breaks) and requires each break
+to be caught by a named check; a break that touches no decision path fails the gate.
+
+The declared mechanics (14): `target_faction`, `protection_layer`, `armour_mitigation`,
+`first_shot`, `viral`, `corrosive`, `heat_strip`, `on_kill_rider`, `umbral_set`, `pool_result`,
+`target_preset`, `removed_vocabulary`, `squad_armour_auras`, `target_damage_path`.
+
+### Migrated, not rewritten
+
+The Phase 4/5 mechanics were moved onto the registry as a *regression* migration: implementations
+stayed where they were, declarations moved, and `design/_planner/phase6_migration.py` proves the
+answers did not change - it extracts the pre-migration engine with `git archive`, runs the same 48
+builds x contexts against both engines and the same database, and diffs conditions, refusals,
+traces, stats, riders and target blocks case by case. One difference is allowed and reported: a
+field a *new* Phase 6 mechanic declares appears in `evaluation.consumed` for existing cases (the path
+now asks the Heat question, exactly as it started asking the corrosive question in Phase 5).
+
+### 6.3 the conditional-rider family
+
+`buffs.ENABLED_STATS` is the rider mechanic's declared stat list: `multishot`, `critical_chance`,
+`critical_damage`, `status_chance`, `reload_speed`, `fire_rate`. A rider applies only from
+explicitly stated caller state, keeps its four states, lands in its own stat's trace with its
+provenance, and a card that carries no "Stacks up to Nx" clause is read as a *single stack* (cap 1) -
+the cards that stack say so, and the cap check then refuses a stated 2x for it by name.
+
+### 6.4 Heat (the first new target-state mechanic, through the registry)
+
+Source: `Damage/Heat_Damage` (oldid 2807948). The Ignite status reduces armour by up to 50%; the ramp
+passes through 15%, 30%, 40% and 50% (two seconds to the maximum, longer with status duration mods),
+and the strip is multiplicative with corrosive. The engine models the *stated state*: the caller
+states the strip the target currently carries - one of `0, 15, 30, 40, 50` - and anything else is
+refused by name (`heat_strip_value`). The ramp's timing and the 6-second damage-over-time are
+timelines and stay refused. Each applied transform reports **its own step** in the trace, so two
+multiplied factors do not print the same combined delta.
+
+### 6.5 target presets are deferred, not fabricated
+
+This database carries equipment and mods and **no enemy rows at all** (no per-unit level, armour or
+health profiles), so there is no authoritative source to join a preset to. A stated `target.preset`
+is refused by name (`preset_unavailable`) and the gap is recorded as a Phase 7 candidate rather than
+filled with plausible numbers.
+
+### 6.6 the stated pool result
+
+Stating `target.health`, `target.shields` or `target.overguard` (the pool sizes Phase 5 refused as
+unconsumed, precisely so this could arrive honestly) turns the resolved damage path into a shot
+count: `shots_required = ceil(pool / per_shot_total)` and `expected_shots = pool /
+per_shot_expected_crit`, both in `result.pool` with their assumptions and their own trace. No
+regeneration, no shield gating, no rotations, no timelines. No stated pool means no block at all; a
+pool for a layer the damage does not land on is refused by name (`pool_landing_mismatch`); a pool
+whose damage path is unresolved withholds the number (`pool_unresolved`) rather than computing it
+from partial figures.
+
 ## The database is reproducible
 
 `python builds/ingest.py` writes one file, and running it again over unchanged sources
@@ -340,23 +418,27 @@ means a real change in the data — a new mod, a moved number — not a new cloc
 `python builds/debug.py unsupported` prints the current list; the registry carries a
 reason and target phase for each. Highlights:
 
-* **Conditional effects** — the on-kill riders the engine can apply (multishot riders) apply from
-  a *stated* buff state; every other conditional line (weak-point/aiming riders, per-status
-  scaling, timers, set/Riven/Incarnon mechanics) is refused by name, and since Phase 4 that
-  refusal carries the clause it recognised, its four-state condition state and its reason code.
-  The conditions the engine *can* resolve (`target_faction`, `first_shot`, `on_kill` with a stated
-  state) and the status mechanics it implements (`viral`, `corrosive`) are resolved from the
-  evaluation context instead of being assumed.
+* **Conditional effects** — the on-kill riders the registry enables (`multishot`,
+  `critical_chance`, `critical_damage`, `status_chance`, `reload_speed`, `fire_rate`; a card with
+  no "Stacks up to Nx" clause reads as a single stack) apply only from a *stated* buff state;
+  every other conditional line (weak-point/aiming riders, per-status scaling, timers,
+  set/Riven/Incarnon mechanics) is refused by name, and since Phase 4 that refusal carries the
+  clause it recognised, its four-state condition state and its reason code. The conditions the
+  engine *can* resolve (`target_faction`, `first_shot`, `on_kill` with a stated state) and the
+  status mechanics it implements (`viral`, `corrosive`, `heat`) are resolved from the evaluation
+  context instead of being assumed.
 * **Set bonuses** (Augur/…), **Rivens**, **Incarnon evolutions**, **arcanes** — the single
   exception is the Umbral set (Vitality/Fiber/Intensify), whose pinned scaling is applied.
-* **Status effects themselves** — Heat ticks, Slash bleeds, proc weighting, and every status
-  other than the viral amplification and the corrosive armour reduction the engine implements.
+* **Status effects themselves** — Heat ticks, Slash bleeds, proc weighting, proc durations, and
+  every status other than the viral amplification, the corrosive armour reduction and the stated
+  Heat armour strip the engine implements.
 * **Melee** — combo counter, heavy attacks, stance multipliers, Condition Overload.
-* **Enemies** — armour and damage-type modifiers are now modelled *for a stated target*
-  (faction table, armour DR, the corrosive reduction); what stays refused is any target state the
-  caller did not state, any pool size (`health`, `shields` are named as unused), armour stripping
-  other than corrosive, and every enemy property outside the model
-  ([build-planner-target-model.md](build-planner-target-model.md)).
+* **Enemies** — armour and damage-type modifiers are modelled *for a stated target* (faction
+  table, armour DR, the corrosive reduction, the stated Heat strip), and a stated pool size
+  (`health` / `shields` / `overguard`) produces the shots-to-deplete block. What stays refused is
+  any target state the caller did not state, a target preset (no authoritative enemy-profile
+  source exists in this build), two-pool depletion, squad armour auras, and every enemy property
+  outside the model ([build-planner-target-model.md](build-planner-target-model.md)).
 * **Frames** — per-ability formulas, Helminth, Archon Shards, companion/squad buffs.
 * **Exotic triggers** — Charge/Burst/Continuous effective fire rates (DPS is withheld
   rather than guessed).
@@ -456,7 +538,17 @@ Serration's 14 drain costs 7 in a Madurai slot and 18 in a Naramon one; Excalibu
 is 2310 Health and Hildryn 1780 Shields at rank 30; Nidus is 775/450 with +15% Ability
 Strength; efficiency above 175% still floors energy cost at 25%.
 
-## Roadmap (what the engine deliberately leaves out)
+## Roadmap (what the engine deliberately leaves out)
+* **Target presets** (Phase 6 deferred): no authoritative enemy-profile source exists in this
+  build, so `target.preset` is a named refusal. A sourced, versioned export of enemy profiles would
+  unlock opt-in presets that supply faction, layer, armour and pools with provenance per field -
+  never auto-selected, never inferred from the build.
+* **A status-type count mechanic** (per-status-type riders such as "+40% Direct Damage per Status
+  Type"): needs a stated count of distinct status types on the target plus a definition of "direct
+  damage" the trace can carry.
+* **Two-pool depletion** (shields then health) and anything else that needs a timeline: regeneration,
+  shield gating, proc durations, rotations - still refused by name.
+
 
 * **Engine mechanics still refused by name** — the conditional riders the engine cannot apply
   (weak-point/aiming, timers, per-status scaling), the sets other than Umbral, status effects

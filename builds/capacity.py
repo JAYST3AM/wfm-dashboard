@@ -81,9 +81,23 @@ def polarity_rule(mod_polarity, slot_polarity):
     return 'mismatched'
 
 
+MAX_RANK = 10 ** 6      # nothing in the game is close; beyond it the arithmetic is unsafe
+
+
 def slot_drain(raw_drain, mod_polarity, slot_polarity):
-    """(adjusted drain, delta, rule) for one normal/exilus slot."""
-    raw = int(raw_drain)
+    """(adjusted drain, delta, rule) for one normal/exilus slot.
+
+    A rank beyond MAX_RANK (or a non-finite one) is refused by value: the mismatch arithmetic turns
+    it into a float, and `10**400 * 0.5` raises OverflowError out of the whole request (review 2,
+    finding 2).
+    """
+    try:
+        raw = int(raw_drain)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError('rank is not an integer this engine can drain')
+    if raw < 0 or raw > MAX_RANK:
+        raise ValueError('rank %d is outside the range this engine will drain (0-%d)'
+                         % (raw, MAX_RANK))
     rule = polarity_rule(mod_polarity, slot_polarity)
     if rule == 'matching':
         adjusted = (raw + 1) // 2                     # halved, rounded up (14 -> 7)
@@ -196,7 +210,17 @@ def capacity_breakdown(equipment, slots, equipment_rank=None, orokin=False,
                          % (kind, entry['mod_name'] or entry['mod'], mod_rank, bonus,
                             rule))
         else:
-            adjusted, delta, rule = slot_drain(raw_drain, mod_polarity, slot_polarity)
+            try:
+                adjusted, delta, rule = slot_drain(raw_drain, mod_polarity, slot_polarity)
+            except ValueError as exc:
+                # a rank this engine cannot do the arithmetic on is a named error row, never an
+                # exception out of the request (review 2, finding 2)
+                errors.append(_err('invalid_rank', str(exc), mod=entry.get('mod'),
+                                   field='rank'))
+                entry.update({'rule': 'refused', 'adjusted_drain': 0, 'adjustment': 0,
+                              'contribution': 0})
+                per_slot.append(entry)
+                continue
             total_drain += adjusted
             entry.update({'rule': rule, 'adjusted_drain': adjusted, 'adjustment': delta,
                           'contribution': -adjusted})

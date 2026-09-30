@@ -142,6 +142,26 @@ REGISTRY = {
     'companions': {
         'reason': 'Sentinel/Pet mod effects on the player (and vice versa) are not '
                   'modelled', 'phase': 3, 'engine': 'none'},
+    'heat_strip_value': {
+        'reason': 'the Heat status armour strip only holds the values its ramp passes through - '
+                  '15%, 30%, 40% and the 50% maximum (wiki) - so any other stated strip is '
+                  'refused by value rather than rounded to a plateau',
+        'phase': 6, 'engine': 'statuses.evaluate_heat'},
+    'preset_unavailable': {
+        'reason': 'no authoritative exported target-profile source exists in this build (the '
+                  'database carries equipment and mods, and no enemy rows), so a stated target '
+                  'preset is refused by name instead of fabricated',
+        'phase': 6, 'engine': 'mechanics (target_preset)'},
+    'pool_landing_mismatch': {
+        'reason': 'the stated pool is for a layer the damage does not land on (e.g. a health '
+                  'pool while the stated landing is shields), and this engine models one pool at '
+                  'a time rather than a two-pool depletion',
+        'phase': 6, 'engine': 'weapons.calculate (pool_result)'},
+    'pool_unresolved': {
+        'reason': 'the pool result is a division of the damage path, so when that path is itself '
+                  'refused or withheld the shots-to-kill figure is withheld with it - it is never '
+                  'computed from partial numbers',
+        'phase': 6, 'engine': 'weapons.calculate (pool_result)'},
     'duplicate_set_member': {
         'reason': 'the same set mod is equipped more than once: two copies of one mod are not two '
                   'set pieces, so the set bonus is refused rather than double-counted',

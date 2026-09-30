@@ -42,6 +42,7 @@ from . import buffs, enemies
 from . import capacity as capacity_mod
 from . import conditions
 from . import effects as effects_mod
+from . import mechanics as mechanics_mod
 from . import elements, schema, statuses, trace as trace_mod
 from . import unsupported as unsupported_mod
 
@@ -64,12 +65,36 @@ def _pct(effect_totals, stat):
 # for every stat, so a rider landing on any enabled stat keeps its provenance - the plumbing is not
 # multishot-shaped (the architecture review found it was: the crit loops forwarded nothing, and a
 # refused rider's note landed on the multishot trace whatever stat it moved).
+# The order the target-path accounting lists its fields in (the historical hand-list order); a
+# field a live mechanic declares that this tuple does not name is appended after it, sorted.
+TARGET_PATH_FIELD_ORDER = ('target_faction', 'target.protection', 'target.armor',
+                           'target.corrosive_stacks')
+
 RIDER_ROW_META = ('condition', 'state', 'stacks', 'mode', 'assumption')
 
 
-def _ride_rows(t, rows):
-    """Attach a stat's collected rows to its trace, carrying rider metadata when present."""
+def _ride_rows(t, rows, stat=None):
+    """Attach a stat's collected rows to its trace, carrying rider metadata when present.
+
+    A rider row (one carrying `condition`) is checked against the registry's declared trace
+    destination for that stat before it is attached: the declaration is load-bearing, so a rider
+    filed under the wrong stat's trace fails loudly instead of silently mis-filing its provenance.
+    """
+    cue = {'reload_speed': 'reload speed, time divides'}.get(stat)
     for row in rows:
+        if cue and row.get('condition') and row.get('note') and cue not in row['note']:
+            # the static rows in this trace say how the stat divides the time; a rider row that
+            # dropped the cue read as "+50% of base" when the engine divides by 1.5 (review 2, F5)
+            row = dict(row, note='%s; %s' % (row['note'], cue))
+        if row.get('condition') and stat:
+            # only stats the declaration names are checked; melee's attack-speed key is an alias the
+            # declaration documents rather than renames (a melee rider on 'fire_rate' is not a card
+            # the corpus carries, and the alias would otherwise force a spurious mismatch)
+            declared = mechanics_mod.REGISTRY['on_kill_rider'].stat_traces.get(stat)
+            if declared is not None and declared != t.get('stat'):
+                raise mechanics_mod.MechanicDeclarationError(
+                    'rider rows for stat %r are declared to land on the %r trace, but this trace is '
+                    '%r: the declaration and the plumbing disagree' % (stat, declared, t.get('stat')))
         trace_mod.add(t, trace_mod.modifier(
             row['mod_name'], 'percent', row['value'], mod=row['mod'], rank=row['rank'],
             note=row.get('note'),
@@ -379,7 +404,7 @@ def calculate(equipment, mod_slots=None, options=None):
     multishot_bonus = _pct(totals, 'multishot')
     multishot = base_multishot * (1.0 + multishot_bonus / 100.0)
     t_ms = trace_mod.trace('multishot', base_multishot, 'ratio', 'Multishot (projectiles)')
-    _ride_rows(t_ms, _rows(totals, 'multishot'))
+    _ride_rows(t_ms, _rows(totals, 'multishot'), 'multishot')
     trace_mod.finish(t_ms, multishot)
     traces['multishot'] = t_ms
     whole = int(multishot)
@@ -401,10 +426,10 @@ def calculate(equipment, mod_slots=None, options=None):
     base_cd = float(equip.get('crit_multiplier') or 1.0)
     crit_multi = base_cd * (1.0 + _pct(totals, 'critical_damage') / 100.0)
     t_cc = trace_mod.trace('critical_chance', base_cc, 'percent', 'Critical Chance')
-    _ride_rows(t_cc, _rows(totals, 'critical_chance'))
+    _ride_rows(t_cc, _rows(totals, 'critical_chance'), 'critical_chance')
     trace_mod.finish(t_cc, crit_chance)
     t_cd = trace_mod.trace('critical_multiplier', base_cd, 'ratio', 'Critical Multiplier')
-    _ride_rows(t_cd, _rows(totals, 'critical_damage'))
+    _ride_rows(t_cd, _rows(totals, 'critical_damage'), 'critical_damage')
     trace_mod.finish(t_cd, crit_multi)
     traces['critical_chance'] = t_cc
     traces['critical_multiplier'] = t_cd
@@ -418,9 +443,7 @@ def calculate(equipment, mod_slots=None, options=None):
     base_sc = float(equip.get('status_chance') or 0.0)
     status_chance = base_sc * (1.0 + _pct(totals, 'status_chance') / 100.0)
     t_sc = trace_mod.trace('status_chance', base_sc, 'percent', 'Status Chance (per projectile)')
-    for row in _rows(totals, 'status_chance'):
-        trace_mod.add(t_sc, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                               mod=row['mod'], rank=row['rank']))
+    _ride_rows(t_sc, _rows(totals, 'status_chance'), 'status_chance')
     trace_mod.finish(t_sc, status_chance)
     traces['status_chance'] = t_sc
     stats['status_chance'] = trace_mod._num(status_chance)
@@ -435,10 +458,9 @@ def calculate(equipment, mod_slots=None, options=None):
     modded_rate = fire_rate * (1.0 + rate_bonus / 100.0)
     t_rate = trace_mod.trace(rate_stat, fire_rate, 'flat',
                              'Attack Speed' if kind == schema.EQUIP_MELEE else 'Fire Rate')
-    for row in _rows(totals, rate_stat) + (_rows(totals, 'fire_rate')
-                                           if kind == schema.EQUIP_MELEE else []):
-        trace_mod.add(t_rate, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                                 mod=row['mod'], rank=row['rank']))
+    _ride_rows(t_rate, _rows(totals, rate_stat) + (_rows(totals, 'fire_rate')
+                                                  if kind == schema.EQUIP_MELEE else []),
+               stat=rate_stat)
     trace_mod.finish(t_rate, modded_rate)
     traces[rate_stat] = t_rate
     stats[rate_stat] = trace_mod._num(modded_rate)
@@ -447,9 +469,7 @@ def calculate(equipment, mod_slots=None, options=None):
     modded_mag = magazine * (1.0 + _pct(totals, 'magazine_capacity') / 100.0)
     stats['magazine_size'] = trace_mod._num(modded_mag) if magazine else None
     t_mag = trace_mod.trace('magazine_size', magazine, 'flat', 'Magazine Size')
-    for row in _rows(totals, 'magazine_capacity'):
-        trace_mod.add(t_mag, trace_mod.modifier(row['mod_name'], 'percent', row['value'],
-                                                mod=row['mod'], rank=row['rank']))
+    _ride_rows(t_mag, _rows(totals, 'magazine_capacity'), 'magazine_capacity')
     trace_mod.finish(t_mag, modded_mag)
     traces['magazine_size'] = t_mag
 
@@ -459,11 +479,11 @@ def calculate(equipment, mod_slots=None, options=None):
         speed = _pct(totals, 'reload_speed')
         modded_reload = float(reload_time) / (1.0 + speed / 100.0)
         t_rel = trace_mod.trace('reload_time', reload_time, 'flat', 'Reload Time (s)')
+        # the row's own note is kept, and a row without one gets the reload-speed wording; the rider
+        # metadata (when present) rides along through _ride_rows
         for row in _rows(totals, 'reload_speed'):
-            trace_mod.add(t_rel, trace_mod.modifier(row['mod_name'], 'percent',
-                                                    row['value'], mod=row['mod'],
-                                                    rank=row['rank'],
-                                                    note='reload speed, time divides'))
+            row.setdefault('note', 'reload speed, time divides')
+        _ride_rows(t_rel, _rows(totals, 'reload_speed'), stat='reload_speed')
         trace_mod.finish(t_rel, modded_reload)
         traces['reload_time'] = t_rel
     stats['reload_time'] = trace_mod._num(modded_reload)
@@ -488,9 +508,11 @@ def calculate(equipment, mod_slots=None, options=None):
     # target that already carries them. A build with no viral damage and no target state is not
     # asked the question at all, which is what keeps every Phase 1 number untouched.
     viral_row = None
-    if per_projectile.get('viral') or conditions.has(ctx, 'target', 'viral_stacks'):
+    # Liveness is the registry's declaration: a stated stack count, or a build fact the mechanic
+    # names as required_when ('build.deals_viral').
+    if mechanics_mod.live('viral', ctx, {'build.deals_viral': bool(per_projectile.get('viral'))}):
         viral_row = statuses.evaluate(ctx)
-        consumed += ['target.viral_stacks', 'target.protection', 'target.immune_to']
+        consumed += list(mechanics_mod.REGISTRY['viral'].consumes)
         if mode == 'hypothetical' and viral_row['state'] == conditions.UNKNOWN:
             viral_row = dict(viral_row, hypothetical=True)
         condition_rows.append(viral_row)
@@ -575,31 +597,52 @@ def calculate(equipment, mod_slots=None, options=None):
     for entry in riders:
         if entry.get('applied'):
             continue
-        t_rider = traces.get(entry.get('stat'))
+        # the declaration names the destination: the stat id and the trace key are not always the
+        # same string (critical_damage -> critical_multiplier, reload_speed -> reload_time), and a
+        # refused rider that said nothing on a reload trace was review 3's finding 4
+        try:
+            key = mechanics_mod.trace_for('on_kill_rider', stat=entry.get('stat'))
+        except mechanics_mod.MechanicDeclarationError:
+            key = entry.get('stat')
+        t_rider = traces.get(key)
         if t_rider is None:
             continue
         trace_mod.note(t_rider, '%s: the %s rider is %s - %s'
                        % (entry.get('mod_name'), entry.get('stat'), entry.get('state'),
                           entry.get('reason')))
 
-    target_row, target_block = None, None
+    target_row, target_block, target_plan, result_pool = None, None, None, None
     # The trigger is the caller describing a combat target: an armour value, a target-state
     # mechanic whose only consumer is the mitigation stage, or the full (faction, landing layer)
     # pair. `protection` alone is Phase 4's viral input - a caller who states only that is asking
     # the viral question, not this one, and its evaluation must stay deterministic.
-    if (conditions.has(ctx, 'target', 'armor')
-            or conditions.has(ctx, 'target', 'corrosive_stacks')
-            or (conditions.has(ctx, 'target', 'protection')
-                and conditions.has(ctx, 'target_faction'))):
+    # The path's trigger is the registry's declaration (armour, or a landing plus a faction, or a
+    # stated state mechanic) - a new target mechanic joins the path by being declared, not by this
+    # call site remembering it.
+    if mechanics_mod.path_rule().stated(ctx):
         target_row, target_plan = enemies.evaluate(
-            ctx, deals_corrosive=bool(per_projectile.get('corrosive')))
+            ctx, deals_corrosive=bool(per_projectile.get('corrosive')),
+            deals_heat=bool(per_projectile.get('heat')))
         condition_rows.append(target_row)
-        if target_plan is not None and target_plan.get('corrosive_row'):
-            # The target-state mechanic the armour stage consumed is its own condition row: the
-            # answer names both what it applied and why.
-            condition_rows.append(target_plan['corrosive_row'])
-        for field in ('target_faction', 'target.protection', 'target.armor',
-                      'target.corrosive_stacks'):
+        # every target-state mechanic that resolved gets its own row (corrosive, Heat, and whatever
+        # the next declaration adds): the block is the path's, the rows are the states'
+        for state_row in (target_plan or {}).get('state_rows') or []:
+            condition_rows.append(state_row)
+        # What the path read, derived from the live target-path mechanics' declarations. The
+        # canonical order the accounting has always used comes first (so existing answers read the
+        # same), then any field a live mechanic declares that the order does not name - Heat's strip
+        # today, the next mechanic's field tomorrow.
+        declared = set()
+        for live_mechanic in mechanics_mod.REGISTRY.values():
+            if live_mechanic.family != 'target_damage':
+                continue
+            if not mechanics_mod.live(live_mechanic.id, ctx, {}):
+                continue
+            declared.update(live_mechanic.consumes)
+        for field in TARGET_PATH_FIELD_ORDER:
+            if field in declared and field not in consumed:
+                consumed.append(field)
+        for field in sorted(declared.difference(TARGET_PATH_FIELD_ORDER)):
             if field not in consumed:
                 consumed.append(field)
         if target_plan is not None:
@@ -648,6 +691,37 @@ def calculate(equipment, mod_slots=None, options=None):
                                    'model: %s' % ', '.join(equip['traits'][:4]),
                                    equipment=equip.get('id')))
 
+    # --- the stated pool result (6.6) --------------------------------------------
+    # A stated pool size (target.health / .shields / .overguard) for the layer the damage lands on
+    # turns the resolved damage path into a shot count. It is a division of traced numbers, and it
+    # exists only when both halves are resolved: no pool -> no block; an unresolved damage path ->
+    # the block is withheld with it. No regeneration, no shield gating, no rotations.
+    pool_block = None
+    if mechanics_mod.live('pool_result', ctx, {}):
+        pool_mechanic = mechanics_mod.REGISTRY['pool_result']
+        landing = ((target_plan or {}).get('protection')
+                   or conditions.get(ctx, 'target', 'protection'))
+        damage = None
+        if target_block is not None:
+            damage = {'per_shot_total': target_block.get('per_shot_total'),
+                      'per_shot_expected_crit': target_block.get('per_shot_expected_crit')}
+        pool_row, pool_block = enemies.evaluate_pool(ctx, landing, damage)
+        if pool_row is not None:
+            # the mechanic read these fields to answer, so they count as consumed now
+            for field in pool_mechanic.consumes:
+                if field not in consumed:
+                    consumed.append(field)
+            condition_rows.append(pool_row)
+            # a stated pool the landing does not deplete is named, never silently read
+            for field in pool_row.get('unused_fields') or []:
+                unsupported.append(unsupported_mod.marker(
+                    'context_unused', 'the stated field was not consumed: %s' % field,
+                    field=field))
+        if pool_block is not None:
+            result_pool = pool_block
+            stats['shots_to_kill'] = pool_block['shots_required']
+            traces['pool'] = enemies.pool_trace(pool_block, landing)
+
     # --- the evaluation block (4.5) --------------------------------------------
     # Three kinds of answer, named: a deterministic result (every condition that bears on it was
     # satisfied by the stated inputs), a conditional result (something that bears on it is unknown,
@@ -662,23 +736,38 @@ def calculate(equipment, mod_slots=None, options=None):
     # and viral numbers do not depend on it, and withholding them turns "I cannot answer your
     # enemy question" into "I cannot answer anything". (The architecture review executed exactly
     # that shape: faction + landing + viral, no armour.)
-    TARGET_MECHANICS = ('target_damage', 'corrosive')
+    # The blast radius is the registry's: what a refusal may suppress is exactly what the blocked
+    # rows declare (withholds_for), so a new mechanic arrives with its own radius and the target
+    # path keeps the Phase 5 fix - the target block and nothing else. A row the registry does not
+    # know about inherits the wider Phase 1 set (loudly, never silently).
     refused_stats = []
     if mode == 'strict' and blocked:
-        wider = [r for r in blocked if r['condition'] not in TARGET_MECHANICS]
-        if wider:
-            for key in ('damage_per_shot', 'damage_per_shot_expected_crit', 'burst_dps',
-                        'sustained_dps', 'damage_to_health', 'damage_to_health_expected_crit'):
-                if key in stats and stats[key] is not None:
-                    stats[key] = None
+        declared = mechanics_mod.withholds_for([r['condition'] for r in blocked])
+        for key in declared:
+            if key == 'target_damage':
+                continue
+            if key in stats and stats[key] is not None:
+                stats[key] = None
+                if key not in refused_stats:
                     refused_stats.append(key)
-        for row in blocked:
-            if row['condition'] in TARGET_MECHANICS and 'target_damage' not in refused_stats:
-                refused_stats.append('target_damage')
-        if target_block is not None:
-            # The target figures derive from the same withheld numbers: every one of them goes,
-            # and the per-type traces lose their finals with them.
+            if key == 'pool' and result_pool is not None and 'pool' not in refused_stats:
+                # the block itself is a result, not a stats entry: withholding its divisor has to
+                # null the block and its trace too (reviews 1 F2 / 3 F1)
+                for block_key in ('pool', 'damage_per_shot', 'damage_per_shot_expected_crit',
+                                  'shots_required', 'expected_shots'):
+                    result_pool[block_key] = None
+                refused_stats.append('pool')
+        if 'target_damage' in declared and 'target_damage' not in refused_stats:
             refused_stats.append('target_damage')
+        # The block is withheld when a number it publishes was withheld - not merely because some
+        # row was blocked: a pool-only refusal leaves the block alone (review 3, F2), while a
+        # withheld per-shot figure takes the block with it (Phase 5's rule).
+        block_keys = {'damage_per_shot', 'damage_per_shot_expected_crit', 'burst_dps',
+                      'sustained_dps', 'damage_to_health', 'damage_to_health_expected_crit',
+                      'target_damage'}
+        if target_block is not None and (set(declared) & block_keys):
+            if 'target_damage' not in refused_stats:
+                refused_stats.append('target_damage')
             target_block['per_projectile'] = {k: None
                                               for k in target_block['per_projectile']}
             target_block['per_projectile_total'] = None
@@ -755,6 +844,10 @@ def calculate(equipment, mod_slots=None, options=None):
         'unsupported': unsupported,
         'notes': notes,
     }
+    if result_pool is not None:
+        # The pool block appears only when a pool was stated and resolved: an always-present null
+        # key would change every existing payload for no information.
+        result['pool'] = result_pool
     if refused_stats:
         _withhold_mirrors(result, refused_stats)
     return result
@@ -767,9 +860,15 @@ def calculate(equipment, mod_slots=None, options=None):
 MIRROR_PATHS = {
     'burst_dps': (('dps', 'burst', 'value'), ('target_damage', 'dps', 'burst')),
     'sustained_dps': (('dps', 'sustained', 'value'), ('target_damage', 'dps', 'sustained')),
-    'damage_per_shot': (('damage', 'per_shot_total'), ('target_damage', 'per_shot_total')),
-    'damage_per_shot_expected_crit': (('target_damage', 'per_shot_expected_crit'),),
+    'damage_per_shot': (('damage', 'per_shot_total'), ('target_damage', 'per_shot_total'),
+                        # the pool block divides the per-shot figure, so it is one of its mirrors:
+                        # a withheld number must not survive inside result.pool (review F2)
+                        ('pool', 'damage_per_shot')),
+    'damage_per_shot_expected_crit': (('target_damage', 'per_shot_expected_crit'),
+                                      ('pool', 'damage_per_shot_expected_crit')),
     'target_damage': (('target_damage', 'per_projectile_total'),),
+    'shots_to_kill': (('pool', 'shots_required'), ('pool', 'expected_shots')),
+    'pool': (('pool', 'pool'),),
 }
 
 

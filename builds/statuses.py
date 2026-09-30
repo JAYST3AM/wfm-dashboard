@@ -229,6 +229,102 @@ def corrosive_reduction(stacks):
     return round(min(CORROSIVE_MAX_REDUCTION, CORROSIVE_BASE + CORROSIVE_PER_STACK * stacks), 4)
 
 
+HEAT = 'heat'
+# (the values the strip can hold are listed in evaluate_heat's refusal text)
+# The values the wiki's ramp actually passes through (percent), and the maximum.
+HEAT_STRIP_PLATEAUS = (15.0, 30.0, 40.0, 50.0)
+HEAT_MAX_STRIP = 0.50
+SOURCE_HEAT = ('https://wiki.warframe.com/w/Damage/Heat_Damage (oldid 2807948, '
+               'retrieved 2026-09-30)')
+HEAT_FORMULA = ("Heat status armour strip: armour x (1 - strip), where strip is the stated state "
+                "(one of the ramp's values, 15%/30%/40%/50%). Multiplicative with corrosive.")
+HEAT_TIMELINE = ("the strip ramps in over ~2 seconds and the Ignite tick deals damage for 6 more; "
+                 "both are timelines (status duration is not modelled), so this engine applies a "
+                 "stated strip and refuses nothing else")
+
+
+def heat_strip_percent(value):
+    """A stated strip -> one of the ramp's percentages, `0`, or None when it is not that at all."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
+        return None
+    if number != number or number in (float('inf'), float('-inf')):
+        return None
+    if number == 0.0:
+        return 0.0
+    if number in HEAT_STRIP_PLATEAUS:
+        return number
+    return None
+
+
+def evaluate_heat(ctx):
+    """The stated Heat strip -> a four-state row (Phase 6, 6.4).
+
+    The strip is a *state*, not an event: the caller states the value the target currently carries,
+    and a value the ramp cannot hold (35%) is refused by name rather than rounded to a plateau.
+    """
+    if not conditions.has(ctx, 'target', 'heat_strip'):
+        return conditions.result(
+            HEAT, conditions.UNKNOWN,
+            'no Heat state was supplied: the armour strip is a stated target state, and this engine '
+            'will not guess whether the target is burning',
+            reason_code='condition_unknown', missing=['target.heat_strip'],
+            source=SOURCE_HEAT, formula=HEAT_FORMULA)
+    stated = conditions.get(ctx, 'target', 'heat_strip')
+    percent = heat_strip_percent(stated)
+    if percent is None:
+        return conditions.result(
+            HEAT, conditions.UNSUPPORTED,
+            'Heat armour strip %r is not one of the values the strip can hold (15, 30, 40 or 50 '
+            'percent, or 0 for none)' % (stated,),
+            reason_code='mechanic_unsupported', unsupported_code='heat_strip_value',
+            inputs={'heat_strip': conditions.safe_input(stated)
+                    if isinstance(stated, (int, float, str)) else repr(stated)},
+            source=SOURCE_HEAT, formula=HEAT_FORMULA)
+    if percent == 0.0:
+        return conditions.result(
+            HEAT, conditions.NOT_SATISFIED,
+            'the target carries no Heat strip (a reported zero), so the armour is unchanged',
+            reason_code='condition_not_satisfied',
+            inputs={'heat_strip': conditions.safe_input(stated)},
+            source=SOURCE_HEAT, formula=HEAT_FORMULA, strip=0.0)
+    strip = percent / 100.0
+    return conditions.result(
+        HEAT, conditions.SATISFIED,
+        'the target carries a stated Heat strip of %g%%, so its armour is multiplied by %g '
+        '(multiplicative with the corrosive reduction, wiki)'
+        % (percent, 1.0 - strip),
+        inputs={'heat_strip': conditions.safe_input(stated)},
+        source=SOURCE_HEAT, formula=HEAT_FORMULA, strip=strip)
+
+
+def heat_armour_transform(armor, row):
+    """The armour after the stated strip (a plain multiplication; the wiki's own form)."""
+    strip = float(row.get('strip') or 0.0)
+    return float(armor) * (1.0 - strip)
+
+
+def heat_trace_row(armor, effective, row):
+    """The trace row for an applied Heat strip: an input transform, like corrosive's."""
+    if not row or row.get('state') != conditions.SATISFIED or not armor:
+        return None
+    return {'source': 'Heat strip (%g%%)' % (float(row.get('strip') or 0.0) * 100.0),
+            'category': 'mitigation_input', 'value': round(float(effective) - float(armor), 6),
+            'unit': 'flat', 'condition': HEAT, 'state': row['state'],
+            'strip': float(row.get('strip') or 0.0),
+            'formula': row.get('formula'),
+            'note': '%s; armour %s -> %s (multiplicative with corrosive), and the Armor row below '
+                    'applies the DR to that value' % (row.get('formula'), armor, effective)}
+
+
+def corrosive_armour_transform(armor, row):
+    """The armour after the stated corrosive reduction (kept bit-identical to the Phase 5 form)."""
+    return float(armor) * float(row.get('armor_multiplier') or 1.0)
+
+
 def evaluate_corrosive(ctx):
     """The Corrosive armour reduction against the supplied target state -> a condition result.
 

@@ -54,7 +54,7 @@ Sources (retrieved 2026-09-30):
 """
 import math
 
-from . import conditions, factions, statuses, trace as trace_mod
+from . import conditions, factions, mechanics as mechanics_mod, statuses, trace as trace_mod
 
 SOURCE_CALC = ('https://wiki.warframe.com/w/Damage/Calculation '
                '(oldid 2804415, retrieved 2026-09-30)')
@@ -119,13 +119,28 @@ def _as_number(value):
 
 
 # ------------------------------------------------------------------ the evaluation (5.1)
-def evaluate(ctx, deals_corrosive=False):
+def evaluate(ctx, deals_corrosive=False, deals_heat=False):
     """The stated target -> (condition row for 'target_damage', plan | None).
 
     The plan is the resolved, validated target; it exists only when the row is `satisfied`. Every
     branch ends in one of the four Phase 4 states, and a missing input is `unknown` with the input
     named - never a default target, never a zeroed armour value.
     """
+    # 6.5: a stated preset is a stated target question, and this build has no authoritative
+    # enemy-profile source to answer it from - so it is refused by name rather than fabricated.
+    # The refusal comes first: a caller who asked for a preset is told the preset cannot be used,
+    # not handed a different question's answer.
+    if conditions.has(ctx, 'target', 'preset'):
+        stated_preset = conditions.get(ctx, 'target', 'preset')
+        return conditions.result(
+            'target_damage', conditions.UNSUPPORTED,
+            'a target preset %r was stated, and this build carries no authoritative exported '
+            'target-profile source to resolve one from (equipment and mods only); state the target '
+            'fields explicitly instead' % (stated_preset,),
+            reason_code='mechanic_unsupported', unsupported_code='preset_unavailable',
+            inputs={'preset': stated_preset if isinstance(stated_preset, str) else repr(stated_preset)},
+            source='none: no enemy-profile source in this database'), None
+
     stated_faction = conditions.get(ctx, 'target_faction')
     if not conditions.has(ctx, 'target_faction'):
         return conditions.result(
@@ -183,40 +198,65 @@ def evaluate(ctx, deals_corrosive=False):
             reason_code='condition_unknown', missing=['target.armor'],
             source=SOURCE_ARMOR), None
 
-    # --- the target-state mechanic the armour stage consumes (5.5) -------------------------------
-    corrosive_row = None
-    corrosive_mult = 1.0
-    if deals_corrosive or conditions.has(ctx, 'target', 'corrosive_stacks'):
-        corrosive_row = statuses.evaluate_corrosive(ctx)
-        if corrosive_row['state'] in (conditions.UNKNOWN, conditions.UNSUPPORTED):
+    # --- the target-state mechanics the armour stage consumes (5.5, 6.1, 6.4) -------------------
+    # The loop is the registry's: every declared armour transformer (corrosive, Heat) is asked its
+    # question when it is live - its stated state, or the build dealing that damage - refuses by
+    # name when it cannot answer, and is applied in declaration order. Corrosive was the first
+    # mechanic here; Heat added no plumbing to this function at all.
+    facts = {'build.deals_corrosive': deals_corrosive, 'build.deals_heat': deals_heat}
+    state_rows = []
+    armour_multiplier_total = 1.0
+    for mechanic in mechanics_mod.implemented_transformers():
+        if not mechanics_mod.live(mechanic.id, ctx, facts):
+            continue
+        row = mechanics_mod.resolve(mechanic.evaluate)(ctx)
+        if row['state'] in (conditions.UNKNOWN, conditions.UNSUPPORTED):
             extra = {}
-            if corrosive_row.get('unsupported_code'):
+            if row.get('unsupported_code'):
                 # the finer code travels with the refusal, so a consumer can tell an over-cap
                 # stack timeline from a mechanic with no model at all
-                extra['unsupported_code'] = corrosive_row['unsupported_code']
-            if corrosive_row.get('inputs'):
-                extra['inputs'] = dict(corrosive_row['inputs'])
+                extra['unsupported_code'] = row['unsupported_code']
+            if row.get('inputs'):
+                extra['inputs'] = dict(row['inputs'])
             return conditions.result(
-                'target_damage', corrosive_row['state'],
-                'the target armour cannot be resolved: %s' % corrosive_row['reason'],
-                reason_code=corrosive_row['reason_code'],
-                missing=list(corrosive_row.get('missing') or []),
+                'target_damage', row['state'],
+                'the target armour cannot be resolved: %s' % row['reason'],
+                reason_code=row['reason_code'],
+                missing=list(row.get('missing') or []),
                 source=SOURCE_CALC, **extra), None
-        corrosive_mult = float(corrosive_row.get('armor_multiplier') or 1.0)
+        # A resolved state is carried as its own condition row whatever it is (a stated zero is a
+        # reported zero); only a satisfied transform moves the armour.
+        state_rows.append(row)
+        if row['state'] == conditions.SATISFIED:
+            armour_multiplier_total *= float(
+                mechanics_mod.resolve(mechanic.apply)(1.0, row))
 
+    corrosive_row = None
+    for row in state_rows:
+        if row.get('condition') == statuses.CORROSIVE:
+            corrosive_row = row
     plan = {
         'faction': faction,
         'faction_label': factions.FACTION_LABEL.get(faction, faction),
         'protection': layer,
         'corrosive_row': corrosive_row,
-        'corrosive_multiplier': corrosive_mult,
+        'state_rows': list(state_rows),
+        'corrosive_multiplier': (float(corrosive_row.get('armor_multiplier'))
+                                 if corrosive_row and corrosive_row.get('armor_multiplier') is not None
+                                 else 1.0),
+        'armour_multiplier_total': armour_multiplier_total,
         'armor': None,
     }
     if armour is not None:
-        effective = armour * corrosive_mult
+        # The wiki's composition: the state reductions multiply, in declaration order (corrosive's
+        # stated multiplier, then Heat's strip), and the DR below applies to the net result.
+        effective = armour * armour_multiplier_total
+        # The published keys stay exactly the Phase 5 set: the combined state multiplier is not a
+        # new field here - the composition is visible in each transform's own trace row and in the
+        # `effective` figure it produced.
         plan['armor'] = {
             'stated': armour,
-            'corrosive_multiplier': corrosive_mult,
+            'corrosive_multiplier': plan['corrosive_multiplier'],
             'effective': effective,
             'reduction': armour_damage_reduction(effective),
             'multiplier': armour_multiplier(effective),
@@ -233,6 +273,135 @@ def evaluate(ctx, deals_corrosive=False):
                 'armor': armour},
         source=SOURCE_CALC, faction=faction,
         armor=(plan['armor'] or {}).get('effective')), plan
+
+
+POOL_LAYER = {'health': 'health', 'armor': 'health', 'shields': 'shields',
+              'overguard': 'overguard'}
+POOL_FIELD = {'health': 'target.health', 'shields': 'target.shields',
+              'overguard': 'target.overguard'}
+
+
+def evaluate_pool(ctx, layer, damage):
+    """A stated pool + the resolved damage path -> (row, block | None).
+
+    `damage` is the published per-shot pair the target path computed
+    (`per_shot_total`, `per_shot_expected_crit`) or None when that path is withheld.
+    """
+    def echo(value):
+        # a caller can send 1e400, which JSON turns into inf: echoing it verbatim would emit bare
+        # `Infinity` and stop the page parsing the response at all (review 2, finding 8)
+        if isinstance(value, float) and not math.isfinite(value):
+            return repr(value)
+        return value
+
+    stated = {}
+    for key in ('health', 'shields', 'overguard'):
+        if conditions.has(ctx, 'target', key):
+            value = _as_number(conditions.get(ctx, 'target', key))
+            if value is None or value < 0:
+                return conditions.result(
+                    'pool', conditions.UNKNOWN,
+                    'target.%s %r is not a pool size this engine will interpret'
+                    % (key, conditions.get(ctx, 'target', key)),
+                    reason_code='condition_unknown', inputs={key: conditions.get(ctx, 'target', key)},
+                    missing=['a non-negative numeric target.%s' % key],
+                    source=SOURCE_CALC), None
+            stated[key] = value
+    if not stated:
+        return None, None                      # nothing stated: no block, and no refusal
+    # The landing layer arrives from caller JSON: a list, dict or number is not a layer, and asking
+    # a dict for its key would raise. Coerce to a string when it is a scalar, then look it up.
+    layer_key = layer if isinstance(layer, str) else (str(layer) if isinstance(layer, (int, float))
+                                                      and not isinstance(layer, bool) else None)
+    wanted = POOL_LAYER.get(layer_key) if layer_key else None
+    if wanted is None:
+        # No landing was stated, so there is no pool question to answer yet: the stated sizes stay
+        # *unused* (the Phase 5 accounting names them) rather than being refused against a layer
+        # nobody described.
+        return None, None
+    if wanted not in stated:
+        return conditions.result(
+            'pool', conditions.UNSUPPORTED,
+            'a pool was stated (%s) but the damage lands on %s, and this engine models one pool at '
+            'a time: state the pool the stated landing depletes'
+            % (', '.join('target.%s' % k for k in sorted(stated)), layer),
+            reason_code='mechanic_unsupported', unsupported_code='pool_landing_mismatch',
+            inputs={k: echo(v) for k, v in stated.items()},
+            # every stated pool is unusable here, and the caller is told so by name rather than
+            # having the sizes read and quietly dropped
+            unused_fields=[POOL_FIELD[k] for k in sorted(stated)], source=SOURCE_CALC), None
+    if damage is None:
+        # the brief's rule: never a shots-to-kill number from a partially refused damage path
+        return conditions.result(
+            'pool', conditions.UNKNOWN,
+            'the damage path that would deplete the stated %s pool is not resolved, so the pool '
+            'result is withheld with it' % wanted,
+            reason_code='condition_unknown', unsupported_code='pool_unresolved',
+            inputs={k: echo(v) for k, v in stated.items()}, missing=['a resolved target damage path'],
+            source=SOURCE_CALC), None
+    pool = stated[wanted]
+    per_shot = float(damage.get('per_shot_total') or 0.0)
+    per_shot_crit = float(damage.get('per_shot_expected_crit') or 0.0)
+    if per_shot <= 0.0:
+        return conditions.result(
+            'pool', conditions.UNKNOWN,
+            'the resolved damage per shot against this target is zero, so a shot count cannot be '
+            'divided out of it', reason_code='condition_unknown',
+            inputs={k: v for k, v in stated.items()}, source=SOURCE_CALC), None
+    quotient = pool / per_shot
+    if not math.isfinite(quotient):
+        # a finite pool can still overflow the division (1e308 / 0.5): a shot count this engine
+        # cannot write down is a named refusal, never a crash (review 2, finding 1)
+        return conditions.result(
+            'pool', conditions.UNKNOWN,
+            'the stated pool divided by the supported damage per shot is not a finite shot count, '
+            'so this engine will not publish one',
+            reason_code='condition_unknown', unsupported_code='pool_unresolved',
+            inputs={k: v for k, v in stated.items()}, source=SOURCE_CALC), None
+    # ceil, then verified against the published figure: an absolute epsilon can round a pool that
+    # sits just above a multiple down (review 2, finding 6), so the count is corrected until the
+    # arithmetic holds on the numbers the caller can see
+    shots = int(math.ceil(quotient))
+    for _ in range(3):
+        if shots > 1 and (shots - 1) * per_shot >= pool:
+            shots -= 1
+        elif shots * per_shot < pool:
+            shots += 1
+        else:
+            break
+    expected = (pool / per_shot_crit) if per_shot_crit > 0.0 else None
+    block = {
+        'layer': wanted, 'pool': pool,
+        'damage_per_shot': per_shot, 'damage_per_shot_expected_crit': per_shot_crit,
+        'shots_required': shots,
+        'expected_shots': (round(expected, 4) if expected is not None else None),
+        'assumptions': [
+            'shots_required assumes no critical hits (pool / damage per shot, rounded up)',
+            'expected_shots is pool / crit-expected damage per shot: an expectation, not a '
+            'guarantee',
+        ],
+    }
+    return conditions.result(
+        'pool', conditions.SATISFIED,
+        'the stated %s pool is %g and this build deals %g per shot against this target, so %d '
+        'shots (or about %s crit-weighted) deplete it'
+        % (wanted, pool, per_shot, shots, block['expected_shots']),
+        inputs={k: echo(v) for k, v in stated.items()}, source=SOURCE_CALC,
+        unused_fields=[POOL_FIELD[k] for k in stated if k != wanted]), block
+
+
+def pool_trace(block, layer):
+    """The pool block's trace: the division, written out, so the number composes."""
+    t = trace_mod.trace('pool', float(block['pool']), 'flat', 'Stated %s pool' % block['layer'])
+    trace_mod.note(t, 'shots_required = ceil(pool / damage_per_shot) = ceil(%g / %g) = %d'
+                   % (block['pool'], block['damage_per_shot'], block['shots_required']))
+    if block.get('expected_shots') is not None:
+        trace_mod.note(t, 'expected_shots = pool / damage_per_shot_expected_crit = %g / %g = %s'
+                       % (block['pool'], block['damage_per_shot_expected_crit'],
+                          block['expected_shots']))
+    trace_mod.note(t, 'source: %s' % SOURCE_CALC)
+    trace_mod.finish(t, float(block['shots_required']))
+    return t
 
 
 # ------------------------------------------------------------------ the damage path (5.2)
@@ -341,11 +510,25 @@ def _traces(per_projectile, per_type, modifiers, plan, fm, layer):
                 'Overguard (Void)', 'target', 50, 'percent',
                 note='Overguard is neutral to every damage type except a x1.5 Void vulnerability',
                 damage_type=dtype, state='satisfied', source_url=SOURCE_OVERGUARD))
-        if plan['corrosive_row'] and mod['armor_multiplier'] < 1.0:
-            row = statuses.corrosive_trace_row(armor['stated'], armor['effective'],
-                                               plan['corrosive_row'])
-            if row:
-                t['modifiers'].append(row)
+        # Each transform reports its own step: the transforms compose multiplicatively (the
+        # wiki's form), so the rows are applied in declaration order to a running value and each
+        # row carries the delta *it* made - two multiplied factors would otherwise print the same
+        # combined delta twice, which is a trace that does not explain itself. No armour block
+        # means the armour stage did not run (shields, Overguard), so no transform rows either.
+        running = armor['stated'] if armor else None
+        for mechanic in mechanics_mod.implemented_transformers() if armor else ():
+            state_row = None
+            for candidate in plan.get('state_rows') or []:
+                if candidate.get('condition') == mechanic.condition_id:
+                    state_row = candidate
+                    break
+            if state_row is None or state_row.get('state') != conditions.SATISFIED:
+                continue
+            after = float(mechanics_mod.resolve(mechanic.apply)(running, state_row))
+            built = mechanics_mod.resolve(mechanic.trace_row)(running, after, state_row)
+            running = after
+            if built:
+                t['modifiers'].append(built)
         if mod['armor_multiplier'] < 1.0:
             t['modifiers'].append(_modifier_row(
                 'Armor %g' % armor['effective'], 'mitigation', mod['armor_multiplier'], 'ratio',

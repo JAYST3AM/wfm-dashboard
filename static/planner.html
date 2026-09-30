@@ -232,6 +232,28 @@
                  step="1"
                  placeholder="&#8212;" aria-label="Target armour value"
                  title="net armour before modelled reductions">
+          <label class="pl-lbl" for="plTargetHeat">Heat</label>
+          <select id="plTargetHeat" class="pl-sel" aria-label="Stated Heat armour strip"
+                  title="stated heat strip, ramp values only">
+            <option value="">not stated</option>
+            <option value="0">none</option>
+            <option value="15">15%</option>
+            <option value="30">30%</option>
+            <option value="40">40%</option>
+            <option value="50">50%</option>
+          </select>
+          <label class="pl-lbl" for="plPoolHealth">Health</label>
+          <input id="plPoolHealth" class="pl-num pl-num-sm" type="number" min="0" max="1000000000"
+                 step="1" placeholder="&#8212;" aria-label="Stated health pool"
+                 title="stated pool size, not inferred">
+          <label class="pl-lbl" for="plPoolShields">Shields</label>
+          <input id="plPoolShields" class="pl-num pl-num-sm" type="number" min="0" max="1000000000"
+                 step="1" placeholder="&#8212;" aria-label="Stated shield pool"
+                 title="stated pool size, not inferred">
+          <label class="pl-lbl" for="plPoolOverguard">Overguard</label>
+          <input id="plPoolOverguard" class="pl-num pl-num-sm" type="number" min="0"
+                 max="1000000000" step="1" placeholder="&#8212;" aria-label="Stated overguard pool"
+                 title="stated pool size, not inferred">
           <label class="pl-lbl" for="plTargetCorrosive">Corrosive</label>
           <input id="plTargetCorrosive" class="pl-num pl-num-sm" type="number" min="0" max="10" step="1"
                  placeholder="&#8212;" aria-label="Corrosive procs on the target"

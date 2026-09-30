@@ -52,8 +52,8 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | deliberate break | what it would let through | caught | failed checks |
 | --- | --- | --- | --- |
 | unparseable-armour-becomes-zero | an armour value the model cannot read is read as 0 armour | yes | `enemy/armour-invalid` |
-| missing-armour-becomes-zero | a missing armour value quietly becomes 0 armour | yes | `enemy/armour-required`, `enemy/armour-invalid`, `enemy/target-refusal-keeps-the-build` |
-| missing-layer-defaults | a missing landing layer is defaulted to health | yes | `enemy/layer-required` |
+| missing-armour-becomes-zero | a missing armour value quietly becomes 0 armour | yes | `check_enemy_inputs_are_required`, `check_mitigation_is_pinned`, `check_target_never_touches_phase1`, `states/four-states-only`, `check_target_field_handling`, `check_a_target_refusal_keeps_the_build` |
+| missing-layer-defaults | a missing landing layer is defaulted to health | yes | `check_enemy_inputs_are_required`, `check_mitigation_is_pinned`, `check_target_never_touches_phase1`, `states/four-states-only`, `check_target_field_handling`, `check_a_target_refusal_keeps_the_build` |
 | unknown-faction-defaults | an unknown faction is defaulted to grineer | yes | `enemy/faction-invalid` |
 | unknown-becomes-false | an unknown condition is reported as not_satisfied | yes | `enemy/faction-required`, `enemy/layer-required`, `enemy/armour-required`, `enemy/armour-invalid`, `enemy/faction-invalid`, `enemy/corrosive-invalid` |
 | unsupported-contributes | a conditional mechanic with no model is folded into the totals | yes | `enemy/unsupported-contributes-nothing` |

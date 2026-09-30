@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-30T08:44:46.842Z · verdict **PASS** · 122 checks, 0 failed*
+*ran 2026-09-30T10:07:53.167Z · verdict **PASS** · 127 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | 9f26e3c  "Phase 5 review fixes 2: the page's typo data-loss path, and the doc's health_type claim" |
-| working tree | dirty (9 changed paths) |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_a5nxeikc |
-| page | http://127.0.0.1:64148/planner.html |
+| commit | f1f2db3  "Stage-10 release gate artefacts: PASS (121 checks, 38 states) for the final engine" |
+| working tree | dirty (30 changed paths) |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_2jnplatt |
+| page | http://127.0.0.1:61336/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |
@@ -120,12 +120,17 @@
 | ✅ | target | an averaged on-kill state says so, on the stated stacks only | mode averaged, 0.65 uptime carried, the assumption printed next to the contribution | {"mod":"/Lotus/Upgrades/Mods/Rifle/WeaponFireIterationsSPMod","mod_name":"Galvanized Chamber","rank":10,"trigger":"on_kill","stat":"multishot","cap":5… |
 | ✅ | target | an out-of-range typo is refused at the box and the stored build survives | the boxes go back to the stored values, the document stays readable, and the build reloads | {"atEdit":{"uptimeBox":"65","corrosiveBox":"4","stacksBox":"3","stored":{"faction":"grineer","viral_stacks":null,"protection":"health","shot":null,"st… |
 | ✅ | target | clearing the armour withholds the number and prints the engine's own refusal | no target_damage, and the card prints the engine's unknown verdict naming the armour | td=null out=target damage: unknown - the damage lands on health, so the armour value is needed to compute the mitigation, and no armour was statedOn K… |
+| ✅ | target | the Heat select offers only the strip values the engine accepts | the ramp values and a stated zero, and no way to state 35 | ,0,15,30,40,50 |
+| ✅ | target | the Heat strip and the pool size are posted exactly as stated | heat_strip 50 and health 5000 travel as stated | {"protection":"health","armor":900,"corrosive_stacks":4,"heat_strip":50,"health":5000} |
+| ✅ | target | the stated Heat strip multiplies the armour the engine reports | armour 900 x 0.56 (corrosive 4) x 0.5 (heat 50%) = 252 | {"stated":900,"corrosive_multiplier":0.56,"effective":252.00000000000003,"reduction":0.2749545416973504,"applies":true} |
+| ✅ | target | the card prints the pool line the engine sent | pool <size> ... <n> shots | vs Grineer · lands on health · armour 900 -> 252impact 1.903 · puncture 8.882 · slash 15.226per projectile 26.011 · per shot 62.036 · crit-expected 69… |
+| ✅ | target | clearing the Heat select unstates the strip - the armour is not stripped | no heat_strip in the context, armour 900 x 0.56 = 504 | {"protection":"health","armor":900,"corrosive_stacks":4,"health":5000} {"stated":900,"corrosive_multiplier":0.56,"effective":504.00000000000006,"reduc… |
 | ✅ | hygiene | no duplicate id after the whole drive | 0 duplicates | [] |
 | ✅ | hygiene | no console error over the whole drive | 0 console errors | 0:  |
 | ✅ | hygiene | no page error over the whole drive | 0 page errors | 0:  |
 | ✅ | hygiene | no failed request outside the dev-server burst class | 0 failed requests | 0: [] |
 | ✅ | current | the Current Loadout card lists every equipped category from the save | six rows: warframe, primary, secondary, melee, companion, companion weapon | WarframeGauss PrimeConfig A · Rank 30 \\| PrimaryBraton PrimeConfig A · Rank 30 \\| SecondaryKohmakConfig A · Rank 0 \\| MeleeRipkasConfig A · Rank unkno… |
-| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 17 hours ago /  |
+| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 18 hours ago /  |
 | ✅ | current | the imported view is read-only: no editable field, only its own buttons | no input/textarea/contenteditable, and refresh/view/clone as the only affordances | editable=0 buttons=plCurrentRefresh,plCurrentView,plCurrentClone |
 | ✅ | current | the card adds no floating surface (the workspace rule holds here too) | no position:fixed element inside #plCurrent | fixed layers: 0 |
 | ✅ | current | the imported build shows its mods with the ranks the save records | Serration at rank 10, read from the copy the save points at | 1SerrationR10 |

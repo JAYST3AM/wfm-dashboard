@@ -128,12 +128,15 @@ def test_the_malformed_corpus_never_crashes_and_never_coerces(db):
             out = api.compute(build, db, {'context': context})
             assert isinstance(out, dict) and out.get('evaluation'), context
             assert isinstance(out.get('unsupported'), list), context
-    # the pool size has no consumer: named, and the target answer still computes
+    # Phase 6: the pool size has a consumer now (the pool result), so it is *consumed* rather than
+    # refused - and it produced a block, which is the point: the field is not silently swallowed.
     pooled = api.compute(_weapon([('/Fixture/Serration', 10)]), db,
                          {'context': {'target_faction': 'grineer',
                                       'target': {'protection': 'health', 'armor': 300,
                                                  'corrosive_stacks': 0, 'health': 1000}}})
-    assert (pooled['evaluation'].get('unused') or []) == ['target.health']
+    assert not pooled['evaluation'].get('unused')
+    assert 'target.health' in pooled['evaluation']['consumed']
+    assert pooled['result']['pool']['pool'] == 1000
     assert pooled['result']['target_damage'] is not None
 
 

@@ -10,6 +10,7 @@ The rules this file pins, in one line each:
     input named, never a zeroed or defaulted target;
   * with no target context the Phase 1 numbers are exactly what they were.
 """
+import math
 import sys
 from pathlib import Path
 
@@ -20,6 +21,12 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from builds import api, conditions, enemies, factions, ingest, statuses  # noqa: E402
+from builds import mechanics as mechanics_mod  # noqa: E402
+
+# The registry is the source of truth for which fields the engine may report consuming: a field the
+# path says it read must be one the declarations name (Phase 6's whole point).
+DECLARED_TARGET_FIELDS = tuple(sorted(
+    field for field in mechanics_mod.consumed_fields() if field.startswith('target')))
 from test_builds_engine import FIXTURE_EQUIPMENT, FIXTURE_MODS, _mod_row  # noqa: E402
 
 SERRATION = '/Fixture/Serration'
@@ -264,14 +271,23 @@ def test_the_target_block_reports_exactly_what_it_consumed(db):
     for field in ('target_faction', 'target.protection', 'target.armor',
                   'target.corrosive_stacks'):
         assert field in ev['consumed']
+    for field in ev['consumed']:
+        # every field the path reports reading is named by the registry's declarations
+        assert field in DECLARED_TARGET_FIELDS, field
     assert not ev.get('unused')
-    # a stated pool size has no consumer and is refused by name
+    # Phase 6: a stated pool size is consumed by the pool result and produces a block (Phase 5
+    # refused it as unused, before the pool mechanic existed)
     pooled = api.compute(_build([(SERRATION, 10)]), db,
                          _opts('grineer', protection='health', armor=300,
                                corrosive_stacks=0, health=1000))
-    assert (pooled['evaluation'].get('unused') or []) == ['target.health']
-    marker = [m for m in pooled['unsupported'] if m['code'] == 'context_unused'][0]
-    assert marker['condition']['state'] == 'unsupported'
+    assert not pooled['evaluation'].get('unused')
+    assert 'target.health' in pooled['evaluation']['consumed']
+    block = pooled['result']['pool']
+    assert block['pool'] == 1000 and block['layer'] == 'health'
+    # the division is the published one: ceil(pool / supported damage per shot)
+    assert block['shots_required'] == int(math.ceil(1000 / block['damage_per_shot'] - 1e-9))
+    assert pooled['result']['stats']['shots_to_kill'] == block['shots_required']
+    assert 1 <= block['shots_required'] <= 100
 
 
 def test_malformed_target_input_never_crashes_and_never_crashes_into_a_number(db):
