@@ -99,12 +99,21 @@ def armour_multiplier(armor):
 
 
 def _as_number(value):
-    """A stated numeric field -> float, or None. Never coerces a string or a bool."""
+    """A stated numeric field -> float, or None. Never coerces a string or a bool.
+
+    A JSON integer can be arbitrarily large (`json.loads` keeps every digit), so the conversion
+    itself can raise - an armour value of 10**400 is not a number this model can express, and
+    saying so beats an OverflowError out of the API.
+    """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    if not math.isfinite(float(value)):
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
         return None
-    return float(value)
+    if not math.isfinite(number):
+        return None
+    return number
 
 
 # ------------------------------------------------------------------ the evaluation (5.1)

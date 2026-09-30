@@ -188,10 +188,17 @@ def normalise_context(raw):
         ctx['target'] = {}
         for key, value in target.items():
             canonical = TARGET_ALIASES.get(str(key), key)
-            if canonical in TARGET_FIELDS:
-                ctx['target'][canonical] = value
-            else:
+            if canonical not in TARGET_FIELDS:
                 ctx['ignored'].append('target.' + str(key))
+            elif canonical in ctx['target'] and ctx['target'][canonical] != value:
+                # Two spellings of one field, stated differently: the canonical field keeps the
+                # value and the losing spelling is named, because a silently-picked winner is the
+                # same failure mode as a silently-picked default.
+                ctx['ignored'].append(
+                    'target.%s (a second spelling of %s; target.%s was used)'
+                    % (str(key), canonical, canonical))
+            else:
+                ctx['target'][canonical] = value
     elif target is not None:
         ctx['ignored'].append('target (not an object)')
     attack = raw.get('attack')

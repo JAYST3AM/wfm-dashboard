@@ -216,3 +216,39 @@ def test_the_umbral_rule_is_pinned_data_not_a_special_case_in_the_engine():
     assert effects.UMBRAL_MULTIPLIERS[UMBRAL_INTENSIFY][2] == 1.25
     src = (REPO / 'builds' / 'effects.py').read_text(encoding='utf-8')
     assert src.count('UMBRAL_MULTIPLIERS') >= 2
+
+
+def test_a_json_document_cannot_make_the_engine_raise(db):
+    """Malformed context is answered with a named state, never an exception.
+
+    The three shapes below are the ones an independent reviewer's probes found raising: a JSON
+    integer is unbounded (`float()` overflows), and `immune_to` was iterated as if any non-string
+    were a sequence. A JSON document can carry all of them, so they are pinned here.
+    """
+    huge = int('1' + '0' * 400)
+    cases = [
+        {'target_faction': 'grineer', 'target': {'protection': 'health', 'armor': huge}},
+        {'target': {'protection': 'health', 'armor': 300},
+         'buffs': {'on_kill': {'uptime': huge, 'stacks': 5}}},
+        {'target': {'protection': 'health', 'armor': 300},
+         'buffs': {'on_kill': {'stacks': huge}}},
+        {'target': {'protection': 'health', 'viral_stacks': 6, 'immune_to': 5}},
+        {'target': {'protection': 'health', 'viral_stacks': 6, 'immune_to': ['viral', 7]}},
+        {'target': {'protection': 'health', 'armor': 300, 'corrosive_stacks': float('inf')}},
+    ]
+    for ctx in cases:
+        out = api.compute(_weapon([('/Fixture/Serration', 10)]), db, {'context': ctx})
+        assert out['ok'] is True, (ctx, out['validation'])
+        for row in out.get('conditions') or []:
+            assert row['state'] in conditions.STATES, (ctx, row)
+
+
+def test_a_conflicting_second_spelling_is_named_not_silently_picked(db):
+    out = api.compute(_weapon([('/Fixture/Serration', 10)]), db,
+                      {'context': {'target_faction': 'grineer',
+                                   'target': {'protection': 'health', 'armor': 300,
+                                              'armour': 900}}})
+    ignored = (out.get('evaluation') or {}).get('context_ignored') or []
+    stated = ((out['result']['target_damage'] or {}).get('armor') or {}).get('stated')
+    assert stated == 300
+    assert any('armour' in entry for entry in ignored), ignored

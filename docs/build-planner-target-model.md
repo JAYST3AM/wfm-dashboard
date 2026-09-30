@@ -79,6 +79,10 @@ no supported calculation consumes them, and they are reported as `unused` by nam
 A field whose value is `null` counts as **not stated** (JSON `null` = absent), consistently for
 every field above — a `null` never means zero, and never becomes a default.
 
+A value the model cannot express is `unknown`, never converted: a JSON document can carry an
+integer of any length, so `target.armor: 10**400` is a stated value this engine refuses by name
+rather than an overflow inside the arithmetic.
+
 ## 5. What the model deliberately does not claim
 
 * **No "average enemy".** Every number above is the caller's statement. The engine never picks a

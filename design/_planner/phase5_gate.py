@@ -550,6 +550,19 @@ def check_target_field_handling(res, db):
               'a target that is not an object is named as ignored, never half-read',
               ignored and out.get('ok') is True, 'ignored=%s' % ignored)
 
+    # two spellings of one field, stated differently: the canonical one is used and the loser is
+    # named - a silently-picked winner would be the same failure mode as a silently-picked default
+    out = api.compute(_build(weapon, mods), db,
+                      {'context': {'target_faction': 'grineer',
+                                   'target': {'protection': 'health', 'armor': 300,
+                                              'armour': 900}}})
+    ignored = (out.get('evaluation') or {}).get('context_ignored') or []
+    stated = (((out.get('result') or {}).get('target_damage') or {}).get('armor') or {}).get('stated')
+    res.check('enemy/conflicting-alias-named',
+              'a conflicting second spelling is named, and the canonical field is the one used',
+              stated == 300 and any('armour' in i for i in ignored),
+              'stated=%s ignored=%s' % (stated, ignored))
+
 
 def check_trace_is_the_whole_story(res, db):
     """Every stage of the target path is in the trace, in order, with its source."""
@@ -600,6 +613,56 @@ def check_phase_4_gate_still_passes(res, db):
     inner = mod.run_checks(db)
     res.check('refusals/phase-4-gate', 'the Phase 4 refusal-preservation gate still passes',
               inner.ok, 'failed=%s' % [r['id'] for r in inner.failures][:6])
+
+
+def check_malformed_target_never_crashes(res, db):
+    """Malformed context is answered, never raised - including the shapes a JSON document can
+    actually carry. `json.loads` parses an integer of any length, so `float()` on one raises
+    OverflowError; `immune_to` as a number raised TypeError. Both were found by an independent
+    reviewer's probes, and both are pinned here now.
+    """
+    weapon = _weapon_id(db)
+    chamber = _rider_mod(db)
+    mods = []
+    serration = _rifle_mod(db, 'Serration')
+    mods.append((serration['id'], serration.get('max_rank') or 0))
+    if chamber:
+        mods.append((chamber[0]['id'], chamber[0].get('max_rank') or 0))
+    huge = int('1' + '0' * 400)
+    cases = [
+        ('armour as a 401-digit JSON integer',
+         {'target_faction': 'grineer',
+          'target': {'protection': 'health', 'armor': huge}}),
+        ('uptime as a 401-digit JSON integer',
+         {'target': {'protection': 'health', 'armor': 300},
+          'buffs': {'on_kill': {'uptime': huge, 'stacks': 5}}}),
+        ('stacks as a 401-digit JSON integer',
+         {'target': {'protection': 'health', 'armor': 300},
+          'buffs': {'on_kill': {'stacks': huge}}}),
+        ('immune_to as a number',
+         {'target': {'protection': 'health', 'viral_stacks': 6, 'immune_to': 5}}),
+        ('immune_to as a list with junk in it',
+         {'target': {'protection': 'health', 'viral_stacks': 6, 'immune_to': ['viral', 7]}}),
+        ('a float where a stack count belongs',
+         {'target': {'protection': 'health', 'armor': 300, 'corrosive_stacks': float('inf')}}),
+        ('a nested list where a layer belongs',
+         {'target_faction': 'grineer', 'target': {'protection': [['health']], 'armor': 300}}),
+    ]
+    bad = []
+    for label, ctx in cases:
+        try:
+            out = api.compute(_build(weapon, mods), db, {'context': ctx})
+        except Exception as exc:                                     # noqa: BLE001
+            bad.append((label, 'raised %s: %s' % (type(exc).__name__, exc)))
+            continue
+        if out.get('ok') is not True:
+            bad.append((label, 'ok=%r' % (out.get('ok'),)))
+        for row in _rows(out):
+            if row.get('state') not in conditions.STATES:
+                bad.append((label, 'state=%r' % (row.get('state'),)))
+    res.check('enemy/malformed-never-crashes',
+              'a malformed target or buff shape is answered with a state, never raised',
+              not bad, 'bad=%s' % bad[:4])
 
 
 def check_page_does_no_enemy_maths(res, db, page_text=None):
@@ -682,6 +745,7 @@ CHECKS = (
     check_four_states_everywhere,
     check_booleans_are_booleans,
     check_target_field_handling,
+    check_malformed_target_never_crashes,
     check_trace_is_the_whole_story,
     check_phase_4_gate_still_passes,
     check_refusal_registry_covers_new_paths,

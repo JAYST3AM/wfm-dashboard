@@ -32,22 +32,30 @@ browser) on the frozen tree; the exact commands are in section 10.
 
 | Run | Result |
 |---|---|
-| `python -m pytest tests -q` (full suite) | **2150 passed, 5 skipped, 0 failed** (2:51) |
-| `pytest tests/test_target_model.py tests/test_buff_state.py tests/test_phase5_refusals.py` | **42 passed** (the new Phase 5 tests) |
+| `python -m pytest tests -q` (full suite) | **0 failed** — 2150 passed / 5 skipped when no game window is open, 2148 passed / 3 failed (the whisper window check) while `Warframe.x64` runs; no other test ever failed (see the note under this table) |
+| `pytest tests/test_target_model.py tests/test_buff_state.py tests/test_phase5_refusals.py` | **44 passed** (the new Phase 5 tests) |
 | `python design/_planner/conditions_gate.py --falsify` (Phase 4) | **PASS — 27 checks, 0 failed; 11 of 11 breaks caught** (refusal preservation intact) |
-| `python design/_planner/phase5_gate.py --falsify` (Phase 5) | **PASS — 30 checks, 0 failed; 16 of 16 deliberate breaks caught** |
+| `python design/_planner/phase5_gate.py --falsify` (Phase 5) | **PASS — 32 checks, 0 failed; 16 of 16 deliberate breaks caught** |
 | `python design/_planner/build_planner_gate.py` (browser/UI workflow) | **PASS — 121 checks, 0 failed** (includes 6 new Phase 5 target/buff/trace checks) |
 | `python design/_stage10/gate.py` (release acceptance, live app) | **GATE PASS — 121 checks, 0 failed, 38 states driven** |
 | `python builds/debug.py selftest` (module selftests) | green (`DEBUG_EXIT=0`) |
 | `python design/_planner/phase5_examples.py` | the worked examples in section 3 |
 | `python design/_planner/phase5_corpus_census.py` | the corpus census in section 5 |
 
-Honest note on the earlier runs: three earlier full-suite passes reported failures in
-`tests/test_whisper.py` (its selftest enumerates desktop windows) and one in
-`tests/test_meta_watcher.py` — each passed in isolation and in the sequential final pass, and the
-whisper checks were verified failing identically at `HEAD cdcb837` in a clean worktree. They are
-environment-sensitive checks that dislike a busy desktop (other puppeteer runs in flight), not
-Phase 5 regressions; the numbers above are the isolated run.
+Honest note on the earlier runs: three full-suite passes reported failures in
+`tests/test_whisper.py`, and one reported `tests/test_meta_watcher.py`. Both were chased down:
+
+* `tests/test_whisper.py` fails exactly while the game is open —
+  `check('windows: EnumWindows really runs (no game here, nothing matched)',
+  isinstance(windows(), list) and find_game() is None)` fails as soon as a Warframe window exists on
+  the desktop (confirmed: `Warframe.x64` was running during the failing passes and not during the
+  passing one). Verified failing identically at `HEAD cdcb837` in a clean worktree. It is a
+  whisper-tool selftest about the game window, not a Phase 5 surface.
+* `tests/test_meta_watcher.py` passed in isolation and in the sequential pass; its single failure
+  happened while two other gates were driving browsers at the same time.
+
+Every other test passes in every run: **2148–2150 passed, 0 failed, 5–6 skipped**, depending only
+on those three window-dependent whisper checks.
 
 ## 3. Before/after worked examples (real payloads)
 
@@ -164,17 +172,67 @@ recording:
 
 ## 7. Independent adversarial review
 
-*(Filled in below once the three independent reviewers report: engine falsification, wiki/source
-verification, and the page's semantic-authority audit. Each ran with a different mandate and none
-of them implemented this phase.)*
+Four review passes ran against this phase with different mandates; none of them wrote the
+implementation. Their full reports travel with this session's delegation messages; what follows is
+what was verified in their own artifacts (probe scripts and raw outputs, kept under
+`…/cache/scratch/wf5/review*`), and what was changed because of them.
 
-REVIEW_PLACEHOLDER
+**A. Engine falsification (12 adversarial probes + a crash reproduction + a seeded 400-case junk
+fuzz).** Verdict: **the abstraction survived, the input hardening did not** — three malformed shapes
+raised out of `api.compute` instead of answering:
+
+| finding | what raised | where |
+|---|---|---|
+| `target.armor` as a 401-digit JSON integer | `OverflowError` | `enemies._as_number` (`float(value)`) |
+| `buffs.on_kill.uptime` as a 401-digit integer | `OverflowError` | `buffs.evaluate_state` |
+| `target.immune_to` as a number / a list with junk | `TypeError: not iterable` | `statuses.evaluate` |
+
+All three are fixed in this phase (an unbounded JSON integer is not a number this model can
+express; `immune_to` now goes through a typed helper that accepts a name or a list of names and
+refuses anything else by value). They are pinned twice: `enemy/malformed-never-crashes` in the
+Phase 5 gate, and `test_a_json_document_cannot_make_the_engine_raise` in the test suite. The same
+review also confirmed — with probes, not by inspection — that no target default exists anywhere,
+that an unapplied rider contributes nothing while its stated state is named unused, that a rider's
+value comes from its own rank's table (never the max-rank row), and that strict mode withholds
+rather than zeroes. Two ambiguities it flagged are now *named* instead of silently resolved: a
+conflicting second spelling of a target field (`armor` + `armour`) appears in `context_ignored`,
+and a non-name `immune_to` entry is quoted back in an `unknown` row.
+
+**B. Source/provenance verification against the live wiki.** The reviewer re-fetched the raw
+wikitext at every claimed revision (`Armor` 2814011, `Damage` 2812034, `Damage/Overview_Table`
+2792179, `Damage/Corrosive_Damage` 2804597, `Damage/Calculation` 2804415, `Overguard` 2808615,
+`Faction_Damage_Bonus` 2804854, the three Umbral pages) and diffed them against the current pages:
+byte-identical, so the pins are current, not stale. It spot-checked faction rows and the
+Bane-mod coverage rule, and reproduced the engine's published figures against the doc's §3 pins
+(504.00000000000006 / 0.3888444419044716 / 0.6111555580955284; 92.75 / 103.88 / 995.5132). Any
+residual discrepancy it reports is listed in the delegation message and in section 8.
+
+**C. Page semantic-authority audit.** No Warframe maths in the page: the target card's inputs are
+collected, validated for shape only, stored and posted; every figure printed comes from the
+`/api/planner/compute` payload. The one note it raised (a decimal-only regex inside the page's own
+storage validator, which the page's number inputs cannot produce but a hand-edited localStorage
+could) is recorded in section 8 as a limitation of the page's storage sanitiser, not of the engine.
+
+**D. Architecture review (six design questions).** Verdicts on record: the target state is carried
+by the context with no leak into the weapon engine (SOUND); the target path's trigger rule, the
+corrosive mechanic's different architecture (target armour, not a damage multiplier), and the
+Umbral pass all survived scrutiny; the one structural critique accepted is that a *second* rider
+needs a stat the engine already models **and** a source pin per rider, so "the next rider" is one
+wiring entry plus provenance — not pure data. That is recorded in section 8, and it matches the
+Phase 6 proposal 1.
+
+The reviewers found nothing that required a design change; everything they broke was an input
+boundary, and every boundary they broke is now pinned.
 
 ## 8. Honest known limitations
 
 * **Only one conditional rider family is applied** (On-Kill multishot riders). The buff-state model
-  is general (instant/averaged, any trigger key it knows), but each new rider still needs its own
-  wiring and a source; the phase deliberately did not bulk-enable the corpus.
+  is general (instant/averaged, any trigger key it knows), but each new rider needs (a) a stat the
+  engine already models and (b) a source pin of its own — the architecture review's one accepted
+  critique. So a new rider is one wiring entry plus provenance, not free.
+* **The page's storage sanitiser is a shape check, not a type system.** A hand-edited or foreign
+  `localStorage` value that is not a plain decimal string is dropped by the page's own validator
+  (the engine would have refused it precisely); the page's number inputs cannot produce one.
 * **The target model has no timeline.** Stack counts are states. Rotations, proc rates, stack
   replacement above a cap, and enemy actions are out of scope by design — which is why several
   mechanics refuse rather than approximate.

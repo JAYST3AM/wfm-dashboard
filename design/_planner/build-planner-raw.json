@@ -1,6 +1,6 @@
 {
- "started": "2026-09-30T07:54:43.473Z",
- "base": "http://127.0.0.1:58308",
+ "started": "2026-09-30T08:13:48.469Z",
+ "base": "http://127.0.0.1:54752",
  "puppeteer": "F:/VSC Projects/pb-bench/node_modules/puppeteer-core",
  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
  "checks": [
@@ -630,7 +630,7 @@
    "title": "an impossible build shows the engine's own reason, not a dead engine",
    "ok": true,
    "expected": "the refusal code the engine sent appears in #plValidity",
-   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod\",\"banner\":\"\"}",
+   "observed": "{\"codes\":[\"duplicate_mod\"],\"shown\":\"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhes\",\"banner\":\"\"}",
    "note": "",
    "diagnostic": false
   },
@@ -963,7 +963,7 @@
    "title": "the card names its source and whether that source is live",
    "ok": true,
    "expected": "a freshness label, and - when the source cannot be shown to be live - the warning repeated",
-   "observed": "Last seen 16 hours ago / ",
+   "observed": "Last seen 17 hours ago / ",
    "note": "",
    "diagnostic": false
   },
@@ -1756,7 +1756,7 @@
    "engine_codes": [
     "duplicate_mod"
    ],
-   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mods/Rifle/WeaponGrenadeStickyModAdhesive Blast carries stats the engine does not model: grenades have #% chance ",
+   "shown": "Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhesive Blast carries stats the engine does not model: grenades have #% chance to stick to surfaces.code · unmodel",
    "banner_hidden": true,
    "banner_text": ""
   },
@@ -2190,7 +2190,7 @@
      "text": "Companion weaponPrime Laser RifleConfig A · Rank 30"
     }
    ],
-   "meta": "Last seen 16 hours ago",
+   "meta": "Last seen 17 hours ago",
    "note": "",
    "buttons": [
     "plCurrentRefresh",
@@ -2250,7 +2250,7 @@
  ],
  "notes": [],
  "ids": {},
- "finished": "2026-09-30T07:55:47.687Z",
+ "finished": "2026-09-30T08:14:53.628Z",
  "verdict": {
   "pass": true,
   "checks_total": 117,

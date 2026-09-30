@@ -65,6 +65,34 @@ def amplifier(stacks):
     return round(BASE_AMPLIFIER + PER_STACK * (stacks - 1), 4)
 
 
+def _immune_names(ctx):
+    """`target.immune_to` -> a list of lowercased status names, or a refusal row (never a raise).
+
+    A string is one name; a list/tuple must hold only strings; anything else - a number, a bool, a
+    dict, a list with junk in it - is a stated value this engine cannot interpret, and it says so.
+    """
+    raw = conditions.get(ctx, 'target', 'immune_to')
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [raw.strip().lower()]
+    if isinstance(raw, (list, tuple)):
+        if all(isinstance(x, str) for x in raw):
+            return [x.strip().lower() for x in raw]
+        return conditions.result(
+            STATUS, conditions.UNKNOWN,
+            'target.immune_to %r carries entries that are not status names' % (list(raw),),
+            reason_code='condition_unknown', inputs={'immune_to': repr(list(raw))},
+            missing=['target.immune_to as a status name or a list of names'],
+            source=SOURCE, formula=FORMULA)
+    return conditions.result(
+        STATUS, conditions.UNKNOWN,
+        'target.immune_to %r is not a status name or a list of names' % (raw,),
+        reason_code='condition_unknown', inputs={'immune_to': repr(raw)},
+        missing=['target.immune_to as a status name or a list of names'],
+        source=SOURCE, formula=FORMULA)
+
+
 def evaluate(ctx):
     """The Viral mechanic against the supplied target state -> a condition-shaped result.
 
@@ -75,10 +103,13 @@ def evaluate(ctx):
         return stack_state
     stacks = conditions.get(ctx, 'target', 'viral_stacks')
     protection = conditions.get(ctx, 'target', 'protection')
-    immune = conditions.get(ctx, 'target', 'immune_to') or []
-    if isinstance(immune, str):
-        immune = [immune]
-    if any(str(x).strip().lower() == STATUS for x in immune if isinstance(x, (str, int))):
+    immune = _immune_names(ctx)
+    if isinstance(immune, dict):
+        # `_immune_names` returns a refusal row when the stated value is not a name or a list of
+        # names: iterating it (the old shape) raised TypeError on a number, and silently reading a
+        # list of junk as "no immunity" was the same class of bug with a quieter symptom.
+        return immune
+    if STATUS in immune:
         return conditions.result(
             STATUS, conditions.UNSUPPORTED,
             'the caller states this target is immune to viral damage; the wiki notes some Deimos '

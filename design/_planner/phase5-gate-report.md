@@ -30,6 +30,8 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | `enemy/alias-armour-is-armour` the British spelling of armour is read as the armour it is | PASS |
 | `enemy/unsupported-target-fields-named` a stated target field with no consumer is refused by name, not dropped | PASS |
 | `enemy/non-object-target-ignored-named` a target that is not an object is named as ignored, never half-read | PASS |
+| `enemy/conflicting-alias-named` a conflicting second spelling is named, and the canonical field is the one used | PASS |
+| `enemy/malformed-never-crashes` a malformed target or buff shape is answered with a state, never raised | PASS |
 | `trace/target-stages` the target trace carries every stage from base damage to the mitigation | PASS |
 | `trace/provenance-on-every-row` the target and corrosive rows carry their wiki source with a revision id | PASS |
 | `refusals/phase-4-gate` the Phase 4 refusal-preservation gate still passes | PASS |
@@ -38,7 +40,7 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | `page/no-enemy-maths` no enemy/buff formula constant appears in the page | PASS |
 | `page/no-mitigation-copy` the page carries no armour/DR computation of its own | PASS |
 
-**30 checks, 0 failed.**
+**32 checks, 0 failed.**
 
 ## Falsification: does the gate catch breakage?
 
@@ -53,7 +55,7 @@ database: F:\VSC Projects\wfm-dashboard\data\build_data.json
 | unstated-rider-applies | a rider with no stated state is treated as one stack | yes | `buff/no-state-no-number`, `refusals/phase-4-gate` |
 | stacks-invented | an uptime without a stack count invents the maximum stack count | yes | `buff/junk-state-never-a-number` |
 | uptime-assumed | with no buff state the engine assumes 50% uptime at max stacks | yes | `buff/no-state-no-number`, `refusals/phase-4-gate` |
-| malformed-target-raises | a malformed target value crashes instead of answering unknown | yes | `check_enemy_inputs_are_required`, `check_refusal_registry_covers_new_paths` |
+| malformed-target-raises | a malformed target value crashes instead of answering unknown | yes | `check_enemy_inputs_are_required`, `enemy/malformed-never-crashes`, `check_refusal_registry_covers_new_paths` |
 | truthy-string-as-boolean | truthy strings are accepted as booleans | yes | `validate/booleans-are-booleans` |
 | corrosive-cap-approximated | an over-cap corrosive stack count produces a reduction | yes | `enemy/corrosive-invalid`, `refusals/phase-5-condition-codes-exercised` |
 | target-moves-phase-1 | the target path contaminates the Phase 1 numbers | yes | `enemy/target-does-not-move-phase-1` |

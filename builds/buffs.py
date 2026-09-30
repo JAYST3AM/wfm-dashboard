@@ -162,12 +162,20 @@ def evaluate_state(trigger, raw_state, max_stacks, mod=None, mod_name=None):
             'uptime %r is not a fraction in 0..1' % (uptime,),
             reason_code='condition_unknown', inputs=inputs,
             missing=['an uptime as a number in 0..1'], **where)
-    if uptime is not None and not (0.0 <= float(uptime) <= 1.0):
-        return conditions.result(
-            trigger, conditions.UNKNOWN,
-            'uptime %r is outside 0..1, so it is not a fraction of time' % (uptime,),
-            reason_code='condition_unknown', inputs=inputs,
-            missing=['an uptime as a number in 0..1'], **where)
+    if uptime is not None:
+        # the same unbounded-integer rule as the target fields: 10**400 is a stated value this
+        # engine cannot express, and it must answer rather than raise
+        try:
+            fraction = float(uptime)
+        except (OverflowError, ValueError):
+            fraction = None
+        if fraction is None or fraction != fraction or fraction in (float('inf'), float('-inf')) \
+                or not (0.0 <= fraction <= 1.0):
+            return conditions.result(
+                trigger, conditions.UNKNOWN,
+                'uptime %r is outside 0..1, so it is not a fraction of time' % (uptime,),
+                reason_code='condition_unknown', inputs=inputs,
+                missing=['an uptime as a number in 0..1'], **where)
     if active is not None and not isinstance(active, bool):
         return conditions.result(
             trigger, conditions.UNKNOWN,

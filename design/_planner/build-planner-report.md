@@ -1,14 +1,14 @@
 # Build planner — browser workflow gate (Phase 2)
 
-*ran 2026-09-30T07:55:47.687Z · verdict **PASS** · 121 checks, 0 failed*
+*ran 2026-09-30T08:14:53.628Z · verdict **PASS** · 121 checks, 0 failed*
 
 | field | value |
 |---|---|
 | repo | F:/VSC Projects/wfm-dashboard |
-| commit | cdcb837  "Gate: the Orders state polls for its answer instead of racing it" |
-| working tree | dirty (32 changed paths) |
-| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_ck175s_g |
-| page | http://127.0.0.1:58308/planner.html |
+| commit | 40a8435  "Phase 5: a stated target model, and one condition actually applied" |
+| working tree | dirty (7 changed paths) |
+| server | server.py booted as a module, WFM_DATA=C:\Users\jayde\AppData\Local\Temp\planner_gate_data_c5f9leyc |
+| page | http://127.0.0.1:54752/planner.html |
 | puppeteer | F:/VSC Projects/pb-bench/node_modules/puppeteer-core |
 | chrome | C:/Program Files/Google/Chrome/Application/chrome.exe |
 | raw numbers | build-planner-raw.json |
@@ -87,7 +87,7 @@
 | ✅ | engine-math | the toolbar capacity floor is the engine's own number | hint names the engine floor 0 and its binding state | capacity floor 0 |
 | ✅ | legality | the Exilus switch decides: locked, the slot stays empty; unlocked and focused, the mod lands there | locked: Exilus slot empty; unlocked + focused: the mod is in the Exilus slot | {"locked":null,"unlocked":"/Lotus/Upgrades/Mods/Rifle/Event/Arbitration/JumpRefreshOnKillRifleMod","locked_mod":"Adhesive Blast","unlocked_mod":"Aeria… |
 | ✅ | answer-contract | a real answer hides the error banner and says so | banner hidden, data-planswer=yes, a capacity figure | {"hidden":true,"answer":"yes","capUsed":"23","ok":true,"has_result":true,"error":null,"val_errors":[],"banner":""} |
-| ✅ | answer-contract | an impossible build shows the engine's own reason, not a dead engine | the refusal code the engine sent appears in #plValidity | {"codes":["duplicate_mod"],"shown":"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · /Lotus/Upgrades/Mod","banner":""} |
+| ✅ | answer-contract | an impossible build shows the engine's own reason, not a dead engine | the refusal code the engine sent appears in #plValidity | {"codes":["duplicate_mod"],"shown":"Adhesive Blast is installed in two slotscode · duplicate_mod · slots · Adhesive BlastAdhes","banner":""} |
 | ✅ | answer-contract | a refusal is not reported as a failure to answer | the refusal reached the page and the error banner stayed hidden | banner hidden: true, codes: duplicate_mod, banner: "" |
 | ✅ | storage | a malformed v1 payload is replaced in full, not merged | the stored key is rewritten to a clean v1 document | {"version":1,"equipment_id":"/Lotus/Weapons/Tenno/Rifle/BratonPrime","equipment_rank":null,"orokin":false,"exilus_unlocked":false,"mastery_rank":28,"a… |
 | ✅ | head-card | at 1920x1080 the selector sits in the head card and the dropdown hangs off it, unclipped | button inside the card; card not scrolled; dropdown 2-14px under the button, aligned, hit-… | {"btnInsideHead":true,"headContainsChildren":true,"headScrollTop":0,"headClearsBar":true,"popAnchored":true,"popUnclipped":true,"searchVisible":true,"… |
@@ -124,7 +124,7 @@
 | ✅ | hygiene | no page error over the whole drive | 0 page errors | 0:  |
 | ✅ | hygiene | no failed request outside the dev-server burst class | 0 failed requests | 0: [] |
 | ✅ | current | the Current Loadout card lists every equipped category from the save | six rows: warframe, primary, secondary, melee, companion, companion weapon | WarframeGauss PrimeConfig A · Rank 30 \\| PrimaryBraton PrimeConfig A · Rank 30 \\| SecondaryKohmakConfig A · Rank 0 \\| MeleeRipkasConfig A · Rank unkno… |
-| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 16 hours ago /  |
+| ✅ | current | the card names its source and whether that source is live | a freshness label, and - when the source cannot be shown to be live - the warning repeated | Last seen 17 hours ago /  |
 | ✅ | current | the imported view is read-only: no editable field, only its own buttons | no input/textarea/contenteditable, and refresh/view/clone as the only affordances | editable=0 buttons=plCurrentRefresh,plCurrentView,plCurrentClone |
 | ✅ | current | the card adds no floating surface (the workspace rule holds here too) | no position:fixed element inside #plCurrent | fixed layers: 0 |
 | ✅ | current | the imported build shows its mods with the ranks the save records | Serration at rank 10, read from the copy the save points at | 1SerrationR10 |
