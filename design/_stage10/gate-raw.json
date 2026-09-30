@@ -1,10 +1,10 @@
 {
  "meta": {
-  "started": "2026-09-30T02:49:33.018Z",
-  "finished": "2026-09-30T02:52:34.759Z",
+  "started": "2026-09-30T06:33:07.328Z",
+  "finished": "2026-09-30T06:36:10.716Z",
   "base": "http://127.0.0.1:8787",
   "repo": "F:/VSC Projects/wfm-dashboard",
-  "node": "v24.13.0",
+  "node": "v26.7.0",
   "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
   "slug": "primed_continuity",
   "viewports": [
@@ -1297,7 +1297,7 @@
    "settings_pill": "Not live#st-pill dry",
    "trade_kill_meta": "disarmed",
    "trade_kill_line": "9/25/2026, 23:02:47 Not live",
-   "trade_plan_meta": "· built 68h ago · MR 22",
+   "trade_plan_meta": "· built 72h ago · MR 22",
    "home_alerts": "Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically"
   }
  },
@@ -1310,7 +1310,7 @@
    "state": "home",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 149,
+   "scanned": 150,
    "low": 0,
    "lowSample": [],
    "literalCount": 171,
@@ -1325,7 +1325,7 @@
    "state": "home",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 149,
+   "scanned": 150,
    "low": 0,
    "lowSample": [],
    "literalCount": 171,
@@ -1340,7 +1340,7 @@
    "state": "home",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 149,
+   "scanned": 150,
    "low": 0,
    "lowSample": [],
    "literalCount": 171,
@@ -1355,7 +1355,7 @@
    "state": "home",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 149,
+   "scanned": 150,
    "low": 0,
    "lowSample": [],
    "literalCount": 171,
@@ -1550,10 +1550,10 @@
    "state": "trade/orders",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 119,
+   "scanned": 114,
    "low": 0,
    "lowSample": [],
-   "literalCount": 167,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1565,10 +1565,10 @@
    "state": "trade/orders",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 119,
+   "scanned": 114,
    "low": 0,
    "lowSample": [],
-   "literalCount": 167,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1580,10 +1580,10 @@
    "state": "trade/orders",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 119,
+   "scanned": 114,
    "low": 0,
    "lowSample": [],
-   "literalCount": 167,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1595,10 +1595,10 @@
    "state": "trade/orders",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 119,
+   "scanned": 114,
    "low": 0,
    "lowSample": [],
-   "literalCount": 167,
+   "literalCount": 159,
    "unmeasured": 0,
    "newErrors": 0
   },
@@ -1790,7 +1790,7 @@
    "state": "mastery",
    "varBg": "#0d0f13",
    "bodyBg": "rgb(13, 15, 19)",
-   "scanned": 269,
+   "scanned": 268,
    "low": 0,
    "lowSample": [],
    "literalCount": 452,
@@ -1805,7 +1805,7 @@
    "state": "mastery",
    "varBg": "#120c0e",
    "bodyBg": "rgb(18, 12, 14)",
-   "scanned": 269,
+   "scanned": 268,
    "low": 0,
    "lowSample": [],
    "literalCount": 452,
@@ -1820,7 +1820,7 @@
    "state": "mastery",
    "varBg": "#eef2f7",
    "bodyBg": "rgb(238, 242, 247)",
-   "scanned": 269,
+   "scanned": 268,
    "low": 0,
    "lowSample": [],
    "literalCount": 452,
@@ -1835,7 +1835,7 @@
    "state": "mastery",
    "varBg": "#f6f6f3",
    "bodyBg": "rgb(246, 246, 243)",
-   "scanned": 269,
+   "scanned": 268,
    "low": 0,
    "lowSample": [],
    "literalCount": 452,
@@ -15644,7 +15644,7 @@
    "title": "Orders shows its status chips and either a book or an honest reason",
    "ok": true,
    "expected": "chips >= 3, rows or a reason",
-   "rendered": "4 chips, 9 rows, 12 ladder rows, item \"· Primed Continuity\"",
+   "rendered": "4 chips, 6 rows, 12 ladder rows, item \"· Primed Continuity\"",
    "note": ""
   },
   {
@@ -15796,7 +15796,7 @@
    "title": "planner landing: the page declares itself and its three columns exist",
    "ok": true,
    "expected": "data-shell=planner, picker + grid + stats present, status names the DB",
-   "rendered": "{\"shell\":\"planner\",\"picker\":true,\"grid\":true,\"stats\":true,\"status\":\"db 0132f6af · 1809 mods · 777 items\"}",
+   "rendered": "{\"shell\":\"planner\",\"picker\":true,\"grid\":true,\"stats\":true,\"status\":\"db fd1b15dd · 1809 mods · 777 items\"}",
    "note": ""
   },
   {
@@ -15949,7 +15949,7 @@
    "ok": true,
    "expected": "ipChartCard shown",
    "rendered": "ipPickCard:hidden ipChartCard:shown ipTradesCard:shown ipStatsCard:shown",
-   "note": "title=Primed Continuity | meta=25 points · newest Sep 30 10:17 AM"
+   "note": "title=Primed Continuity | meta=26 points · newest Sep 30 02:42 PM"
   },
   {
    "group": "load",
@@ -16337,10 +16337,10 @@
   }
  ],
  "orders": {
-  "rows": 9,
+  "rows": 6,
   "ladder": 12,
   "chips": 4,
-  "meta": "· 1227 sell · 104 buy · 0s ago · ingame+online · 9 of 80 shown",
+  "meta": "· 1212 sell · 102 buy · 30s ago · cached · ingame+online · 6 of 80 shown",
   "item": "· Primed Continuity",
   "err": ""
  },
@@ -16372,7 +16372,7 @@
    "invTotals": "876 stacks (showing 400) Filtered value 31,057p",
    "killMeta": "disarmed",
    "killLine": "9/25/2026, 23:02:47 Not live",
-   "planMeta": "· built 68h ago · MR 22",
+   "planMeta": "· built 72h ago · MR 22",
    "homeAlerts": "Could not sign in to the market siteCloudflare check (403)19 planned listings parkedNot live - plan onlyNothing is posted automatically",
    "rowCounts": {
     "dealsList": 14,
@@ -16401,7 +16401,7 @@
    "heldChildren": 15,
    "heldHeadish": 0,
    "chips": "MR 22 Trades 22/day left Priced 803/876",
-   "foot": "WFM Trader · updated 12:49 · 471 events",
+   "foot": "WFM Trader · updated 16:33 · 471 events",
    "notLive": [
     "Not live#dim small explain"
    ]
@@ -16419,9 +16419,9 @@
    "meta": "Showing 180 / 1551 mods"
   },
   "collection": {
-   "ovPct": "38%",
-   "ovCount": "317 / 834 collected",
-   "ovFoot": "311 mastered, not owned1 owned, not mastered517 missing14 buyable",
+   "ovPct": "38.4%",
+   "ovCount": "320 / 834 collected",
+   "ovFoot": "314 mastered, not owned1 owned, not mastered514 missing14 buyable",
    "clMeta": "Warframes · 56/120 collected · 64 missing · 120 shown",
    "tiles": 120,
    "relicMeta": "Relics · 122/805 owned · 34 dropping now · 805 shown",
@@ -16429,7 +16429,7 @@
    "relMin": null,
    "mhStats": "Mastered319 / 834Buildable now4Owned, not mastered1Missing514",
    "mhHead": "Mastery 22to 23: 112,500 XPItem mastery1,166,000items only",
-   "mhMeta": "· synced 2h ago"
+   "mhMeta": "· synced 6h ago"
   },
   "settings": {
    "notLive": [
@@ -16489,7 +16489,7 @@
    ],
    "deepTitle": "Primed Continuity",
    "deepLead": "Advisor: already listed · list at 69p · slug primed_continuity",
-   "deepMeta": "25 points · newest Sep 30 10:17 AM",
+   "deepMeta": "26 points · newest Sep 30 02:42 PM",
    "deepCards": [
     "ipPickCard:hidden",
     "ipChartCard:shown",

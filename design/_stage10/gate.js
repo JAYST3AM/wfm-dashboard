@@ -672,7 +672,14 @@ function idsCheck() {
       rec.state = '#trade/orders';
       m = rec.mark();
       await page.goto(BASE + '/#trade/orders', { waitUntil: 'load', timeout: 45000 });
-      await sleep(2800);
+      /* the tab fetches when it opens: poll for the answer instead of racing it with a fixed
+         sleep (a busy machine lost that race once and the state read as empty) */
+      await page.waitForFunction(() => {
+        const rows = document.querySelectorAll('#tp-orders [data-user]').length;
+        const err = document.getElementById('ordErr');
+        return rows > 0 || (err && err.textContent.trim());
+      }, { timeout: 20000 }).catch(() => {});
+      await sleep(500);
       const tabs = await page.evaluate(() => [...document.querySelectorAll('#tradeTabs [role="tab"]')]
         .map((e) => e.id));
       addCheck('load', 'Trade puts Session first in the strip, then Orders, and Sell still opens',
