@@ -27,6 +27,16 @@ MALFORMED = os.path.join(FIXTURES, 'save-malformed.json')
 
 @pytest.fixture(scope='module')
 def db():
+    """The ingested database, when this checkout has one.
+
+    `data/` is gitignored and the CI runner never ingests, so a missing database skips these tests
+    rather than failing the job: they are contract tests over the engine's own catalogue, and the
+    fixture save only means something against it. Locally (and after `python builds/ingest.py`) they
+    all run.
+    """
+    path = os.environ.get('WFM_BUILD_DB') or os.path.join(REPO, 'data', 'build_data.json')
+    if not os.path.exists(path):
+        pytest.skip('no ingested database at %s - run: python builds/ingest.py' % path)
     return data_mod.load()
 
 

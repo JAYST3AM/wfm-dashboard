@@ -264,7 +264,10 @@ def test_main_writes_the_plat_ledger_contract(pl, tmp_path, capsys):
     assert set(doc) == {'generated', 'sources', 'totals', 'days', 'shown', 'all_days',
                         'self_check', 'notes'}
     assert doc['all_days'] is False and doc['shown'] == 2 == len(doc['days'])
-    assert doc['generated'].startswith(time.strftime('%Y-%m-%d'))
+    # Compare against the clock the writer stamped it with, not the runner's own zone: on a UTC
+    # runner `time.strftime` is a day behind Melbourne for ten hours of every day, so the old
+    # assertion failed for half the globe's working day.
+    assert doc['generated'].startswith(pl.local_stamp(time.time(), pl.local_tz())[:10])
 
     assert set(doc['sources']) == {'plat_history', 'trade_log', 'export_arrays', 'export_note',
                                    'ee_log'}
