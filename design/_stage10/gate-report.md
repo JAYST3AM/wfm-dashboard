@@ -1,6 +1,6 @@
 # WFM Trader - release acceptance gate
 
-**Run:** 2026-09-30 18:32:11  (2026-09-30T18:32:11.872779+10:00) -> live measurements finished 18:35:17  
+**Run:** 2026-09-30 18:44:53  (2026-09-30T18:44:53.091343+10:00) -> live measurements finished 18:47:59  
 **App:** http://127.0.0.1:8787   **Reported by:** design/_stage10/gate.py (gate.js + the repo copy-diet test)  
 **Raw numbers:** design/_stage10/gate-raw.json  
 **Server reachable:** True
@@ -172,10 +172,10 @@ Thresholds: unreadable = text/background contrast below **2.2:1** (WCAG AA wants
 
 | theme | mode | page states | elements scanned | unreadable (<2.2:1) | colour outside the 10 palette entries | unmeasured (gradient bg) | errors |
 |---|---|---|---|---|---|---|---|
-| Vor Orange | dark | 17 | 3223 | 0 | 9030 | 192 | 0 |
-| Kuva Crimson | dark | 17 | 3224 | 0 | 9031 | 192 | 0 |
-| Frost Light | light | 17 | 3224 | 0 | 9031 | 192 | 0 |
-| Cephalon White | light | 17 | 3224 | 0 | 9031 | 192 | 0 |
+| Vor Orange | dark | 17 | 3215 | 0 | 9010 | 192 | 0 |
+| Kuva Crimson | dark | 17 | 3216 | 0 | 9011 | 192 | 0 |
+| Frost Light | light | 17 | 3216 | 0 | 9011 | 192 | 0 |
+| Cephalon White | light | 17 | 3216 | 0 | 9011 | 192 | 0 |
 
 "Colour outside the palette" is informational: the semantic tones (`--up` green, `--down` red, warn red) are literals by design and are expected in that count. The check that fails on it is the cross-theme one below.
 
