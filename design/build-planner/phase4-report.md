@@ -179,24 +179,28 @@ python -m pytest tests/test_condition_states.py tests/test_conditional_damage.py
 python -m pytest tests/test_refusal_preservation.py -q
   5 passed
 
-python design/_stage10/gate.py            GATE PASS   (the trader app is untouched by this phase)
+python design/_planner/build_planner_gate.py
+  PASS - 115 checks, 0 failed (report: design/_planner/build-planner-report.md)
+
+python design/_stage10/gate.py            GATE PASS - 0 of 121 checks failed, 38 page states driven
+                                          (the trader app, run because the shared server and the
+                                           planner page were touched)
 python design/_session/workflow_gate.py   WORKFLOW PASS - 23 of 23 checks
 
 python -m pytest tests -q
   2096 passed, 5 skipped in 138.93s
-  (the phase's own four files together, run in one command: the number the Results block quotes,
-   after F5 fixed the env-var leak that made the four-file line fail before)
+  (the phase's own four files together, in one command: 97 passed - the line that failed before F5
+   fixed the leaked WFM_BUILD_DB environment variable)
 
-python design/_planner/build_planner_gate.py
-  PASS - 115 checks, 0 failed (report: design/_planner/build-planner-report.md)
-  `python design/_stage10/gate.py`  (the Trader app's acceptance gate, unchanged by this
-  phase: run because the shared server and the page were touched)
-  PASS - 0 of 121 checks failed, 38 page states driven
-  `python design/_session/workflow_gate.py`
-  WORKFLOW PASS - 23 of 23 checks
-  the two new Phase 4 checks: a stated target survives a reload and is posted exactly as stated;
-  viral stacks stated without a landing = unknown (withheld), and nothing stated = deterministic
-  (the Conditions badge read "conditional · 1 condition", withheld ["viral"], condition "viral:unknown")
+GitHub Actions `tests` (ubuntu-latest, clean checkout, no `data/`):
+  success - run 36662442760 on d5a1e70, every step green. The first green run on `main` in three
+  days, because two pre-existing reds are fixed in the same revision (see "Two reds that were there
+  before this phase").
+
+The page contract, end to end (from the browser gate): nothing stated posts no context at all, a
+stated faction and stack count survive a reload, the request carries exactly what was stated, and
+viral stacks stated without a landing come back `unknown` (withheld `['viral']`, badge
+"conditional · 1 condition").
 ```
 
 The browser gate (115 checks) additionally proves the page contract end to end: nothing stated
@@ -263,6 +267,22 @@ check bites.
   validation-strictness change, and Phase 4's mandate was crash-safety plus conditions.
 * **Viral is one piece of one status.** Stacking *over time*, the 6-second window, Heat/Slash/
   Corrosive/Magnetic, enemy health-type modifiers and armour stripping are all still refused.
+
+## Two reds that were there before this phase, and are not any more
+
+CI on `main` had been failing since the Phase 3 commits (`b6cb0c3`, `829e2083`), for reasons that had
+nothing to do with a code path — the runner has no ingested database, so
+
+* `tests/test_player_import.py` raised `FileNotFoundError: no build database at
+  .../data/build_data.json` in **5 tests and 17 errors**, and
+* `tests/test_plat_ledger.py::test_main_writes_the_plat_ledger_contract` compared the ledger's
+  `generated` stamp against `time.strftime` in the *runner's* zone while the writer stamps Melbourne
+  time, so for ten hours of every UTC day the two dates differ by one and the assertion failed.
+
+Both are fixed in this revision: the database-dependent tests skip when the ingest is absent and run
+in full where it is (verified both ways — 2096 passed / 5 skipped locally, 21 passed vs 21 skipped in
+the import module alone, and the runner green), and the ledger test compares against the writer's own
+clock. This is not Phase 4 work; it is what "the tests pass" has to mean before a phase can claim it.
 
 ## 5. Deferred to Phase 5 (deliberately)
 
